@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init)",
+      "Bash(git add README.md)",
+      "Bash(git commit -m \"first commit\")",
+      "Bash(git branch -M main)",
+      "Bash(git remote add origin https://github.com/AK1699/Cognitest-AI.git)",
+      "Bash(git push -u origin main)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
