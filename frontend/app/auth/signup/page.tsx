@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
@@ -16,6 +17,7 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { signup } = useAuth()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,6 +54,7 @@ export default function SignUpPage() {
     try {
       await signup(email, username, password, fullName || undefined)
       toast.success('Account created successfully!')
+      router.push('/dashboard/create-organization')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     } finally {
@@ -96,6 +99,13 @@ export default function SignUpPage() {
                 Username *
               </label>
               <input
+                id="username"
+                type="text"
+                required
+                minLength={3}
+                maxLength={50}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                 placeholder="johndoe"
               />
@@ -107,6 +117,10 @@ export default function SignUpPage() {
                 Full name (optional)
               </label>
               <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                 placeholder="John Doe"
               />
@@ -128,8 +142,9 @@ export default function SignUpPage() {
                 placeholder="Enter your password"
               />
               <button
-                className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"
+                type="button"
                 onClick={(e) => { e.preventDefault(); setShowPassword(!showPassword); }}
+                className="absolute top-1/2 -translate-y-1/2 right-0 pr-3 text-gray-500 dark:text-gray-400 z-10"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
