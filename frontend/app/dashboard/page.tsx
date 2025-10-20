@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Building2, Plus, FolderKanban } from 'lucide-react'
 import Link from 'next/link'
 import { UserNav } from '@/components/layout/user-nav'
+import { Sidebar } from '@/components/layout/sidebar'
 
 interface Organisation {
   id: string
@@ -72,24 +73,29 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="w-full px-6 sm:px-8 lg:px-12">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo & Organization */}
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold text-primary">CogniTest</h1>
+    <div className="flex min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 dark:bg-gray-900">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-sm dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="w-full px-6 sm:px-8 lg:px-12">
+            <div className="flex justify-between items-center h-16">
+              {/* Logo & Organization */}
+              <div className="flex items-center gap-4 lg:ml-0 ml-12">
+                <h1 className="text-2xl font-semibold text-primary">CogniTest</h1>
+              </div>
+
+              {/* User Menu */}
+              <UserNav />
             </div>
-
-            {/* User Menu */}
-            <UserNav />
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="w-full px-6 sm:px-8 lg:px-12 py-8">
+        {/* Main Content */}
+        <main className="flex-1 w-full px-6 sm:px-8 lg:px-12 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-4xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -189,7 +195,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

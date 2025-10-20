@@ -9,7 +9,10 @@ from app.core.config import settings
 from app.core.database import Base
 from app.models.user import User
 from app.models.organisation import Organisation
-from app.models.project import Project  # Import all models
+from app.models.project import Project
+from app.models.test_plan import TestPlan
+from app.models.test_suite import TestSuite
+from app.models.test_case import TestCase
 
 async def init_db():
     """Create all database tables"""

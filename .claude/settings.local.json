@@ -3,7 +3,27 @@
     "allow": [
       "Bash(curl -s http://localhost:8000/api/v1/organisations/ -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzRhYWU1ZS1mMzUzLTRlMDMtODFjNy1iMTUzYzZlODZiYzIiLCJlbWFpbCI6Imtzc2FrYXNoMTY5OUBnbWFpbC5jb20iLCJleHAiOjE3NjEwNDY4NjEsInR5cGUiOiJhY2Nlc3MifQ.V0epj9B3hfm0sS9IfJ06r2_eH02cRAHrouZye73U6xY\")",
       "Bash(curl -s http://localhost:8000/health)",
-      "Bash(psql -U postgres -d cognitest -c \"SELECT id, name, owner_id, created_at FROM organisations ORDER BY created_at DESC LIMIT 5;\")"
+      "Bash(psql -U postgres -d cognitest -c \"SELECT id, name, owner_id, created_at FROM organisations ORDER BY created_at DESC LIMIT 5;\")",
+      "Bash(alembic revision --autogenerate -m \"Add test_plans, test_suites, and test_cases tables\")",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(curl -s -X GET \"http://localhost:8000/api/v1/test-plans/\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzRhYWU1ZS1mMzUzLTRlMDMtODFjNy1iMTUzYzZlODZiYzIiLCJlbWFpbCI6Imtzc2FrYXNoMTY5OUBnbWFpbC5jb20iLCJleHAiOjE3NjEwNDY4NjEsInR5cGUiOiJhY2Nlc3MifQ.V0epj9B3hfm0sS9IfJ06r2_eH02cRAHrouZye73U6xY\")",
+      "Bash(pkill -9 -f \"uvicorn app.main:app\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"testuser@cognitest.ai\"\",\"\"password\"\":\"\"SecurePass123\"\"}')",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Njk0NWU3Yy1kYTNkLTRkMGMtYjA1ZC00ZTM3OTY1YzRlMGQiLCJlbWFpbCI6InRlc3R1c2VyQGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTA2NTA5NSwidHlwZSI6ImFjY2VzcyJ9.91sZJDsVtcXDG9wz7nMS9_urt3isHz_utT19I4fJIb4\")",
+      "Bash(curl -s http://localhost:8000/api/v1/organisations/ -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(curl -s \"http://localhost:8000/api/v1/projects/?organisation_id=db6d72ab-45e5-436c-a035-42bcaa398f3c\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/test-plans/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\n    \"\"name\"\": \"\"User Authentication Test Plan\"\",\n    \"\"description\"\": \"\"Test plan for user authentication features\"\",\n    \"\"project_id\"\": \"\"84023b43-9f73-4079-b816-6eac57090e0b\"\",\n    \"\"objectives\"\": [\"\"Verify login flow\"\", \"\"Test password reset\"\", \"\"Validate session management\"\"],\n    \"\"tags\"\": [\"\"authentication\"\", \"\"security\"\"],\n    \"\"created_by\"\": \"\"testuser@cognitest.ai\"\"\n}')",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Njk0NWU3Yy1kYTNkLTRkMGMtYjA1ZC00ZTM3OTY1YzRlMGQiLCJlbWFpbCI6InRlc3R1c2VyQGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTA2NTkwMiwidHlwZSI6ImFjY2VzcyJ9.xWuCs1FGzGkHq3-IgwtfOcdF_E2H67JF71D2-cnsRbc\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/test-suites/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\n    \"\"name\"\": \"\"Login Flow Test Suite\"\",\n    \"\"description\"\": \"\"Tests for login functionality\"\",\n    \"\"project_id\"\": \"\"84023b43-9f73-4079-b816-6eac57090e0b\"\",\n    \"\"test_plan_id\"\": \"\"11e2878b-f26e-47f5-86b0-66d3a889c45a\"\",\n    \"\"tags\"\": [\"\"login\"\", \"\"authentication\"\"],\n    \"\"created_by\"\": \"\"testuser@cognitest.ai\"\"\n}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/test-cases/ -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\n    \"\"title\"\": \"\"Test successful login with valid credentials\"\",\n    \"\"description\"\": \"\"Verify that a user can successfully login with valid email and password\"\",\n    \"\"project_id\"\": \"\"84023b43-9f73-4079-b816-6eac57090e0b\"\",\n    \"\"test_suite_id\"\": \"\"d5b15cb9-a3e2-4987-a07a-eefff5c18279\"\",\n    \"\"steps\"\": [\n        {\"\"step_number\"\": 1, \"\"action\"\": \"\"Navigate to login page\"\", \"\"expected_result\"\": \"\"Login form is displayed\"\"},\n        {\"\"step_number\"\": 2, \"\"action\"\": \"\"Enter valid email\"\", \"\"expected_result\"\": \"\"Email field accepts input\"\"},\n        {\"\"step_number\"\": 3, \"\"action\"\": \"\"Enter valid password\"\", \"\"expected_result\"\": \"\"Password field accepts input\"\"},\n        {\"\"step_number\"\": 4, \"\"action\"\": \"\"Click login button\"\", \"\"expected_result\"\": \"\"User is redirected to dashboard\"\"}\n    ],\n    \"\"expected_result\"\": \"\"User successfully logs in and sees the dashboard\"\",\n    \"\"priority\"\": \"\"high\"\",\n    \"\"tags\"\": [\"\"smoke-test\"\", \"\"critical\"\"],\n    \"\"created_by\"\": \"\"testuser@cognitest.ai\"\"\n}')",
+      "Bash(curl -s \"http://localhost:8000/api/v1/test-plans/?project_id=84023b43-9f73-4079-b816-6eac57090e0b\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(curl -s \"http://localhost:8000/api/v1/test-cases/?project_id=84023b43-9f73-4079-b816-6eac57090e0b\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(redis-cli ping)",
+      "Bash(brew install redis)",
+      "Bash(brew services start redis)",
+      "Bash(pip install redis==5.0.1 hiredis==2.3.2)",
+      "Bash(python3 /tmp/test_redis.py)",
+      "Bash(python3 -c \"import langchain; import openai; print(''✅ LangChain and OpenAI libraries installed'')\")"
     ],
     "deny": [],
     "ask": []

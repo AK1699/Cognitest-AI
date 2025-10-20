@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
     MINIO_BUCKET: str = "cognitest"
 
+    # Redis (Cache)
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_CACHE_TTL: int = int(os.getenv("REDIS_CACHE_TTL", "3600"))  # 1 hour default
+
     # Celery (Using PostgreSQL as broker and result backend)
     CELERY_BROKER_URL: str = os.getenv(
         "CELERY_BROKER_URL",

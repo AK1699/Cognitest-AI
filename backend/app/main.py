@@ -4,16 +4,26 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
+from app.core.cache import close_redis, get_redis_client
 from app.api.v1 import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting Cognitest Backend...")
-    # Initialize database connections, AI models, etc.
+    # Initialize Redis connection
+    try:
+        redis_client = await get_redis_client()
+        await redis_client.ping()
+        print("✅ Redis connected successfully")
+    except Exception as e:
+        print(f"⚠️  Redis connection failed: {e}")
     yield
     # Shutdown
     print("👋 Shutting down Cognitest Backend...")
+    # Close Redis connection
+    await close_redis()
+    print("✅ Redis connection closed")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

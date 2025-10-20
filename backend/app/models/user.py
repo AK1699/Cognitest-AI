@@ -18,8 +18,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships - commented out until other models are ready
-    # projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+    # Relationships
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email}>"

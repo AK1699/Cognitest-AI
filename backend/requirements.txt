@@ -33,6 +33,10 @@ qdrant-client==1.7.3
 celery==5.3.6
 celery[sqlalchemy]==5.3.6
 
+# Cache
+redis==5.0.1
+hiredis==2.3.2
+
 # HTTP Client
 httpx==0.26.0
 aiohttp==3.9.3
