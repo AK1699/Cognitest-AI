@@ -86,10 +86,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Create Project Card */}
           <button
-            onClick={() => {
-              // For now, just show a message
-              alert('Project creation coming soon! This will allow you to create test projects.')
-            }}
+            onClick={() => router.push('/projects/new')}
             className="bg-white dark:bg-gray-800 rounded-xl p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary dark:hover:border-primary transition-all hover:shadow-lg group"
           >
             <div className="flex flex-col items-center text-center">

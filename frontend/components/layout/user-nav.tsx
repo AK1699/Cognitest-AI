@@ -12,9 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth-context"
-import { Building2, Plus, LogOut } from 'lucide-react'
+import { Building2, Plus, LogOut, FolderKanban } from 'lucide-react'
 
 interface Organisation {
+  id: string
+  name: string
+}
+
+interface Project {
   id: string
   name: string
 }
@@ -23,6 +28,7 @@ export function UserNav() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
+  const [project, setProject] = useState<Project | null>(null)
 
   useEffect(() => {
     const currentOrg = localStorage.getItem('current_organisation')
@@ -31,6 +37,15 @@ export function UserNav() {
         setOrganisation(JSON.parse(currentOrg))
       } catch (error) {
         console.error('Failed to parse organisation from localStorage', error)
+      }
+    }
+
+    const currentProject = localStorage.getItem('current_project')
+    if (currentProject) {
+      try {
+        setProject(JSON.parse(currentProject))
+      } catch (error) {
+        console.error('Failed to parse project from localStorage', error)
       }
     }
   }, [])
@@ -53,6 +68,12 @@ export function UserNav() {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
+            {project && (
+              <div className="flex items-center gap-2">
+                <FolderKanban className="w-4 h-4" />
+                <p className="text-sm font-medium leading-none">{project.name}</p>
+              </div>
+            )}
             <p className="text-sm font-medium leading-none">{user.full_name || user.username}</p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
