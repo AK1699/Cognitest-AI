@@ -25,33 +25,40 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token = credentials.credentials
-    payload = decode_token(token)
-
-    if payload is None:
-        raise credentials_exception
-
-    user_id: str = payload.get("sub")
-    if user_id is None:
-        raise credentials_exception
-
     try:
-        token_data = TokenData(user_id=UUID(user_id))
-    except (ValueError, AttributeError):
+        token = credentials.credentials
+        payload = decode_token(token)
+
+        if payload is None:
+            raise credentials_exception
+
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+
+        try:
+            token_data = TokenData(user_id=UUID(user_id))
+        except (ValueError, AttributeError, TypeError):
+            raise credentials_exception
+
+        result = await db.execute(select(User).where(User.id == token_data.user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise credentials_exception
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Inactive user"
+            )
+
+        return user
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Catch any other unexpected errors and return 401
         raise credentials_exception
-
-    result = await db.execute(select(User).where(User.id == token_data.user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise credentials_exception
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-
-    return user
 
 async def get_current_active_user(
     current_user: User = Depends(get_current_user)

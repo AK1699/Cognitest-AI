@@ -69,14 +69,14 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 text-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+        <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex items-center h-16">
             <Link
               href="/dashboard"
-              className="p-2 text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100"
+              className="p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-accent/10"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
@@ -86,24 +86,25 @@ export default function CreateProjectPage() {
 
       {/* Main Content */}
       <div className="flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-2xl">
           {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-4xl font-normal text-gray-900 mb-3">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-semibold text-gray-900 mb-3">
               Let's create a project
             </h1>
-            <p className="text-lg text-gray-500">
-              Projects help you organize your tests and collaborate with your team.
+            <p className="text-lg text-gray-500 font-normal">
+              Projects help you organize your tests and collaborate with your team
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Project Name */}
-            <div>
-              <label htmlFor="name" className="block text-base font-normal text-gray-900 mb-2">
-                Project name
-              </label>
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Project Name */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-2">
+                  Project name
+                </label>
               <input
                 id="name"
                 type="text"
@@ -113,43 +114,46 @@ export default function CreateProjectPage() {
                   setName(e.target.value)
                   setNameError(false)
                 }}
-                className={`w-full px-4 py-3 rounded-lg border ${
+                className={`w-full px-4 py-3.5 rounded-xl border ${
                   nameError
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-300 bg-white'
-                } text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-base`}
-                placeholder="e.g. My Awesome Project"
+                    ? 'border-red-300 bg-red-50 focus:ring-red-500'
+                    : 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-primary'
+                } text-gray-900 placeholder-gray-400 focus:ring-2 focus:border-transparent transition-all outline-none text-base`}
+                placeholder="Enter your project name"
                 maxLength={100}
               />
               {nameError && (
-                <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                  Name is required
+                <div className="mt-3 flex items-start gap-2 text-red-600 text-sm">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium">Project name is required</span>
                 </div>
               )}
-            </div>
+              </div>
 
-            {/* Project Description */}
-            <div>
-              <label htmlFor="description" className="block text-base font-normal text-gray-900 mb-2">
-                Description <span className="text-gray-400">(optional)</span>
-              </label>
-              <textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-base"
-                placeholder="A short description of your project."
-                rows={4}
-                maxLength={500}
-              />
-            </div>
+              {/* Project Description */}
+              <div>
+                <label htmlFor="description" className="block text-sm font-semibold text-gray-900 mb-2">
+                  Description <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-base"
+                  placeholder="A short description of your project"
+                  rows={4}
+                  maxLength={500}
+                />
+              </div>
 
-            {/* Create Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base shadow-lg shadow-blue-500/20"
-            >
+              {/* Create Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:opacity-90 text-white font-normal py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-base shadow-lg hover:shadow-xl mt-8"
+              >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -161,8 +165,9 @@ export default function CreateProjectPage() {
               ) : (
                 'Create project'
               )}
-            </button>
-          </form>
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

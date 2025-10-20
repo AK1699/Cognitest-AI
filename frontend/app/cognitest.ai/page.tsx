@@ -6,7 +6,7 @@ export default function LandingPage() {
     <div className="min-h-screen">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/cognitest.ai" className="flex items-center space-x-3">
@@ -49,7 +49,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      <section className="w-full px-6 sm:px-8 lg:px-12 pt-20 pb-16">
         <div className="text-center">
           {/* Badge */}
           <div className="inline-flex items-center space-x-2 rounded-full px-4 py-2 mb-8 bg-accent/10 border border-primary/20">
@@ -112,7 +112,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section id="features" className="w-full px-6 sm:px-8 lg:px-12 py-20">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-semibold text-gray-900 mb-4">
             Intelligent Testing, Automated
@@ -144,7 +144,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-gray-200 bg-white mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="w-full px-6 sm:px-8 lg:px-12 py-12">
           <div className="text-center text-gray-500">
             <p>&copy; 2025 Cognitest. Built with AI for the future of testing.</p>
           </div>

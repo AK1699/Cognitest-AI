@@ -113,26 +113,40 @@ async def refresh_token(request: RefreshTokenRequest):
     """
     Refresh access token using a valid refresh token.
     """
-    payload = decode_token(request.refresh_token)
+    try:
+        payload = decode_token(request.refresh_token)
 
-    if not payload or payload.get("type") != "refresh":
+        if not payload or payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+
+        user_id = payload.get("sub")
+        email = payload.get("email")
+
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+
+        # Create new tokens
+        access_token = create_access_token(data={"sub": user_id, "email": email})
+        refresh_token = create_refresh_token(data={"sub": user_id})
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
-
-    user_id = payload.get("sub")
-    email = payload.get("email")
-
-    # Create new tokens
-    access_token = create_access_token(data={"sub": user_id, "email": email})
-    refresh_token = create_refresh_token(data={"sub": user_id})
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):

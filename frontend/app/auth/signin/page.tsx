@@ -26,23 +26,23 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-50 via-white to-accent-50">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-semibold text-primary">Cognitest</h1>
+          <h1 className="text-4xl font-semibold text-primary">CogniTest</h1>
           <p className="text-gray-500 mt-2 font-normal">AI-Powered Testing Platform</p>
         </div>
 
         {/* Sign In Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Welcome back</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-center">Sign in to your account to continue</p>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 text-center">Welcome back</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-center font-normal">Sign in to your account to continue</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Email address
               </label>
               <input
@@ -58,7 +58,7 @@ export default function SignInPage() {
 
             {/* Password Input */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -81,7 +81,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary hover:opacity-90 text-white font-normal py-3.5 px-4 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">

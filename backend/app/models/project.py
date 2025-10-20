@@ -20,8 +20,9 @@ class Project(Base):
     description = Column(Text, nullable=True)
     status = Column(SQLEnum(ProjectStatus), default=ProjectStatus.ACTIVE)
 
-    # Owner/Team
+    # Owner/Team/Organisation
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    organisation_id = Column(UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False, index=True)
     team_ids = Column(JSON, default=list)  # List of team member IDs
 
     # Settings

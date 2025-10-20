@@ -13,7 +13,8 @@ class ProjectBase(BaseModel):
     settings: Dict[str, Any] = Field(default_factory=dict)
 
 class ProjectCreate(ProjectBase):
-    owner_id: str = Field(..., min_length=1)
+    owner_id: UUID = Field(...)
+    organisation_id: UUID = Field(...)
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -24,7 +25,8 @@ class ProjectUpdate(BaseModel):
 
 class ProjectResponse(ProjectBase):
     id: UUID
-    owner_id: str
+    owner_id: UUID
+    organisation_id: UUID
     ai_context: Dict[str, Any]
     created_at: datetime
     updated_at: Optional[datetime] = None

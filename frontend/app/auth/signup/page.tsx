@@ -63,23 +63,23 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-50 via-white to-accent-50">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary">Cognitest</h1>
-          <p className="text-gray-500 mt-2">AI-Powered Testing Platform</p>
+          <h1 className="text-4xl font-semibold text-primary">CogniTest</h1>
+          <p className="text-gray-500 mt-2 font-normal">AI-Powered Testing Platform</p>
         </div>
 
         {/* Sign Up Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Create account</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-center">Get started with Cognitest today</p>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 text-center">Create account</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-center font-normal">Get started with CogniTest today</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-orange-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Email address *
               </label>
               <input
@@ -95,7 +95,7 @@ export default function SignUpPage() {
 
             {/* Username Input */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-orange-700 mb-2">
+              <label htmlFor="username" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Username *
               </label>
               <input
@@ -113,8 +113,8 @@ export default function SignUpPage() {
 
             {/* Full Name Input */}
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Full name (optional)
+              <label htmlFor="fullName" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+                Full name <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 id="fullName"
@@ -128,7 +128,7 @@ export default function SignUpPage() {
 
             {/* Password Input */}
             <div className="relative">
-              <label htmlFor="password" className="block text-sm font-medium text-orange-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Password *
               </label>
               <input
@@ -155,7 +155,7 @@ export default function SignUpPage() {
 
             {/* Confirm Password Input */}
             <div className="relative">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-orange-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                 Confirm password *
               </label>
               <input
@@ -181,7 +181,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary hover:opacity-90 text-white font-normal py-3.5 px-4 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">

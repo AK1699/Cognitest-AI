@@ -145,23 +145,23 @@ export default function OrganisationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white/80 backdrop-blur-sm dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <Link
                 href="/dashboard"
-                className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-accent/10"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Organizations</h1>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Organizations</h1>
             </div>
             <Link
               href="/organisations/new"
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:opacity-90 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-normal"
             >
               <Plus className="w-4 h-4" />
               New Organization
@@ -171,19 +171,21 @@ export default function OrganisationsPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full px-6 sm:px-8 lg:px-12 py-8">
         {organisations.length === 0 ? (
           <div className="text-center py-12">
-            <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-6">
+              <Building2 className="w-10 h-10 text-primary" />
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
               No organizations yet
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-8 font-normal">
               Create your first organization to get started
             </p>
             <Link
               href="/organisations/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:opacity-90 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-normal"
             >
               <Plus className="w-5 h-5" />
               Create Organization
@@ -194,11 +196,11 @@ export default function OrganisationsPage() {
             {organisations.map((org) => (
               <div
                 key={org.id}
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
                       <Building2 className="w-6 h-6 text-primary" />
                     </div>
                     <div>
@@ -210,7 +212,7 @@ export default function OrganisationsPage() {
                           href={org.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 mt-1"
+                          className="text-sm text-primary hover:opacity-80 flex items-center gap-1 mt-1 font-normal"
                         >
                           Visit website
                           <ExternalLink className="w-3 h-3" />
@@ -223,13 +225,13 @@ export default function OrganisationsPage() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => handleSwitch(org)}
-                    className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="flex-1 px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg transition-all text-sm font-normal shadow-md hover:shadow-lg"
                   >
                     Switch
                   </button>
                   <button
                     onClick={() => handleEdit(org)}
-                    className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-accent/10 dark:hover:bg-gray-700 transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -249,46 +251,46 @@ export default function OrganisationsPage() {
       {/* Edit Modal */}
       {editingOrg && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
               Edit Organization
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
                   Organization Name *
                 </label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent focus:bg-white outline-none transition-all"
                   placeholder="Organization name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Website (optional)
+                <label className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+                  Website <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
                   type="url"
                   value={editWebsite}
                   onChange={(e) => setEditWebsite(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent focus:bg-white outline-none transition-all"
                   placeholder="https://example.com"
                 />
               </div>
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setEditingOrg(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-normal"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-primary hover:opacity-90 text-white rounded-lg transition-all disabled:opacity-50 shadow-md hover:shadow-lg font-normal"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>

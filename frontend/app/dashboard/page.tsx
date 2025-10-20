@@ -20,6 +20,17 @@ export default function DashboardPage() {
   const router = useRouter()
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
 
+  const loadOrganisation = () => {
+    const currentOrg = localStorage.getItem('current_organisation')
+    if (currentOrg) {
+      try {
+        setOrganisation(JSON.parse(currentOrg))
+      } catch (error) {
+        console.error('Failed to parse organisation:', error)
+      }
+    }
+  }
+
   useEffect(() => {
     if (loading) {
       return // Wait for the auth state to be determined
@@ -32,16 +43,23 @@ export default function DashboardPage() {
     }
 
     // Load current organization
+    loadOrganisation()
+
     const currentOrg = localStorage.getItem('current_organisation')
     if (!currentOrg) {
       router.push('/organisations/new')
       return
     }
 
-    try {
-      setOrganisation(JSON.parse(currentOrg))
-    } catch (error) {
-      router.push('/organisations/new')
+    // Listen for organisation changes
+    const handleOrganisationChange = () => {
+      loadOrganisation()
+    }
+
+    window.addEventListener('organisationChanged', handleOrganisationChange)
+
+    return () => {
+      window.removeEventListener('organisationChanged', handleOrganisationChange)
     }
   }, [user, router, loading])
 
@@ -54,14 +72,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-accent-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white/80 backdrop-blur-sm dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between items-center h-16">
             {/* Logo & Organization */}
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-primary">Cognitest</h1>
+              <h1 className="text-2xl font-semibold text-primary">CogniTest</h1>
             </div>
 
             {/* User Menu */}
@@ -71,13 +89,13 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full px-6 sm:px-8 lg:px-12 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-4xl font-semibold text-gray-900 dark:text-white mb-2">
             Welcome to {organisation.name}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-lg text-gray-500 dark:text-gray-400 font-normal">
             Get started by creating your first project
           </p>
         </div>
@@ -87,41 +105,41 @@ export default function DashboardPage() {
           {/* Create Project Card */}
           <button
             onClick={() => router.push('/projects/new')}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary dark:hover:border-primary transition-all hover:shadow-lg group"
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary dark:hover:border-primary transition-all shadow-md hover:shadow-lg group"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Plus className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Create New Project
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
                 Start testing with AI-powered tools
               </p>
             </div>
           </button>
 
           {/* Projects Placeholder */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                 <FolderKanban className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">Projects</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">0 active projects</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-normal">0 active projects</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
               No projects yet. Create one to get started!
             </p>
           </div>
         </div>
 
         {/* Info Section */}
-        <div className="mt-12 bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10 rounded-xl p-8 border border-primary/20">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+        <div className="mt-12 bg-gradient-to-br from-accent/10 to-transparent dark:from-primary/10 rounded-xl p-8 border border-primary/20 shadow-md">
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
             What's Next?
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -131,40 +149,40 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create a Project</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
                   Organize your testing workflow by creating projects
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                 2
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Generate Tests</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
                   Use AI to automatically generate comprehensive test cases
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                 3
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Run Tests</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
                   Execute your test suites and track results in real-time
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                 4
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Analyze Results</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">
                   Get insights and recommendations from AI analysis
                 </p>
               </div>

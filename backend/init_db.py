@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import settings
 from app.core.database import Base
 from app.models.user import User
-from app.models.organisation import Organisation  # Import all models
+from app.models.organisation import Organisation
+from app.models.project import Project  # Import all models
 
 async def init_db():
     """Create all database tables"""
