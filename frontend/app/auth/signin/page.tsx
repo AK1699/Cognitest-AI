@@ -31,13 +31,13 @@ export default function SignInPage() {
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-semibold text-primary">Cognitest</h1>
-          <p className="text-gray-600 mt-2 font-normal">AI-Powered Testing Platform</p>
+          <p className="text-gray-500 mt-2 font-normal">AI-Powered Testing Platform</p>
         </div>
 
         {/* Sign In Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome back</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Sign in to your account to continue</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Welcome back</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-center">Sign in to your account to continue</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Input */}
@@ -68,8 +68,13 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                placeholder="••••••••"
+                placeholder="Enter your password"
               />
+              <div className="text-right mt-2">
+                <Link href="/auth/forgot-password" className="text-sm font-medium text-primary hover:text-primary/90 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             {/* Sign In Button */}

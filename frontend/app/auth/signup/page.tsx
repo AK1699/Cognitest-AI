@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -11,6 +12,8 @@ export default function SignUpPage() {
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { signup } = useAuth()
 
@@ -62,18 +65,18 @@ export default function SignUpPage() {
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary">Cognitest</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">AI-Powered Testing Platform</p>
+          <p className="text-gray-500 mt-2">AI-Powered Testing Platform</p>
         </div>
 
         {/* Sign Up Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create account</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Get started with Cognitest today</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Create account</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-center">Get started with Cognitest today</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-orange-700 mb-2">
                 Email address *
               </label>
               <input
@@ -89,7 +92,7 @@ export default function SignUpPage() {
 
             {/* Username Input */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-orange-700 mb-2">
                 Username *
               </label>
               <input
@@ -110,40 +113,53 @@ export default function SignUpPage() {
             </div>
 
             {/* Password Input */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="relative">
+              <label htmlFor="password" className="block text-sm font-medium text-orange-700 mb-2">
                 Password *
               </label>
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-10"
+                placeholder="Enter your password"
               />
+              <button
+                className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"
+                onClick={(e) => { e.preventDefault(); setShowPassword(!showPassword); }}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 At least 8 characters with uppercase, lowercase, and number
               </p>
             </div>
 
             {/* Confirm Password Input */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="relative">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-orange-700 mb-2">
                 Confirm password *
               </label>
               <input
                 id="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 required
                 minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-10"
+                placeholder="Confirm your password"
               />
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); setShowConfirmPassword(!showConfirmPassword); }}
+                className="absolute top-1/2 -translate-y-1/2 right-0 pr-3 text-gray-500 dark:text-gray-400 z-10"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
             {/* Sign Up Button */}
