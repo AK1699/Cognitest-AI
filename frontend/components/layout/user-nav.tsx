@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +13,27 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut } from 'lucide-react'
-import Link from 'next/link'
+
+interface Organisation {
+  id: string
+  name: string
+}
 
 export function UserNav() {
   const { user, logout } = useAuth()
+  const router = useRouter()
+  const [organisation, setOrganisation] = useState<Organisation | null>(null)
+
+  useEffect(() => {
+    const currentOrg = localStorage.getItem('current_organisation')
+    if (currentOrg) {
+      try {
+        setOrganisation(JSON.parse(currentOrg))
+      } catch (error) {
+        console.error('Failed to parse organisation from localStorage', error)
+      }
+    }
+  }, [])
 
   if (!user) {
     return null
@@ -39,10 +58,12 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <Building2 className="w-4 h-4 mr-2" />
-          <span>Test Organisation</span>
-        </DropdownMenuItem>
+        {organisation && (
+          <DropdownMenuItem>
+            <Building2 className="w-4 h-4 mr-2" />
+            <span>{organisation.name}</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => router.push('/organisations/new')}>
           <Plus className="w-4 h-4 mr-2" />
           <span>Add Organisation</span>

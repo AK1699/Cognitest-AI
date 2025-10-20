@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { Building2, Plus, FolderKanban, LogOut } from 'lucide-react'
+import { Building2, Plus, FolderKanban } from 'lucide-react'
 import Link from 'next/link'
+import { UserNav } from '@/components/layout/user-nav'
 
 interface Organisation {
   id: string
@@ -15,11 +16,15 @@ interface Organisation {
 }
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
 
   useEffect(() => {
+    if (loading) {
+      return // Wait for the auth state to be determined
+    }
+
     // Check if user is authenticated
     if (!user) {
       router.push('/auth/signin')
@@ -38,9 +43,9 @@ export default function DashboardPage() {
     } catch (error) {
       router.push('/organisations/new')
     }
-  }, [user, router])
+  }, [user, router, loading])
 
-  if (!user || !organisation) {
+  if (loading || !user || !organisation) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -57,33 +62,10 @@ export default function DashboardPage() {
             {/* Logo & Organization */}
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-primary">Cognitest</h1>
-              <Link
-                href="/organisations"
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {organisation.name}
-                </span>
-              </Link>
             </div>
 
             {/* User Menu */}
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {user.full_name || user.username}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-              </div>
-              <button
-                onClick={logout}
-                className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
+            <UserNav />
           </div>
         </div>
       </header>
