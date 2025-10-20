@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from datetime import timedelta
 
 from app.core.deps import get_db, get_current_user, get_current_active_user
@@ -24,14 +25,15 @@ from app.schemas.user import (
 router = APIRouter()
 
 @router.post("/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """
     Create a new user account.
 
     Returns JWT access and refresh tokens.
     """
     # Check if email already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    result = await db.execute(select(User).where(User.email == user_data.email))
+    existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,7 +41,8 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
     # Check if username already exists
-    existing_username = db.query(User).filter(User.username == user_data.username).first()
+    result = await db.execute(select(User).where(User.username == user_data.username))
+    existing_username = result.scalar_one_or_none()
     if existing_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -58,8 +61,8 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     )
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
     # Create tokens
     access_token = create_access_token(data={"sub": str(new_user.id), "email": new_user.email})
@@ -72,14 +75,15 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     }
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: Session = Depends(get_db)):
+async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and return JWT tokens.
 
     Accepts email and password, returns access and refresh tokens.
     """
     # Find user by email
-    user = db.query(User).filter(User.email == credentials.email).first()
+    result = await db.execute(select(User).where(User.email == credentials.email))
+    user = result.scalar_one_or_none()
 
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
@@ -141,14 +145,15 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
 async def update_current_user(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Update current user's information.
     """
     # Check if email is being changed and is unique
     if user_update.email and user_update.email != current_user.email:
-        existing_email = db.query(User).filter(User.email == user_update.email).first()
+        result = await db.execute(select(User).where(User.email == user_update.email))
+        existing_email = result.scalar_one_or_none()
         if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -158,7 +163,8 @@ async def update_current_user(
 
     # Check if username is being changed and is unique
     if user_update.username and user_update.username != current_user.username:
-        existing_username = db.query(User).filter(User.username == user_update.username).first()
+        result = await db.execute(select(User).where(User.username == user_update.username))
+        existing_username = result.scalar_one_or_none()
         if existing_username:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -173,8 +179,8 @@ async def update_current_user(
     if user_update.password:
         current_user.hashed_password = get_password_hash(user_update.password)
 
-    db.commit()
-    db.refresh(current_user)
+    await db.commit()
+    await db.refresh(current_user)
 
     return current_user
 

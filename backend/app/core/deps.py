@@ -1,11 +1,12 @@
-from typing import Generator, Optional
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from jose import JWTError
 from uuid import UUID
 
-from app.core.database import SessionLocal
+from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.user import User
 from app.schemas.user import TokenData
@@ -13,17 +14,9 @@ from app.schemas.user import TokenData
 # Security scheme
 security = HTTPBearer()
 
-def get_db() -> Generator:
-    """Database session dependency."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> User:
     """Get the current authenticated user from JWT token."""
     credentials_exception = HTTPException(
@@ -47,7 +40,8 @@ async def get_current_user(
     except (ValueError, AttributeError):
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == token_data.user_id).first()
+    result = await db.execute(select(User).where(User.id == token_data.user_id))
+    user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
 
@@ -84,7 +78,7 @@ async def get_current_superuser(
 # Optional user dependency (doesn't raise exception if no token)
 async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Optional[User]:
     """Get the current user if authenticated, otherwise None."""
     if not credentials:
@@ -101,7 +95,8 @@ async def get_current_user_optional(
         return None
 
     try:
-        user = db.query(User).filter(User.id == UUID(user_id)).first()
+        result = await db.execute(select(User).where(User.id == UUID(user_id)))
+        user = result.scalar_one_or_none()
         return user
     except (ValueError, AttributeError):
         return None

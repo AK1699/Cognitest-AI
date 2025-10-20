@@ -54,7 +54,7 @@ export default function SignUpPage() {
     try {
       await signup(email, username, password, fullName || undefined)
       toast.success('Account created successfully!')
-      router.push('/dashboard/create-organization')
+      // Redirect is handled in auth context
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     } finally {

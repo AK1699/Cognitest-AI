@@ -34,13 +34,13 @@ class Project(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    owner = relationship("User", back_populates="projects")
-    test_plans = relationship("TestPlan", back_populates="project", cascade="all, delete-orphan")
-    test_suites = relationship("TestSuite", back_populates="project", cascade="all, delete-orphan")
-    test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")
-    issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")
-    api_collections = relationship("ApiCollection", back_populates="project", cascade="all, delete-orphan")
+    # Relationships - commented out until other models are ready
+    # owner = relationship("User", back_populates="projects")
+    # test_plans = relationship("TestPlan", back_populates="project", cascade="all, delete-orphan")
+    # test_suites = relationship("TestSuite", back_populates="project", cascade="all, delete-orphan")
+    # test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")
+    # issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")
+    # api_collections = relationship("ApiCollection", back_populates="project", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Project {self.name}>"
