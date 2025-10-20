@@ -1,19 +1,19 @@
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Zap, Brain, FlaskConical } from 'lucide-react'
+import { ArrowRight, Sparkles, Zap, Brain, FlaskConical, Shield, ShieldAlert, Code, Workflow } from 'lucide-react'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'rgb(242, 253, 250)' }}>
+    <div className="min-h-screen">
       {/* Navigation */}
       <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/cognitest.ai" className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md" style={{ backgroundColor: 'rgb(0, 119, 128)' }}>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md bg-primary">
                 <FlaskConical className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-semibold" style={{ color: 'rgb(0, 119, 128)' }}>
+              <span className="text-2xl font-semibold text-primary">
                 CogniTest
               </span>
             </Link>
@@ -39,7 +39,7 @@ export default function LandingPage() {
                 </button>
               </Link>
               <Link href="/auth/signup">
-                <button className="px-6 py-2.5 text-white font-normal rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90" style={{ backgroundColor: 'rgb(0, 119, 128)' }}>
+                <button className="px-6 py-2.5 text-white font-normal rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
                   Sign-up
                 </button>
               </Link>
@@ -52,16 +52,16 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="text-center">
           {/* Badge */}
-          <div className="inline-flex items-center space-x-2 rounded-full px-4 py-2 mb-8" style={{ backgroundColor: 'rgba(0, 119, 128, 0.1)', border: '1px solid rgba(0, 119, 128, 0.2)' }}>
-            <Sparkles className="w-4 h-4" style={{ color: 'rgb(0, 119, 128)' }} />
-            <span className="text-sm font-normal" style={{ color: 'rgb(0, 119, 128)' }}>AI-Powered Testing Platform</span>
+          <div className="inline-flex items-center space-x-2 rounded-full px-4 py-2 mb-8 bg-accent/10 border border-primary/20">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-normal text-primary">AI-Powered Testing Platform</span>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-5xl md:text-7xl font-semibold text-gray-900 mb-6">
-            Test. Automate.{' '}
-            <span style={{ color: 'rgb(0, 119, 128)' }}>
-              Accelerate.
+            Test. Self Evolve.{' '}
+            <span className="text-primary">
+              Self Heal.
             </span>
           </h1>
 
@@ -75,7 +75,7 @@ export default function LandingPage() {
           {/* CTA Buttons */}
           <div className="flex items-center justify-center space-x-4 flex-wrap gap-4">
             <Link href="/auth/signup">
-              <button className="group inline-flex items-center px-8 py-4 text-white text-lg font-normal rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90" style={{ backgroundColor: 'rgb(0, 119, 128)' }}>
+              <button className="group inline-flex items-center px-8 py-4 text-white text-lg font-normal rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
                 Start Testing Now
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
@@ -91,19 +91,19 @@ export default function LandingPage() {
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
           <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-6xl font-semibold mb-2" style={{ color: 'rgb(0, 119, 128)' }}>
+            <div className="text-6xl font-semibold mb-2 text-primary">
               95%
             </div>
             <div className="text-gray-500 font-normal text-base">Test Coverage</div>
           </div>
           <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-6xl font-semibold mb-2" style={{ color: 'rgb(0, 119, 128)' }}>
+            <div className="text-6xl font-semibold mb-2 text-primary">
               10x
             </div>
             <div className="text-gray-500 font-normal text-base">Faster Testing</div>
           </div>
           <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-6xl font-semibold mb-2" style={{ color: 'rgb(0, 119, 128)' }}>
+            <div className="text-6xl font-semibold mb-2 text-primary">
               AI
             </div>
             <div className="text-gray-500 font-normal text-base">Self-Learning</div>
@@ -128,8 +128,8 @@ export default function LandingPage() {
               key={index}
               className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-all"
             >
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(0, 119, 128, 0.1)' }}>
-                <feature.icon className="w-6 h-6" style={{ color: 'rgb(0, 119, 128)' }} />
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-accent/10">
+                <feature.icon className={`w-6 h-6 ${feature.color}`} />
               </div>
               <h3 className="text-xl font-medium text-gray-900 mb-3">
                 {feature.title}
@@ -159,30 +159,36 @@ const features = [
     title: 'AI Test Management',
     description: 'Automatically generate test plans, suites, and cases from requirements, JIRA tickets, and documentation.',
     icon: Brain,
+    color: 'text-blue-600',
   },
   {
     title: 'API Testing Hub',
     description: 'Postman-like interface with AI-powered test generation from OpenAPI specs and intelligent validation.',
-    icon: Zap,
+    icon: Code,
+    color: 'text-green-600',
   },
   {
     title: 'Security Testing',
     description: 'Automated vulnerability scanning with OWASP Top 10 detection and AI-suggested remediation.',
-    icon: Sparkles,
+    icon: ShieldAlert,
+    color: 'text-red-600',
   },
   {
     title: 'Performance Testing',
     description: 'AI-generated load tests with bottleneck detection and predictive failure analysis.',
     icon: Zap,
+    color: 'text-yellow-600',
   },
   {
     title: 'Web Automation',
     description: 'Visual UI builder that generates Playwright scripts. Record, edit, and execute tests seamlessly.',
-    icon: Brain,
+    icon: FlaskConical,
+    color: 'text-purple-600',
   },
   {
     title: 'Workflow Automation',
     description: 'n8n-style visual workflow builder connecting tests, notifications, and integrations.',
-    icon: Sparkles,
+    icon: Workflow,
+    color: 'text-indigo-600',
   },
 ]
