@@ -90,23 +90,23 @@ export default function LandingPage() {
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
-          <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-center p-8 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
             <div className="text-6xl font-semibold mb-2 text-primary">
               95%
             </div>
-            <div className="text-gray-500 font-normal text-base">Test Coverage</div>
+            <div className="text-gray-500 font-semibold text-base">Test Coverage</div>
           </div>
-          <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-center p-8 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
             <div className="text-6xl font-semibold mb-2 text-primary">
               10x
             </div>
-            <div className="text-gray-500 font-normal text-base">Faster Testing</div>
+            <div className="text-gray-500 font-semibold text-base">Faster Testing</div>
           </div>
-          <div className="text-center p-8 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-center p-8 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
             <div className="text-6xl font-semibold mb-2 text-primary">
               AI
             </div>
-            <div className="text-gray-500 font-normal text-base">Self-Learning</div>
+            <div className="text-gray-500 font-semibold text-base">Self-Learning</div>
           </div>
         </div>
       </section>
@@ -126,7 +126,7 @@ export default function LandingPage() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-all"
+              className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all"
             >
               <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-accent/10">
                 <feature.icon className={`w-6 h-6 ${feature.color}`} />
