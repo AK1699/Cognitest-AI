@@ -23,7 +23,17 @@
       "Bash(brew services start redis)",
       "Bash(pip install redis==5.0.1 hiredis==2.3.2)",
       "Bash(python3 /tmp/test_redis.py)",
-      "Bash(python3 -c \"import langchain; import openai; print(''✅ LangChain and OpenAI libraries installed'')\")"
+      "Bash(python3 -c \"import langchain; import openai; print(''✅ LangChain and OpenAI libraries installed'')\")",
+      "Bash(mkdir:*)",
+      "Bash(lsof:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(xargs kill:*)",
+      "Bash(python3:*)",
+      "Bash(psql:*)",
+      "Bash(createdb:*)",
+      "Bash(pg_dump:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

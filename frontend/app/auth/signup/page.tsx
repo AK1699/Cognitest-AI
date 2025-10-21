@@ -79,7 +79,7 @@ export default function SignUpPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-orange-700/70 dark:text-orange-300/70 mb-2">
                 Email address *
               </label>
               <input
@@ -95,7 +95,7 @@ export default function SignUpPage() {
 
             {/* Username Input */}
             <div>
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+              <label htmlFor="username" className="block text-sm font-semibold text-orange-700/70 dark:text-orange-300/70 mb-2">
                 Username *
               </label>
               <input
@@ -128,7 +128,7 @@ export default function SignUpPage() {
 
             {/* Password Input */}
             <div className="relative">
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-orange-700/70 dark:text-orange-300/70 mb-2">
                 Password *
               </label>
               <input
@@ -155,7 +155,7 @@ export default function SignUpPage() {
 
             {/* Confirm Password Input */}
             <div className="relative">
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-orange-700/70 dark:text-orange-300/70 mb-2">
                 Confirm password *
               </label>
               <input
