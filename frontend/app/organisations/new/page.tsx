@@ -51,8 +51,8 @@ export default function CreateOrganisationPage() {
 
       toast.success('Organization created successfully!')
 
-      // Redirect to dashboard
-      router.push('/dashboard')
+      // Redirect to projects
+      router.push('/projects')
     } catch (error: any) {
       console.error('Error creating organisation:', error)
       toast.error(error.response?.data?.detail || 'Failed to create organization')
@@ -68,7 +68,7 @@ export default function CreateOrganisationPage() {
         <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex items-center h-16">
             <Link
-              href="/dashboard"
+              href="/organizations"
               className="p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-accent/10"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -172,6 +172,16 @@ export default function CreateOrganisationPage() {
           <p className="text-center text-sm text-gray-500 mt-6 font-normal">
             You can add team members and configure settings after creating your organization
           </p>
+
+          {/* Back to Organization List Link */}
+          <div className="text-center mt-8">
+            <Link
+              href="/organizations"
+              className="text-primary hover:text-primary/80 font-medium text-base transition-colors"
+            >
+              Back to your organization list
+            </Link>
+          </div>
         </div>
       </div>
     </div>

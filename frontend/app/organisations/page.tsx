@@ -133,7 +133,7 @@ export default function OrganisationsPage() {
   const handleSwitch = (org: Organisation) => {
     localStorage.setItem('current_organisation', JSON.stringify(org))
     toast.success(`Switched to ${org.name}`)
-    router.push('/dashboard')
+    router.push('/projects')
   }
 
   if (loading) {
@@ -152,7 +152,7 @@ export default function OrganisationsPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <Link
-                href="/dashboard"
+                href="/projects"
                 className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-accent/10"
               >
                 <ArrowLeft className="w-5 h-5" />

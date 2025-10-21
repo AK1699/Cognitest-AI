@@ -45,8 +45,8 @@ export default function TestManagementPage() {
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 Please select a project to manage tests
               </p>
-              <Button onClick={() => (window.location.href = '/dashboard')}>
-                Go to Dashboard
+              <Button onClick={() => (window.location.href = '/projects')}>
+                Go to Projects
               </Button>
             </div>
           </main>

@@ -10,55 +10,115 @@ import {
   Zap,
   Workflow,
   ChevronLeft,
-  Menu
+  Menu,
+  FolderOpen,
+  BarChart3,
+  CreditCard,
+  Users,
+  Puzzle,
+  ChevronDown,
+  Building2,
+  Plus,
+  User,
+  Settings,
+  HelpCircle,
+  LogOut,
+  Check
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
+import axios from 'axios'
+import { toast } from 'sonner'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface SidebarProps {
   organisationId?: string
   projectId?: string
 }
 
-const mainMenuItems = [
+const getMainMenuItems = (organisationId?: string) => [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
+    name: 'Projects',
+    href: organisationId ? `/organizations/${organisationId}/projects` : '/projects',
+    icon: FolderOpen,
   },
   {
-    name: 'Test Management',
-    href: '/test-management',
-    icon: ClipboardList,
+    name: 'Enterprise Reporting',
+    href: organisationId ? `/organizations/${organisationId}/enterprise-reporting` : '/enterprise-reporting',
+    icon: BarChart3,
   },
   {
-    name: 'API Testing',
-    href: '/api-testing',
-    icon: Code,
+    name: 'Billing & Usage',
+    href: organisationId ? `/organizations/${organisationId}/billing` : '/billing',
+    icon: CreditCard,
+  },
+  {
+    name: 'Users & Teams',
+    href: organisationId ? `/organizations/${organisationId}/users-teams` : '/users-teams',
+    icon: Users,
+  },
+  {
+    name: 'Integrations',
+    href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
+    icon: Puzzle,
   },
 ]
 
-const otherMenuItems = [
-  {
-    name: 'Security Testing',
-    href: '/security-testing',
-    icon: Shield,
-  },
-  {
-    name: 'Performance Testing',
-    href: '/performance-testing',
-    icon: Zap,
-  },
-  {
-    name: 'Automation Hub',
-    href: '/automation-hub',
-    icon: Workflow,
-  },
-]
+const otherMenuItems = []
+
+interface Organisation {
+  id: string
+  name: string
+  website?: string
+  description?: string
+  owner_id: string
+  created_at: string
+  updated_at?: string
+}
 
 export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, logout } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
+  const [organisations, setOrganisations] = useState<Organisation[]>([])
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+
+  useEffect(() => {
+    const currentOrg = localStorage.getItem('current_organisation')
+    if (currentOrg) {
+      try {
+        setCurrentOrganisation(JSON.parse(currentOrg))
+      } catch (error) {
+        console.error('Failed to parse organisation from localStorage', error)
+      }
+    }
+    fetchOrganisations()
+  }, [])
+
+  const fetchOrganisations = async () => {
+    if (!user) return
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setOrganisations(response.data)
+    } catch (error) {
+      console.error('Failed to fetch organisations:', error)
+    }
+  }
+
+  const switchOrganisation = (org: Organisation) => {
+    setCurrentOrganisation(org)
+    localStorage.setItem('current_organisation', JSON.stringify(org))
+    window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
+    setIsProfileOpen(false)
+  }
 
   return (
     <>
@@ -87,42 +147,141 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            {!isCollapsed && (
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-white font-semibold text-sm">CT</span>
-                </div>
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                  CogniTest
-                </span>
-              </Link>
-            )}
-
-            {/* Collapse Button - Desktop Only */}
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden lg:block p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <ChevronLeft
-                className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
-                  isCollapsed ? 'rotate-180' : ''
+          {/* Profile Section */}
+          {!isCollapsed && user && currentOrganisation && (
+            <div className="p-4 space-y-2">
+              {/* Main Profile Button */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className={`w-full flex items-center justify-between gap-3 p-4 rounded-lg transition-all ${
+                  isProfileOpen
+                    ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                    : 'border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
-              />
-            </button>
-          </div>
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-semibold text-white">
+                      {currentOrganisation.name.substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-base font-bold text-gray-900 dark:text-white truncate">
+                      {currentOrganisation.name}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                      {user.full_name || user.username}
+                    </p>
+                  </div>
+                </div>
+                <ChevronDown
+                  className={`w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0 transition-transform ${
+                    isProfileOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Profile Dropdown Details */}
+              {isProfileOpen && (
+                <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-4">
+                  {/* Organisations Section */}
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                      Organisations ({organisations.length})
+                    </h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {organisations.map((org) => (
+                        <button
+                          key={org.id}
+                          onClick={() => switchOrganisation(org)}
+                          className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                        >
+                          <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-900 dark:text-white flex-1 truncate">
+                            {org.name}
+                          </span>
+                          {currentOrganisation?.id === org.id && (
+                            <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <hr className="border-gray-200 dark:border-gray-700" />
+
+                  {/* Add Organisation */}
+                  <button
+                    onClick={() => {
+                      router.push('/organisations/new')
+                      setIsProfileOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                  >
+                    <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-900 dark:text-white">Add Organisation</span>
+                  </button>
+
+                  <hr className="border-gray-200 dark:border-gray-700" />
+
+                  {/* Edit Profile */}
+                  <button
+                    onClick={() => {
+                      router.push('/profile/edit')
+                      setIsProfileOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                  >
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-900 dark:text-white">Edit profile</span>
+                  </button>
+
+                  {/* Account Settings */}
+                  <button
+                    onClick={() => {
+                      router.push('/account/settings')
+                      setIsProfileOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                  >
+                    <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-900 dark:text-white">Account settings</span>
+                  </button>
+
+                  {/* Support */}
+                  <button
+                    onClick={() => {
+                      router.push('/support')
+                      setIsProfileOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                  >
+                    <HelpCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-900 dark:text-white">Support</span>
+                  </button>
+
+                  <hr className="border-gray-200 dark:border-gray-700" />
+
+                  {/* Sign Out */}
+                  <button
+                    onClick={() => {
+                      logout()
+                      setIsProfileOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-left"
+                  >
+                    <LogOut className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <span className="text-sm text-red-600 dark:text-red-400 font-medium">Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-6 px-3">
-            {/* Main Menu Section */}
-            {!isCollapsed && (
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-3">
-                Main Menu
-              </div>
-            )}
             <div className="space-y-1 mb-6">
-              {mainMenuItems.map((item) => {
+              {getMainMenuItems(currentOrganisation?.id).map((item) => {
                 const isActive = pathname === item.href
                 const Icon = item.icon
 
@@ -154,49 +313,6 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
               })}
             </div>
 
-            {/* Others Section */}
-            {!isCollapsed && (
-              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-3">
-                Others
-              </div>
-            )}
-            <div className="space-y-1">
-              {otherMenuItems.map((item) => {
-                const isActive = pathname === item.href
-                const Icon = item.icon
-
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMobileOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
-                      ${
-                        isActive
-                          ? 'bg-primary/10 text-primary dark:bg-primary/20'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }
-                      ${isCollapsed ? 'justify-center' : ''}
-                    `}
-                  >
-                    <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${
-                        isActive ? 'text-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                      }`}
-                    />
-                    {!isCollapsed && (
-                      <span className="font-medium text-sm">{item.name}</span>
-                    )}
-                    {!isCollapsed && item.name !== 'Security Testing' && (
-                      <span className="ml-auto px-2 py-0.5 text-xs font-medium bg-primary text-white rounded-full">
-                        Soon
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
           </nav>
 
           {/* Footer - Project Info */}

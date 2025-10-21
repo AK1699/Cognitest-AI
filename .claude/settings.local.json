@@ -33,7 +33,8 @@
       "Bash(createdb:*)",
       "Bash(pg_dump:*)",
       "Bash(cat:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
