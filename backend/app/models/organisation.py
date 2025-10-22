@@ -13,6 +13,7 @@ class Organisation(Base):
     name = Column(String(255), nullable=False, index=True)
     website = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
+    logo = Column(Text, nullable=True)
 
     # Owner
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)

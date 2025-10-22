@@ -104,6 +104,8 @@ async def update_organisation(
         organisation.website = organisation_data.website
     if organisation_data.description is not None:
         organisation.description = organisation_data.description
+    if organisation_data.logo is not None:
+        organisation.logo = organisation_data.logo
 
     await db.commit()
     await db.refresh(organisation)

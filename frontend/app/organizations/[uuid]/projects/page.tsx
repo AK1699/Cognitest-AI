@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import axios from 'axios'
 import { toast } from 'sonner'
@@ -17,10 +17,10 @@ interface PageParams {
   uuid: string
 }
 
-export default function ProjectsPage({ params }: { params: PageParams }) {
+export default function ProjectsPage({ params }: { params: Promise<PageParams> }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
-  const { uuid } = params
+  const { uuid } = use(params)
 
   useEffect(() => {
     fetchProjects()

@@ -64,6 +64,11 @@ const getMainMenuItems = (organisationId?: string) => [
     href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
     icon: Puzzle,
   },
+  {
+    name: 'Settings',
+    href: organisationId ? `/organizations/${organisationId}/settings` : '/settings',
+    icon: Settings,
+  },
 ]
 
 const otherMenuItems = []
@@ -97,8 +102,10 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         console.error('Failed to parse organisation from localStorage', error)
       }
     }
-    fetchOrganisations()
-  }, [])
+    if (user) {
+      fetchOrganisations()
+    }
+  }, [user])
 
   const fetchOrganisations = async () => {
     if (!user) return
@@ -118,6 +125,9 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
     localStorage.setItem('current_organisation', JSON.stringify(org))
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
+    // Refetch organizations after switching
+    setTimeout(() => fetchOrganisations(), 100)
+    router.push(`/organizations/${org.id}/projects`)
   }
 
   return (
@@ -149,13 +159,19 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         <div className="flex flex-col h-full">
           {/* Profile Section */}
           {!isCollapsed && user && currentOrganisation && (
-            <div className="p-4 space-y-2">
+            <div className="p-4 relative">
               {/* Main Profile Button */}
               <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                onClick={() => {
+                  setIsProfileOpen(!isProfileOpen)
+                  if (!isProfileOpen) {
+                    // Refetch organizations when opening the profile menu
+                    fetchOrganisations()
+                  }
+                }}
                 className={`w-full flex items-center justify-between gap-3 p-4 rounded-lg transition-all ${
                   isProfileOpen
-                    ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                    ? 'border-2 border-primary bg-primary/5 dark:bg-primary/10'
                     : 'border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
@@ -181,9 +197,9 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                 />
               </button>
 
-              {/* Profile Dropdown Details */}
+              {/* Profile Dropdown Details - Overlay */}
               {isProfileOpen && (
-                <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 space-y-4">
+                <div className="absolute top-24 left-4 right-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg space-y-4 z-50">
                   {/* Organisations Section */}
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">
@@ -276,6 +292,14 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Close profile dropdown when clicking outside */}
+          {isProfileOpen && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsProfileOpen(false)}
+            />
           )}
 
           {/* Navigation */}
