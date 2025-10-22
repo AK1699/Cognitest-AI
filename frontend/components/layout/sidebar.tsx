@@ -43,31 +43,43 @@ const getMainMenuItems = (organisationId?: string) => [
     name: 'Projects',
     href: organisationId ? `/organizations/${organisationId}/projects` : '/projects',
     icon: FolderOpen,
+    iconColor: 'text-blue-600',
+    bgColor: 'bg-blue-50',
   },
   {
     name: 'Enterprise Reporting',
     href: organisationId ? `/organizations/${organisationId}/enterprise-reporting` : '/enterprise-reporting',
     icon: BarChart3,
+    iconColor: 'text-purple-600',
+    bgColor: 'bg-purple-50',
   },
   {
     name: 'Billing & Usage',
     href: organisationId ? `/organizations/${organisationId}/billing` : '/billing',
     icon: CreditCard,
+    iconColor: 'text-green-600',
+    bgColor: 'bg-green-50',
   },
   {
     name: 'Users & Teams',
     href: organisationId ? `/organizations/${organisationId}/users-teams` : '/users-teams',
     icon: Users,
+    iconColor: 'text-orange-600',
+    bgColor: 'bg-orange-50',
   },
   {
     name: 'Integrations',
     href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
     icon: Puzzle,
+    iconColor: 'text-pink-600',
+    bgColor: 'bg-pink-50',
   },
   {
     name: 'Settings',
     href: organisationId ? `/organizations/${organisationId}/settings` : '/settings',
     icon: Settings,
+    iconColor: 'text-gray-600',
+    bgColor: 'bg-gray-50',
   },
 ]
 
@@ -316,16 +328,14 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                       flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
                       ${
                         isActive
-                          ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                          ? `${item.bgColor} text-gray-900 dark:text-white`
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
                     `}
                   >
                     <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${
-                        isActive ? 'text-primary' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                      }`}
+                      className={`w-5 h-5 flex-shrink-0 ${item.iconColor}`}
                     />
                     {!isCollapsed && (
                       <span className="font-medium text-sm">{item.name}</span>

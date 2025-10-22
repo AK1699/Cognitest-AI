@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { CreateProjectModal } from '@/components/projects/create-project-modal'
 import axios from 'axios'
@@ -15,13 +16,26 @@ interface Project {
   description?: string
   status?: 'ACTIVE' | 'ARCHIVED' | 'PAUSED'
   created_at?: string
+  settings?: {
+    enabled_modules?: string[]
+  }
 }
 
 interface PageParams {
   uuid: string
 }
 
+const moduleConfig = {
+  'test-management': { name: 'Test Management', color: 'blue' },
+  'api-testing': { name: 'API Testing', color: 'green' },
+  'automation-hub': { name: 'Automation Hub', color: 'purple' },
+  'security-testing': { name: 'Security Testing', color: 'red' },
+  'performance-testing': { name: 'Performance Testing', color: 'yellow' },
+  'mobile-testing': { name: 'Mobile Testing', color: 'indigo' },
+} as const
+
 export default function ProjectsPage({ params }: { params: Promise<PageParams> }) {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -129,13 +143,14 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
               {filteredProjects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 overflow-hidden group"
+                  className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 overflow-hidden group cursor-pointer"
+                  onClick={() => router.push(`/organizations/${uuid}/projects/${project.id}`)}
                 >
                   {/* Project Header */}
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h2 className="text-lg font-semibold text-gray-900 hover:text-primary cursor-pointer mb-1 transition-colors">
+                        <h2 className="text-lg font-semibold text-gray-900 hover:text-primary mb-1 transition-colors">
                           {project.name}
                         </h2>
                         {project.description && (
@@ -150,17 +165,32 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
                     </div>
 
                     {/* Module Badges */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                        Test Management
-                      </span>
-                      <span className="px-2 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded">
-                        Automation Hub
-                      </span>
-                      <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded">
-                        API Testing
-                      </span>
-                    </div>
+                    {project.settings?.enabled_modules && project.settings.enabled_modules.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {project.settings.enabled_modules.map((moduleId) => {
+                          const module = moduleConfig[moduleId as keyof typeof moduleConfig]
+                          if (!module) return null
+
+                          const colorClasses = {
+                            blue: 'bg-blue-50 text-blue-700',
+                            green: 'bg-green-50 text-green-700',
+                            purple: 'bg-purple-50 text-purple-700',
+                            red: 'bg-red-50 text-red-700',
+                            yellow: 'bg-yellow-50 text-yellow-700',
+                            indigo: 'bg-indigo-50 text-indigo-700',
+                          }
+
+                          return (
+                            <span
+                              key={moduleId}
+                              className={`px-2 py-1 text-xs font-medium rounded ${colorClasses[module.color as keyof typeof colorClasses]}`}
+                            >
+                              {module.name}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
 
                     {/* Statistics */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
@@ -180,7 +210,13 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
                     </div>
 
                     {/* Quick Action */}
-                    <button className="w-full mt-4 py-2.5 px-4 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-medium rounded-lg transition-colors">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/organizations/${uuid}/projects/${project.id}`)
+                      }}
+                      className="w-full mt-4 py-2.5 px-4 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-medium rounded-lg transition-colors"
+                    >
                       Open Project →
                     </button>
                   </div>
