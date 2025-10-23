@@ -346,10 +346,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             {getModuleNavItems().map((item: any) => {
               const Icon = item.icon
               const isActive = activeTab === item.id
+
+              // Handle navigation for specific modules
+              const handleClick = () => {
+                if (item.id === 'test-management') {
+                  router.push(`/organizations/${uuid}/projects/${projectId}/test-management`)
+                } else {
+                  setActiveTab(item.id)
+                }
+              }
+
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={handleClick}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
                       ? 'bg-primary/10 text-primary font-medium'
