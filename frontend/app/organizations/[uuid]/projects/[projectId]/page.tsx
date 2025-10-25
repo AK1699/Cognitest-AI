@@ -7,6 +7,7 @@ import axios from 'axios'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -56,6 +57,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   const [activeTab, setActiveTab] = useState('overview')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState('general')
+  const [formData, setFormData] = useState({ name: '', description: '' })
+  const [enabledModules, setEnabledModules] = useState<string[]>([])
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+
+  useEffect(() => {
+    if (project) {
+      setFormData({ name: project.name, description: project.description || '' })
+      if (project.settings?.enabled_modules) {
+        setEnabledModules(project.settings.enabled_modules)
+      }
+    }
+  }, [project])
 
   useEffect(() => {
     fetchProject()
@@ -113,6 +127,74 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
       console.error('Failed to fetch organisations:', error)
     }
   }
+
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.put(
+        `${API_URL}/api/v1/projects/${projectId}`,
+        formData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      toast.success('Project updated successfully');
+      fetchProject(); // Refetch project data to ensure UI consistency
+    } catch (error) {
+      console.error('Failed to update project:', error);
+      toast.error('Failed to update project');
+    }
+  };
+
+  const handleModuleToggle = (moduleId: string) => {
+    setEnabledModules(prev =>
+      prev.includes(moduleId)
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId]
+    );
+  };
+
+  const handleModuleSave = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const newSettings = {
+        ...project?.settings,
+        enabled_modules: enabledModules,
+      };
+      await axios.put(
+        `${API_URL}/api/v1/projects/${projectId}`,
+        { settings: newSettings },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      toast.success('Modules updated successfully');
+      fetchProject(); // Refetch project data
+    } catch (error) {
+      console.error('Failed to update modules:', error);
+      toast.error('Failed to update modules');
+    }
+  };
+
+  const openDeleteModal = () => setIsDeleteModalOpen(true);
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setDeleteConfirmation('');
+  };
+
+  const handleDeleteProject = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.delete(`${API_URL}/api/v1/projects/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Project deleted successfully');
+      router.push(`/organizations/${uuid}/projects`);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      toast.error('Failed to delete project');
+    }
+  };
 
   const switchOrganisation = (org: Organisation) => {
     setOrganisation(org)
@@ -534,7 +616,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                       <p className="text-sm text-gray-600 mb-3">The name of your project that appears throughout CogniTest</p>
                       <input
                         type="text"
-                        value={project.name}
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter project name"
                       />
@@ -549,7 +632,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                       </label>
                       <p className="text-sm text-gray-600 mb-3">A brief description of your project</p>
                       <textarea
-                        value={project.description || ''}
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         rows={3}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                         placeholder="Enter project description"
@@ -584,7 +668,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                     </div>
 
                     {/* Save Button */}
-                    <button className="px-6 py-3 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all shadow-sm">
+                    <button onClick={handleSave} className="px-6 py-3 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all shadow-sm">
                       Save Changes
                     </button>
                   </div>
@@ -593,38 +677,35 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
               {settingsTab === 'modules' && (
                 <div className="space-y-6">
-                  {/* Enabled Modules */}
                   <div className="bg-white border border-gray-200 rounded-lg p-8">
                     <h3 className="text-xl font-bold text-gray-900 mb-6">Enabled Testing Modules</h3>
                     <p className="text-sm text-gray-600 mb-6">Manage which testing capabilities are enabled for this project</p>
-                    {project.settings?.enabled_modules && project.settings.enabled_modules.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        {project.settings.enabled_modules.map((moduleId) => {
-                          const module = moduleConfig[moduleId as keyof typeof moduleConfig]
-                          if (!module) return null
-
-                          const colorClasses = {
-                            blue: 'border-blue-200 bg-blue-50 text-blue-700',
-                            green: 'border-green-200 bg-green-50 text-green-700',
-                            purple: 'border-purple-200 bg-purple-50 text-purple-700',
-                            red: 'border-red-200 bg-red-50 text-red-700',
-                            yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-                            indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-                          }
-
-                          return (
-                            <div
-                              key={moduleId}
-                              className={`p-4 rounded-lg border-2 ${colorClasses[module.color as keyof typeof colorClasses]}`}
-                            >
-                              <div className="text-sm font-medium">{module.name}</div>
+                    <div className="space-y-4">
+                      {Object.entries(moduleConfig).map(([moduleId, module]) => (
+                        <div key={moduleId} className="flex items-center justify-between p-4 rounded-lg border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg bg-${module.color}-100 flex items-center justify-center`}>
+                              <module.icon className={`w-5 h-5 text-${module.color}-600`} />
                             </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No modules enabled</p>
-                    )}
+                            <h4 className="font-medium text-gray-800">{module.name}</h4>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={enabledModules.includes(moduleId)}
+                              onChange={() => handleModuleToggle(moduleId)}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-8 flex justify-end">
+                      <button onClick={handleModuleSave} className="px-6 py-3 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all shadow-sm">
+                        Save Changes
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -638,10 +719,44 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
               )}
 
               {settingsTab === 'danger' && (
-                <div className="bg-white border border-red-200 rounded-lg p-8">
-                  <div className="text-center py-16 text-gray-500">
-                    Danger zone settings coming soon
+                <div className="space-y-6">
+                  <div className="bg-white border border-red-500 rounded-lg p-8">
+                    <h3 className="text-xl font-bold text-red-600 mb-4">Delete Project</h3>
+                    <p className="text-sm text-gray-600 mb-6">Permanently delete this project, including all associated test plans, test cases, and execution results. This action cannot be undone.</p>
+                    <button onClick={openDeleteModal} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all shadow-sm">
+                      Delete Project
+                    </button>
                   </div>
+
+                  <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Are you absolutely sure?</DialogTitle>
+                        <DialogDescription>
+                          This action cannot be undone. This will permanently delete the <strong>{project.name}</strong> project.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p className="text-sm text-gray-700">Please type <strong>{project.name}</strong> to confirm.</p>
+                        <input
+                          type="text"
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                          className="w-full mt-2 px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <button onClick={closeDeleteModal} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                        <button
+                          onClick={handleDeleteProject}
+                          disabled={deleteConfirmation !== project.name}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm disabled:bg-red-300 disabled:cursor-not-allowed"
+                        >
+                          Delete Project
+                        </button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
             </div>
