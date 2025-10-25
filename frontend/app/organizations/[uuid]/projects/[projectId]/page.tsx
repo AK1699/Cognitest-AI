@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ReportsAnalyticsTab } from '@/components/dashboard/reports-analytics-tab'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -457,7 +458,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
           {/* Additional Navigation */}
           <div className="mt-1 space-y-1">
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                activeTab === 'reports'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
               <TrendingUp className="w-4 h-4 text-cyan-600" />
               Reports & Analytics
             </button>
@@ -493,6 +501,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
               <h1 className="text-2xl font-normal text-gray-900">
                 {activeTab === 'overview'
                   ? 'Overview'
+                  : activeTab === 'reports'
+                  ? 'Reports & Analytics'
                   : getModuleNavItems().find((item: any) => item.id === activeTab)?.label || 'Dashboard'}
               </h1>
             </div>
@@ -519,6 +529,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 </div>
               </div>
             </div>
+          ) : activeTab === 'reports' ? (
+            <ReportsAnalyticsTab />
           ) : activeTab === 'settings' ? (
             <div className="max-w-4xl">
               {/* Settings Header */}
