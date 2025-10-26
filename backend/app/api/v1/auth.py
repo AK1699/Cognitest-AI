@@ -99,8 +99,15 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
         )
 
     # Create tokens
-    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    access_token_expires = None
+    refresh_token_expires = None
+
+    if credentials.remember_me:
+        access_token_expires = timedelta(minutes=settings.REMEMBER_ME_ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token_expires = timedelta(days=settings.REMEMBER_ME_REFRESH_TOKEN_EXPIRE_DAYS)
+
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email}, expires_delta=access_token_expires)
+    refresh_token = create_refresh_token(data={"sub": str(user.id)}, expires_delta=refresh_token_expires)
 
     return {
         "access_token": access_token,

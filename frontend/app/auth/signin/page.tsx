@@ -10,6 +10,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
 
@@ -18,7 +19,7 @@ export default function SignInPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
+      await login(email, password, rememberMe)
       toast.success('Welcome back!')
     } catch (error: any) {
       toast.error(error.message || 'Invalid email or password')
@@ -49,33 +50,56 @@ export default function SignInPage() {
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
-                placeholder="you@example.com"
+                placeholder="you@example.com" autoComplete="username"
               />
             </div>
 
             {/* Password Input */}
-            <div className="relative flex items-center">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-12"
-                placeholder="Enter your password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light transition-colors"
-              >
-                {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-              </button>
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative flex items-center">
+                <input
+                                  id="password"
+                                  name="password"
+                                  type={showPassword ? 'text' : 'password'}
+                                  required
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-12"
+                                  placeholder="Enter your password" autoComplete="current-password"                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary-light transition-colors"
+                >
+                  {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                  Remember me
+                </label>
+              </div>
             </div>
 
             {/* Sign In Button */}

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Zap, Brain, FlaskConical, Shield, ShieldAlert, Code, Workflow } from 'lucide-react'
+import { ArrowRight, Zap, Brain, FlaskConical, ShieldAlert, Code, Workflow, Bot } from 'lucide-react'
 
 export default function LandingPage() {
   return (
@@ -34,13 +34,13 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <div className="flex items-center space-x-4">
               <Link href="/auth/signin">
-                <button className="px-6 py-2.5 text-gray-900 font-normal transition-opacity hover:opacity-70 rounded-full">
-                  Sign-in
+                <button className="px-8 py-3.5 text-gray-900 font-medium transition-opacity hover:opacity-70 rounded-full">
+                  Sign in
                 </button>
               </Link>
               <Link href="/auth/signup">
-                <button className="px-6 py-2.5 text-white font-normal rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
-                  Sign-up
+                <button className="px-8 py-3.5 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
+                  Sign up
                 </button>
               </Link>
             </div>
@@ -52,15 +52,22 @@ export default function LandingPage() {
       <section className="w-full px-6 sm:px-8 lg:px-12 pt-20 pb-16">
         <div className="text-center">
           {/* Badge */}
-          <div className="inline-flex items-center space-x-2 rounded-full px-4 py-2 mb-8 bg-accent/10 border border-primary/20">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-normal text-primary">AI-Powered Testing Platform</span>
+          <div className="inline-flex items-center space-x-3 rounded-full pl-2 pr-5 py-2 mb-8 bg-gradient-to-r from-emerald-950/90 via-emerald-900/80 to-teal-900/80 border border-emerald-500/30 backdrop-blur-sm shadow-md shadow-emerald-950/30 animate-float hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/40 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent group-hover:translate-x-full transition-transform duration-1000"></div>
+
+            {/* Bot Avatar */}
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/50 group-hover:shadow-emerald-400/60 transition-shadow animate-bounce-slow">
+              <Bot className="w-5 h-5 text-white animate-wiggle" />
+            </div>
+
+            <span className="text-sm font-semibold text-emerald-300 group-hover:text-emerald-200 transition-colors duration-300">AI-Powered Testing Platform</span>
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-5xl md:text-7xl font-semibold text-gray-900 mb-6">
-            Test. Self Evolve.{' '}
-            <span className="text-primary">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6">
+            <span className="text-gray-900">Test. Self Evolve. </span>
+            <span className="bg-gradient-to-r from-emerald-700 via-teal-600 to-blue-600 bg-clip-text text-transparent">
               Self Heal.
             </span>
           </h1>
@@ -75,13 +82,13 @@ export default function LandingPage() {
           {/* CTA Buttons */}
           <div className="flex items-center justify-center space-x-4 flex-wrap gap-4">
             <Link href="/auth/signup">
-              <button className="group inline-flex items-center px-8 py-4 text-white text-lg font-normal rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
+              <button className="group inline-flex items-center px-10 py-4 text-white text-lg font-medium rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
                 Start Testing Now
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </Link>
             <Link href="#docs">
-              <button className="inline-flex items-center px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 text-lg font-normal rounded-full border-2 border-gray-300 transition-all">
+              <button className="inline-flex items-center px-10 py-4 bg-white hover:bg-gray-50 text-gray-900 text-lg font-medium rounded-full border-2 border-gray-300 transition-all">
                 View Documentation
               </button>
             </Link>
@@ -92,7 +99,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
           <div className="text-center p-8 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
             <div className="text-6xl font-semibold mb-2 text-primary">
-              95%
+              100%
             </div>
             <div className="text-gray-500 font-semibold text-base">Test Coverage</div>
           </div>

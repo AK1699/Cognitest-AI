@@ -6,7 +6,8 @@ import { Providers } from '@/components/providers'
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
-  variable: '--font-sans'
+  variable: '--font-sans',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={poppins.variable}>
+      <body className={`${poppins.className} font-medium`}>
         <Providers>
           {children}
         </Providers>

@@ -89,7 +89,7 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
         {/* Header */}
         <div className="border-b border-gray-200">
           <div className="px-8 py-5">
-            <h1 className="text-2xl font-normal text-gray-900">Projects</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
           </div>
         </div>
 
