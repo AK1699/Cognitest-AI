@@ -34,7 +34,7 @@ export default function SignUpPage() {
               onClick={() => handleSSOSignup('Google')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
             >
-              <Chrome className="h-5 w-5 text-red-500" />
+              <img src="/google-logo.svg" alt="Google" className="h-5 w-5" />
               Sign up with Google
             </button>
             <button
@@ -42,7 +42,7 @@ export default function SignUpPage() {
               onClick={() => handleSSOSignup('Microsoft')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
             >
-              <Monitor className="h-5 w-5 text-blue-500" />
+              <img src="/microsoft-logo.svg" alt="Microsoft" className="h-5 w-5" />
               Sign up with Microsoft
             </button>
             <button
@@ -50,7 +50,7 @@ export default function SignUpPage() {
               onClick={() => handleSSOSignup('Apple')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
             >
-              <Apple className="h-5 w-5" />
+              <img src="/apple-logo.svg" alt="Apple" className="h-5 w-5" />
               Sign up with Apple
             </button>
             <button
@@ -58,7 +58,7 @@ export default function SignUpPage() {
               onClick={() => handleSSOSignup('X')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
             >
-              <Twitter className="h-5 w-5" />
+              <img src="/x-logo.svg" alt="X" className="h-5 w-5" />
               Sign up with X
             </button>
           </div>
