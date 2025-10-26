@@ -2,11 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Check, X, Chrome, Twitter, Apple, Monitor } from 'lucide-react'
-
+import { Chrome, Twitter, Apple, Monitor } from 'lucide-react'
 import { SignupModal } from '@/components/auth/signup-modal'
 
 export default function SignUpPage() {
@@ -16,9 +13,8 @@ export default function SignUpPage() {
     toast.info(`${provider} SSO coming soon!`)
   }
 
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-50 via-white to-accent-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
