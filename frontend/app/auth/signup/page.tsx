@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Check, X, Chrome, Twitter, Apple, Monitor } from 'lucide-react'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -15,9 +15,28 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // Password validation states
+  const [isLengthValid, setIsLengthValid] = useState(false)
+  const [hasUppercase, setHasUppercase] = useState(false)
+  const [hasLowercase, setHasLowercase] = useState(false)
+  const [hasNumber, setHasNumber] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const { signup } = useAuth()
   const router = useRouter()
+
+  // Function to validate password in real-time
+  const validatePassword = (pwd: string) => {
+    setIsLengthValid(pwd.length >= 8)
+    setHasUppercase(/[A-Z]/.test(pwd))
+    setHasLowercase(/[a-z]/.test(pwd))
+    setHasNumber(/[0-9]/.test(pwd))
+  }
+
+  const handleSSOSignup = (provider: string) => {
+    toast.info(`${provider} SSO coming soon!`)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,24 +47,9 @@ export default function SignUpPage() {
       return
     }
 
-    // Validate password strength
-    if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long')
-      return
-    }
-
-    if (!/[A-Z]/.test(password)) {
-      toast.error('Password must contain at least one uppercase letter')
-      return
-    }
-
-    if (!/[a-z]/.test(password)) {
-      toast.error('Password must contain at least one lowercase letter')
-      return
-    }
-
-    if (!/[0-9]/.test(password)) {
-      toast.error('Password must contain at least one number')
+    // Ensure all real-time validations pass before submission
+    if (!isLengthValid || !hasUppercase || !hasLowercase || !hasNumber) {
+      toast.error('Password does not meet all requirements')
       return
     }
 
@@ -75,6 +79,44 @@ export default function SignUpPage() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 text-center">Create account</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-6 text-center font-normal">Get started with CogniTest today</p>
+
+          {/* SSO Options */}
+          <div className="space-y-3 mb-6">
+            <button
+              type="button"
+              onClick={() => handleSSOSignup('Google')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
+            >
+              <Chrome className="h-5 w-5 text-red-500" />
+              Sign up with Google
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSSOSignup('Microsoft')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
+            >
+              <Monitor className="h-5 w-5 text-blue-500" />
+              Sign up with Microsoft
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSSOSignup('Apple')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
+            >
+              <Apple className="h-5 w-5" />
+              Sign up with Apple
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSSOSignup('X')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
+            >
+              <Twitter className="h-5 w-5" />
+              Sign up with X
+            </button>
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">Sign up with CogniTest</h3>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
@@ -137,20 +179,35 @@ export default function SignUpPage() {
                 required
                 minLength={8}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-10"
+                onChange={(e) => { setPassword(e.target.value); validatePassword(e.target.value); }}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:shadow-sm transition-all outline-none pr-12"
                 placeholder="Enter your password"
               />
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); setShowPassword(!showPassword); }}
-                className="absolute top-1/2 -translate-y-1/2 right-0 pr-3 text-gray-500 dark:text-gray-400 z-10"
+                className="absolute top-1/2 -translate-y-1/2 right-2 p-1 rounded-full text-gray-500 dark:text-gray-400 z-10 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
               </button>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                At least 8 characters with uppercase, lowercase, and number
-              </p>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                <p className={`flex items-center gap-1 ${isLengthValid ? 'text-green-600' : 'text-red-600'}`}>
+                  {isLengthValid ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  At least 8 characters
+                </p>
+                <p className={`flex items-center gap-1 ${hasUppercase ? 'text-green-600' : 'text-red-600'}`}>
+                  {hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  One uppercase letter
+                </p>
+                <p className={`flex items-center gap-1 ${hasLowercase ? 'text-green-600' : 'text-red-600'}`}>
+                  {hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  One lowercase letter
+                </p>
+                <p className={`flex items-center gap-1 ${hasNumber ? 'text-green-600' : 'text-red-600'}`}>
+                  {hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  One number
+                </p>
+              </div>
             </div>
 
             {/* Confirm Password Input */}
@@ -165,15 +222,15 @@ export default function SignUpPage() {
                 minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none pr-10"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:shadow-sm transition-all outline-none pr-12"
                 placeholder="Confirm your password"
               />
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); setShowConfirmPassword(!showConfirmPassword); }}
-                className="absolute top-1/2 -translate-y-1/2 right-0 pr-3 text-gray-500 dark:text-gray-400 z-10"
+                className="absolute top-1/2 -translate-y-1/2 right-2 p-1 rounded-full text-gray-500 dark:text-gray-400 z-10 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showConfirmPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
               </button>
             </div>
 
