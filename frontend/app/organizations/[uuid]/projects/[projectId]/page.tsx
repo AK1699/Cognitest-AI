@@ -9,6 +9,13 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ReportsAnalyticsTab } from '@/components/dashboard/reports-analytics-tab'
+import { StatsCard } from '@/components/dashboard/stats-card'
+import { TestManagementOverview } from '@/components/dashboard/module-overviews/test-management-overview'
+import { ApiTestingOverview } from '@/components/dashboard/module-overviews/api-testing-overview'
+import { AutomationHubOverview } from '@/components/dashboard/module-overviews/automation-hub-overview'
+import { SecurityTestingOverview } from '@/components/dashboard/module-overviews/security-testing-overview'
+import { PerformanceTestingOverview } from '@/components/dashboard/module-overviews/performance-testing-overview'
+import { MobileTestingOverview } from '@/components/dashboard/module-overviews/mobile-testing-overview'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -39,12 +46,72 @@ interface PageParams {
 }
 
 const moduleConfig = {
-  'test-management': { name: 'Test Management', color: 'blue', icon: FileText, iconColor: 'text-blue-600' },
-  'api-testing': { name: 'API Testing', color: 'green', icon: Code, iconColor: 'text-green-600' },
-  'automation-hub': { name: 'Automation Hub', color: 'purple', icon: Zap, iconColor: 'text-purple-600' },
-  'security-testing': { name: 'Security Testing', color: 'red', icon: Shield, iconColor: 'text-red-600' },
-  'performance-testing': { name: 'Performance Testing', color: 'yellow', icon: BarChart3, iconColor: 'text-orange-600' },
-  'mobile-testing': { name: 'Mobile Testing', color: 'indigo', icon: Smartphone, iconColor: 'text-indigo-600' },
+  'test-management': { 
+    name: 'Test Management', 
+    color: 'blue', 
+    icon: FileText, 
+    iconColor: 'text-blue-600',
+    textLabelColor: 'text-blue-500',
+    textNumberColor: 'text-blue-700',
+    borderColor: 'border-blue-200',
+    darkTextLabelColor: 'dark:text-blue-300',
+    darkTextNumberColor: 'dark:text-blue-100',
+  },
+  'api-testing': { 
+    name: 'API Testing', 
+    color: 'green', 
+    icon: Code, 
+    iconColor: 'text-green-600',
+    textLabelColor: 'text-green-500',
+    textNumberColor: 'text-green-700',
+    borderColor: 'border-green-200',
+    darkTextLabelColor: 'dark:text-green-300',
+    darkTextNumberColor: 'dark:text-green-100',
+  },
+  'automation-hub': { 
+    name: 'Automation Hub', 
+    color: 'purple', 
+    icon: Zap, 
+    iconColor: 'text-purple-600',
+    textLabelColor: 'text-purple-500',
+    textNumberColor: 'text-purple-700',
+    borderColor: 'border-purple-200',
+    darkTextLabelColor: 'dark:text-purple-300',
+    darkTextNumberColor: 'dark:text-purple-100',
+  },
+  'security-testing': { 
+    name: 'Security Testing', 
+    color: 'red', 
+    icon: Shield, 
+    iconColor: 'text-red-600',
+    textLabelColor: 'text-red-500',
+    textNumberColor: 'text-red-700',
+    borderColor: 'border-red-200',
+    darkTextLabelColor: 'dark:text-red-300',
+    darkTextNumberColor: 'dark:text-red-100',
+  },
+  'performance-testing': { 
+    name: 'Performance Testing', 
+    color: 'orange', 
+    icon: BarChart3, 
+    iconColor: 'text-orange-600',
+    textLabelColor: 'text-orange-500',
+    textNumberColor: 'text-orange-700',
+    borderColor: 'border-orange-200',
+    darkTextLabelColor: 'dark:text-orange-300',
+    darkTextNumberColor: 'dark:text-orange-100',
+  },
+  'mobile-testing': { 
+    name: 'Mobile Testing', 
+    color: 'indigo', 
+    icon: Smartphone, 
+    iconColor: 'text-indigo-600',
+    textLabelColor: 'text-indigo-500',
+    textNumberColor: 'text-indigo-700',
+    borderColor: 'border-indigo-200',
+    darkTextLabelColor: 'dark:text-indigo-300',
+    darkTextNumberColor: 'dark:text-indigo-100',
+  },
 } as const
 
 export default function ProjectDetailPage({ params }: { params: Promise<PageParams> }) {
@@ -514,19 +581,39 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
           {activeTab === 'overview' ? (
             <div className="space-y-6">
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <div className="text-sm text-gray-500 mb-2">Total Test Plans</div>
-                  <div className="text-3xl font-semibold text-gray-900">0</div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <div className="text-sm text-gray-500 mb-2">Total Test Cases</div>
-                  <div className="text-3xl font-semibold text-gray-900">0</div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <div className="text-sm text-gray-500 mb-2">Test Executions</div>
-                  <div className="text-3xl font-semibold text-gray-900">0</div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {project.settings?.enabled_modules?.map(moduleId => {
+                  switch (moduleId) {
+                    case 'test-management':
+                      return <TestManagementOverview key={moduleId} />
+                    case 'api-testing':
+                      return <ApiTestingOverview key={moduleId} />
+                    case 'automation-hub':
+                      return <AutomationHubOverview key={moduleId} />
+                    case 'security-testing':
+                      return <SecurityTestingOverview key={moduleId} />
+                    case 'performance-testing':
+                      return <PerformanceTestingOverview key={moduleId} />
+                    case 'mobile-testing':
+                      return <MobileTestingOverview key={moduleId} />
+                    default:
+                      const module = moduleConfig[moduleId as keyof typeof moduleConfig]
+                      if (!module) return null
+
+                      return (
+                        <StatsCard
+                          key={moduleId}
+                          title={module.name}
+                          value={0} // Replace with actual data
+                          icon={module.icon}
+                                                                                                                                        iconColor={module.iconColor}
+                                                                                                                                        iconBgColor={`bg-${module.color}-100`}
+                                                                                                                                        borderColor={module.borderColor}
+                                                                                                                                        textLabelColor={`${module.textLabelColor} ${module.darkTextLabelColor}`}
+                                                                                                                                        textNumberColor={`${module.textNumberColor} ${module.darkTextNumberColor}`}
+                                                                                                                                      />                      )
+                  }
+                })}
               </div>
             </div>
           ) : activeTab === 'reports' ? (
