@@ -100,6 +100,9 @@ export default function SignInPage() {
                   Remember me
                 </label>
               </div>
+              <Link href="/auth/forgot-password" className="text-sm font-medium text-primary hover:text-primary/90 transition-colors">
+                Forgot password?
+              </Link>
             </div>
 
             {/* Sign In Button */}

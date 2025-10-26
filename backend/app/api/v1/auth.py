@@ -9,7 +9,9 @@ from app.core.security import (
     get_password_hash,
     create_access_token,
     create_refresh_token,
-    decode_token
+    decode_token,
+    create_password_reset_token,
+    decode_password_reset_token
 )
 from app.core.config import settings
 from app.models.user import User
@@ -19,8 +21,15 @@ from app.schemas.user import (
     UserResponse,
     Token,
     RefreshTokenRequest,
-    UserUpdate
+    UserUpdate,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    VerifyResetCodeRequest
 )
+from app.utils.email import send_email, render_template
+from app.models.password_reset import PasswordResetCode
+import random
+import string
 
 router = APIRouter()
 
@@ -154,6 +163,161 @@ async def refresh_token(request: RefreshTokenRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Generate and send a 6-digit password reset code to the user's email.
+    """
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # For security reasons, don't reveal if the email is not registered
+        return {"message": "If an account with that email exists, a password reset code has been sent."}
+
+    # Generate a random 6-digit code
+    code = ''.join(random.choices(string.digits, k=6))
+
+    # Calculate expiration time (15 minutes from now)
+    from datetime import datetime, timedelta
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+
+    # Invalidate any previous unused codes for this user
+    await db.execute(
+        select(PasswordResetCode)
+        .where(PasswordResetCode.user_id == user.id)
+        .where(PasswordResetCode.is_used == False)
+    )
+    previous_codes = (await db.execute(
+        select(PasswordResetCode)
+        .where(PasswordResetCode.user_id == user.id)
+        .where(PasswordResetCode.is_used == False)
+    )).scalars().all()
+
+    for prev_code in previous_codes:
+        prev_code.is_used = True
+
+    # Create new password reset code
+    reset_code = PasswordResetCode(
+        user_id=user.id,
+        email=user.email,
+        code=code,
+        expires_at=expires_at
+    )
+    db.add(reset_code)
+    await db.commit()
+
+    # Render HTML email template
+    html_body = render_template("password_reset_email.html", code=code)
+
+    # Plain text fallback
+    plain_body = f"""
+Password Reset Request
+
+Hello,
+
+We received a request to reset your password for your CogniTest account.
+Use the verification code below to reset your password:
+
+{code}
+
+This code will expire in 15 minutes.
+
+If you didn't request this password reset, please ignore this email.
+
+Best regards,
+CogniTest Team
+    """
+
+    await send_email(
+        email_to=user.email,
+        subject="Password Reset",
+        body=plain_body.strip(),
+        html_body=html_body
+    )
+
+    return {"message": "If an account with that email exists, a password reset code has been sent."}
+
+@router.post("/verify-reset-code", status_code=status.HTTP_200_OK)
+async def verify_reset_code(request: VerifyResetCodeRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Verify if the password reset code is valid.
+    """
+    from datetime import datetime
+
+    result = await db.execute(
+        select(PasswordResetCode)
+        .where(PasswordResetCode.email == request.email)
+        .where(PasswordResetCode.code == request.code)
+        .where(PasswordResetCode.is_used == False)
+        .order_by(PasswordResetCode.created_at.desc())
+    )
+    reset_code = result.scalar_one_or_none()
+
+    if not reset_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+
+    if reset_code.is_expired():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired"
+        )
+
+    return {"message": "Verification code is valid"}
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Reset user's password using a valid 6-digit code.
+    """
+    from datetime import datetime
+
+    # Find the reset code
+    result = await db.execute(
+        select(PasswordResetCode)
+        .where(PasswordResetCode.email == request.email)
+        .where(PasswordResetCode.code == request.code)
+        .where(PasswordResetCode.is_used == False)
+        .order_by(PasswordResetCode.created_at.desc())
+    )
+    reset_code = result.scalar_one_or_none()
+
+    if not reset_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+
+    if reset_code.is_expired():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired"
+        )
+
+    # Find the user
+    user_result = await db.execute(select(User).where(User.id == reset_code.user_id))
+    user = user_result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+
+    # Mark the code as used
+    reset_code.is_used = True
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {"message": "Password has been reset successfully."}
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):

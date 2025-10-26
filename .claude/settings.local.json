@@ -39,7 +39,10 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MTBhM2NiOS1hNTA4LTRkODctOWI2Ni02OWY0MWM1OGVhOWQiLCJlbWFpbCI6InRlc3R1c2VyQGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTA2NTkwMiwidHlwZSI6ImFjY2VzcyJ9.xWuCs1FGzGkHq3-IgwtfOcdF_E2H67JF71D2-cnsRbc\")",
       "Read(//Applications/**)",
       "Bash(brew install --cask pgadmin4)",
-      "Bash(open -a \"pgAdmin 4\")"
+      "Bash(open -a \"pgAdmin 4\")",
+      "Bash(kill:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(alembic revision:*)"
     ],
     "deny": [],
     "ask": []

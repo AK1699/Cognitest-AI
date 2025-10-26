@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
 
 class Settings(BaseSettings):
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://127.0.0.1:3000",
     ]
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     # Database
     DATABASE_URL: str = os.getenv(
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     REMEMBER_ME_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     REMEMBER_ME_REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
 
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -78,6 +80,15 @@ class Settings(BaseSettings):
     NOTION_API_KEY: str = os.getenv("NOTION_API_KEY", "")
 
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
+
+    # SMTP Settings
+    SMTP_TLS: bool = True
+    SMTP_PORT: Optional[int] = os.getenv("SMTP_PORT", 587)
+    SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")
+    SMTP_USER: Optional[str] = os.getenv("SMTP_USER")
+    SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD")
+    EMAILS_FROM_EMAIL: Optional[str] = os.getenv("EMAILS_FROM_EMAIL")
+    EMAILS_FROM_NAME: Optional[str] = os.getenv("EMAILS_FROM_NAME", "Cognitest Support")
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
