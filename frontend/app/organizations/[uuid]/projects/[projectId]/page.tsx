@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy } from 'lucide-react'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -152,13 +152,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const fetchProject = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/projects/${projectId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/projects/${projectId}`)
       setProject(response.data)
     } catch (error: any) {
       console.error('Failed to fetch project:', error)
@@ -170,13 +164,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const fetchOrganisation = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/organisations/${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
     } catch (error: any) {
       console.error('Failed to fetch organisation:', error)
@@ -186,10 +174,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   const fetchOrganisations = async () => {
     if (!user) return
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -198,14 +183,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      await axios.put(
-        `${API_URL}/api/v1/projects/${projectId}`,
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.put(`/api/v1/projects/${projectId}`, formData);
       toast.success('Project updated successfully');
       fetchProject(); // Refetch project data to ensure UI consistency
     } catch (error) {
@@ -224,18 +202,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const handleModuleSave = async () => {
     try {
-      const token = localStorage.getItem('access_token');
       const newSettings = {
         ...project?.settings,
         enabled_modules: enabledModules,
       };
-      await axios.put(
-        `${API_URL}/api/v1/projects/${projectId}`,
-        { settings: newSettings },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.put(`/api/v1/projects/${projectId}`, { settings: newSettings });
       toast.success('Modules updated successfully');
       fetchProject(); // Refetch project data
     } catch (error) {
@@ -252,10 +223,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const handleDeleteProject = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      await axios.delete(`${API_URL}/api/v1/projects/${projectId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(`/api/v1/projects/${projectId}`);
       toast.success('Project deleted successfully');
       router.push(`/organizations/${uuid}/projects`);
     } catch (error) {

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -30,19 +30,12 @@ export default function CreateOrganisationPage() {
     setNameError(false)
 
     try {
-      const token = localStorage.getItem('access_token')
-
       const response = await axios.post(
-        `${API_URL}/api/v1/organisations/`,
+        '/api/v1/organisations/',
         {
           name: name.trim(),
           website: website.trim() || null,
           description: null
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
         }
       )
 

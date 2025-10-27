@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { FolderOpen, Users, CheckCircle, Activity, ArrowLeft } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -39,12 +39,8 @@ export default function EnterpriseReportingPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
       const projectsResponse = await axios.get(
-        `${API_URL}/api/v1/projects/?organisation_id=${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        `/api/v1/projects/?organisation_id=${uuid}`
       )
       const projectsData = projectsResponse.data
       setProjects(projectsData)
@@ -52,10 +48,7 @@ export default function EnterpriseReportingPage() {
       const allTestCases: TestCase[] = []
       for (const project of projectsData) {
         const testCasesResponse = await axios.get(
-          `${API_URL}/api/v1/test_cases/?project_id=${project.id}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          `/api/v1/test_cases/?project_id=${project.id}`
         )
         allTestCases.push(...testCasesResponse.data)
       }

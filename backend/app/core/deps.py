@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,14 +11,15 @@ from app.core.security import decode_token
 from app.models.user import User
 from app.schemas.user import TokenData
 
-# Security scheme
-security = HTTPBearer()
+# Security scheme (kept for backward compatibility, but cookies take precedence)
+security = HTTPBearer(auto_error=False)
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> User:
-    """Get the current authenticated user from JWT token."""
+    """Get the current authenticated user from JWT token (cookie or Authorization header)."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -26,7 +27,16 @@ async def get_current_user(
     )
 
     try:
-        token = credentials.credentials
+        # First, try to get token from cookie (preferred method)
+        token = request.cookies.get("access_token")
+
+        # Fall back to Authorization header if no cookie (for backward compatibility)
+        if not token and credentials:
+            token = credentials.credentials
+
+        if not token:
+            raise credentials_exception
+
         payload = decode_token(token)
 
         if payload is None:
@@ -84,14 +94,21 @@ async def get_current_superuser(
 
 # Optional user dependency (doesn't raise exception if no token)
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ) -> Optional[User]:
     """Get the current user if authenticated, otherwise None."""
-    if not credentials:
+    # Try to get token from cookie first
+    token = request.cookies.get("access_token")
+
+    # Fall back to Authorization header
+    if not token and credentials:
+        token = credentials.credentials
+
+    if not token:
         return None
 
-    token = credentials.credentials
     payload = decode_token(token)
 
     if payload is None:

@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 import { GeneralSettings } from '@/components/settings/general-settings'
 import { LogoSettings } from '@/components/settings/logo-settings'
@@ -41,13 +41,7 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
 
   const fetchOrganisation = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/organisations/${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
     } catch (error: any) {
       console.error('Failed to fetch organisation:', error)
@@ -60,14 +54,7 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
   const updateOrganisation = async (data: Partial<Organisation>) => {
     setIsSaving(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.put(
-        `${API_URL}/api/v1/organisations/${uuid}`,
-        data,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.put(`/api/v1/organisations/${uuid}`, data)
       setOrganisation(response.data)
       localStorage.setItem('current_organisation', JSON.stringify(response.data))
       toast.success('Organisation updated successfully!')
@@ -83,13 +70,7 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
 
   const deleteOrganisation = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      await axios.delete(
-        `${API_URL}/api/v1/organisations/${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      await axios.delete(`/api/v1/organisations/${uuid}`)
       localStorage.removeItem('current_organisation')
       toast.success('Organisation deleted successfully')
       router.push('/organizations')

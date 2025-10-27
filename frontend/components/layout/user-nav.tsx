@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut, FolderKanban, Check, Trash2, User, Settings, HelpCircle } from 'lucide-react'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -46,10 +46,7 @@ export function UserNav() {
 
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get('/api/v1/organisations/')
       setOrganisations(response.data)
 
       // Check if there's a current org in localStorage
@@ -102,10 +99,7 @@ export function UserNav() {
     }
 
     try {
-      const token = localStorage.getItem('access_token')
-      await axios.delete(`${API_URL}/api/v1/organisations/${org.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.delete(`/api/v1/organisations/${org.id}`)
 
       // Remove from state
       setOrganisations(organisations.filter(o => o.id !== org.id))

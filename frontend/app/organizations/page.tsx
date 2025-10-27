@@ -3,11 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import axios from 'axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface Organisation {
   id: string
@@ -44,22 +42,15 @@ export default function OrganizationsPage() {
 
   const fetchOrganisations = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await api.get('/api/v1/organisations/')
 
       // Fetch stats for each organization
       const orgsWithStats = await Promise.all(
         response.data.map(async (org: Organisation) => {
           try {
             const [projectsRes, membersRes] = await Promise.all([
-              axios.get(`${API_URL}/api/v1/projects/?organisation_id=${org.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              }),
-              axios.get(`${API_URL}/api/v1/organisations/${org.id}/members/`, {
-                headers: { Authorization: `Bearer ${token}` }
-              }).catch(() => ({ data: [] }))
+              api.get(`/api/v1/projects/?organisation_id=${org.id}`),
+              api.get(`/api/v1/organisations/${org.id}/members/`).catch(() => ({ data: [] }))
             ])
 
             return {

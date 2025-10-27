@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { CreateProjectModal } from '@/components/projects/create-project-modal'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 import { Search, Plus, FolderOpen, MoreVertical, GitBranch, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 
@@ -48,13 +48,7 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/projects/?organisation_id=${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/projects/?organisation_id=${uuid}`)
       setProjects(response.data)
     } catch (error: any) {
       console.error('Failed to fetch projects:', error)

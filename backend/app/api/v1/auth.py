@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
@@ -33,12 +33,56 @@ import string
 
 router = APIRouter()
 
-@router.post("/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str, remember_me: bool = False):
+    """
+    Set HttpOnly cookies for access and refresh tokens.
+
+    Args:
+        response: FastAPI Response object
+        access_token: JWT access token
+        refresh_token: JWT refresh token
+        remember_me: If True, sets longer expiration times
+    """
+    # Access token cookie settings
+    access_max_age = settings.REMEMBER_ME_ACCESS_TOKEN_EXPIRE_MINUTES * 60 if remember_me else settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+    # In production, secure should be True. For local development over HTTP, use False
+    is_production = settings.FRONTEND_URL.startswith("https://")
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,  # Prevents JavaScript access (XSS protection)
+        secure=is_production,    # Only sent over HTTPS in production
+        samesite="lax", # CSRF protection (use "strict" for even more security)
+        max_age=access_max_age,
+        path="/"
+    )
+
+    # Refresh token cookie settings
+    refresh_max_age = settings.REMEMBER_ME_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if remember_me else 7 * 24 * 60 * 60
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=is_production,
+        samesite="lax",
+        max_age=refresh_max_age,
+        path="/"
+    )
+
+def clear_auth_cookies(response: Response):
+    """Clear authentication cookies on logout."""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
+async def signup(user_data: UserCreate, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Create a new user account.
 
-    Returns JWT access and refresh tokens.
+    Sets HttpOnly cookies with JWT access and refresh tokens.
     """
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == user_data.email))
@@ -77,18 +121,24 @@ async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(new_user.id), "email": new_user.email})
     refresh_token = create_refresh_token(data={"sub": str(new_user.id)})
 
+    # Set HttpOnly cookies
+    set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "message": "Account created successfully",
+        "user": {
+            "id": str(new_user.id),
+            "email": new_user.email,
+            "username": new_user.username
+        }
     }
 
-@router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+@router.post("/login")
+async def login(credentials: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
     """
-    Authenticate user and return JWT tokens.
+    Authenticate user and set HttpOnly cookies with JWT tokens.
 
-    Accepts email and password, returns access and refresh tokens.
+    Accepts email and password, sets access and refresh token cookies.
     """
     # Find user by email
     result = await db.execute(select(User).where(User.email == credentials.email))
@@ -118,19 +168,34 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(user.id), "email": user.email}, expires_delta=access_token_expires)
     refresh_token = create_refresh_token(data={"sub": str(user.id)}, expires_delta=refresh_token_expires)
 
+    # Set HttpOnly cookies
+    set_auth_cookies(response, access_token, refresh_token, remember_me=credentials.remember_me)
+
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "message": "Login successful",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "username": user.username
+        }
     }
 
-@router.post("/refresh", response_model=Token)
-async def refresh_token(request: RefreshTokenRequest):
+@router.post("/refresh")
+async def refresh_token(request: Request, response: Response):
     """
-    Refresh access token using a valid refresh token.
+    Refresh access token using refresh token from cookie.
     """
+    # Get refresh token from cookie
+    refresh_token_value = request.cookies.get("refresh_token")
+
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found"
+        )
+
     try:
-        payload = decode_token(request.refresh_token)
+        payload = decode_token(refresh_token_value)
 
         if not payload or payload.get("type") != "refresh":
             raise HTTPException(
@@ -149,13 +214,12 @@ async def refresh_token(request: RefreshTokenRequest):
 
         # Create new tokens
         access_token = create_access_token(data={"sub": user_id, "email": email})
-        refresh_token = create_refresh_token(data={"sub": user_id})
+        new_refresh_token = create_refresh_token(data={"sub": user_id})
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        }
+        # Set new HttpOnly cookies
+        set_auth_cookies(response, access_token, new_refresh_token)
+
+        return {"message": "Token refreshed successfully"}
     except HTTPException:
         raise
     except Exception as e:
@@ -370,11 +434,9 @@ async def update_current_user(
     return current_user
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_active_user)):
+async def logout(response: Response, current_user: User = Depends(get_current_active_user)):
     """
-    Logout current user.
-
-    Note: JWT tokens are stateless, so logout is handled client-side by removing tokens.
-    This endpoint is mainly for logging/tracking purposes.
+    Logout current user by clearing HttpOnly cookies.
     """
+    clear_auth_cookies(response)
     return {"message": "Successfully logged out"}

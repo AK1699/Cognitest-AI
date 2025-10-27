@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Target, Play, CheckCircle2, Clock } from 'lucide-react'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 
@@ -53,13 +53,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchProject = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/projects/${projectId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/projects/${projectId}`)
       setProject(response.data)
     } catch (error: any) {
       console.error('Failed to fetch project:', error)
@@ -71,13 +65,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchOrganisation = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(
-        `${API_URL}/api/v1/organisations/${uuid}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await axios.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
     } catch (error: any) {
       console.error('Failed to fetch organisation:', error)
@@ -87,10 +75,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const fetchOrganisations = async () => {
     if (!user) return
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       console.error('Failed to fetch organisations:', error)

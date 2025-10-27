@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { Building2, Plus, Edit2, Trash2, ExternalLink, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -40,10 +40,7 @@ export default function OrganisationsPage() {
 
   const fetchOrganisations = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/api/v1/organisations/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       toast.error('Failed to load organizations')
@@ -58,10 +55,7 @@ export default function OrganisationsPage() {
     }
 
     try {
-      const token = localStorage.getItem('access_token')
-      await axios.delete(`${API_URL}/api/v1/organisations/${orgId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await axios.delete(`/api/v1/organisations/${orgId}`)
 
       // Remove from state
       setOrganisations(organisations.filter(org => org.id !== orgId))
@@ -95,15 +89,11 @@ export default function OrganisationsPage() {
 
     setSaving(true)
     try {
-      const token = localStorage.getItem('access_token')
       const response = await axios.put(
-        `${API_URL}/api/v1/organisations/${editingOrg.id}`,
+        `/api/v1/organisations/${editingOrg.id}`,
         {
           name: editName.trim(),
           website: editWebsite.trim() || null
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
         }
       )
 

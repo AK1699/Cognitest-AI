@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import axios from 'axios'
+import axios from '@/lib/axios'
 import { useAuth } from '@/lib/auth-context'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -61,8 +61,6 @@ export function CreateProjectModal({
 
     setIsSubmitting(true)
     try {
-      const token = localStorage.getItem('access_token')
-
       const payload = {
         name: projectName.trim(),
         owner_id: user.id,
@@ -77,13 +75,7 @@ export function CreateProjectModal({
 
       console.log('Creating project with payload:', payload)
 
-      const response = await axios.post(
-        `${API_URL}/api/v1/projects/`,
-        payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const response = await axios.post('/api/v1/projects/', payload)
 
       console.log('Project created successfully:', response.data)
       toast.success('Project created successfully!')
