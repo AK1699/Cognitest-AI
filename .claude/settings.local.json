@@ -44,7 +44,10 @@
       "Bash(source venv/bin/activate)",
       "Bash(alembic revision:*)",
       "mcp__ide__getDiagnostics",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(timeout 5 curl:*)",
+      "Bash(uvicorn app.main:app:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

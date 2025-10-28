@@ -39,6 +39,8 @@ class TestPlan(Base):
     # Relationships
     project = relationship("Project", back_populates="test_plans")
     test_suites = relationship("TestSuite", back_populates="test_plan", cascade="all, delete-orphan")
+    approval = relationship("TestPlanApproval", back_populates="test_plan", uselist=False,
+                           cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<TestPlan {self.name}>"
