@@ -20,6 +20,12 @@ class User(Base):
 
     # Relationships
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+    groups = relationship(
+        "Group",
+        secondary="user_groups",
+        back_populates="users"
+    )
+    project_roles = relationship("UserProjectRole", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email}>"

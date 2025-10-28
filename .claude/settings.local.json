@@ -47,7 +47,19 @@
       "Read(//tmp/**)",
       "Bash(timeout 5 curl:*)",
       "Bash(uvicorn app.main:app:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWM2ZDQwOC1iNDYxLTQwYmYtODFiMi0zM2RmYjhkOTQ2NjAiLCJlbWFpbCI6InJiYWN0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTc0ODk2MywidHlwZSI6ImFjY2VzcyJ9.dMwuTroliyb8zpFXsMpvX3jTbogD66WX1tXI-k7qEbA\" ORG_ID=\"f9744a3b-1793-4a66-992f-8ed6a27ff23a\" PROJECT_ID=\"18609883-e02a-48dd-8afd-794e1843eb4f\" USER_ID=\"71c6d408-b461-40bf-81b2-33dfb8d94660\")",
+      "Bash(echo \"=== TEST 1: Initialize Default Roles ===\" curl -s -X POST \"http://localhost:8000/api/v1/roles/initialize\" -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\" -d \"{\"\"organisation_id\"\":\"\"$ORG_ID\"\"}\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWM2ZDQwOC1iNDYxLTQwYmYtODFiMi0zM2RmYjhkOTQ2NjAiLCJlbWFpbCI6InJiYWN0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTc0ODk2MywidHlwZSI6ImFjY2VzcyJ9.dMwuTroliyb8zpFXsMpvX3jTbogD66WX1tXI-k7qEbA\")",
+      "Bash(ORG_ID=\"f9744a3b-1793-4a66-992f-8ed6a27ff23a\":*)",
+      "Bash(__NEW_LINE__ echo \"=== TEST 1: Initialize Default Roles ===\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWM2ZDQwOC1iNDYxLTQwYmYtODFiMi0zM2RmYjhkOTQ2NjAiLCJlbWFpbCI6InJiYWN0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTc0ODk2MywidHlwZSI6ImFjY2VzcyJ9.dMwuTroliyb8zpFXsMpvX3jTbogD66WX1tXI-k7qEbA\" ORG_ID=\"f9744a3b-1793-4a66-992f-8ed6a27ff23a\")",
+      "Bash(echo \"=== TEST 2: List All Permissions ===\" curl -s -X GET \"http://localhost:8000/api/v1/roles/permissions\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(echo \"=== TEST 3: List All Roles ===\" curl -s -X GET \"http://localhost:8000/api/v1/roles/?organisation_id=$ORG_ID\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(chmod:*)",
+      "Bash(/tmp/test_rbac_apis.sh)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MWM2ZDQwOC1iNDYxLTQwYmYtODFiMi0zM2RmYjhkOTQ2NjAiLCJlbWFpbCI6InJiYWN0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTc0ODk2MywidHlwZSI6ImFjY2VzcyJ9.dMwuTroliyb8zpFXsMpvX3jTbogD66WX1tXI-k7qEbA\" USER_ID=\"71c6d408-b461-40bf-81b2-33dfb8d94660\" PROJECT_ID=\"18609883-e02a-48dd-8afd-794e1843eb4f\")",
+      "Bash(echo \"=== Checking User Permissions Endpoint ===\" curl -s -X GET \"http://localhost:8000/api/v1/roles/user-permissions/$USER_ID/project/$PROJECT_ID\" -H \"Authorization: Bearer $TOKEN\")"
     ],
     "deny": [],
     "ask": []
