@@ -141,6 +141,14 @@ const config: Config = {
           '25%': { transform: 'rotate(-10deg)' },
           '75%': { transform: 'rotate(10deg)' },
         },
+        'spin-slow': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        'spin-slower': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -151,6 +159,8 @@ const config: Config = {
         'shimmer': 'shimmer 2s ease-in-out infinite',
         'bounce-slow': 'bounce-slow 2s ease-in-out infinite',
         'wiggle': 'wiggle 1s ease-in-out infinite',
+        'spin-slow': 'spin-slow 20s linear infinite',
+        'spin-slower': 'spin-slower 30s linear infinite',
       },
       fontFamily: {
         sans: ['"Poppins"', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
