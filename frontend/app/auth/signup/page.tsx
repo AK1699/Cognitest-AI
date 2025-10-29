@@ -62,14 +62,6 @@ export default function SignUpPage() {
             </svg>
           </div>
 
-          {/* Magnifying glass symbols */}
-          <div className="absolute top-28 right-32 opacity-8 animate-float" style={{ animationDelay: '2s', animationDuration: '10s' }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-cyan-400">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </div>
-
           {/* Circuit-like connecting lines */}
           <svg className="absolute inset-0 w-full h-full opacity-5" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -98,13 +90,6 @@ export default function SignUpPage() {
         <p className="relative z-10 mt-8 text-xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-teal-200 via-cyan-200 to-emerald-200 text-center max-w-md drop-shadow-lg">
           AI-Powered Testing Platform
         </p>
-
-        {/* Animated indicator dots */}
-        <div className="absolute bottom-8 left-8 right-8 flex justify-center space-x-3 opacity-50">
-          <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></div>
-          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-        </div>
       </div>
 
       {/* Right side: Sign Up Form */}

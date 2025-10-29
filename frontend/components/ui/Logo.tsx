@@ -151,9 +151,10 @@ const AnimatedText = styled.text<{ $delay: number }>`
   font-family: Inter, Poppins, Montserrat, Segoe UI, Roboto, system-ui, -apple-system, Arial, sans-serif;
   font-size: 84px;
   font-weight: 600;
-  fill: #0e2a47;
+  fill: #E0F2FE;
   letter-spacing: 0.5px;
   opacity: 0;
+  filter: drop-shadow(0 4px 12px rgba(6, 182, 212, 0.3));
   ${props => css`
     animation: ${textAppearAnimation} 0.6s ease-out forwards;
     animation-delay: ${props.$delay}s;
