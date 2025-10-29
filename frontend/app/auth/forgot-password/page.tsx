@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-semibold text-primary">CogniTest</h1>
-          <p className="text-gray-500 mt-2 font-normal">AI-Powered Testing Platform</p>
+          {/* <p className="text-gray-500 mt-2 font-normal">AI-Powered Testing Platform</p> */}
         </div>
 
         {/* Forgot Password Card */}

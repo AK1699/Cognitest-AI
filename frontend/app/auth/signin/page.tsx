@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
 import Image from 'next/image'
+import Logo from '@/components/ui/Logo'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -33,8 +34,7 @@ export default function SignInPage() {
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
       {/* Left side: Branding */}
       <div className="hidden md:flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-8">
-        <h1 className="text-5xl font-bold text-primary mb-4">CogniTest</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300">AI-Powered Testing Platform</p>
+        <Logo />
       </div>
 
       {/* Right side: Sign In Form */}
