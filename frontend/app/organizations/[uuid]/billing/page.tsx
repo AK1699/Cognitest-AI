@@ -1,10 +1,11 @@
 'use client'
 
+import { use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress' // Assuming a Progress component exists
-import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { Sidebar } from '@/components/layout/sidebar'
+import { CreditCard } from 'lucide-react'
 
 const invoiceData = [
   { id: 'INV-2023-001', date: '2023-10-01', amount: '$500.00', status: 'Paid' },
@@ -12,16 +13,24 @@ const invoiceData = [
   { id: 'INV-2023-003', date: '2023-08-01', amount: '$500.00', status: 'Paid' },
 ]
 
-export default function BillingPage() {
-  const router = useRouter()
+interface PageParams {
+  uuid: string
+}
+
+export default function BillingPage({ params }: { params: Promise<PageParams> }) {
+  const { uuid } = use(params)
 
   return (
-    <div className="p-8">
-      <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-4">
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
-      <h1 className="text-3xl font-bold mb-8">Billing & Usage</h1>
+    <div className="flex min-h-screen bg-white">
+      <Sidebar organisationId={uuid} />
+      <div className="flex-1 p-8">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+          <CreditCard className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900">Billing & Usage</h1>
+      </div>
+      <p className="text-lg text-gray-600 mb-8 mt-4">Manage your subscription, invoices, and usage metrics</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
@@ -107,6 +116,7 @@ export default function BillingPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   )

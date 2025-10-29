@@ -1,9 +1,10 @@
 'use client'
 
+import { use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { Sidebar } from '@/components/layout/sidebar'
+import { Puzzle } from 'lucide-react'
 
 const integrationsData = [
   {
@@ -44,16 +45,24 @@ const integrationsData = [
   },
 ]
 
-export default function IntegrationsPage() {
-  const router = useRouter()
+interface PageParams {
+  uuid: string
+}
+
+export default function IntegrationsPage({ params }: { params: Promise<PageParams> }) {
+  const { uuid } = use(params)
 
   return (
-    <div className="p-8">
-      <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-4">
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
-      <h1 className="text-3xl font-bold mb-8">Integrations</h1>
+    <div className="flex min-h-screen bg-white">
+      <Sidebar organisationId={uuid} />
+      <div className="flex-1 p-8">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+          <Puzzle className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900">Integrations</h1>
+      </div>
+      <p className="text-lg text-gray-600 mb-8 mt-4">Connect your favorite tools and services</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {integrationsData.map((integration) => (
@@ -70,6 +79,7 @@ export default function IntegrationsPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
       </div>
     </div>
   )

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, use } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { StatsCard } from '@/components/dashboard/stats-card'
-import { FolderOpen, Users, CheckCircle, Activity, ArrowLeft } from 'lucide-react'
-import { useRouter, useParams } from 'next/navigation'
+import { FolderOpen, Users, CheckCircle, Activity, BarChart3 } from 'lucide-react'
 import axios from '@/lib/axios'
 import { toast } from 'sonner'
+import { Sidebar } from '@/components/layout/sidebar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -21,10 +21,12 @@ interface TestCase {
   execution_logs: { timestamp: string }[]
 }
 
-export default function EnterpriseReportingPage() {
-  const router = useRouter()
-  const params = useParams()
-  const { uuid } = params
+interface PageParams {
+  uuid: string
+}
+
+export default function EnterpriseReportingPage({ params }: { params: Promise<PageParams> }) {
+  const { uuid } = use(params)
 
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState<Project[]>([])
@@ -105,20 +107,29 @@ export default function EnterpriseReportingPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-center text-gray-600">Loading reporting data...</p>
+      <div className="flex min-h-screen">
+        <Sidebar organisationId={uuid} />
+        <div className="flex-1 flex items-center justify-center bg-white">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading reporting data...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-8">
-      <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-4">
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
-      <h1 className="text-3xl font-bold mb-8">Enterprise Reporting</h1>
+    <div className="flex min-h-screen bg-white">
+      <Sidebar organisationId={uuid} />
+      <div className="flex-1 p-8">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+          <BarChart3 className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900">Enterprise Reporting</h1>
+      </div>
+      <p className="text-lg text-gray-600 mb-8 mt-4">Analytics and insights across all your projects</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
@@ -211,6 +222,7 @@ export default function EnterpriseReportingPage() {
             </table>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

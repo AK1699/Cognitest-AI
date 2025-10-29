@@ -81,10 +81,14 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
         {/* Header */}
-        <div className="border-b border-gray-200">
-          <div className="px-8 py-5">
-            <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
+        <div className="px-8 py-8">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+              <FolderOpen className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900">Projects</h1>
           </div>
+          <p className="text-lg text-gray-600 mt-4">Create and manage your testing projects</p>
         </div>
 
         <div className="px-8 py-6">
