@@ -40,16 +40,20 @@ async def verify_project_access(
             detail="Project not found"
         )
 
-    # Verify user owns the organisation
-    result = await db.execute(
-        select(Organisation).where(
-            Organisation.id == project.organisation_id,
-            Organisation.owner_id == current_user.id
-        )
+    # Verify user has access to the organisation (owner or member)
+    from sqlalchemy import text
+    access_check = await db.execute(
+        text("""
+            SELECT 1 FROM organisations o
+            LEFT JOIN user_organisations uo ON o.id = uo.organisation_id
+            WHERE o.id = :org_id
+            AND (o.owner_id = :user_id OR uo.user_id = :user_id)
+            LIMIT 1
+        """),
+        {"org_id": str(project.organisation_id), "user_id": str(current_user.id)}
     )
-    organisation = result.scalar_one_or_none()
 
-    if not organisation:
+    if not access_check.fetchone():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to access this project"

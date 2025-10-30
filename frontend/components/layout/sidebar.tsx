@@ -38,50 +38,66 @@ interface SidebarProps {
   projectId?: string
 }
 
-const getMainMenuItems = (organisationId?: string) => [
-  {
-    name: 'Projects',
-    href: organisationId ? `/organizations/${organisationId}/projects` : '/projects',
-    icon: FolderOpen,
-    iconColor: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-  },
-  {
-    name: 'Enterprise Reporting',
-    href: organisationId ? `/organizations/${organisationId}/enterprise-reporting` : '/enterprise-reporting',
-    icon: BarChart3,
-    iconColor: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-  },
-  {
-    name: 'Billing & Usage',
-    href: organisationId ? `/organizations/${organisationId}/billing` : '/billing',
-    icon: CreditCard,
-    iconColor: 'text-green-600',
-    bgColor: 'bg-green-50',
-  },
-  {
-    name: 'Users & Teams',
-    href: organisationId ? `/organizations/${organisationId}/users-teams` : '/users-teams',
-    icon: Users,
-    iconColor: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-  },
-  {
-    name: 'Integrations',
-    href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
-    icon: Puzzle,
-    iconColor: 'text-pink-600',
-    bgColor: 'bg-pink-50',
-  },
-  {
-    name: 'Settings',
-    href: organisationId ? `/organizations/${organisationId}/settings` : '/settings',
-    icon: Settings,
-    iconColor: 'text-gray-600',
-    bgColor: 'bg-gray-50',
-  },
-]
+const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
+  const allItems = [
+    {
+      name: 'Projects',
+      href: organisationId ? `/organizations/${organisationId}/projects` : '/projects',
+      icon: FolderOpen,
+      iconColor: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      allowMember: true, // Members can see this
+    },
+    {
+      name: 'Enterprise Reporting',
+      href: organisationId ? `/organizations/${organisationId}/enterprise-reporting` : '/enterprise-reporting',
+      icon: BarChart3,
+      iconColor: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      allowMember: false, // Only owners
+    },
+    {
+      name: 'Billing & Usage',
+      href: organisationId ? `/organizations/${organisationId}/billing` : '/billing',
+      icon: CreditCard,
+      iconColor: 'text-green-600',
+      bgColor: 'bg-green-50',
+      allowMember: false, // Only owners
+    },
+    {
+      name: 'Users & Teams',
+      href: organisationId ? `/organizations/${organisationId}/users-teams` : '/users-teams',
+      icon: Users,
+      iconColor: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+      allowMember: false, // Only owners
+    },
+    {
+      name: 'Integrations',
+      href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
+      icon: Puzzle,
+      iconColor: 'text-pink-600',
+      bgColor: 'bg-pink-50',
+      allowMember: false, // Only owners
+    },
+    {
+      name: 'Settings',
+      href: organisationId ? `/organizations/${organisationId}/settings` : '/settings',
+      icon: Settings,
+      iconColor: 'text-gray-600',
+      bgColor: 'bg-gray-50',
+      allowMember: false, // Only owners
+    },
+  ]
+
+  // Filter items based on user role
+  if (isOwner) {
+    return allItems
+  } else {
+    // Members only see items where allowMember is true
+    return allItems.filter(item => item.allowMember)
+  }
+}
 
 const otherMenuItems = []
 
@@ -104,6 +120,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
   const [organisations, setOrganisations] = useState<Organisation[]>([])
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     const currentOrg = localStorage.getItem('current_organisation')
@@ -118,6 +135,13 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       fetchOrganisations()
     }
   }, [user])
+
+  // Check if current user is the owner of the organization
+  useEffect(() => {
+    if (user && currentOrganisation) {
+      setIsOwner(currentOrganisation.owner_id === user.id)
+    }
+  }, [user, currentOrganisation])
 
   const fetchOrganisations = async () => {
     if (!user) return
@@ -231,19 +255,22 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                     </div>
                   </div>
 
-                  <hr className="border-gray-200 dark:border-gray-700" />
-
-                  {/* Add Organisation */}
-                  <button
-                    onClick={() => {
-                      router.push('/organisations/new')
-                      setIsProfileOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-sm text-gray-900 dark:text-white">Add Organisation</span>
-                  </button>
+                  {/* Add Organisation - Only show for owners */}
+                  {isOwner && (
+                    <>
+                      <hr className="border-gray-200 dark:border-gray-700" />
+                      <button
+                        onClick={() => {
+                          router.push('/organisations/new')
+                          setIsProfileOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
+                      >
+                        <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        <span className="text-sm text-gray-900 dark:text-white">Add Organisation</span>
+                      </button>
+                    </>
+                  )}
 
                   <hr className="border-gray-200 dark:border-gray-700" />
 
@@ -312,7 +339,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-6 px-3">
             <div className="space-y-1 mb-6">
-              {getMainMenuItems(currentOrganisation?.id).map((item) => {
+              {getMainMenuItems(currentOrganisation?.id, isOwner).map((item) => {
                 const isActive = pathname === item.href
                 const Icon = item.icon
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(test_cases.router, prefix="/test-cases", tags=["test-c
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
+api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])

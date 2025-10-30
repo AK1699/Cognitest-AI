@@ -24,10 +24,12 @@ class PermissionAction(str, enum.Enum):
     DELETE = "delete"
     EXECUTE = "execute"
     MANAGE = "manage"
+    WRITE = "write"  # Combination of CREATE and UPDATE
 
 
 class PermissionResource(str, enum.Enum):
     """Resources that can have permissions"""
+    # Core resources
     PROJECT = "project"
     TEST_PLAN = "test_plan"
     TEST_SUITE = "test_suite"
@@ -37,6 +39,14 @@ class PermissionResource(str, enum.Enum):
     GROUP = "group"
     ROLE = "role"
     SETTINGS = "settings"
+
+    # Module-based resources
+    AUTOMATION_HUB = "automation_hub"
+    API_TESTING = "api_testing"
+    TEST_MANAGEMENT = "test_management"
+    SECURITY_TESTING = "security_testing"
+    PERFORMANCE_TESTING = "performance_testing"
+    MOBILE_TESTING = "mobile_testing"
 
 
 # Association table for many-to-many relationship between Roles and Permissions

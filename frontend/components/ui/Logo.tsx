@@ -147,14 +147,16 @@ const RadiateLines = styled.g<{ $show: boolean }>`
   `}
 `;
 
-const AnimatedText = styled.text<{ $delay: number }>`
+const AnimatedText = styled.text<{ $delay: number; $variant: 'light' | 'dark' }>`
   font-family: Inter, Poppins, Montserrat, Segoe UI, Roboto, system-ui, -apple-system, Arial, sans-serif;
   font-size: 84px;
   font-weight: 600;
-  fill: #E0F2FE;
+  fill: ${props => props.$variant === 'dark' ? '#1F2937' : '#E0F2FE'};
   letter-spacing: 0.5px;
   opacity: 0;
-  filter: drop-shadow(0 4px 12px rgba(6, 182, 212, 0.3));
+  filter: ${props => props.$variant === 'dark'
+    ? 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1))'
+    : 'drop-shadow(0 4px 12px rgba(6, 182, 212, 0.3))'};
   ${props => css`
     animation: ${textAppearAnimation} 0.6s ease-out forwards;
     animation-delay: ${props.$delay}s;
@@ -203,7 +205,11 @@ const Bug: React.FC<{ x: number; y: number; detected: boolean }> = ({ x, y, dete
   </BugIcon>
 );
 
-const Logo = () => {
+interface LogoProps {
+  variant?: 'light' | 'dark';
+}
+
+const Logo: React.FC<LogoProps> = ({ variant = 'light' }) => {
   const [bugs, setBugs] = React.useState<BugData[]>([
     { id: 1, cx: 200, cy: 70, detected: false },
     { id: 2, cx: 420, cy: 140, detected: false },
@@ -345,10 +351,10 @@ const Logo = () => {
         {/* Main logo group - centered */}
         <g transform="translate(250, 120)">
           {/* Text C */}
-          <AnimatedText x="0" y="0" $delay={5.5}>C</AnimatedText>
+          <AnimatedText x="0" y="0" $delay={5.5} $variant={variant}>C</AnimatedText>
 
           {/* Text after O */}
-          <AnimatedText x="175" y="0" $delay={5.8}>gniTest</AnimatedText>
+          <AnimatedText x="175" y="0" $delay={5.8} $variant={variant}>gniTest</AnimatedText>
 
           {/* Magnifying glass */}
           <MagnifyingGlass>

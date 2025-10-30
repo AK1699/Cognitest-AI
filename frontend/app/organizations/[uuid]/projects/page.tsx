@@ -52,7 +52,18 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
       setProjects(response.data)
     } catch (error: any) {
       console.error('Failed to fetch projects:', error)
-      toast.error('Failed to load projects')
+
+      // Handle different error scenarios
+      if (error.response?.status === 404) {
+        toast.error('You do not have access to this organization')
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to view projects')
+      } else {
+        toast.error('Failed to load projects')
+      }
+
+      // Set empty array so UI shows "No projects" instead of error
+      setProjects([])
     } finally {
       setLoading(false)
     }

@@ -44,6 +44,15 @@ export default function OrganizationsPage() {
     try {
       const response = await api.get('/api/v1/organisations/')
 
+      // If user has exactly one organization, redirect directly to it
+      if (response.data.length === 1) {
+        const org = response.data[0]
+        localStorage.setItem('current_organisation', JSON.stringify(org))
+        window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
+        router.push(`/organizations/${org.id}/projects`)
+        return
+      }
+
       // Fetch stats for each organization
       const orgsWithStats = await Promise.all(
         response.data.map(async (org: Organisation) => {
