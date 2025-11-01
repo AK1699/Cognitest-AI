@@ -347,8 +347,7 @@ export function RoleAssignmentModal({
                     ))}
                   </div>
                 )}
-                    </>
-                  )}
+              </div>
             </>
           )}
         </div>
