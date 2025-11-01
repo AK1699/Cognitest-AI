@@ -71,7 +71,10 @@
       "Bash(DEVELOPER_ROLE_ID=\"9bccca09-d105-4b6d-824a-2a8fefd40821\":*)",
       "Bash(GROUP_ID=\"c4a89736-b50a-4468-8182-0e0f3eb1f2a1\":*)",
       "Bash(TESTER_ROLE_ID=\"5976c61b-3ae2-491c-a051-dbc7ecf8eaaa\":*)",
-      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YTczZTgzMi04ZTIwLTQ3NDctYjM0Zi1jN2NhNTU0MmEzMDUiLCJlbWFpbCI6InJvbGV0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTg0MjA4NSwidHlwZSI6ImFjY2VzcyJ9.H3j7TJlG07zozHchjl2TNsdQs5V03MHShDAdREi6u_E\")"
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YTczZTgzMi04ZTIwLTQ3NDctYjM0Zi1jN2NhNTU0MmEzMDUiLCJlbWFpbCI6InJvbGV0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTg0MjA4NSwidHlwZSI6ImFjY2VzcyJ9.H3j7TJlG07zozHchjl2TNsdQs5V03MHShDAdREi6u_E\")",
+      "Bash(brew services start:*)",
+      "Bash(brew services:*)",
+      "Bash(alembic upgrade:*)"
     ],
     "deny": [],
     "ask": []
