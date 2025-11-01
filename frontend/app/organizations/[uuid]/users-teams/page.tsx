@@ -437,7 +437,6 @@ export default function UsersTeamsPage() {
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-6 py-3">User</th>
-                  <th scope="col" className="px-6 py-3">Provider</th>
                   <th scope="col" className="px-6 py-3">Projects</th>
                   <th scope="col" className="px-6 py-3">Created</th>
                   <th scope="col" className="px-6 py-3 text-center">Actions</th>
@@ -446,7 +445,7 @@ export default function UsersTeamsPage() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                       No users found. Invite users to get started.
                     </td>
                   </tr>
@@ -467,9 +466,6 @@ export default function UsersTeamsPage() {
                             <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Social</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
