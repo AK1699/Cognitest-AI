@@ -43,37 +43,52 @@ export function RoleAssignmentModal({
   const [roles, setRoles] = useState<ProjectRole[]>([])
   const [currentRoles, setCurrentRoles] = useState<(UserProjectRoleWithDetails | GroupProjectRoleWithDetails)[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjectId || '')
+  const [filterProjectId, setFilterProjectId] = useState<string>(initialProjectId || '')
   const [selectedRoleId, setSelectedRoleId] = useState<string>('')
   const [showAddRole, setShowAddRole] = useState(false)
 
+  // Fetch roles on modal open (independent of project selection)
   useEffect(() => {
-    if (isOpen && selectedProjectId) {
-      fetchData()
+    if (isOpen) {
+      fetchRoles()
     }
-  }, [isOpen, selectedProjectId, organisationId, entityId])
+  }, [isOpen, organisationId])
 
-  const fetchData = async () => {
-    if (!selectedProjectId) return
+  // Fetch current assignments when filter project changes
+  useEffect(() => {
+    if (isOpen && filterProjectId) {
+      fetchCurrentRoles()
+    }
+  }, [filterProjectId, entityId])
 
+  const fetchRoles = async () => {
     setLoading(true)
     try {
-      // Fetch available roles for the organization
       const rolesData = await listRoles(organisationId)
       setRoles(rolesData.roles)
-
-      // Fetch current role assignments
-      if (entityType === 'user') {
-        const userRolesData = await listUserRoles(entityId, selectedProjectId)
-        setCurrentRoles(userRolesData)
-      } else {
-        const groupRolesData = await listGroupRoles(entityId, selectedProjectId)
-        setCurrentRoles(groupRolesData)
-      }
     } catch (error: any) {
-      console.error('Error fetching role data:', error)
+      console.error('Error fetching roles:', error)
       toast.error(error.message || 'Failed to load roles')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchCurrentRoles = async () => {
+    if (!filterProjectId) return
+
+    try {
+      // Fetch current role assignments for the selected project
+      if (entityType === 'user') {
+        const userRolesData = await listUserRoles(entityId, filterProjectId)
+        setCurrentRoles(userRolesData)
+      } else {
+        const groupRolesData = await listGroupRoles(entityId, filterProjectId)
+        setCurrentRoles(groupRolesData)
+      }
+    } catch (error: any) {
+      console.error('Error fetching current roles:', error)
+      toast.error(error.message || 'Failed to load current roles')
     }
   }
 
@@ -90,7 +105,10 @@ export function RoleAssignmentModal({
       toast.success('Role assigned successfully')
       setSelectedRoleId('')
       setShowAddRole(false)
-      fetchData()
+      // Refresh if viewing that project
+      if (filterProjectId === selectedProjectId) {
+        await fetchCurrentRoles()
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to assign role')
     }
@@ -158,73 +176,144 @@ export function RoleAssignmentModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Project Selection */}
-          {availableProjects.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Project
-              </label>
-              <select
-                value={selectedProjectId}
-                onChange={(e) => {
-                  setSelectedProjectId(e.target.value)
-                  setCurrentRoles([])
-                  setShowAddRole(false)
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">Select a project...</option>
-                {availableProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {!selectedProjectId ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-              <AlertCircle className="w-12 h-12 mb-3 text-gray-400" />
-              <p className="text-center">
-                {availableProjects.length > 0
-                  ? 'Please select a project to manage roles'
-                  : 'No projects available. Roles are managed at the project level.'}
-              </p>
-            </div>
-          ) : loading ? (
+          {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-gray-500">Loading roles...</div>
             </div>
           ) : (
             <>
-              {/* Current Role Assignments */}
+              {/* Assign Role Section - Always Visible */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Current Roles
-                  </h3>
-                  {!showAddRole && (
-                    <Button
-                      size="sm"
-                      onClick={() => setShowAddRole(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Role
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Assign Role
+                </h3>
 
-                {currentRoles.length === 0 && !showAddRole ? (
+                <div className="space-y-4">
+                  {/* Role Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Role
+                    </label>
+                    <select
+                      value={selectedRoleId}
+                      onChange={(e) => setSelectedRoleId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Choose a role...</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name} ({role.role_type.replace('_', ' ')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Project Selection for Assignment */}
+                  {availableProjects.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Select Project to Assign To
+                      </label>
+                      <select
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">Select a project...</option>
+                        {availableProjects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Role Preview */}
+                  {selectedRoleId && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      {(() => {
+                        const selectedRole = roles.find(r => r.id === selectedRoleId)
+                        if (!selectedRole) return null
+
+                        return (
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Shield className="w-5 h-5 text-blue-600" />
+                              <span className="font-semibold text-blue-900 dark:text-blue-100">
+                                {selectedRole.name}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(selectedRole.role_type)}`}>
+                                {selectedRole.role_type.replace('_', ' ')}
+                              </span>
+                            </div>
+                            {selectedRole.description && (
+                              <p className="text-sm text-blue-700 dark:text-blue-200">
+                                {selectedRole.description}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Assign Button */}
+                  <Button
+                    onClick={handleAssignRole}
+                    disabled={!selectedRoleId || !selectedProjectId}
+                    className="w-full"
+                  >
+                    Assign Role
+                  </Button>
+                </div>
+              </div>
+
+              {/* Current Role Assignments */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Current Roles
+                </h3>
+
+                {/* Project Filter for Viewing Assignments */}
+                {availableProjects.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Filter by Project
+                    </label>
+                    <select
+                      value={filterProjectId}
+                      onChange={(e) => {
+                        setFilterProjectId(e.target.value)
+                        setCurrentRoles([])
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select a project to view...</option>
+                      {availableProjects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {!filterProjectId ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                    <AlertCircle className="w-10 h-10 mb-2 text-gray-400" />
+                    <p className="text-center text-sm">
+                      {availableProjects.length > 0
+                        ? 'Select a project to view assigned roles'
+                        : 'No projects available'}
+                    </p>
+                  </div>
+                ) : currentRoles.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                     <Shield className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">
-                      No roles assigned yet
+                    <p className="text-gray-500 dark:text-gray-400">
+                      No roles assigned yet for this project
                     </p>
-                    <Button onClick={() => setShowAddRole(true)}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Assign First Role
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -258,106 +347,8 @@ export function RoleAssignmentModal({
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* Add Role Section */}
-              {showAddRole && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Assign New Role
-                  </h3>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Select Role
-                      </label>
-                      <select
-                        value={selectedRoleId}
-                        onChange={(e) => setSelectedRoleId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      >
-                        <option value="">Choose a role...</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name} ({role.role_type.replace('_', ' ')})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Role Preview */}
-                    {selectedRoleId && (
-                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                        {(() => {
-                          const selectedRole = roles.find(r => r.id === selectedRoleId)
-                          if (!selectedRole) return null
-
-                          return (
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Shield className="w-5 h-5 text-blue-600" />
-                                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                                  {selectedRole.name}
-                                </span>
-                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(selectedRole.role_type)}`}>
-                                  {selectedRole.role_type.replace('_', ' ')}
-                                </span>
-                              </div>
-                              {selectedRole.description && (
-                                <p className="text-sm text-blue-700 dark:text-blue-200">
-                                  {selectedRole.description}
-                                </p>
-                              )}
-                            </div>
-                          )
-                        })()}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleAssignRole}
-                        disabled={!selectedRoleId}
-                        className="flex-1"
-                      >
-                        Assign Role
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowAddRole(false)
-                          setSelectedRoleId('')
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Available Roles Reference */}
-              {roles.length > 0 && !showAddRole && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Available Roles for this Project
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {roles.map((role) => (
-                      <div
-                        key={role.id}
-                        className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/30 rounded text-sm"
-                      >
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(role.role_type)}`}>
-                          {role.role_type.replace('_', ' ')}
-                        </span>
-                        <span className="text-gray-700 dark:text-gray-300">{role.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </>
+                  )}
             </>
           )}
         </div>
