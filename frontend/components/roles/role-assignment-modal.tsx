@@ -327,10 +327,10 @@ export function RoleAssignmentModal({
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-900 dark:text-white">
-                                {assignment.role.name}
+                                {(assignment as any).role?.name || (assignment as any).role_name}
                               </span>
-                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(assignment.role.role_type)}`}>
-                                {assignment.role.role_type.replace('_', ' ')}
+                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor((assignment as any).role?.role_type || (assignment as any).role_type)}`}>
+                                {((assignment as any).role?.role_type || (assignment as any).role_type).replace('_', ' ')}
                               </span>
                             </div>
                           </div>
