@@ -6,7 +6,7 @@ import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus,
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
-import { testPlanAPI, testSuiteAPI, testCaseAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-plans'
+import { testPlansAPI, testSuitesAPI, testCasesAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-management'
 import TestPlanList from '@/components/test-management/TestPlanList'
 import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModal'
 import AITestPlanGenerator from '@/components/test-management/AITestPlanGenerator'
@@ -166,7 +166,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestPlans = async () => {
     try {
-      const data = await testPlanAPI.list(projectId)
+      const data = await testPlansAPI.list(projectId)
       setTestPlans(data)
     } catch (error: any) {
       console.error('Failed to fetch test plans:', error)
@@ -176,7 +176,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const handleCreateManual = async (formData: any) => {
     try {
-      await testPlanAPI.create({
+      await testPlansAPI.create({
         ...formData,
         project_id: projectId,
         generated_by: 'manual' as const,
@@ -194,7 +194,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const handleAIGenerate = async (request: any) => {
     try {
-      const response = await testPlanAPI.aiGenerate(request)
+      const response = await testPlansAPI.aiGenerate(request)
       toast.success(`Test plan generated with ${response.confidence_score}% confidence`)
       setShowAIGenerator(false)
       fetchTestPlans()
@@ -208,7 +208,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     if (!confirm('Are you sure you want to delete this test plan?')) return
 
     try {
-      await testPlanAPI.delete(testPlanId)
+      await testPlansAPI.delete(testPlanId)
       toast.success('Test plan deleted successfully')
       fetchTestPlans()
     } catch (error) {
@@ -219,7 +219,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestSuites = async () => {
     try {
-      const data = await testSuiteAPI.list(projectId)
+      const data = await testSuitesAPI.list(projectId)
       setTestSuites(data)
     } catch (error: any) {
       console.error('Failed to fetch test suites:', error)
@@ -229,7 +229,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const handleCreateTestSuite = async (formData: any) => {
     try {
-      await testSuiteAPI.create({
+      await testSuitesAPI.create({
         ...formData,
         project_id: projectId,
         created_by: user?.email || '',
@@ -248,7 +248,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     if (!confirm('Are you sure you want to delete this test suite?')) return
 
     try {
-      await testSuiteAPI.delete(testSuiteId)
+      await testSuitesAPI.delete(testSuiteId)
       toast.success('Test suite deleted successfully')
       fetchTestSuites()
     } catch (error) {
@@ -259,7 +259,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestCases = async () => {
     try {
-      const data = await testCaseAPI.list(projectId)
+      const data = await testCasesAPI.list(projectId)
       setTestCases(data)
     } catch (error: any) {
       console.error('Failed to fetch test cases:', error)
@@ -269,7 +269,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const handleCreateTestCase = async (formData: any) => {
     try {
-      await testCaseAPI.create({
+      await testCasesAPI.create({
         ...formData,
         project_id: projectId,
         created_by: user?.email || '',
@@ -288,7 +288,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     if (!confirm('Are you sure you want to delete this test case?')) return
 
     try {
-      await testCaseAPI.delete(testCaseId)
+      await testCasesAPI.delete(testCaseId)
       toast.success('Test case deleted successfully')
       fetchTestCases()
     } catch (error) {

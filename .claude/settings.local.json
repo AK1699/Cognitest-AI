@@ -78,7 +78,8 @@
       "Bash(dropdb:*)",
       "Bash(awk:*)",
       "Bash(pkill:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(alembic current:*)"
     ],
     "deny": [],
     "ask": []
