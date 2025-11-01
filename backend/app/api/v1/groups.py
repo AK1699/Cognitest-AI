@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, text
 from sqlalchemy.orm import selectinload
 from typing import List
 from uuid import UUID
@@ -8,6 +8,7 @@ from uuid import UUID
 from app.core.deps import get_db, get_current_user
 from app.models.user import User
 from app.models.group import Group, user_groups
+from app.models.group_type import GroupTypeAccess
 from app.schemas.group import (
     GroupCreate,
     GroupUpdate,
@@ -33,12 +34,29 @@ async def create_group(
     - **name**: Group name (required)
     - **description**: Group description (optional)
     - **organisation_id**: Organisation ID (required)
+    - **group_type_id**: Group Type ID (optional, for predefined group types like ADMIN, QA, DEV, PRODUCT)
     """
+    # Validate group_type_id if provided
+    if group_data.group_type_id:
+        from app.models.group_type import GroupType
+        result = await db.execute(
+            select(GroupType).where(
+                GroupType.id == group_data.group_type_id,
+                GroupType.organization_id == group_data.organisation_id
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Group type not found for this organisation"
+            )
+
     # Create new group
     new_group = Group(
         name=group_data.name,
         description=group_data.description,
         organisation_id=group_data.organisation_id,
+        group_type_id=group_data.group_type_id,
         is_active=True,
         created_by=current_user.email
     )
@@ -327,3 +345,92 @@ async def get_group_users(
         })
 
     return users
+
+
+# New endpoint for smart landing redirect - get user's groups with type info
+@router.get("/user/{user_id}/groups")
+async def get_user_groups(
+    user_id: UUID,
+    organisation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all groups a user belongs to with their group types and access levels.
+
+    Used by SmartLandingRedirect component to determine user's landing page.
+    Returns:
+    - group_id: UUID of the group
+    - group_name: Name of the group
+    - group_type: Type of group (ADMIN, QA, DEV, PRODUCT)
+    - access_level: Level of access (organization or project)
+    - projects: List of projects this group has access to
+    - can_manage_organization: Whether this group can manage the organization
+    """
+    # Get all groups for this user in this organization
+    from app.models.group_type import GroupType
+
+    query = (
+        select(Group)
+        .join(user_groups, Group.id == user_groups.c.group_id)
+        .where(
+            user_groups.c.user_id == user_id,
+            Group.organisation_id == organisation_id
+        )
+        .options(selectinload(Group.group_type))
+        .order_by(Group.created_at.desc())
+    )
+    result = await db.execute(query)
+    groups = result.scalars().all()
+
+    response_groups = []
+
+    for group in groups:
+        # Get group type access info
+        access_level = "project"
+        can_manage_organization = False
+        group_type_code = None
+
+        if group.group_type:
+            group_type_code = group.group_type.code
+            access_config = await db.execute(
+                select(GroupTypeAccess).where(
+                    GroupTypeAccess.group_type_id == group.group_type.id,
+                    GroupTypeAccess.organization_id == organisation_id
+                )
+            )
+            access = access_config.scalar_one_or_none()
+            if access:
+                access_level = access.access_level
+                can_manage_organization = access.can_manage_organization
+
+        # Get projects this group is assigned to
+        # (assuming there's a group_projects junction table or we get it from user_projects)
+        projects_result = await db.execute(
+            text("""
+                SELECT DISTINCT p.id, p.name
+                FROM projects p
+                WHERE p.organisation_id = :org_id
+                ORDER BY p.created_at DESC
+                LIMIT 10
+            """),
+            {"org_id": str(organisation_id)}
+        )
+
+        projects = []
+        for row in projects_result.fetchall():
+            projects.append({
+                "id": str(row[0]),
+                "name": row[1]
+            })
+
+        response_groups.append({
+            "group_id": str(group.id),
+            "group_name": group.name,
+            "group_type": group_type_code or "default",
+            "access_level": access_level,
+            "projects": projects,
+            "can_manage_organization": can_manage_organization
+        })
+
+    return {"groups": response_groups}

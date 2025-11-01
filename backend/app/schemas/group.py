@@ -13,6 +13,7 @@ class GroupBase(BaseModel):
 class GroupCreate(GroupBase):
     """Schema for creating a new group"""
     organisation_id: UUID = Field(..., description="Organisation ID")
+    group_type_id: Optional[UUID] = Field(None, description="Group Type ID (for predefined group types)")
 
 
 class GroupUpdate(BaseModel):
@@ -30,6 +31,7 @@ class GroupInDB(GroupBase):
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: str
+    group_type_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

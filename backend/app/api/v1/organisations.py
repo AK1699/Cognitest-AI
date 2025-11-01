@@ -216,7 +216,9 @@ async def create_organisation(
     """
     Create a new organisation.
 
-    Automatically initializes default roles (Administrator, Project Manager, Developer, Tester, Viewer)
+    Automatically initializes:
+    - Default roles (Administrator, Project Manager, Developer, Tester, Viewer)
+    - Group types (ADMIN, QA, DEV, PRODUCT) with their associated roles
     for the new organisation.
     """
     # Create new organisation
@@ -251,6 +253,10 @@ async def create_organisation(
         created_by=current_user.email,
         db=db
     )
+
+    # Automatically initialize group types (ADMIN, QA, DEV, PRODUCT)
+    from app.services.group_type_service import GroupTypeService
+    await GroupTypeService.initialize_group_types(db, new_organisation.id)
 
     await db.commit()
     await db.refresh(new_organisation)

@@ -39,8 +39,12 @@ class Group(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(String(255), nullable=False)
 
+    # Group Type Reference (for predefined group types: ADMIN, QA, DEV, PRODUCT)
+    group_type_id = Column(UUID(as_uuid=True), ForeignKey("group_types.id"), nullable=True)
+
     # Relationships
     organisation = relationship("Organisation")
+    group_type = relationship("GroupType", lazy="selectin")
     users = relationship(
         "User",
         secondary=user_groups,

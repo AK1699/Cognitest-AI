@@ -38,6 +38,7 @@ import { RoleAssignmentModal } from '@/components/roles/role-assignment-modal'
 import { createInvitation } from '@/lib/api/invitations'
 import { RoleInfoTooltip } from '@/components/roles/role-info-tooltip'
 import { RoleFilter } from '@/components/roles/role-filter'
+import { PermissionMatrix } from '@/components/settings/permission-matrix'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
 
@@ -82,6 +83,7 @@ export default function UsersTeamsPage() {
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false)
   const [showGroupMembersModal, setShowGroupMembersModal] = useState(false)
   const [showCreateRoleModal, setShowCreateRoleModal] = useState(false)
+  const [rolesView, setRolesView] = useState<'list' | 'matrix'>('list')
 
   // Selected items
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
@@ -717,65 +719,101 @@ export default function UsersTeamsPage() {
 
       {/* Roles Tab Content */}
       {activeTab === 'roles' && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Role Name</th>
-                  <th scope="col" className="px-6 py-3">Type</th>
-                  <th scope="col" className="px-6 py-3">Description</th>
-                  <th scope="col" className="px-6 py-3">Status</th>
-                  <th scope="col" className="px-6 py-3">System Role</th>
-                  <th scope="col" className="px-6 py-3">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRoles.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      No roles found. {roles.length === 0 ? 'Initialize default roles or create a custom role to get started.' : 'Try adjusting your search.'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRoles.map((role) => (
-                    <tr key={role.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 dark:text-white">{role.name}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {role.role_type.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                          {role.description || '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          role.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {role.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          role.is_default ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {role.is_default ? 'System' : 'Custom'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatDateHumanReadable(role.created_at)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div>
+          {/* Roles Tab Sub-navigation */}
+          <div className="mb-6 flex gap-4 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setRolesView('list')}
+              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                rolesView === 'list'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              📋 Roles List
+            </button>
+            <button
+              onClick={() => setRolesView('matrix')}
+              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+                rolesView === 'matrix'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              🔐 Permission Matrix
+            </button>
           </div>
+
+          {/* Roles List View */}
+          {rolesView === 'list' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                      <th scope="col" className="px-6 py-3">Role Name</th>
+                      <th scope="col" className="px-6 py-3">Type</th>
+                      <th scope="col" className="px-6 py-3">Description</th>
+                      <th scope="col" className="px-6 py-3">Status</th>
+                      <th scope="col" className="px-6 py-3">System Role</th>
+                      <th scope="col" className="px-6 py-3">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRoles.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                          No roles found. {roles.length === 0 ? 'Initialize default roles or create a custom role to get started.' : 'Try adjusting your search.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRoles.map((role) => (
+                        <tr key={role.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900 dark:text-white">{role.name}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                              {role.role_type.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+                              {role.description || '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              role.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {role.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              role.is_default ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {role.is_default ? 'System' : 'Custom'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {formatDateHumanReadable(role.created_at)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Permission Matrix View */}
+          {rolesView === 'matrix' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+              <PermissionMatrix organisationId={organisationId} />
+            </div>
+          )}
         </div>
       )}
 

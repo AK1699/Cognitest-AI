@@ -79,7 +79,10 @@
       "Bash(awk:*)",
       "Bash(pkill:*)",
       "Bash(tree:*)",
-      "Bash(alembic current:*)"
+      "Bash(alembic current:*)",
+      "Bash(jq:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []
