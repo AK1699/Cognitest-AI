@@ -77,7 +77,8 @@
       "Bash(alembic upgrade:*)",
       "Bash(dropdb:*)",
       "Bash(awk:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

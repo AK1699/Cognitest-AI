@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
@@ -42,6 +43,8 @@ from app.utils.google_oauth import (
     generate_oauth_state,
     GoogleOAuthError,
 )
+from app.utils import microsoft_oauth
+from app.utils import apple_oauth
 import random
 import string
 import uuid
@@ -476,19 +479,25 @@ async def google_authorize():
         "state": state
     }
 
-@router.post("/google/callback")
-async def google_callback(
-    request_data: GoogleCallbackRequest,
-    response: Response,
+@router.get("/google/callback")
+async def google_callback_get(
+    code: str = None,
+    state: str = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Handle Google OAuth callback.
+    Handle Google OAuth callback (GET from Google redirect).
     Exchanges authorization code for tokens and creates/updates user.
     """
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authorization code not provided"
+        )
+
     try:
         # Exchange code for tokens
-        token_response = await exchange_code_for_token(request_data.code)
+        token_response = await exchange_code_for_token(code)
 
         # Get user info from ID token
         id_token = token_response.get("id_token")
@@ -524,7 +533,16 @@ async def google_callback(
 
         if oauth_account:
             # Existing user, update OAuth info
-            user = oauth_account.user
+            # Query user directly to avoid lazy loading in async context
+            result = await db.execute(select(User).where(User.id == oauth_account.user_id))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="User associated with OAuth account not found"
+                )
+
             oauth_account.access_token = token_response.get("access_token")
             oauth_account.refresh_token = token_response.get("refresh_token")
 
@@ -585,18 +603,13 @@ async def google_callback(
         access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
-        # Set cookies
+        # Create redirect response
+        response = RedirectResponse(url=f"{settings.FRONTEND_URL}/organizations", status_code=302)
+
+        # Set cookies on the response
         set_auth_cookies(response, access_token, refresh_token, remember_me=True)
 
-        return {
-            "message": "Successfully signed in with Google",
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "username": user.username,
-                "full_name": user.full_name
-            }
-        }
+        return response
 
     except GoogleOAuthError as e:
         raise HTTPException(
@@ -699,3 +712,646 @@ async def get_google_client_id():
         )
 
     return {"client_id": settings.GOOGLE_CLIENT_ID}
+
+# Microsoft OAuth Endpoints
+
+@router.get("/microsoft/authorize")
+async def microsoft_authorize():
+    """
+    Initiate Microsoft OAuth flow.
+    Returns the authorization URL and state for frontend redirect.
+    """
+    try:
+        state = microsoft_oauth.generate_oauth_state()
+        auth_url = await microsoft_oauth.get_microsoft_authorization_url(state)
+
+        return {
+            "authorization_url": auth_url,
+            "state": state
+        }
+    except microsoft_oauth.MicrosoftOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@router.post("/microsoft/callback")
+async def microsoft_callback(
+    request_data: GoogleCallbackRequest,  # Reuse same schema
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Handle Microsoft OAuth callback.
+    Exchanges authorization code for tokens and creates/updates user.
+    """
+    try:
+        # Exchange code for tokens
+        token_response = await microsoft_oauth.exchange_code_for_token(request_data.code)
+
+        # Get user info from ID token
+        id_token = token_response.get("id_token")
+        if not id_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No ID token received from Microsoft"
+            )
+
+        user_info = await microsoft_oauth.get_user_info_from_id_token(id_token)
+
+        # Extract user information
+        email = user_info.get("email") or user_info.get("preferred_username")
+        name = user_info.get("name")
+        provider_user_id = user_info.get("sub")
+
+        if not email or not provider_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required information from Microsoft"
+            )
+
+        # Check if OAuth account exists
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "microsoft"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if oauth_account:
+            # Existing user, update OAuth info
+            user = oauth_account.user
+            oauth_account.access_token = token_response.get("access_token")
+            oauth_account.refresh_token = token_response.get("refresh_token")
+
+            # Update user info if available
+            if name and not user.full_name:
+                user.full_name = name
+
+        else:
+            # Check if user with this email exists
+            result = await db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                # Create new user
+                username_base = email.split("@")[0]
+                username = username_base
+
+                # Ensure unique username
+                counter = 1
+                while True:
+                    result = await db.execute(
+                        select(User).where(User.username == username)
+                    )
+                    if result.scalar_one_or_none() is None:
+                        break
+                    username = f"{username_base}{counter}"
+                    counter += 1
+
+                user = User(
+                    email=email,
+                    username=username,
+                    full_name=name,
+                    hashed_password=get_password_hash(str(uuid.uuid4())),
+                    is_active=True,
+                    is_superuser=False
+                )
+                db.add(user)
+                await db.flush()
+
+            # Create new OAuth account
+            oauth_account = OAuthAccount(
+                user_id=user.id,
+                provider="microsoft",
+                provider_user_id=provider_user_id,
+                email=email,
+                name=name,
+                access_token=token_response.get("access_token"),
+                refresh_token=token_response.get("refresh_token"),
+            )
+            db.add(oauth_account)
+
+        await db.commit()
+        await db.refresh(user)
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Microsoft",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except microsoft_oauth.MicrosoftOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Microsoft OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing Microsoft callback: {str(e)}"
+        )
+
+@router.post("/microsoft/signin")
+async def microsoft_signin(
+    request_data: GoogleSignInRequest,  # Reuse same schema
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Sign in with Microsoft using ID token.
+    """
+    try:
+        # Decode ID token
+        user_info = await microsoft_oauth.get_user_info_from_id_token(request_data.id_token)
+
+        provider_user_id = user_info.get("sub")
+        email = user_info.get("email") or user_info.get("preferred_username")
+
+        if not provider_user_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Microsoft ID token"
+            )
+
+        # Find OAuth account
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "microsoft"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if not oauth_account:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Microsoft account not linked. Please sign up first."
+            )
+
+        user = oauth_account.user
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive"
+            )
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Microsoft",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except microsoft_oauth.MicrosoftOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Microsoft OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during Microsoft sign in: {str(e)}"
+        )
+
+@router.get("/microsoft/client-id")
+async def get_microsoft_client_id():
+    """
+    Get the Microsoft Client ID for frontend OAuth initialization.
+    """
+    if not settings.MICROSOFT_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Microsoft OAuth is not configured"
+        )
+
+    return {"client_id": settings.MICROSOFT_CLIENT_ID}
+
+# Apple OAuth Endpoints
+
+@router.get("/apple/authorize")
+async def apple_authorize():
+    """
+    Initiate Apple OAuth flow.
+    Returns the authorization URL and state for frontend redirect.
+    """
+    try:
+        state = apple_oauth.generate_oauth_state()
+        auth_url = await apple_oauth.get_apple_authorization_url(state)
+
+        return {
+            "authorization_url": auth_url,
+            "state": state
+        }
+    except apple_oauth.AppleOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@router.post("/apple/callback")
+async def apple_callback(
+    request_data: GoogleCallbackRequest,  # Reuse same schema
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Handle Apple OAuth callback.
+    Exchanges authorization code for tokens and creates/updates user.
+    """
+    try:
+        # Exchange code for tokens
+        token_response = await apple_oauth.exchange_code_for_token(request_data.code)
+
+        # Get user info from ID token
+        id_token = token_response.get("id_token")
+        if not id_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No ID token received from Apple"
+            )
+
+        user_info = await apple_oauth.get_user_info_from_id_token(id_token)
+
+        # Extract user information
+        email = user_info.get("email")
+        provider_user_id = user_info.get("sub")
+
+        if not email or not provider_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required information from Apple"
+            )
+
+        # Check if OAuth account exists
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "apple"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if oauth_account:
+            # Existing user, update OAuth info
+            user = oauth_account.user
+            oauth_account.access_token = token_response.get("access_token")
+
+        else:
+            # Check if user with this email exists
+            result = await db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                # Create new user
+                username_base = email.split("@")[0]
+                username = username_base
+
+                # Ensure unique username
+                counter = 1
+                while True:
+                    result = await db.execute(
+                        select(User).where(User.username == username)
+                    )
+                    if result.scalar_one_or_none() is None:
+                        break
+                    username = f"{username_base}{counter}"
+                    counter += 1
+
+                user = User(
+                    email=email,
+                    username=username,
+                    hashed_password=get_password_hash(str(uuid.uuid4())),
+                    is_active=True,
+                    is_superuser=False
+                )
+                db.add(user)
+                await db.flush()
+
+            # Create new OAuth account
+            oauth_account = OAuthAccount(
+                user_id=user.id,
+                provider="apple",
+                provider_user_id=provider_user_id,
+                email=email,
+                access_token=token_response.get("access_token"),
+            )
+            db.add(oauth_account)
+
+        await db.commit()
+        await db.refresh(user)
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Apple",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except apple_oauth.AppleOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Apple OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing Apple callback: {str(e)}"
+        )
+
+@router.post("/apple/signin")
+async def apple_signin(
+    request_data: GoogleSignInRequest,  # Reuse same schema
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Sign in with Apple using ID token.
+    """
+    try:
+        # Decode ID token
+        user_info = await apple_oauth.get_user_info_from_id_token(request_data.id_token)
+
+        provider_user_id = user_info.get("sub")
+        email = user_info.get("email")
+
+        if not provider_user_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Apple ID token"
+            )
+
+        # Find OAuth account
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "apple"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if not oauth_account:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Apple account not linked. Please sign up first."
+            )
+
+        user = oauth_account.user
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive"
+            )
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Apple",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except apple_oauth.AppleOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Apple OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during Apple sign in: {str(e)}"
+        )
+
+@router.get("/apple/client-id")
+async def get_apple_client_id():
+    """
+    Get the Apple Client ID for frontend OAuth initialization.
+    """
+    if not settings.APPLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Apple OAuth is not configured"
+        )
+
+    return {"client_id": settings.APPLE_CLIENT_ID}
+
+# Account Linking Endpoints
+
+@router.get("/linked-accounts")
+async def get_linked_accounts(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
+    """
+    Get all OAuth accounts linked to the current user.
+    """
+    result = await db.execute(
+        select(OAuthAccount).where(OAuthAccount.user_id == current_user.id)
+    )
+    accounts = result.scalars().all()
+
+    return [
+        {
+            "provider": account.provider,
+            "email": account.email,
+            "name": account.name,
+            "picture_url": account.picture_url,
+            "linked_at": account.created_at.isoformat() if account.created_at else None,
+        }
+        for account in accounts
+    ]
+
+@router.post("/unlink-account")
+async def unlink_account(
+    data: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Unlink an OAuth account from the current user.
+    """
+    provider = data.get("provider")
+
+    if not provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider is required"
+        )
+
+    # Check if user has a password (can't unlink last auth method)
+    if not current_user.hashed_password or current_user.hashed_password == "":
+        # Count OAuth accounts
+        result = await db.execute(
+            select(OAuthAccount).where(OAuthAccount.user_id == current_user.id)
+        )
+        oauth_accounts = result.scalars().all()
+
+        if len(oauth_accounts) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot unlink last authentication method. Set a password first."
+            )
+
+    # Find and delete the OAuth account
+    result = await db.execute(
+        select(OAuthAccount).where(
+            OAuthAccount.user_id == current_user.id
+        ).where(
+            OAuthAccount.provider == provider
+        )
+    )
+    oauth_account = result.scalar_one_or_none()
+
+    if not oauth_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No {provider} account linked"
+        )
+
+    await db.delete(oauth_account)
+    await db.commit()
+
+    return {
+        "message": f"{provider.capitalize()} account unlinked successfully"
+    }
+
+@router.post("/link-account")
+async def link_account(
+    data: dict,
+    current_user: User = Depends(get_current_active_user),
+    response: Response = Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Link a new OAuth account to the current user.
+    This endpoint is called after OAuth callback when linking intent is detected.
+    """
+    provider = data.get("provider")
+    id_token = data.get("id_token")
+
+    if not provider or not id_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider and ID token are required"
+        )
+
+    try:
+        if provider == "google":
+            from app.utils.google_oauth import get_user_info_from_id_token
+            user_info = await get_user_info_from_id_token(id_token)
+        elif provider == "microsoft":
+            user_info = await microsoft_oauth.get_user_info_from_id_token(id_token)
+        elif provider == "apple":
+            user_info = await apple_oauth.get_user_info_from_id_token(id_token)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported provider: {provider}"
+            )
+
+        provider_user_id = user_info.get("sub")
+        email = user_info.get("email")
+
+        if not provider_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ID token"
+            )
+
+        # Check if this OAuth account is already linked to another user
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == provider
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        existing_account = result.scalar_one_or_none()
+
+        if existing_account and existing_account.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"This {provider} account is already linked to another user"
+            )
+
+        # Create or update OAuth account
+        if existing_account:
+            existing_account.email = email
+            existing_account.name = user_info.get("name")
+            existing_account.picture_url = user_info.get("picture")
+        else:
+            oauth_account = OAuthAccount(
+                user_id=current_user.id,
+                provider=provider,
+                provider_user_id=provider_user_id,
+                email=email,
+                name=user_info.get("name"),
+                picture_url=user_info.get("picture"),
+            )
+            db.add(oauth_account)
+
+        await db.commit()
+
+        return {
+            "message": f"{provider.capitalize()} account linked successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error linking {provider} account: {str(e)}"
+        )

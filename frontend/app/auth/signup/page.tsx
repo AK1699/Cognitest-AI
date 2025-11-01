@@ -7,6 +7,8 @@ import { SignupModal } from '@/components/auth/signup-modal'
 import Image from 'next/image'
 import Logo from '@/components/ui/Logo'
 import { GoogleSignInButton } from '@/components/auth/google-signin-button'
+import { MicrosoftSignInButton } from '@/components/auth/microsoft-signin-button'
+import { AppleSignInButton } from '@/components/auth/apple-signin-button'
 
 export default function SignUpPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -98,14 +100,8 @@ export default function SignUpPage() {
             {/* Social Logins */}
             <div className="space-y-4 mb-6">
               <GoogleSignInButton />
-              <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <Image src="/microsoft-logo.svg" alt="Microsoft" width={20} height={20} className="mr-2" />
-                Continue with Microsoft
-              </button>
-              <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <Image src="/apple-logo.svg" alt="Apple" width={20} height={20} className="mr-2" />
-                Continue with Apple
-              </button>
+              <MicrosoftSignInButton />
+              <AppleSignInButton />
             </div>
 
             <div className="relative my-6">
