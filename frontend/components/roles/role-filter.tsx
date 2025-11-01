@@ -50,7 +50,7 @@ export function RoleFilter({ selectedRoles, onRolesChange, roles = DEFAULT_ROLES
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50">
+        <div className="absolute top-full -right-12 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50">
           <div className="p-3 space-y-2">
             {roles.map((role) => (
               <label key={role.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
@@ -58,13 +58,13 @@ export function RoleFilter({ selectedRoles, onRolesChange, roles = DEFAULT_ROLES
                   type="checkbox"
                   checked={selectedRoles.includes(role.id)}
                   onChange={() => toggleRole(role.id)}
-                  className="mt-1 w-4 h-4 text-primary rounded focus:ring-primary cursor-pointer"
+                  className="mt-1 w-4 h-4 text-primary rounded focus:ring-primary cursor-pointer flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {role.name}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                     {role.description}
                   </div>
                 </div>

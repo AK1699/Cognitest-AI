@@ -22,7 +22,6 @@ import {
 import { listOrganisationUsers, type User as UserType } from '@/lib/api/users'
 import { RoleAssignmentModal } from '@/components/roles/role-assignment-modal'
 import { createInvitation } from '@/lib/api/invitations'
-import { RoleFilter } from '@/components/roles/role-filter'
 import { PermissionMatrix } from '@/components/settings/permission-matrix'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
@@ -56,7 +55,6 @@ export default function UsersTeamsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [userProjects, setUserProjects] = useState<Record<string, Project[]>>({})
-  const [selectedRoleFilters, setSelectedRoleFilters] = useState<string[]>([])
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false)
 
   // Modal states
@@ -95,12 +93,35 @@ export default function UsersTeamsPage() {
   })
 
   useEffect(() => {
-    fetchData()
-    fetchProjects()
-    fetchPermissions()
+    const loadAllData = async () => {
+      try {
+        // Fetch projects first since other data depends on it
+        const projectsResponse = await api.get('/api/v1/projects/', {
+          params: { organisation_id: organisationId }
+        })
+        const projectsData = projectsResponse.data
+        setProjects(projectsData)
+
+        // Then fetch other data, passing projects as parameter
+        await Promise.all([
+          fetchDataWithProjects(projectsData),
+          fetchPermissions()
+        ])
+      } catch (error: any) {
+        console.error('Error loading data:', error)
+        toast.error('Failed to load data')
+      }
+    }
+    loadAllData()
   }, [organisationId, activeTab])
 
   const fetchData = async () => {
+    // This is kept for modal callbacks - it will use current state projects
+    const currentProjects = projects
+    await fetchDataWithProjects(currentProjects)
+  }
+
+  const fetchDataWithProjects = async (projectsData: Project[]) => {
     setLoading(true)
     try {
       // Fetch organization details
@@ -119,9 +140,12 @@ export default function UsersTeamsPage() {
       const rolesData = await listRoles(organisationId)
       setRoles(rolesData.roles)
 
+      // Fetch user roles across all projects (pass projects as parameter)
+      await fetchAllUserRoles(usersData, projectsData)
+
       // Fetch user projects for each user
       if (usersData.length > 0) {
-        fetchAllUserProjects(usersData)
+        fetchAllUserProjects(usersData, projectsData)
       }
 
     } catch (error: any) {
@@ -129,6 +153,30 @@ export default function UsersTeamsPage() {
       toast.error(error.message || 'Failed to load data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAllUserRoles = async (usersList: UserType[], projectsList: Project[] = projects) => {
+    try {
+      let allRoles: UserProjectRoleWithDetails[] = []
+
+      // Fetch roles for each project
+      for (const project of projectsList) {
+        try {
+          const response = await api.get(`/api/v1/roles/assignments/users`, {
+            params: { project_id: project.id }
+          })
+          if (response.data.assignments) {
+            allRoles = [...allRoles, ...response.data.assignments]
+          }
+        } catch (e) {
+          // Project might not have any roles
+        }
+      }
+
+      setUserRoles(allRoles)
+    } catch (error: any) {
+      console.error('Error fetching user roles:', error)
     }
   }
 
@@ -141,14 +189,14 @@ export default function UsersTeamsPage() {
     return 'Member'
   }
 
-  const fetchAllUserProjects = async (usersList: UserType[]) => {
+  const fetchAllUserProjects = async (usersList: UserType[], projectsList: Project[] = projects) => {
     try {
       const userProjectsMap: Record<string, Project[]> = {}
 
       for (const user of usersList) {
         const assignedProjects: Project[] = []
 
-        for (const project of projects) {
+        for (const project of projectsList) {
           try {
             const response = await api.get(`/api/v1/projects/${project.id}/members`)
             if (response.data.some((m: any) => m.id === user.id)) {
@@ -194,9 +242,11 @@ export default function UsersTeamsPage() {
       const response = await api.get('/api/v1/projects/', {
         params: { organisation_id: organisationId }
       })
+      console.log('Fetched projects:', response.data)
       setProjects(response.data)
     } catch (error: any) {
       console.error('Error fetching projects:', error)
+      toast.error('Failed to fetch projects: ' + (error.response?.data?.detail || error.message))
     }
   }
 
@@ -421,12 +471,6 @@ export default function UsersTeamsPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           />
         </div>
-        {activeTab === 'users' && (
-          <RoleFilter
-            selectedRoles={selectedRoleFilters}
-            onRolesChange={setSelectedRoleFilters}
-          />
-        )}
       </div>
 
       {/* Users Tab Content */}
@@ -478,7 +522,7 @@ export default function UsersTeamsPage() {
                                   key={ur.id}
                                   className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
                                 >
-                                  {ur.role.name}
+                                  {(ur as any).role?.name || (ur as any).role_name || 'Unknown Role'}
                                 </span>
                               ))}
                           </div>
@@ -488,20 +532,43 @@ export default function UsersTeamsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          {(userProjects[user.id] || []).length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {(userProjects[user.id] || []).map(project => (
-                                <span
-                                  key={project.id}
-                                  className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
-                                >
-                                  {project.name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-500 dark:text-gray-400">No projects</span>
-                          )}
+                          {(() => {
+                            // Check if user is an Admin
+                            const hasAdminRole = userRoles.some(
+                              ur => ur.user_id === user.id &&
+                                ((ur as any).role?.name === 'Admin' || (ur as any).role_name === 'Admin')
+                            )
+
+                            if (hasAdminRole) {
+                              return (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                  <Shield className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                  <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                                    All projects (auto)
+                                  </span>
+                                </div>
+                              )
+                            }
+
+                            if ((userProjects[user.id] || []).length > 0) {
+                              return (
+                                <div className="flex flex-wrap gap-1">
+                                  {(userProjects[user.id] || []).map(project => (
+                                    <span
+                                      key={project.id}
+                                      className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
+                                    >
+                                      {project.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <span className="text-sm text-gray-500 dark:text-gray-400">No projects</span>
+                            )
+                          })()}
                           <button
                             onClick={() => openProjectAssignmentModal(user)}
                             className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
@@ -1024,6 +1091,18 @@ export default function UsersTeamsPage() {
           entityId={roleModalEntity.id}
           entityName={roleModalEntity.name}
           availableProjects={projects}
+          onRoleAssigned={fetchData} // Refresh data immediately after role assignment
+          onModalOpen={async () => {
+            // Refresh projects when modal opens to ensure latest projects are available
+            try {
+              const projectsResponse = await api.get('/api/v1/projects/', {
+                params: { organisation_id: organisationId }
+              })
+              setProjects(projectsResponse.data)
+            } catch (error) {
+              console.error('Error refreshing projects:', error)
+            }
+          }}
         />
       )}
 
