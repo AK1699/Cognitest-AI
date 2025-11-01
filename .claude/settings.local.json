@@ -74,7 +74,8 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YTczZTgzMi04ZTIwLTQ3NDctYjM0Zi1jN2NhNTU0MmEzMDUiLCJlbWFpbCI6InJvbGV0ZXN0QGNvZ25pdGVzdC5haSIsImV4cCI6MTc2MTg0MjA4NSwidHlwZSI6ImFjY2VzcyJ9.H3j7TJlG07zozHchjl2TNsdQs5V03MHShDAdREi6u_E\")",
       "Bash(brew services start:*)",
       "Bash(brew services:*)",
-      "Bash(alembic upgrade:*)"
+      "Bash(alembic upgrade:*)",
+      "Bash(dropdb:*)"
     ],
     "deny": [],
     "ask": []

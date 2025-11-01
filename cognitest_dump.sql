@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lTjgqmq98F5XhbFlydX8VEum1prsUStNrhR4yZR4MaCAqEc9244aBMlFc4LV41x
+\restrict cP6Ajma0PVLX3EKOaAOmaoTjKt7CQaAMUKls490MK7ebXxHqt2X1zQt4uMijh4P
 
 -- Dumped from database version 14.19 (Homebrew)
 -- Dumped by pg_dump version 14.19 (Homebrew)
@@ -104,7 +104,7 @@ DROP TYPE IF EXISTS public.escalationflag;
 DROP TYPE IF EXISTS public.approvalstatus;
 DROP TYPE IF EXISTS public.approvalrole;
 --
--- Name: approvalrole; Type: TYPE; Schema: public; Owner: akash
+-- Name: approvalrole; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.approvalrole AS ENUM (
@@ -116,10 +116,8 @@ CREATE TYPE public.approvalrole AS ENUM (
 );
 
 
-ALTER TYPE public.approvalrole OWNER TO akash;
-
 --
--- Name: approvalstatus; Type: TYPE; Schema: public; Owner: akash
+-- Name: approvalstatus; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.approvalstatus AS ENUM (
@@ -130,10 +128,8 @@ CREATE TYPE public.approvalstatus AS ENUM (
 );
 
 
-ALTER TYPE public.approvalstatus OWNER TO akash;
-
 --
--- Name: escalationflag; Type: TYPE; Schema: public; Owner: akash
+-- Name: escalationflag; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.escalationflag AS ENUM (
@@ -142,10 +138,8 @@ CREATE TYPE public.escalationflag AS ENUM (
 );
 
 
-ALTER TYPE public.escalationflag OWNER TO akash;
-
 --
--- Name: escalationstatus; Type: TYPE; Schema: public; Owner: akash
+-- Name: escalationstatus; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.escalationstatus AS ENUM (
@@ -154,10 +148,8 @@ CREATE TYPE public.escalationstatus AS ENUM (
 );
 
 
-ALTER TYPE public.escalationstatus OWNER TO akash;
-
 --
--- Name: generationtype; Type: TYPE; Schema: public; Owner: akash
+-- Name: generationtype; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.generationtype AS ENUM (
@@ -167,10 +159,8 @@ CREATE TYPE public.generationtype AS ENUM (
 );
 
 
-ALTER TYPE public.generationtype OWNER TO akash;
-
 --
--- Name: projectstatus; Type: TYPE; Schema: public; Owner: akash
+-- Name: projectstatus; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.projectstatus AS ENUM (
@@ -180,10 +170,8 @@ CREATE TYPE public.projectstatus AS ENUM (
 );
 
 
-ALTER TYPE public.projectstatus OWNER TO akash;
-
 --
--- Name: testcasepriority; Type: TYPE; Schema: public; Owner: akash
+-- Name: testcasepriority; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.testcasepriority AS ENUM (
@@ -194,10 +182,8 @@ CREATE TYPE public.testcasepriority AS ENUM (
 );
 
 
-ALTER TYPE public.testcasepriority OWNER TO akash;
-
 --
--- Name: testcasestatus; Type: TYPE; Schema: public; Owner: akash
+-- Name: testcasestatus; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.testcasestatus AS ENUM (
@@ -211,10 +197,8 @@ CREATE TYPE public.testcasestatus AS ENUM (
 );
 
 
-ALTER TYPE public.testcasestatus OWNER TO akash;
-
 --
--- Name: workflowstatus; Type: TYPE; Schema: public; Owner: akash
+-- Name: workflowstatus; Type: TYPE; Schema: public; Owner: -
 --
 
 CREATE TYPE public.workflowstatus AS ENUM (
@@ -223,14 +207,12 @@ CREATE TYPE public.workflowstatus AS ENUM (
 );
 
 
-ALTER TYPE public.workflowstatus OWNER TO akash;
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: approval_history; Type: TABLE; Schema: public; Owner: akash
+-- Name: approval_history; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.approval_history (
@@ -249,10 +231,8 @@ CREATE TABLE public.approval_history (
 );
 
 
-ALTER TABLE public.approval_history OWNER TO akash;
-
 --
--- Name: approval_stages; Type: TABLE; Schema: public; Owner: akash
+-- Name: approval_stages; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.approval_stages (
@@ -275,10 +255,8 @@ CREATE TABLE public.approval_stages (
 );
 
 
-ALTER TABLE public.approval_stages OWNER TO akash;
-
 --
--- Name: approval_workflows; Type: TABLE; Schema: public; Owner: akash
+-- Name: approval_workflows; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.approval_workflows (
@@ -298,10 +276,8 @@ CREATE TABLE public.approval_workflows (
 );
 
 
-ALTER TABLE public.approval_workflows OWNER TO akash;
-
 --
--- Name: group_project_roles; Type: TABLE; Schema: public; Owner: akash
+-- Name: group_project_roles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.group_project_roles (
@@ -315,10 +291,8 @@ CREATE TABLE public.group_project_roles (
 );
 
 
-ALTER TABLE public.group_project_roles OWNER TO akash;
-
 --
--- Name: groups; Type: TABLE; Schema: public; Owner: akash
+-- Name: groups; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.groups (
@@ -333,10 +307,8 @@ CREATE TABLE public.groups (
 );
 
 
-ALTER TABLE public.groups OWNER TO akash;
-
 --
--- Name: organisations; Type: TABLE; Schema: public; Owner: akash
+-- Name: organisations; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.organisations (
@@ -351,10 +323,8 @@ CREATE TABLE public.organisations (
 );
 
 
-ALTER TABLE public.organisations OWNER TO akash;
-
 --
--- Name: password_reset_codes; Type: TABLE; Schema: public; Owner: akash
+-- Name: password_reset_codes; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.password_reset_codes (
@@ -368,10 +338,8 @@ CREATE TABLE public.password_reset_codes (
 );
 
 
-ALTER TABLE public.password_reset_codes OWNER TO akash;
-
 --
--- Name: permissions; Type: TABLE; Schema: public; Owner: akash
+-- Name: permissions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.permissions (
@@ -385,10 +353,8 @@ CREATE TABLE public.permissions (
 );
 
 
-ALTER TABLE public.permissions OWNER TO akash;
-
 --
--- Name: project_roles; Type: TABLE; Schema: public; Owner: akash
+-- Name: project_roles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.project_roles (
@@ -406,10 +372,8 @@ CREATE TABLE public.project_roles (
 );
 
 
-ALTER TABLE public.project_roles OWNER TO akash;
-
 --
--- Name: projects; Type: TABLE; Schema: public; Owner: akash
+-- Name: projects; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.projects (
@@ -427,10 +391,8 @@ CREATE TABLE public.projects (
 );
 
 
-ALTER TABLE public.projects OWNER TO akash;
-
 --
--- Name: role_permissions; Type: TABLE; Schema: public; Owner: akash
+-- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.role_permissions (
@@ -442,10 +404,8 @@ CREATE TABLE public.role_permissions (
 );
 
 
-ALTER TABLE public.role_permissions OWNER TO akash;
-
 --
--- Name: test_cases; Type: TABLE; Schema: public; Owner: akash
+-- Name: test_cases; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.test_cases (
@@ -473,10 +433,8 @@ CREATE TABLE public.test_cases (
 );
 
 
-ALTER TABLE public.test_cases OWNER TO akash;
-
 --
--- Name: test_plan_approvals; Type: TABLE; Schema: public; Owner: akash
+-- Name: test_plan_approvals; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.test_plan_approvals (
@@ -490,10 +448,8 @@ CREATE TABLE public.test_plan_approvals (
 );
 
 
-ALTER TABLE public.test_plan_approvals OWNER TO akash;
-
 --
--- Name: test_plans; Type: TABLE; Schema: public; Owner: akash
+-- Name: test_plans; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.test_plans (
@@ -513,10 +469,8 @@ CREATE TABLE public.test_plans (
 );
 
 
-ALTER TABLE public.test_plans OWNER TO akash;
-
 --
--- Name: test_suites; Type: TABLE; Schema: public; Owner: akash
+-- Name: test_suites; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.test_suites (
@@ -535,10 +489,8 @@ CREATE TABLE public.test_suites (
 );
 
 
-ALTER TABLE public.test_suites OWNER TO akash;
-
 --
--- Name: user_groups; Type: TABLE; Schema: public; Owner: akash
+-- Name: user_groups; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.user_groups (
@@ -550,10 +502,8 @@ CREATE TABLE public.user_groups (
 );
 
 
-ALTER TABLE public.user_groups OWNER TO akash;
-
 --
--- Name: user_project_roles; Type: TABLE; Schema: public; Owner: akash
+-- Name: user_project_roles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.user_project_roles (
@@ -567,10 +517,8 @@ CREATE TABLE public.user_project_roles (
 );
 
 
-ALTER TABLE public.user_project_roles OWNER TO akash;
-
 --
--- Name: users; Type: TABLE; Schema: public; Owner: akash
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.users (
@@ -586,118 +534,116 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO akash;
-
 --
--- Data for Name: approval_history; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: approval_history; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: approval_stages; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: approval_stages; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: approval_workflows; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: approval_workflows; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: group_project_roles; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: group_project_roles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: groups; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: groups; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: organisations; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: organisations; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: password_reset_codes; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: password_reset_codes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: permissions; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: permissions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: project_roles; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: project_roles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: projects; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: projects; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: role_permissions; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: role_permissions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: test_cases; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: test_cases; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: test_plan_approvals; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: test_plan_approvals; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: test_plans; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: test_plans; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: test_suites; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: test_suites; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: user_groups; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: user_groups; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: user_project_roles; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: user_project_roles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: akash
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
--- Name: approval_history approval_history_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_history approval_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_history
@@ -705,7 +651,7 @@ ALTER TABLE ONLY public.approval_history
 
 
 --
--- Name: approval_stages approval_stages_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_stages approval_stages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_stages
@@ -713,7 +659,7 @@ ALTER TABLE ONLY public.approval_stages
 
 
 --
--- Name: approval_workflows approval_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_workflows approval_workflows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_workflows
@@ -721,7 +667,7 @@ ALTER TABLE ONLY public.approval_workflows
 
 
 --
--- Name: group_project_roles group_project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: group_project_roles group_project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.group_project_roles
@@ -729,7 +675,7 @@ ALTER TABLE ONLY public.group_project_roles
 
 
 --
--- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.groups
@@ -737,7 +683,7 @@ ALTER TABLE ONLY public.groups
 
 
 --
--- Name: organisations organisations_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: organisations organisations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.organisations
@@ -745,7 +691,7 @@ ALTER TABLE ONLY public.organisations
 
 
 --
--- Name: password_reset_codes password_reset_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: password_reset_codes password_reset_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.password_reset_codes
@@ -753,7 +699,7 @@ ALTER TABLE ONLY public.password_reset_codes
 
 
 --
--- Name: permissions permissions_name_key; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: permissions permissions_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.permissions
@@ -761,7 +707,7 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.permissions
@@ -769,7 +715,7 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- Name: project_roles project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: project_roles project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.project_roles
@@ -777,7 +723,7 @@ ALTER TABLE ONLY public.project_roles
 
 
 --
--- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects
@@ -785,7 +731,7 @@ ALTER TABLE ONLY public.projects
 
 
 --
--- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -793,7 +739,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: test_cases test_cases_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_cases test_cases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_cases
@@ -801,7 +747,7 @@ ALTER TABLE ONLY public.test_cases
 
 
 --
--- Name: test_plan_approvals test_plan_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plan_approvals test_plan_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plan_approvals
@@ -809,7 +755,7 @@ ALTER TABLE ONLY public.test_plan_approvals
 
 
 --
--- Name: test_plan_approvals test_plan_approvals_test_plan_id_key; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plan_approvals test_plan_approvals_test_plan_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plan_approvals
@@ -817,7 +763,7 @@ ALTER TABLE ONLY public.test_plan_approvals
 
 
 --
--- Name: test_plans test_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plans test_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plans
@@ -825,7 +771,7 @@ ALTER TABLE ONLY public.test_plans
 
 
 --
--- Name: test_suites test_suites_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_suites test_suites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_suites
@@ -833,7 +779,7 @@ ALTER TABLE ONLY public.test_suites
 
 
 --
--- Name: user_groups user_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_groups user_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_groups
@@ -841,7 +787,7 @@ ALTER TABLE ONLY public.user_groups
 
 
 --
--- Name: user_project_roles user_project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_project_roles user_project_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_project_roles
@@ -849,7 +795,7 @@ ALTER TABLE ONLY public.user_project_roles
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: akash
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -857,84 +803,84 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: ix_organisations_name; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_organisations_name; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_organisations_name ON public.organisations USING btree (name);
 
 
 --
--- Name: ix_organisations_owner_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_organisations_owner_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_organisations_owner_id ON public.organisations USING btree (owner_id);
 
 
 --
--- Name: ix_password_reset_codes_email; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_password_reset_codes_email; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_password_reset_codes_email ON public.password_reset_codes USING btree (email);
 
 
 --
--- Name: ix_password_reset_codes_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_password_reset_codes_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_password_reset_codes_id ON public.password_reset_codes USING btree (id);
 
 
 --
--- Name: ix_password_reset_codes_user_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_password_reset_codes_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_password_reset_codes_user_id ON public.password_reset_codes USING btree (user_id);
 
 
 --
--- Name: ix_projects_name; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_projects_name; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_projects_name ON public.projects USING btree (name);
 
 
 --
--- Name: ix_projects_organisation_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_projects_organisation_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_projects_organisation_id ON public.projects USING btree (organisation_id);
 
 
 --
--- Name: ix_projects_owner_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_projects_owner_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_projects_owner_id ON public.projects USING btree (owner_id);
 
 
 --
--- Name: ix_users_email; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_users_email; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX ix_users_email ON public.users USING btree (email);
 
 
 --
--- Name: ix_users_id; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_users_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX ix_users_id ON public.users USING btree (id);
 
 
 --
--- Name: ix_users_username; Type: INDEX; Schema: public; Owner: akash
+-- Name: ix_users_username; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX ix_users_username ON public.users USING btree (username);
 
 
 --
--- Name: approval_history approval_history_approval_stage_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_history approval_history_approval_stage_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_history
@@ -942,7 +888,7 @@ ALTER TABLE ONLY public.approval_history
 
 
 --
--- Name: approval_history approval_history_test_plan_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_history approval_history_test_plan_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_history
@@ -950,7 +896,7 @@ ALTER TABLE ONLY public.approval_history
 
 
 --
--- Name: approval_stages approval_stages_test_plan_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_stages approval_stages_test_plan_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_stages
@@ -958,7 +904,7 @@ ALTER TABLE ONLY public.approval_stages
 
 
 --
--- Name: approval_workflows approval_workflows_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_workflows approval_workflows_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_workflows
@@ -966,7 +912,7 @@ ALTER TABLE ONLY public.approval_workflows
 
 
 --
--- Name: approval_workflows approval_workflows_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: approval_workflows approval_workflows_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.approval_workflows
@@ -974,7 +920,7 @@ ALTER TABLE ONLY public.approval_workflows
 
 
 --
--- Name: group_project_roles group_project_roles_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: group_project_roles group_project_roles_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.group_project_roles
@@ -982,7 +928,7 @@ ALTER TABLE ONLY public.group_project_roles
 
 
 --
--- Name: group_project_roles group_project_roles_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: group_project_roles group_project_roles_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.group_project_roles
@@ -990,7 +936,7 @@ ALTER TABLE ONLY public.group_project_roles
 
 
 --
--- Name: group_project_roles group_project_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: group_project_roles group_project_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.group_project_roles
@@ -998,7 +944,7 @@ ALTER TABLE ONLY public.group_project_roles
 
 
 --
--- Name: groups groups_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: groups groups_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.groups
@@ -1006,7 +952,7 @@ ALTER TABLE ONLY public.groups
 
 
 --
--- Name: organisations organisations_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: organisations organisations_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.organisations
@@ -1014,7 +960,7 @@ ALTER TABLE ONLY public.organisations
 
 
 --
--- Name: project_roles project_roles_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: project_roles project_roles_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.project_roles
@@ -1022,7 +968,7 @@ ALTER TABLE ONLY public.project_roles
 
 
 --
--- Name: projects projects_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: projects projects_organisation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects
@@ -1030,7 +976,7 @@ ALTER TABLE ONLY public.projects
 
 
 --
--- Name: projects projects_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: projects projects_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects
@@ -1038,7 +984,7 @@ ALTER TABLE ONLY public.projects
 
 
 --
--- Name: role_permissions role_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: role_permissions role_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -1046,7 +992,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -1054,7 +1000,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: test_cases test_cases_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_cases test_cases_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_cases
@@ -1062,7 +1008,7 @@ ALTER TABLE ONLY public.test_cases
 
 
 --
--- Name: test_cases test_cases_test_suite_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_cases test_cases_test_suite_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_cases
@@ -1070,7 +1016,7 @@ ALTER TABLE ONLY public.test_cases
 
 
 --
--- Name: test_plan_approvals test_plan_approvals_test_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plan_approvals test_plan_approvals_test_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plan_approvals
@@ -1078,7 +1024,7 @@ ALTER TABLE ONLY public.test_plan_approvals
 
 
 --
--- Name: test_plan_approvals test_plan_approvals_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plan_approvals test_plan_approvals_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plan_approvals
@@ -1086,7 +1032,7 @@ ALTER TABLE ONLY public.test_plan_approvals
 
 
 --
--- Name: test_plans test_plans_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_plans test_plans_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_plans
@@ -1094,7 +1040,7 @@ ALTER TABLE ONLY public.test_plans
 
 
 --
--- Name: test_suites test_suites_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_suites test_suites_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_suites
@@ -1102,7 +1048,7 @@ ALTER TABLE ONLY public.test_suites
 
 
 --
--- Name: test_suites test_suites_test_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: test_suites test_suites_test_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.test_suites
@@ -1110,7 +1056,7 @@ ALTER TABLE ONLY public.test_suites
 
 
 --
--- Name: user_groups user_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_groups user_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_groups
@@ -1118,7 +1064,7 @@ ALTER TABLE ONLY public.user_groups
 
 
 --
--- Name: user_groups user_groups_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_groups user_groups_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_groups
@@ -1126,7 +1072,7 @@ ALTER TABLE ONLY public.user_groups
 
 
 --
--- Name: user_project_roles user_project_roles_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_project_roles user_project_roles_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_project_roles
@@ -1134,7 +1080,7 @@ ALTER TABLE ONLY public.user_project_roles
 
 
 --
--- Name: user_project_roles user_project_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_project_roles user_project_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_project_roles
@@ -1142,7 +1088,7 @@ ALTER TABLE ONLY public.user_project_roles
 
 
 --
--- Name: user_project_roles user_project_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: akash
+-- Name: user_project_roles user_project_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_project_roles
@@ -1153,5 +1099,5 @@ ALTER TABLE ONLY public.user_project_roles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lTjgqmq98F5XhbFlydX8VEum1prsUStNrhR4yZR4MaCAqEc9244aBMlFc4LV41x
+\unrestrict cP6Ajma0PVLX3EKOaAOmaoTjKt7CQaAMUKls490MK7ebXxHqt2X1zQt4uMijh4P
 
