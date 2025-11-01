@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from typing import List
 from uuid import UUID
 
@@ -11,6 +11,24 @@ from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 
 router = APIRouter()
+
+async def is_user_org_admin(user_id: UUID, organisation_id: UUID, db: AsyncSession) -> bool:
+    """
+    Check if a user has the administrator role for an organization.
+    This grants automatic access to all projects in the organization.
+    """
+    result = await db.execute(
+        text("""
+            SELECT 1 FROM user_project_roles upr
+            INNER JOIN project_roles pr ON upr.role_id = pr.id
+            WHERE pr.organisation_id = :org_id
+              AND pr.role_type = 'administrator'
+              AND upr.user_id = :user_id
+            LIMIT 1
+        """),
+        {"org_id": str(organisation_id), "user_id": str(user_id)}
+    )
+    return result.fetchone() is not None
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -70,9 +88,9 @@ async def list_projects(
     """
     List projects for an organisation.
     - Owners: See all projects in the organisation
+    - Admins (with administrator role): See all projects in the organisation
     - Members: Only see projects they're assigned to
     """
-    from sqlalchemy import text
 
     # Check if user is the owner of the organisation
     org_result = await db.execute(
@@ -87,6 +105,7 @@ async def list_projects(
         )
 
     is_owner = organisation.owner_id == current_user.id
+    is_admin = await is_user_org_admin(current_user.id, organisation_id, db)
 
     # Verify user has access to the organisation (owner or member)
     if not is_owner:
@@ -105,8 +124,8 @@ async def list_projects(
             )
 
     # Get projects based on user role
-    if is_owner:
-        # Owners see all projects in the organisation
+    if is_owner or is_admin:
+        # Owners and admins see all projects in the organisation
         result = await db.execute(
             select(Project).where(Project.organisation_id == organisation_id)
         )
@@ -143,6 +162,7 @@ async def get_project(
     """
     Get a specific project by ID.
     - Owners: Can access any project in their organisation
+    - Admins (with administrator role): Can access any project in their organisation
     - Members: Can only access projects they're assigned to
     """
     result = await db.execute(
@@ -169,11 +189,11 @@ async def get_project(
         )
 
     is_owner = organisation.owner_id == current_user.id
+    is_admin = await is_user_org_admin(current_user.id, project.organisation_id, db)
 
     # Verify user has access to the project
-    from sqlalchemy import text
-    if is_owner:
-        # Owners have access to all projects in their organisation
+    if is_owner or is_admin:
+        # Owners and admins have access to all projects in their organisation
         return project
     else:
         # Members must be assigned to the project

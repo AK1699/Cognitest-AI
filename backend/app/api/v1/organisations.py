@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from typing import List
 from uuid import UUID
 import uuid
@@ -269,16 +269,23 @@ async def list_organisations(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    List all organisations that the current user owns or is a member of.
+    List all organisations that the current user owns, is a member of, or has admin role in.
+    - Owners: See their organizations
+    - Members: See organizations they're members of
+    - Admins: Users with administrator role in any project of an organization can see that organization
     """
-    from sqlalchemy import text
 
-    # Get organization IDs the user has access to
+    # Get organization IDs the user has access to (owner, member, or admin)
     query = text("""
         SELECT DISTINCT o.id
         FROM organisations o
         LEFT JOIN user_organisations uo ON o.id = uo.organisation_id
-        WHERE o.owner_id = :user_id OR uo.user_id = :user_id
+        LEFT JOIN projects p ON o.id = p.organisation_id
+        LEFT JOIN user_project_roles upr ON p.id = upr.project_id
+        LEFT JOIN project_roles pr ON upr.role_id = pr.id
+        WHERE o.owner_id = :user_id
+           OR uo.user_id = :user_id
+           OR (upr.user_id = :user_id AND pr.role_type = 'administrator')
     """)
 
     result = await db.execute(query, {"user_id": str(current_user.id)})
@@ -303,12 +310,12 @@ async def get_organisation(
 ):
     """
     Get a specific organisation by ID.
+    - Owners can access any organization
+    - Members can access organizations they're members of
+    - Admins can access organizations where they have the administrator role in any project
     """
     result = await db.execute(
-        select(Organisation).where(
-            Organisation.id == organisation_id,
-            Organisation.owner_id == current_user.id
-        )
+        select(Organisation).where(Organisation.id == organisation_id)
     )
     organisation = result.scalar_one_or_none()
 
@@ -317,6 +324,42 @@ async def get_organisation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organisation not found"
         )
+
+    # Check access: owner, member, or admin
+    is_owner = organisation.owner_id == current_user.id
+
+    if not is_owner:
+        # Check if user is a member
+        member_check = await db.execute(
+            text("""
+                SELECT 1 FROM user_organisations
+                WHERE organisation_id = :org_id AND user_id = :user_id
+                LIMIT 1
+            """),
+            {"org_id": str(organisation_id), "user_id": str(current_user.id)}
+        )
+        is_member = member_check.fetchone() is not None
+
+        if not is_member:
+            # Check if user is an admin in any project of this organization
+            admin_check = await db.execute(
+                text("""
+                    SELECT 1 FROM user_project_roles upr
+                    INNER JOIN project_roles pr ON upr.role_id = pr.id
+                    WHERE pr.organisation_id = :org_id
+                      AND pr.role_type = 'administrator'
+                      AND upr.user_id = :user_id
+                    LIMIT 1
+                """),
+                {"org_id": str(organisation_id), "user_id": str(current_user.id)}
+            )
+            is_admin = admin_check.fetchone() is not None
+
+            if not is_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Organisation not found or you don't have permission"
+                )
 
     return organisation
 
