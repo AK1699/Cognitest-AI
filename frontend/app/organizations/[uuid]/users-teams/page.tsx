@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Sidebar } from '@/components/layout/sidebar'
 import {
   listGroups,
@@ -604,7 +605,7 @@ export default function UsersTeamsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {formatDateHumanReadable(user.created_at)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button
@@ -767,7 +768,7 @@ export default function UsersTeamsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(role.created_at).toLocaleDateString()}
+                        {formatDateHumanReadable(role.created_at)}
                       </td>
                     </tr>
                   ))
@@ -947,7 +948,7 @@ export default function UsersTeamsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Added {member.added_at ? new Date(member.added_at).toLocaleDateString() : 'N/A'}
+                          Added {member.added_at ? formatDateHumanReadable(member.added_at) : 'N/A'}
                         </div>
                         <Button
                           variant="ghost"

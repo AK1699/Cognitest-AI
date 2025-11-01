@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Shield, Trash2, Plus, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import {
   listRoles,
   listUserRoles,
@@ -247,7 +248,7 @@ export function RoleAssignmentModal({
                               </span>
                             </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              Assigned {new Date(assignment.assigned_at).toLocaleDateString()} by {assignment.assigned_by}
+                              Assigned {formatDateHumanReadable(assignment.assigned_at)} by {assignment.assigned_by}
                             </p>
                           </div>
                         </div>

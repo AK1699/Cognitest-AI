@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, FolderKanban, Calendar, Trash2, FileText } from 'lucide-react'
 import { testSuitesAPI, testPlansAPI, type TestSuite, type TestPlan } from '@/lib/api/test-management'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 
 interface TestSuitesTabProps {
@@ -209,7 +210,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t">
                     <span className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {new Date(suite.created_at).toLocaleDateString()}
+                      {formatDateHumanReadable(suite.created_at)}
                     </span>
                     <button
                       onClick={(e) => {
@@ -311,7 +312,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
             <DialogHeader>
               <DialogTitle>{selectedSuite.name}</DialogTitle>
               <DialogDescription>
-                Created on {new Date(selectedSuite.created_at).toLocaleDateString()}
+                Created on {formatDateHumanReadable(selectedSuite.created_at)}
               </DialogDescription>
             </DialogHeader>
 

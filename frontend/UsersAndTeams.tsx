@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { formatDateHumanReadable } from '@/lib/date-utils';
 
 // ============================================
 // API Service
@@ -311,7 +312,7 @@ const UserRoleAssignmentTab: React.FC<{
                     {assignment.role_name}
                   </span>
                 </td>
-                <td>{new Date(assignment.assigned_at).toLocaleDateString()}</td>
+                <td>{formatDateHumanReadable(assignment.assigned_at)}</td>
                 <td>{assignment.assigned_by}</td>
                 <td>
                   <button
@@ -395,7 +396,7 @@ const GroupManagementTab: React.FC<{
             </div>
             <p className="group-description">{group.description}</p>
             <div className="group-meta">
-              <span>Created: {new Date(group.created_at).toLocaleDateString()}</span>
+              <span>Created: {formatDateHumanReadable(group.created_at)}</span>
             </div>
             <div className="group-actions">
               <button
@@ -785,7 +786,7 @@ const GroupMembersModal: React.FC<{
                   <tr key={member.id}>
                     <td>{member.full_name || member.username}</td>
                     <td>{member.email}</td>
-                    <td>{new Date(member.added_at).toLocaleDateString()}</td>
+                    <td>{formatDateHumanReadable(member.added_at)}</td>
                     <td>{member.added_by}</td>
                     <td>
                       <button className="btn btn-sm btn-danger">

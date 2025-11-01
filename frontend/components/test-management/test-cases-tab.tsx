@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, CheckSquare, Calendar, Trash2, Play, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { testCasesAPI, testSuitesAPI, type TestCase, type TestSuite, type TestStep } from '@/lib/api/test-management'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 
 interface TestCasesTabProps {
@@ -319,7 +320,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
                   <div className="flex items-center justify-between pt-2 border-t">
                     <span className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {new Date(testCase.created_at).toLocaleDateString()}
+                      {formatDateHumanReadable(testCase.created_at)}
                     </span>
                     <div className="flex gap-2">
                       <Button
@@ -505,7 +506,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
                 <div>
                   <DialogTitle>{selectedCase.title}</DialogTitle>
                   <DialogDescription className="mt-2">
-                    Created on {new Date(selectedCase.created_at).toLocaleDateString()}
+                    Created on {formatDateHumanReadable(selectedCase.created_at)}
                   </DialogDescription>
                 </div>
                 <div className="flex gap-2">

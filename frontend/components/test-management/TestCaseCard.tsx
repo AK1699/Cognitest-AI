@@ -2,6 +2,7 @@
 
 import { TestCase } from '@/lib/api/test-plans'
 import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle } from 'lucide-react'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'
 
 interface TestCaseCardProps {
@@ -36,14 +37,6 @@ export default function TestCaseCard({
     }
   }, [showMenu])
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -211,7 +204,7 @@ export default function TestCaseCard({
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            <span>{formatDate(testCase.created_at)}</span>
+            <span>{formatDateHumanReadable(testCase.created_at)}</span>
           </div>
           <div className="flex items-center gap-1">
             <User className="w-3 h-3" />

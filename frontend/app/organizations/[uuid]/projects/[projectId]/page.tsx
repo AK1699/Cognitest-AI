@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ReportsAnalyticsTab } from '@/components/dashboard/reports-analytics-tab'
 import { StatsCard } from '@/components/dashboard/stats-card'
@@ -659,11 +660,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                         <p className="text-sm text-gray-600 mb-1">The date your project joined CogniTest</p>
                         <p className="text-base font-semibold text-primary">
                           {project.created_at
-                            ? new Date(project.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })
+                            ? formatDateHumanReadable(project.created_at)
                             : 'Just now'}
                         </p>
                       </div>

@@ -2,6 +2,7 @@
 
 import { TestPlan } from '@/lib/api/test-plans'
 import { Sparkles, User, Target, Calendar, Tag, MoreVertical, Edit, Trash2, Eye } from 'lucide-react'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState } from 'react'
 
 interface TestPlanCardProps {
@@ -22,13 +23,6 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
     return 'text-red-600 bg-red-100'
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white relative">
@@ -173,7 +167,7 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
       <div className="flex items-center justify-between pt-4 border-t border-gray-200 text-xs text-gray-500">
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
-          <span>{formatDate(testPlan.created_at)}</span>
+          <span>{formatDateHumanReadable(testPlan.created_at)}</span>
         </div>
         <div className="flex items-center gap-1">
           <User className="w-3 h-3" />

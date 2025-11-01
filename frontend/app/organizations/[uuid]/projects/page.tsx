@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { CreateProjectModal } from '@/components/projects/create-project-modal'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Search, Plus, FolderOpen, MoreVertical, GitBranch, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -211,7 +212,7 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
                         <div className="text-sm text-gray-500">Last Updated</div>
                         <div className="text-sm text-gray-900 mt-1">
                           {project.created_at
-                            ? new Date(project.created_at).toLocaleDateString()
+                            ? formatDateHumanReadable(project.created_at)
                             : 'Just now'
                           }
                         </div>

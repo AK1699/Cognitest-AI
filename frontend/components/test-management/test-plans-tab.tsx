@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, FileText, Calendar, Tag, Trash2, Edit, Sparkles } from 'lucide-react'
 import { testPlansAPI, type TestPlan } from '@/lib/api/test-management'
+import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 
 interface TestPlansTabProps {
@@ -218,7 +219,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t">
                     <span className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {new Date(plan.created_at).toLocaleDateString()}
+                      {formatDateHumanReadable(plan.created_at)}
                     </span>
                     <div className="flex gap-2">
                       <button
@@ -323,7 +324,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
                 )}
               </DialogTitle>
               <DialogDescription>
-                Created on {new Date(selectedPlan.created_at).toLocaleDateString()}
+                Created on {formatDateHumanReadable(selectedPlan.created_at)}
               </DialogDescription>
             </DialogHeader>
 
