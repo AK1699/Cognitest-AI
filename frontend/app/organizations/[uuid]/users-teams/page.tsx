@@ -35,7 +35,10 @@ import {
 import { listOrganisationUsers, type User as UserType } from '@/lib/api/users'
 import { RoleAssignmentModal } from '@/components/roles/role-assignment-modal'
 import { createInvitation } from '@/lib/api/invitations'
-import axios from '@/lib/axios'
+import { RoleInfoTooltip } from '@/components/roles/role-info-tooltip'
+import { RoleFilter } from '@/components/roles/role-filter'
+import { useAuth } from '@/lib/auth-context'
+import api from '@/lib/api'
 
 type Tab = 'users' | 'groups' | 'roles'
 
@@ -44,11 +47,20 @@ interface Project {
   name: string
 }
 
+interface Organisation {
+  id: string
+  name: string
+  owner_id: string
+  created_at: string
+}
+
 export default function UsersTeamsPage() {
   const params = useParams()
   const organisationId = params.uuid as string
+  const { user: currentUser } = useAuth()
 
   const [activeTab, setActiveTab] = useState<Tab>('users')
+  const [organisation, setOrganisation] = useState<Organisation | null>(null)
   const [users, setUsers] = useState<UserType[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [roles, setRoles] = useState<ProjectRole[]>([])
@@ -59,6 +71,7 @@ export default function UsersTeamsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [userProjects, setUserProjects] = useState<Record<string, Project[]>>({})
+  const [selectedRoleFilters, setSelectedRoleFilters] = useState<string[]>([])
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false)
@@ -106,6 +119,10 @@ export default function UsersTeamsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
+      // Fetch organization details
+      const orgResponse = await api.get(`/api/v1/organisations/${organisationId}`)
+      setOrganisation(orgResponse.data)
+
       // Fetch users
       const usersData = await listOrganisationUsers(organisationId)
       setUsers(usersData)
@@ -131,6 +148,15 @@ export default function UsersTeamsPage() {
     }
   }
 
+  const getUserRole = (user: UserType): string => {
+    // If user is the organization owner, return "Owner"
+    if (organisation && user.id === organisation.owner_id) {
+      return 'Owner'
+    }
+    // Otherwise return "Member" (you can enhance this to fetch actual roles)
+    return 'Member'
+  }
+
   const fetchAllUserProjects = async (usersList: UserType[]) => {
     try {
       const userProjectsMap: Record<string, Project[]> = {}
@@ -140,7 +166,7 @@ export default function UsersTeamsPage() {
 
         for (const project of projects) {
           try {
-            const response = await axios.get(`/api/v1/projects/${project.id}/members`)
+            const response = await api.get(`/api/v1/projects/${project.id}/members`)
             if (response.data.some((m: any) => m.id === user.id)) {
               assignedProjects.push(project)
             }
@@ -164,7 +190,7 @@ export default function UsersTeamsPage() {
 
       for (const project of projects) {
         try {
-          const response = await axios.get(`/api/v1/projects/${project.id}/members`)
+          const response = await api.get(`/api/v1/projects/${project.id}/members`)
           if (response.data.some((m: any) => m.id === userId)) {
             assignedProjects.push(project)
           }
@@ -181,7 +207,7 @@ export default function UsersTeamsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('/api/v1/projects/', {
+      const response = await api.get('/api/v1/projects/', {
         params: { organisation_id: organisationId }
       })
       setProjects(response.data)
@@ -322,7 +348,7 @@ export default function UsersTeamsPage() {
     if (!selectedUserForProjects) return
 
     try {
-      await axios.post(`/api/v1/projects/${projectId}/members`, {
+      await api.post(`/api/v1/projects/${projectId}/members`, {
         user_id: selectedUserForProjects.id
       })
       toast.success(`${selectedUserForProjects.username} assigned to project`)
@@ -340,7 +366,7 @@ export default function UsersTeamsPage() {
     if (!confirm(`Remove ${selectedUserForProjects.username} from this project?`)) return
 
     try {
-      await axios.delete(
+      await api.delete(
         `/api/v1/projects/${projectId}/members/${selectedUserForProjects.id}`
       )
       toast.success('User removed from project')
@@ -480,18 +506,24 @@ export default function UsersTeamsPage() {
         </nav>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative">
+      {/* Search and Filters */}
+      <div className="mb-6 flex gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
             placeholder={`Search ${activeTab}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           />
         </div>
+        {activeTab === 'users' && (
+          <RoleFilter
+            selectedRoles={selectedRoleFilters}
+            onRolesChange={setSelectedRoleFilters}
+          />
+        )}
       </div>
 
       {/* Users Tab Content */}
@@ -502,7 +534,11 @@ export default function UsersTeamsPage() {
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-6 py-3">User</th>
-                  <th scope="col" className="px-6 py-3">Status</th>
+                  <th scope="col" className="px-6 py-3">Provider</th>
+                  <th scope="col" className="px-6 py-3 flex items-center gap-2">
+                    Role
+                    <RoleInfoTooltip roleType="member" />
+                  </th>
                   <th scope="col" className="px-6 py-3">Projects</th>
                   <th scope="col" className="px-6 py-3">Created</th>
                   <th scope="col" className="px-6 py-3"><span className="sr-only">Actions</span></th>
@@ -511,7 +547,7 @@ export default function UsersTeamsPage() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                       No users found. Invite users to get started.
                     </td>
                   </tr>
@@ -534,11 +570,13 @@ export default function UsersTeamsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Social</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{getUserRole(user)}</span>
+                          <RoleInfoTooltip roleType={getUserRole(user).toLowerCase()} />
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">

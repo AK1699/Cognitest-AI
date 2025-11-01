@@ -37,7 +37,7 @@ export function LogoutModal({ isOpen, onClose, organisation }: LogoutModalProps)
 
   const handleAddOrganisation = () => {
     onClose()
-    router.push('/organisations/new')
+    router.push('/organizations/new')
   }
 
   const toggleTheme = () => {

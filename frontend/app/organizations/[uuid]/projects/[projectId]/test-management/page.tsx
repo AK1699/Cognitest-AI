@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles } from 'lucide-react'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { testPlanAPI, testSuiteAPI, testCaseAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-plans'
@@ -135,7 +135,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchProject = async () => {
     try {
-      const response = await axios.get(`/api/v1/projects/${projectId}`)
+      const response = await api.get(`/api/v1/projects/${projectId}`)
       setProject(response.data)
     } catch (error: any) {
       console.error('Failed to fetch project:', error)
@@ -147,7 +147,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchOrganisation = async () => {
     try {
-      const response = await axios.get(`/api/v1/organisations/${uuid}`)
+      const response = await api.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
     } catch (error: any) {
       console.error('Failed to fetch organisation:', error)
@@ -157,7 +157,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const fetchOrganisations = async () => {
     if (!user) return
     try {
-      const response = await axios.get('/api/v1/organisations/')
+      const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -380,7 +380,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                 <hr className="border-gray-200" />
                 <button
                   onClick={() => {
-                    router.push('/organisations/new')
+                    router.push('/organizations/new')
                     setIsProfileOpen(false)
                   }}
                   className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"

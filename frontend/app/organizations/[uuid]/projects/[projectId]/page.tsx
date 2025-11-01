@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy } from 'lucide-react'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -152,7 +152,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const fetchProject = async () => {
     try {
-      const response = await axios.get(`/api/v1/projects/${projectId}`)
+      const response = await api.get(`/api/v1/projects/${projectId}`)
       setProject(response.data)
     } catch (error: any) {
       console.error('Failed to fetch project:', error)
@@ -164,7 +164,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const fetchOrganisation = async () => {
     try {
-      const response = await axios.get(`/api/v1/organisations/${uuid}`)
+      const response = await api.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
     } catch (error: any) {
       console.error('Failed to fetch organisation:', error)
@@ -174,7 +174,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   const fetchOrganisations = async () => {
     if (!user) return
     try {
-      const response = await axios.get('/api/v1/organisations/')
+      const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -183,7 +183,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const handleSave = async () => {
     try {
-      await axios.put(`/api/v1/projects/${projectId}`, formData);
+      await api.put(`/api/v1/projects/${projectId}`, formData);
       toast.success('Project updated successfully');
       fetchProject(); // Refetch project data to ensure UI consistency
     } catch (error) {
@@ -206,7 +206,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
         ...project?.settings,
         enabled_modules: enabledModules,
       };
-      await axios.put(`/api/v1/projects/${projectId}`, { settings: newSettings });
+      await api.put(`/api/v1/projects/${projectId}`, { settings: newSettings });
       toast.success('Modules updated successfully');
       fetchProject(); // Refetch project data
     } catch (error) {
@@ -223,7 +223,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const handleDeleteProject = async () => {
     try {
-      await axios.delete(`/api/v1/projects/${projectId}`);
+      await api.delete(`/api/v1/projects/${projectId}`);
       toast.success('Project deleted successfully');
       router.push(`/organizations/${uuid}/projects`);
     } catch (error) {
@@ -352,7 +352,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 {/* Add Organisation */}
                 <button
                   onClick={() => {
-                    router.push('/organisations/new')
+                    router.push('/organizations/new')
                     setIsProfileOpen(false)
                   }}
                   className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"

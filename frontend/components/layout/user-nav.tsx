@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut, FolderKanban, Check, Trash2, User, Settings, HelpCircle } from 'lucide-react'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -46,11 +46,11 @@ export function UserNav() {
 
     setLoading(true)
     try {
-      const response = await axios.get('/api/v1/organisations/')
+      const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
 
       // Check if there's a current org in localStorage
-      const currentOrg = localStorage.getItem('current_organisation')
+      const currentOrg = localStorage.getItem('current_organization')
       if (currentOrg) {
         try {
           const parsedOrg = JSON.parse(currentOrg)
@@ -99,7 +99,7 @@ export function UserNav() {
     }
 
     try {
-      await axios.delete(`/api/v1/organisations/${org.id}`)
+      await api.delete(`/api/v1/organisations/${org.id}`)
 
       // Remove from state
       setOrganisations(organisations.filter(o => o.id !== org.id))
@@ -115,7 +115,7 @@ export function UserNav() {
         } else {
           setCurrentOrganisation(null)
           localStorage.removeItem('current_organisation')
-          router.push('/organisations/new')
+          router.push('/organizations/new')
         }
       }
 

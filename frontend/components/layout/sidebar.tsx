@@ -28,7 +28,7 @@ import {
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -146,7 +146,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const fetchOrganisations = async () => {
     if (!user) return
     try {
-      const response = await axios.get('/api/v1/organisations/')
+      const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -261,7 +261,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                       <hr className="border-gray-200 dark:border-gray-700" />
                       <button
                         onClick={() => {
-                          router.push('/organisations/new')
+                          router.push('/organizations/new')
                           setIsProfileOpen(false)
                         }}
                         className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"

@@ -75,7 +75,9 @@
       "Bash(brew services start:*)",
       "Bash(brew services:*)",
       "Bash(alembic upgrade:*)",
-      "Bash(dropdb:*)"
+      "Bash(dropdb:*)",
+      "Bash(awk:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

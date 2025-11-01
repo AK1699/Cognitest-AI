@@ -121,7 +121,7 @@ export default function OrganizationsPage() {
               You don't have any organisations yet
             </p>
             <button
-              onClick={() => router.push('/organisations/new')}
+              onClick={() => router.push('/organizations/new')}
               className="inline-flex items-center px-6 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -167,7 +167,7 @@ export default function OrganizationsPage() {
 
             {/* Create New Organization Button */}
             <button
-              onClick={() => router.push('/organisations/new')}
+              onClick={() => router.push('/organizations/new')}
               className="w-full py-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-medium hover:border-primary hover:text-primary dark:hover:text-primary transition-colors"
             >
               <Plus className="w-5 h-5 mx-auto mb-2" />

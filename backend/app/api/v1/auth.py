@@ -126,6 +126,8 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
 
     return {
         "message": "Account created successfully",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "user": {
             "id": str(new_user.id),
             "email": new_user.email,
@@ -173,6 +175,8 @@ async def login(credentials: UserLogin, response: Response, db: AsyncSession = D
 
     return {
         "message": "Login successful",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "user": {
             "id": str(user.id),
             "email": user.email,

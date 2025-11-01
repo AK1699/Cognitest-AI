@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { FolderOpen, Users, CheckCircle, Activity, BarChart3 } from 'lucide-react'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { toast } from 'sonner'
 import { Sidebar } from '@/components/layout/sidebar'
 
@@ -41,7 +41,7 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
   const fetchData = async () => {
     setLoading(true)
     try {
-      const projectsResponse = await axios.get(
+      const projectsResponse = await api.get(
         `/api/v1/projects/?organisation_id=${uuid}`
       )
       const projectsData = projectsResponse.data
@@ -49,7 +49,7 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
 
       const allTestCases: TestCase[] = []
       for (const project of projectsData) {
-        const testCasesResponse = await axios.get(
+        const testCasesResponse = await api.get(
           `/api/v1/test_cases/?project_id=${project.id}`
         )
         allTestCases.push(...testCasesResponse.data)

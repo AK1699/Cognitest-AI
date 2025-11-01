@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import axios from '@/lib/axios'
+import api from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -75,7 +75,7 @@ export function CreateProjectModal({
 
       console.log('Creating project with payload:', payload)
 
-      const response = await axios.post('/api/v1/projects/', payload)
+      const response = await api.post('/api/v1/projects/', payload)
 
       console.log('Project created successfully:', response.data)
       toast.success('Project created successfully!')
@@ -106,10 +106,10 @@ export function CreateProjectModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
+      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="text-center pt-12 pb-8 px-8">
-          <h2 className="text-3xl font-normal text-gray-900 mb-3">
+        <div className="text-center pt-12 pb-8 px-8 flex-shrink-0">
+          <h2 className="text-3xl font-semibold text-gray-900 mb-3">
             Create a new project
           </h2>
           <p className="text-base text-gray-600">
@@ -117,8 +117,8 @@ export function CreateProjectModal({
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-8 pb-8">
+        {/* Form - Scrollable */}
+        <form id="create-project-form" onSubmit={handleSubmit} className="px-8 overflow-y-auto flex-1">
           <div className="bg-white border border-gray-200 rounded-lg p-8 space-y-6">
             {/* Project Name */}
             <div>
@@ -208,25 +208,27 @@ export function CreateProjectModal({
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 mt-8 pt-6 bg-gray-50 -mx-8 px-8 -mb-8 pb-8 rounded-b-lg">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-5 py-2.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !projectName.trim()}
-              className="px-5 py-2.5 bg-primary hover:opacity-90 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
-            >
-              {isSubmitting ? 'Creating...' : 'Create project'}
-            </button>
-          </div>
         </form>
+
+        {/* Footer - Fixed at bottom */}
+        <div className="flex justify-end gap-3 pt-6 pb-6 px-8 bg-gray-50 border-t border-gray-200 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-5 py-2.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+          >
+            Back
+          </button>
+          <button
+            type="submit"
+            form="create-project-form"
+            disabled={isSubmitting || !projectName.trim()}
+            className="px-5 py-2.5 bg-primary hover:opacity-90 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+          >
+            {isSubmitting ? 'Creating...' : 'Create project'}
+          </button>
+        </div>
       </div>
     </div>
   )
