@@ -437,6 +437,7 @@ export default function UsersTeamsPage() {
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-6 py-3">User</th>
+                  <th scope="col" className="px-6 py-3">Role</th>
                   <th scope="col" className="px-6 py-3">Projects</th>
                   <th scope="col" className="px-6 py-3">Created</th>
                   <th scope="col" className="px-6 py-3 text-center">Actions</th>
@@ -445,7 +446,7 @@ export default function UsersTeamsPage() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                       No users found. Invite users to get started.
                     </td>
                   </tr>
@@ -466,6 +467,24 @@ export default function UsersTeamsPage() {
                             <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {userRoles.filter(ur => ur.user_id === user.id).length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {userRoles
+                              .filter(ur => ur.user_id === user.id)
+                              .map(ur => (
+                                <span
+                                  key={ur.id}
+                                  className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
+                                >
+                                  {ur.role.name}
+                                </span>
+                              ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">No roles</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
@@ -496,36 +515,20 @@ export default function UsersTeamsPage() {
                         {formatDateHumanReadable(user.created_at)}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          {userRoles.filter(ur => ur.user_id === user.id).length > 0 && (
-                            <div className="flex flex-wrap gap-1 justify-center">
-                              {userRoles
-                                .filter(ur => ur.user_id === user.id)
-                                .map(ur => (
-                                  <span
-                                    key={ur.id}
-                                    className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
-                                  >
-                                    {ur.role.name}
-                                  </span>
-                                ))}
-                            </div>
-                          )}
-                          <button
-                            onClick={() => {
-                              setRoleModalEntity({
-                                type: 'user',
-                                id: user.id,
-                                name: user.full_name || user.username
-                              })
-                              setShowAssignRoleModal(true)
-                            }}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                            Edit Roles
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => {
+                            setRoleModalEntity({
+                              type: 'user',
+                              id: user.id,
+                              name: user.full_name || user.username
+                            })
+                            setShowAssignRoleModal(true)
+                          }}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Edit Roles
+                        </button>
                       </td>
                     </tr>
                   ))
