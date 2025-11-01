@@ -244,8 +244,8 @@ export default function UsersTeamsPage() {
     if (!selectedUserForProjects) return
 
     try {
-      await api.post(`/api/v1/projects/${projectId}/members`, {
-        user_id: selectedUserForProjects.id
+      await api.post(`/api/v1/projects/${projectId}/members`, null, {
+        params: { user_id: selectedUserForProjects.id }
       })
       toast.success(`${selectedUserForProjects.username} assigned to project`)
       // Refresh user projects

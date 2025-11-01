@@ -57,20 +57,17 @@ export function RoleAssignmentModal({
 
     setLoading(true)
     try {
-      // Fetch available roles for the project
-      const rolesData = await listRoles(organisationId, {
-        project_id: selectedProjectId,
-        is_active: true
-      })
+      // Fetch available roles for the organization
+      const rolesData = await listRoles(organisationId)
       setRoles(rolesData.roles)
 
       // Fetch current role assignments
       if (entityType === 'user') {
-        const userRolesData = await listUserRoles(selectedProjectId, entityId)
-        setCurrentRoles(userRolesData.user_roles)
+        const userRolesData = await listUserRoles(entityId, selectedProjectId)
+        setCurrentRoles(userRolesData)
       } else {
-        const groupRolesData = await listGroupRoles(selectedProjectId, entityId)
-        setCurrentRoles(groupRolesData.group_roles)
+        const groupRolesData = await listGroupRoles(entityId, selectedProjectId)
+        setCurrentRoles(groupRolesData)
       }
     } catch (error: any) {
       console.error('Error fetching role data:', error)
@@ -85,9 +82,9 @@ export function RoleAssignmentModal({
 
     try {
       if (entityType === 'user') {
-        await assignRoleToUser(entityId, selectedProjectId, selectedRoleId)
+        await assignRoleToUser(entityId, selectedRoleId, selectedProjectId)
       } else {
-        await assignRoleToGroup(entityId, selectedProjectId, selectedRoleId)
+        await assignRoleToGroup(entityId, selectedRoleId, selectedProjectId)
       }
 
       toast.success('Role assigned successfully')
@@ -99,14 +96,14 @@ export function RoleAssignmentModal({
     }
   }
 
-  const handleRemoveRole = async (roleAssignmentId: string) => {
+  const handleRemoveRole = async (assignmentId: string) => {
     if (!confirm('Are you sure you want to remove this role assignment?')) return
 
     try {
       if (entityType === 'user') {
-        await removeRoleFromUser(roleAssignmentId)
+        await removeRoleFromUser(assignmentId)
       } else {
-        await removeRoleFromGroup(roleAssignmentId)
+        await removeRoleFromGroup(assignmentId)
       }
 
       toast.success('Role removed successfully')
@@ -241,15 +238,12 @@ export function RoleAssignmentModal({
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-900 dark:text-white">
-                                {assignment.role_name}
+                                {assignment.role.name}
                               </span>
-                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(assignment.role_type)}`}>
-                                {assignment.role_type.replace('_', ' ')}
+                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(assignment.role.role_type)}`}>
+                                {assignment.role.role_type.replace('_', ' ')}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              Assigned {formatDateHumanReadable(assignment.assigned_at)} by {assignment.assigned_by}
-                            </p>
                           </div>
                         </div>
                         <Button
