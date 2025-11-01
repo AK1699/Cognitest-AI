@@ -514,7 +514,7 @@ export default function UsersTeamsPage() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {formatDateHumanReadable(user.created_at)}
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 flex justify-center items-center">
                         <button
                           onClick={() => {
                             setRoleModalEntity({
