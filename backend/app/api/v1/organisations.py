@@ -359,6 +359,49 @@ async def update_organisation(
 
     return organisation
 
+@router.put("/{organisation_id}/enabled-modules", response_model=OrganisationResponse)
+async def update_enabled_modules(
+    organisation_id: UUID,
+    modules_data: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update the enabled modules for an organisation.
+
+    Request body:
+    {
+        "enabled_modules": ["api_testing", "automation_hub", "security_testing", ...]
+    }
+    """
+    result = await db.execute(
+        select(Organisation).where(
+            Organisation.id == organisation_id,
+            Organisation.owner_id == current_user.id
+        )
+    )
+    organisation = result.scalar_one_or_none()
+
+    if not organisation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organisation not found"
+        )
+
+    # Update settings with enabled_modules
+    if organisation.settings is None:
+        organisation.settings = {}
+
+    enabled_modules = modules_data.get("enabled_modules", [])
+    if isinstance(enabled_modules, list):
+        organisation.settings["enabled_modules"] = enabled_modules
+
+    await db.commit()
+    await db.refresh(organisation)
+
+    return organisation
+
+
 @router.delete("/{organisation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_organisation(
     organisation_id: UUID,

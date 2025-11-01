@@ -24,7 +24,7 @@ export default function SignInPage() {
     setLoading(true)
 
     try {
-      await login(email, password, rememberMe)
+      await login(email, password)
       toast.success('Welcome back!')
     } catch (error: any) {
       toast.error(error.message || 'Invalid email or password')

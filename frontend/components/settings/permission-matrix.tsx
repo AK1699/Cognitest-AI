@@ -25,6 +25,7 @@ interface Role {
 
 interface PermissionMatrixProps {
   organisationId: string
+  isAdmin?: boolean
 }
 
 interface RolePermissionMap {
@@ -33,25 +34,40 @@ interface RolePermissionMap {
 
 // Group permissions by resource for better organization
 const PERMISSION_GROUPS = {
-  'User Management': ['manage_users', 'read_user'],
-  'Role Management': ['manage_roles', 'read_role', 'assign_role'],
-  'Project Management': ['create_project', 'read_project', 'update_project', 'delete_project', 'manage_project'],
-  'Test Planning': ['create_test_plan', 'read_test_plan', 'update_test_plan', 'delete_test_plan'],
-  'Test Suites': ['create_test_suite', 'read_test_suite', 'update_test_suite', 'delete_test_suite'],
-  'Test Cases': ['create_test_case', 'read_test_case', 'update_test_case', 'delete_test_case'],
-  'Test Execution': ['execute_test', 'read_test_execution'],
-  'Group Management': ['create_group', 'read_group', 'update_group', 'delete_group', 'manage_group'],
-  'Settings': ['read_settings', 'manage_settings'],
-  'Organization': ['manage_organization'],
+  'User Management': ['user_read_access', 'user_write_access', 'user_delete_access'],
+  'Role Management': ['role_read_access', 'role_write_access', 'role_delete_access'],
+  'Project Management': ['project_read_access', 'project_write_access', 'project_delete_access'],
+  'Test Case Management': [
+    'test_case_read_access', 'test_case_write_access', 'test_case_delete_access', 'test_case_execute_access',
+  ],
+  'API Testing': [
+    'api_test_read_access', 'api_test_write_access', 'api_test_delete_access', 'api_test_execute_access',
+  ],
+  'Automation Hub': [
+    'automation_read_access', 'automation_write_access', 'automation_delete_access', 'automation_execute_access',
+  ],
+  'Security Testing': [
+    'security_test_read_access', 'security_test_write_access', 'security_test_delete_access', 'security_test_execute_access',
+  ],
+  'Performance Testing': [
+    'performance_test_read_access', 'performance_test_write_access', 'performance_test_delete_access', 'performance_test_execute_access',
+  ],
+  'Mobile Testing': [
+    'mobile_test_read_access', 'mobile_test_write_access', 'mobile_test_delete_access', 'mobile_test_execute_access',
+  ],
+  'Settings': ['settings_read_access', 'settings_write_access'],
+  'Organization': ['organization_manage_access'],
 }
 
-export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
+export function PermissionMatrix({ organisationId, isAdmin = false }: PermissionMatrixProps) {
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>({})
   const [originalRolePermissions, setOriginalRolePermissions] = useState<RolePermissionMap>({})
+  const [permissionGroups, setPermissionGroups] = useState<Record<string, string[]>>(PERMISSION_GROUPS)
+  const [enabledModules, setEnabledModules] = useState<string[]>([])
 
   useEffect(() => {
     fetchData()
@@ -67,11 +83,30 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
       const rolesList = rolesResponse.data.roles || []
       setRoles(rolesList)
 
-      // Fetch all permissions
-      const permsResponse = await api.get('/api/v1/roles/permissions')
-      // API returns { permissions: [...], total: number }
-      const permsList = permsResponse.data.permissions || []
-      setPermissions(permsList)
+      // Fetch dynamic permissions based on enabled modules
+      try {
+        const dynamicResponse = await api.get(`/api/v1/roles/dynamic/${organisationId}`)
+        const { permission_groups, all_permissions, enabled_modules } = dynamicResponse.data
+
+        // Use dynamic permission groups if available
+        if (permission_groups) {
+          setPermissionGroups(permission_groups)
+        }
+
+        // Set enabled modules for reference
+        if (enabled_modules) {
+          setEnabledModules(enabled_modules)
+        }
+
+        // Use all permissions including dynamic ones
+        setPermissions(all_permissions || [])
+      } catch (dynamicError) {
+        // Fallback to static permissions if dynamic endpoint fails
+        console.warn('Could not fetch dynamic permissions, using static permissions:', dynamicError)
+        const permsResponse = await api.get('/api/v1/roles/permissions')
+        const permsList = permsResponse.data.permissions || []
+        setPermissions(permsList)
+      }
 
       // Initialize role-permission mapping
       const permMap: RolePermissionMap = {}
@@ -89,6 +124,8 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
   }
 
   const togglePermission = (roleId: string, permissionId: string) => {
+    if (!isAdmin) return
+
     setRolePermissions(prev => {
       const newMap = { ...prev }
       const rolePerms = [...(newMap[roleId] || [])]
@@ -157,6 +194,11 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Configure permissions for each role. Check the boxes to grant permissions.
         </p>
+        {!isAdmin && (
+          <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
+            Only administrators can modify role permissions.
+          </p>
+        )}
       </div>
 
       {/* Controls */}
@@ -164,7 +206,7 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
         <Button
           variant="outline"
           onClick={resetChanges}
-          disabled={!hasChanges() || saving}
+          disabled={!hasChanges() || saving || !isAdmin}
           className="gap-2"
         >
           <RotateCcw className="w-4 h-4" />
@@ -172,7 +214,7 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
         </Button>
         <Button
           onClick={savePermissions}
-          disabled={!hasChanges() || saving}
+          disabled={!hasChanges() || saving || !isAdmin}
           className="gap-2 bg-blue-600 hover:bg-blue-700"
         >
           {saving ? (
@@ -215,7 +257,7 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
 
             {/* Body */}
             <tbody>
-              {Object.entries(PERMISSION_GROUPS).map(([groupName, permNames]) => {
+              {Object.entries(permissionGroups).map(([groupName, permNames]) => {
                 const groupPerms = permissions.filter(p => permNames.includes(p.name))
                 if (groupPerms.length === 0) return null
 
@@ -258,7 +300,7 @@ export function PermissionMatrix({ organisationId }: PermissionMatrixProps) {
                                   togglePermission(role.id, perm.id)
                                 }
                                 className="w-4 h-4"
-                                disabled={saving}
+                                disabled={saving || !isAdmin}
                               />
                             </div>
                           </td>

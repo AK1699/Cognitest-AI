@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -17,6 +17,9 @@ class Organisation(Base):
 
     # Owner
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+
+    # Settings - stores enabled modules and other org-level settings
+    settings = Column(JSON, default=dict)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

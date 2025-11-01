@@ -82,7 +82,8 @@
       "Bash(alembic current:*)",
       "Bash(jq:*)",
       "Bash(npm run build:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

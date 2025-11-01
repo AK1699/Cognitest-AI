@@ -8,41 +8,26 @@ import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Sidebar } from '@/components/layout/sidebar'
 import {
-  listGroups,
-  createGroup,
-  updateGroup,
-  deleteGroup,
-  getGroupUsers,
-  addUserToGroup,
-  removeUserFromGroup,
-  type Group,
-  type GroupUser
-} from '@/lib/api/groups'
-import {
   listRoles,
   listUserRoles,
-  listGroupRoles,
   assignRoleToUser,
-  assignRoleToGroup,
   removeRoleFromUser,
-  removeRoleFromGroup,
   createRole,
+  deleteRole,
   listPermissions,
   type ProjectRole,
   type UserProjectRoleWithDetails,
-  type GroupProjectRoleWithDetails,
   type Permission
 } from '@/lib/api/roles'
 import { listOrganisationUsers, type User as UserType } from '@/lib/api/users'
 import { RoleAssignmentModal } from '@/components/roles/role-assignment-modal'
 import { createInvitation } from '@/lib/api/invitations'
-import { RoleInfoTooltip } from '@/components/roles/role-info-tooltip'
 import { RoleFilter } from '@/components/roles/role-filter'
 import { PermissionMatrix } from '@/components/settings/permission-matrix'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
 
-type Tab = 'users' | 'groups' | 'roles'
+type Tab = 'users' | 'roles'
 
 interface Project {
   id: string
@@ -64,34 +49,31 @@ export default function UsersTeamsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('users')
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
   const [users, setUsers] = useState<UserType[]>([])
-  const [groups, setGroups] = useState<Group[]>([])
   const [roles, setRoles] = useState<ProjectRole[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [userRoles, setUserRoles] = useState<UserProjectRoleWithDetails[]>([])
-  const [groupRoles, setGroupRoles] = useState<GroupProjectRoleWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [userProjects, setUserProjects] = useState<Record<string, Project[]>>({})
   const [selectedRoleFilters, setSelectedRoleFilters] = useState<string[]>([])
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false)
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showProjectAssignModal, setShowProjectAssignModal] = useState(false)
-  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
-  const [showEditGroupModal, setShowEditGroupModal] = useState(false)
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false)
-  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false)
   const [showCreateRoleModal, setShowCreateRoleModal] = useState(false)
   const [rolesView, setRolesView] = useState<'list' | 'matrix'>('list')
+  const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false)
+  const [roleToDelete, setRoleToDelete] = useState<ProjectRole | null>(null)
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
 
   // Selected items
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [selectedUserForProjects, setSelectedUserForProjects] = useState<UserType | null>(null)
-  const [groupMembers, setGroupMembers] = useState<GroupUser[]>([])
   const [roleModalEntity, setRoleModalEntity] = useState<{
-    type: 'user' | 'group'
+    type: 'user'
     id: string
     name: string
   } | null>(null)
@@ -99,7 +81,6 @@ export default function UsersTeamsPage() {
   const [showAddMemberSection, setShowAddMemberSection] = useState(false)
 
   // Form data
-  const [groupFormData, setGroupFormData] = useState({ name: '', description: '' })
   const [userFormData, setUserFormData] = useState({
     email: '',
     username: '',
@@ -126,13 +107,13 @@ export default function UsersTeamsPage() {
       const orgResponse = await api.get(`/api/v1/organisations/${organisationId}`)
       setOrganisation(orgResponse.data)
 
+      // Determine if current user is admin
+      const isAdmin = currentUser?.is_superuser || currentUser?.id === orgResponse.data.owner_id
+      setIsCurrentUserAdmin(isAdmin)
+
       // Fetch users
       const usersData = await listOrganisationUsers(organisationId)
       setUsers(usersData)
-
-      // Fetch groups
-      const groupsData = await listGroups(organisationId)
-      setGroups(groupsData.groups)
 
       // Fetch roles
       const rolesData = await listRoles(organisationId)
@@ -228,94 +209,6 @@ export default function UsersTeamsPage() {
     }
   }
 
-  const handleCreateGroup = async () => {
-    try {
-      await createGroup({
-        name: groupFormData.name,
-        description: groupFormData.description,
-        organisation_id: organisationId,
-      })
-      toast.success('Group created successfully')
-      setShowCreateGroupModal(false)
-      setGroupFormData({ name: '', description: '' })
-      fetchData()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create group')
-    }
-  }
-
-  const handleUpdateGroup = async () => {
-    if (!selectedGroup) return
-    try {
-      await updateGroup(selectedGroup.id, {
-        name: groupFormData.name,
-        description: groupFormData.description,
-      })
-      toast.success('Group updated successfully')
-      setShowEditGroupModal(false)
-      setSelectedGroup(null)
-      setGroupFormData({ name: '', description: '' })
-      fetchData()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update group')
-    }
-  }
-
-  const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Are you sure you want to delete this group?')) return
-    try {
-      await deleteGroup(groupId)
-      toast.success('Group deleted successfully')
-      fetchData()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete group')
-    }
-  }
-
-  const handleViewGroupMembers = async (group: Group) => {
-    try {
-      const members = await getGroupUsers(group.id)
-      setGroupMembers(members)
-      setSelectedGroup(group)
-      setShowGroupMembersModal(true)
-      setShowAddMemberSection(false)
-      setSelectedUserToAdd('')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to load group members')
-    }
-  }
-
-  const handleAddUserToGroup = async () => {
-    if (!selectedGroup || !selectedUserToAdd) return
-
-    try {
-      await addUserToGroup(selectedGroup.id, selectedUserToAdd)
-      toast.success('User added to group successfully')
-      setSelectedUserToAdd('')
-      setShowAddMemberSection(false)
-      // Refresh group members
-      const members = await getGroupUsers(selectedGroup.id)
-      setGroupMembers(members)
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to add user to group')
-    }
-  }
-
-  const handleRemoveUserFromGroup = async (userId: string) => {
-    if (!selectedGroup) return
-    if (!confirm('Are you sure you want to remove this user from the group?')) return
-
-    try {
-      await removeUserFromGroup(selectedGroup.id, userId)
-      toast.success('User removed from group successfully')
-      // Refresh group members
-      const members = await getGroupUsers(selectedGroup.id)
-      setGroupMembers(members)
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to remove user from group')
-    }
-  }
-
   const handleInviteUser = async () => {
     if (!userFormData.email) {
       toast.error('Email address is required')
@@ -405,15 +298,39 @@ export default function UsersTeamsPage() {
     }
   }
 
+  const handleDeleteRole = async (role: ProjectRole) => {
+    // Check if it's a system role
+    if (role.is_system_role) {
+      toast.error('Cannot delete system roles')
+      return
+    }
+
+    setRoleToDelete(role)
+    setShowDeleteRoleDialog(true)
+  }
+
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return
+
+    setDeletingRoleId(roleToDelete.id)
+    try {
+      await deleteRole(roleToDelete.id)
+      toast.success(`Role "${roleToDelete.name}" deleted successfully`)
+      setShowDeleteRoleDialog(false)
+      setRoleToDelete(null)
+      fetchData()
+    } catch (error: any) {
+      console.error('Failed to delete role:', error)
+      toast.error(error.response?.data?.detail || 'Failed to delete role')
+    } finally {
+      setDeletingRoleId(null)
+    }
+  }
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (group.description && group.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const filteredRoles = roles.filter(role =>
@@ -455,12 +372,6 @@ export default function UsersTeamsPage() {
               Invite User
             </Button>
           )}
-          {activeTab === 'groups' && (
-            <Button onClick={() => setShowCreateGroupModal(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create Group
-            </Button>
-          )}
           {activeTab === 'roles' && (
             <Button onClick={() => setShowCreateRoleModal(true)}>
               <Shield className="mr-2 h-4 w-4" />
@@ -483,17 +394,6 @@ export default function UsersTeamsPage() {
           >
             <User className="w-4 h-4" />
             Users ({users.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`${
-              activeTab === 'groups'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
-          >
-            <Users className="w-4 h-4" />
-            Groups ({groups.length})
           </button>
           <button
             onClick={() => setActiveTab('roles')}
@@ -538,19 +438,15 @@ export default function UsersTeamsPage() {
                 <tr>
                   <th scope="col" className="px-6 py-3">User</th>
                   <th scope="col" className="px-6 py-3">Provider</th>
-                  <th scope="col" className="px-6 py-3 flex items-center gap-2">
-                    Role
-                    <RoleInfoTooltip roleType="member" />
-                  </th>
                   <th scope="col" className="px-6 py-3">Projects</th>
                   <th scope="col" className="px-6 py-3">Created</th>
-                  <th scope="col" className="px-6 py-3"><span className="sr-only">Actions</span></th>
+                  <th scope="col" className="px-6 py-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                       No users found. Invite users to get started.
                     </td>
                   </tr>
@@ -574,12 +470,6 @@ export default function UsersTeamsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Social</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{getUserRole(user)}</span>
-                          <RoleInfoTooltip roleType={getUserRole(user).toLowerCase()} />
-                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
@@ -609,22 +499,37 @@ export default function UsersTeamsPage() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {formatDateHumanReadable(user.created_at)}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setRoleModalEntity({
-                              type: 'user',
-                              id: user.id,
-                              name: user.full_name || user.username
-                            })
-                            setShowAssignRoleModal(true)
-                          }}
-                        >
-                          <Shield className="w-4 h-4 mr-1" />
-                          Manage Roles
-                        </Button>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          {userRoles.filter(ur => ur.user_id === user.id).length > 0 && (
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              {userRoles
+                                .filter(ur => ur.user_id === user.id)
+                                .map(ur => (
+                                  <span
+                                    key={ur.id}
+                                    className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
+                                  >
+                                    {ur.role.name}
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => {
+                              setRoleModalEntity({
+                                type: 'user',
+                                id: user.id,
+                                name: user.full_name || user.username
+                              })
+                              setShowAssignRoleModal(true)
+                            }}
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit Roles
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -632,88 +537,6 @@ export default function UsersTeamsPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* Groups Tab Content */}
-      {activeTab === 'groups' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredGroups.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              No groups found. Create a group to organize your users.
-            </div>
-          ) : (
-            filteredGroups.map((group) => (
-              <div
-                key={group.id}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{group.name}</h3>
-                    {group.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.description}</p>
-                    )}
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    group.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {group.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => handleViewGroupMembers(group)}
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
-                    >
-                      <Users className="w-4 h-4" />
-                      View Members
-                    </button>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedGroup(group)
-                          setGroupFormData({ name: group.name, description: group.description || '' })
-                          setShowEditGroupModal(true)
-                        }}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteGroup(group.id)}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setRoleModalEntity({
-                        type: 'group',
-                        id: group.id,
-                        name: group.name
-                      })
-                      setShowAssignRoleModal(true)
-                    }}
-                  >
-                    <Shield className="w-4 h-4 mr-1" />
-                    Manage Roles
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
         </div>
       )}
 
@@ -757,12 +580,13 @@ export default function UsersTeamsPage() {
                       <th scope="col" className="px-6 py-3">Status</th>
                       <th scope="col" className="px-6 py-3">System Role</th>
                       <th scope="col" className="px-6 py-3">Created</th>
+                      <th scope="col" className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRoles.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                           No roles found. {roles.length === 0 ? 'Initialize default roles or create a custom role to get started.' : 'Try adjusting your search.'}
                         </td>
                       </tr>
@@ -791,13 +615,24 @@ export default function UsersTeamsPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              role.is_default ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                              role.is_system_role ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
                             }`}>
-                              {role.is_default ? 'System' : 'Custom'}
+                              {role.is_system_role ? 'System' : 'Custom'}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
                             {formatDateHumanReadable(role.created_at)}
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <button
+                              onClick={() => handleDeleteRole(role)}
+                              disabled={role.is_system_role || deletingRoleId === role.id}
+                              className="inline-flex items-center gap-2 text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                              title={role.is_system_role ? 'Cannot delete system roles' : 'Delete role'}
+                            >
+                              <Trash2 size={16} />
+                              {deletingRoleId === role.id ? 'Deleting...' : 'Delete'}
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -811,212 +646,9 @@ export default function UsersTeamsPage() {
           {/* Permission Matrix View */}
           {rolesView === 'matrix' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
-              <PermissionMatrix organisationId={organisationId} />
+              <PermissionMatrix organisationId={organisationId} isAdmin={isCurrentUserAdmin} />
             </div>
           )}
-        </div>
-      )}
-
-      {/* Create Group Modal */}
-      {showCreateGroupModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Create New Group</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Group Name *
-                </label>
-                <input
-                  type="text"
-                  value={groupFormData.name}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="e.g., QA Team"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={groupFormData.description}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  rows={3}
-                  placeholder="Optional description..."
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCreateGroupModal(false)
-                  setGroupFormData({ name: '', description: '' })
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleCreateGroup} disabled={!groupFormData.name}>
-                Create Group
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Group Modal */}
-      {showEditGroupModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Edit Group</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Group Name *
-                </label>
-                <input
-                  type="text"
-                  value={groupFormData.name}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={groupFormData.description}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditGroupModal(false)
-                  setSelectedGroup(null)
-                  setGroupFormData({ name: '', description: '' })
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateGroup} disabled={!groupFormData.name}>
-                Update Group
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Group Members Modal */}
-      {showGroupMembersModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">{selectedGroup.name} - Members</h2>
-              {!showAddMemberSection && (
-                <Button
-                  size="sm"
-                  onClick={() => setShowAddMemberSection(true)}
-                >
-                  <UserPlus className="w-4 h-4 mr-1" />
-                  Add Member
-                </Button>
-              )}
-            </div>
-
-            {/* Add Member Section */}
-            {showAddMemberSection && (
-              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <h3 className="text-sm font-semibold mb-3">Add User to Group</h3>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedUserToAdd}
-                    onChange={(e) => setSelectedUserToAdd(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Select a user...</option>
-                    {users
-                      .filter(user => !groupMembers.some(member => member.id === user.id))
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name || user.username} ({user.email})
-                        </option>
-                      ))}
-                  </select>
-                  <Button onClick={handleAddUserToGroup} disabled={!selectedUserToAdd}>
-                    Add
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddMemberSection(false)
-                      setSelectedUserToAdd('')
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="max-h-96 overflow-y-auto">
-              {groupMembers.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No members in this group yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {groupMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-                          <span className="text-sm font-semibold text-white">
-                            {(member.full_name || member.username).substring(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">{member.full_name || member.username}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{member.email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Added {member.added_at ? formatDateHumanReadable(member.added_at) : 'N/A'}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveUserFromGroup(member.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowGroupMembersModal(false)
-                  setSelectedGroup(null)
-                  setGroupMembers([])
-                  setShowAddMemberSection(false)
-                  setSelectedUserToAdd('')
-                }}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1394,6 +1026,54 @@ export default function UsersTeamsPage() {
           entityName={roleModalEntity.name}
           availableProjects={projects}
         />
+      )}
+
+      {/* Delete Role Confirmation Dialog */}
+      {showDeleteRoleDialog && roleToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Delete Role</h3>
+              </div>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to delete the role <strong>{roleToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowDeleteRoleDialog(false)
+                  setRoleToDelete(null)
+                }}
+                disabled={deletingRoleId !== null}
+                className="px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteRole}
+                disabled={deletingRoleId !== null}
+                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {deletingRoleId === roleToDelete.id ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete Role
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </div>

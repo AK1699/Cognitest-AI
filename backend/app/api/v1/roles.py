@@ -954,3 +954,50 @@ async def get_user_permissions_for_project(
         permissions=all_permissions,
         roles=all_roles
     )
+
+
+@router.get("/dynamic/{organisation_id}", response_model=dict)
+async def get_dynamic_permissions(
+    organisation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get dynamic permission groups based on enabled modules in the organization.
+
+    Returns permission groups with static permissions + dynamic permissions
+    for enabled testing modules.
+    """
+    from app.utils.dynamic_permissions import (
+        generate_dynamic_permission_groups,
+        get_all_permissions_list,
+        get_enabled_modules_from_organisation,
+    )
+    from app.models.organisation import Organisation
+
+    # Get the organization with its settings
+    org_result = await db.execute(
+        select(Organisation).where(Organisation.id == organisation_id)
+    )
+    organisation = org_result.scalar_one_or_none()
+
+    if not organisation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Organization with id {organisation_id} not found"
+        )
+
+    # Extract enabled modules from organization settings
+    enabled_modules = list(get_enabled_modules_from_organisation(organisation))
+
+    # Generate dynamic permission groups
+    permission_groups = generate_dynamic_permission_groups(enabled_modules)
+
+    # Get all permission details
+    all_permissions = get_all_permissions_list(enabled_modules)
+
+    return {
+        "permission_groups": permission_groups,
+        "all_permissions": all_permissions,
+        "enabled_modules": enabled_modules,
+    }

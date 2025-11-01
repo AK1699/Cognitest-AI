@@ -3,7 +3,7 @@
 import { use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress' // Assuming a Progress component exists
+// import { Progress } from '@/components/ui/progress' // TODO: Component does not exist yet
 import { Sidebar } from '@/components/layout/sidebar'
 import { CreditCard } from 'lucide-react'
 

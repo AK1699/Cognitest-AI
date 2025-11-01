@@ -138,13 +138,19 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
           icon={FolderOpen}
           iconBgColor="bg-blue-100"
           iconColor="text-blue-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-blue-200"
         />
         <StatsCard
           title="Active Users"
-          value="128" // Placeholder
+          value="128"
           icon={Users}
           iconBgColor="bg-orange-100"
           iconColor="text-orange-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-orange-200"
         />
         <StatsCard
           title="Overall Pass Rate"
@@ -152,6 +158,9 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
           icon={CheckCircle}
           iconBgColor="bg-green-100"
           iconColor="text-green-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-green-200"
         />
         <StatsCard
           title="Total Test Runs (Last 30 Days)"
@@ -159,6 +168,9 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
           icon={Activity}
           iconBgColor="bg-purple-100"
           iconColor="text-purple-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-purple-200"
         />
       </div>
 

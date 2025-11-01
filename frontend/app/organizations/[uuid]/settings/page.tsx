@@ -151,9 +151,9 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
 
               <TabsContent value="logo" className="mt-8 animate-in fade-in duration-300">
                 <LogoSettings
-                  logo={organisation.logo || null}
+                  logo={(organisation.logo as string | null)}
                   organisationName={organisation.name}
-                  onLogoChange={(logo) => updateOrganisation({ logo })}
+                  onLogoChange={(logo) => updateOrganisation({ logo: logo as string | undefined })}
                   isSaving={isSaving}
                 />
               </TabsContent>
