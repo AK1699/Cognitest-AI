@@ -209,11 +209,11 @@ export function RoleAssignmentModal({
                   </div>
 
                   {/* Project Selection for Assignment */}
-                  {availableProjects.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Select Project to Assign To
-                      </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Project to Assign To
+                    </label>
+                    {availableProjects.length > 0 ? (
                       <select
                         value={selectedProjectId}
                         onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -226,8 +226,14 @@ export function RoleAssignmentModal({
                           </option>
                         ))}
                       </select>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          ⚠️ No projects available. Please create a project first before assigning roles.
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Role Preview */}
                   {selectedRoleId && (
