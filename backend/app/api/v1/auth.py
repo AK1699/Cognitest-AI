@@ -28,8 +28,23 @@ from app.schemas.user import (
 )
 from app.utils.email import send_email, render_template
 from app.models.password_reset import PasswordResetCode
+from app.models.oauth_account import OAuthAccount
+from app.schemas.oauth import (
+    GoogleCallbackRequest,
+    GoogleSignInRequest,
+    GoogleSignUpRequest,
+)
+from app.utils.google_oauth import (
+    get_google_authorization_url,
+    exchange_code_for_token,
+    get_user_info_from_id_token,
+    get_user_info_from_access_token,
+    generate_oauth_state,
+    GoogleOAuthError,
+)
 import random
 import string
+import uuid
 
 router = APIRouter()
 
@@ -444,3 +459,243 @@ async def logout(response: Response, current_user: User = Depends(get_current_ac
     """
     clear_auth_cookies(response)
     return {"message": "Successfully logged out"}
+
+# Google OAuth Endpoints
+
+@router.get("/google/authorize")
+async def google_authorize():
+    """
+    Initiate Google OAuth flow.
+    Returns the authorization URL and state for frontend redirect.
+    """
+    state = generate_oauth_state()
+    auth_url = await get_google_authorization_url(state)
+
+    return {
+        "authorization_url": auth_url,
+        "state": state
+    }
+
+@router.post("/google/callback")
+async def google_callback(
+    request_data: GoogleCallbackRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Handle Google OAuth callback.
+    Exchanges authorization code for tokens and creates/updates user.
+    """
+    try:
+        # Exchange code for tokens
+        token_response = await exchange_code_for_token(request_data.code)
+
+        # Get user info from ID token
+        id_token = token_response.get("id_token")
+        if not id_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No ID token received from Google"
+            )
+
+        user_info = await get_user_info_from_id_token(id_token)
+
+        # Extract user information
+        email = user_info.get("email")
+        name = user_info.get("name")
+        picture_url = user_info.get("picture")
+        provider_user_id = user_info.get("sub")
+
+        if not email or not provider_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required information from Google"
+            )
+
+        # Check if OAuth account exists
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "google"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if oauth_account:
+            # Existing user, update OAuth info
+            user = oauth_account.user
+            oauth_account.access_token = token_response.get("access_token")
+            oauth_account.refresh_token = token_response.get("refresh_token")
+
+            # Update user picture if available
+            if picture_url and not user.full_name:
+                user.full_name = name
+
+        else:
+            # Check if user with this email exists
+            result = await db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                # Create new user
+                # Generate username from email
+                username_base = email.split("@")[0]
+                username = username_base
+
+                # Ensure unique username
+                counter = 1
+                while True:
+                    result = await db.execute(
+                        select(User).where(User.username == username)
+                    )
+                    if result.scalar_one_or_none() is None:
+                        break
+                    username = f"{username_base}{counter}"
+                    counter += 1
+
+                user = User(
+                    email=email,
+                    username=username,
+                    full_name=name,
+                    hashed_password=get_password_hash(str(uuid.uuid4())),  # Random password
+                    is_active=True,
+                    is_superuser=False
+                )
+                db.add(user)
+                await db.flush()  # Get the user ID before creating OAuth account
+
+            # Create new OAuth account
+            oauth_account = OAuthAccount(
+                user_id=user.id,
+                provider="google",
+                provider_user_id=provider_user_id,
+                email=email,
+                name=name,
+                picture_url=picture_url,
+                access_token=token_response.get("access_token"),
+                refresh_token=token_response.get("refresh_token"),
+            )
+            db.add(oauth_account)
+
+        await db.commit()
+        await db.refresh(user)
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Google",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except GoogleOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing Google callback: {str(e)}"
+        )
+
+@router.post("/google/signin")
+async def google_signin(
+    request_data: GoogleSignInRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Sign in with Google using ID token.
+    """
+    try:
+        # Decode ID token
+        user_info = await get_user_info_from_id_token(request_data.id_token)
+
+        provider_user_id = user_info.get("sub")
+        email = user_info.get("email")
+
+        if not provider_user_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Google ID token"
+            )
+
+        # Find OAuth account
+        result = await db.execute(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == "google"
+            ).where(
+                OAuthAccount.provider_user_id == provider_user_id
+            )
+        )
+        oauth_account = result.scalar_one_or_none()
+
+        if not oauth_account:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Google account not linked. Please sign up first."
+            )
+
+        user = oauth_account.user
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive"
+            )
+
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        # Set cookies
+        set_auth_cookies(response, access_token, refresh_token, remember_me=True)
+
+        return {
+            "message": "Successfully signed in with Google",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.full_name
+            }
+        }
+
+    except GoogleOAuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google OAuth error: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during Google sign in: {str(e)}"
+        )
+
+@router.get("/google/client-id")
+async def get_google_client_id():
+    """
+    Get the Google Client ID for frontend OAuth initialization.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google OAuth is not configured"
+        )
+
+    return {"client_id": settings.GOOGLE_CLIENT_ID}

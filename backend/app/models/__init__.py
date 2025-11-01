@@ -29,6 +29,7 @@ from app.models.role import (
     role_permissions,
 )
 from app.models.password_reset import PasswordResetCode
+from app.models.oauth_account import OAuthAccount
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -59,6 +60,7 @@ __all__ = [
     "PermissionResource",
     "role_permissions",
     "PasswordResetCode",
+    "OAuthAccount",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",
