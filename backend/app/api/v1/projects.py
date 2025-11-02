@@ -451,7 +451,7 @@ async def list_project_members(
             detail="Project not found"
         )
 
-    # Verify user has access (owner or member)
+    # Verify user has access (owner, member, or org admin)
     org_result = await db.execute(
         select(Organisation).where(Organisation.id == project.organisation_id)
     )
@@ -459,33 +459,61 @@ async def list_project_members(
 
     is_owner = organisation and organisation.owner_id == current_user.id
 
+    # If not owner, check if user is an organisation member or has project access
     if not is_owner:
-        # Check if user has access to this project
+        # Check if user is member of the organisation
         from sqlalchemy import text
-        access_check = await db.execute(
+        org_member_check = await db.execute(
             text("""
-                SELECT 1 FROM user_projects
-                WHERE project_id = :project_id AND user_id = :user_id
+                SELECT 1 FROM user_organisations
+                WHERE organisation_id = :org_id AND user_id = :user_id
                 LIMIT 1
             """),
-            {"project_id": str(project_id), "user_id": str(current_user.id)}
+            {"org_id": str(project.organisation_id), "user_id": str(current_user.id)}
         )
 
-        if not access_check.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have permission to view this project's members"
+        is_org_member = org_member_check.fetchone() is not None
+
+        # If not org member, check if user has project access
+        if not is_org_member:
+            access_check = await db.execute(
+                text("""
+                    SELECT 1 FROM user_projects
+                    WHERE project_id = :project_id AND user_id = :user_id
+                    LIMIT 1
+                """),
+                {"project_id": str(project_id), "user_id": str(current_user.id)}
             )
+
+            has_project_access = access_check.fetchone() is not None
+
+            # Also check user_project_roles as backup
+            if not has_project_access:
+                role_check = await db.execute(
+                    text("""
+                        SELECT 1 FROM user_project_roles
+                        WHERE project_id = :project_id AND user_id = :user_id
+                        LIMIT 1
+                    """),
+                    {"project_id": str(project_id), "user_id": str(current_user.id)}
+                )
+                has_project_access = role_check.fetchone() is not None
+
+            if not has_project_access:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to view this project's members"
+                )
 
     # Get all members
     from sqlalchemy import text
     members_result = await db.execute(
         text("""
-            SELECT u.id, u.email, u.username, u.full_name, up.role, up.assigned_at
+            SELECT u.id, u.email, u.username, u.full_name, up.role
             FROM user_projects up
             JOIN users u ON up.user_id = u.id
             WHERE up.project_id = :project_id
-            ORDER BY up.assigned_at DESC
+            ORDER BY u.created_at DESC
         """),
         {"project_id": str(project_id)}
     )
@@ -497,8 +525,7 @@ async def list_project_members(
             "email": row[1],
             "username": row[2],
             "full_name": row[3],
-            "role": row[4],
-            "assigned_at": row[5].isoformat() if row[5] else None
+            "role": row[4]
         })
 
     return members

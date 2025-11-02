@@ -31,3 +31,21 @@ class Organisation(Base):
 
     def __repr__(self):
         return f"<Organisation {self.name}>"
+
+
+class UserOrganisation(Base):
+    """
+    Join table linking users to organisations with their role and membership status
+    """
+    __tablename__ = "user_organisations"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    organisation_id = Column(UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role = Column(String(50), default="member")  # member, admin, owner, etc.
+    added_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<UserOrganisation user={self.user_id} org={self.organisation_id} role={self.role}>"

@@ -90,7 +90,8 @@ async def create_invitation(
         invitation_token=UserInvitation.generate_token(),
         expires_at=UserInvitation.calculate_expiry(invitation_data.expiry_days),
         invited_by=current_user.id,
-        group_ids=",".join([str(gid) for gid in invitation_data.group_ids]) if invitation_data.group_ids else None
+        group_ids=",".join([str(gid) for gid in invitation_data.group_ids]) if invitation_data.group_ids else None,
+        role_id=invitation_data.role_id
     )
 
     db.add(invitation)
@@ -196,51 +197,56 @@ async def accept_invitation(
             )
 
     # Check if user already exists
-    existing_user = await db.execute(
+    existing_user_result = await db.execute(
         select(User).where(User.email == invitation.email)
     )
-    if existing_user.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already exists with this email"
+    existing_user = existing_user_result.scalar_one_or_none()
+
+    if existing_user:
+        # User was already created (possibly from a previous incomplete acceptance)
+        new_user = existing_user
+    else:
+        # Check if username is taken
+        existing_username = await db.execute(
+            select(User).where(User.username == accept_data.username)
+        )
+        if existing_username.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Username '{accept_data.username}' is already taken"
+            )
+
+        # Create user account
+        new_user = User(
+            email=invitation.email,
+            username=accept_data.username,
+            hashed_password=get_password_hash(accept_data.password),
+            full_name=accept_data.full_name or invitation.full_name,
+            is_active=True
         )
 
-    # Check if username is taken
-    existing_username = await db.execute(
-        select(User).where(User.username == accept_data.username)
-    )
-    if existing_username.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Username '{accept_data.username}' is already taken"
-        )
+        db.add(new_user)
+        await db.flush()
 
-    # Create user account
-    new_user = User(
-        email=invitation.email,
-        username=accept_data.username,
-        hashed_password=get_password_hash(accept_data.password),
-        full_name=accept_data.full_name or invitation.full_name,
-        is_active=True
-    )
-
-    db.add(new_user)
-    await db.flush()
-
-    # Add user to the organization
+    # Add user to the organization (or update if already exists)
     from sqlalchemy import text
-    await db.execute(
-        text(
-            "INSERT INTO user_organisations (user_id, organisation_id, role, added_by) "
-            "VALUES (:user_id, :org_id, :role, :added_by)"
-        ),
-        {
-            "user_id": str(new_user.id),
-            "org_id": str(invitation.organisation_id),
-            "role": "member",
-            "added_by": str(invitation.invited_by) if invitation.invited_by else None
-        }
-    )
+    try:
+        await db.execute(
+            text(
+                "INSERT INTO user_organisations (user_id, organisation_id, role, added_by) "
+                "VALUES (:user_id, :org_id, :role, :added_by)"
+            ),
+            {
+                "user_id": str(new_user.id),
+                "org_id": str(invitation.organisation_id),
+                "role": "member",
+                "added_by": str(invitation.invited_by) if invitation.invited_by else None
+            }
+        )
+    except Exception as e:
+        # User might already be in organization, that's okay
+        if "duplicate" not in str(e).lower():
+            raise
 
     # Add user to groups if specified
     if invitation.group_ids:
@@ -260,6 +266,36 @@ async def accept_invitation(
                         added_at=utcnow()
                     )
                 )
+
+    # Assign user to projects with the specified role if provided
+    if invitation.role_id:
+        from app.models.project import Project
+
+        # Get all projects in this organization
+        projects_result = await db.execute(
+            select(Project).where(Project.organisation_id == invitation.organisation_id)
+        )
+        projects = projects_result.scalars().all()
+
+        if projects:
+            # Assign user to all projects in the organization with the specified role
+            for project in projects:
+                try:
+                    await db.execute(
+                        text(
+                            "INSERT INTO user_project_roles (user_id, project_id, role_id) "
+                            "VALUES (:user_id, :project_id, :role_id)"
+                        ),
+                        {
+                            "user_id": str(new_user.id),
+                            "project_id": str(project.id),
+                            "role_id": str(invitation.role_id)
+                        }
+                    )
+                except Exception as e:
+                    # User might already have role in this project, that's okay
+                    if "duplicate" not in str(e).lower():
+                        raise
 
     # Mark invitation as accepted
     invitation.status = InvitationStatus.ACCEPTED

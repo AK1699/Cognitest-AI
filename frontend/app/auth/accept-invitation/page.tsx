@@ -57,7 +57,8 @@ function AcceptInvitationContent() {
     try {
       await acceptInvitation(token, {
         username: formData.username,
-        password: formData.password
+        password: formData.password,
+        full_name: formData.full_name || undefined
       })
 
       toast.success('🎉 Account created successfully! Please sign in.')

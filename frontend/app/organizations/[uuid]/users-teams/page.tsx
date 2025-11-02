@@ -148,7 +148,7 @@ export default function UsersTeamsPage() {
 
       // Fetch user projects for each user
       if (usersData.length > 0) {
-        fetchAllUserProjects(usersData, projectsData)
+        await fetchAllUserProjects(usersData, projectsData)
       }
 
     } catch (error: any) {
@@ -233,11 +233,15 @@ export default function UsersTeamsPage() {
       for (const project of projects) {
         try {
           const response = await api.get(`/api/v1/projects/${project.id}/members`)
-          if (response.data.some((m: any) => m.id === userId)) {
-            assignedProjects.push(project)
+          if (response.data && Array.isArray(response.data)) {
+            if (response.data.some((m: any) => m.id === userId)) {
+              assignedProjects.push(project)
+            }
           }
-        } catch (e) {
-          // User not assigned to this project
+        } catch (e: any) {
+          // Log for debugging
+          console.log(`Error fetching members for project ${project.id}:`, e.response?.status, e.response?.data?.detail)
+          // User not assigned to this project or permission denied
         }
       }
 
@@ -309,8 +313,10 @@ export default function UsersTeamsPage() {
         params: { user_id: selectedUserForProjects.id }
       })
       toast.success(`${selectedUserForProjects.username} assigned to project`)
-      // Refresh user projects
+      // Refresh user projects with all current projects
       await fetchUserProjects(selectedUserForProjects.id)
+      // Also refresh all user data to update the main table
+      await fetchData()
     } catch (error: any) {
       console.error('Failed to assign user:', error)
       toast.error(error.response?.data?.detail || 'Failed to assign user')
@@ -327,8 +333,10 @@ export default function UsersTeamsPage() {
         `/api/v1/projects/${projectId}/members/${selectedUserForProjects.id}`
       )
       toast.success('User removed from project')
-      // Refresh user projects
+      // Refresh user projects with all current projects
       await fetchUserProjects(selectedUserForProjects.id)
+      // Also refresh all user data to update the main table
+      await fetchData()
     } catch (error: any) {
       console.error('Failed to remove user:', error)
       toast.error(error.response?.data?.detail || 'Failed to remove user')

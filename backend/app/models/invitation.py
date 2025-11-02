@@ -54,6 +54,9 @@ class UserInvitation(Base):
     # Optional: Pre-assign to groups
     group_ids = Column(String, nullable=True)  # Comma-separated group IDs
 
+    # Optional: Pre-assign role
+    role_id = Column(UUID(as_uuid=True), nullable=True)  # Role to assign at organization level
+
     # Relationships
     organisation = relationship("Organisation")
     inviter = relationship("User", foreign_keys=[invited_by])
