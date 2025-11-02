@@ -1,11 +1,8 @@
 'use client'
 
 import { useEffect, useState, Fragment } from 'react'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { toast } from 'sonner'
 import api from '@/lib/api'
-import { Loader2, Save, RotateCcw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 interface Permission {
   id: string
@@ -18,6 +15,7 @@ interface Permission {
 interface Role {
   id: string
   name: string
+  role_type?: string
   description?: string
   permission_count?: number
   permissions?: Permission[]
@@ -138,11 +136,8 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>({})
-  const [originalRolePermissions, setOriginalRolePermissions] = useState<RolePermissionMap>({})
   const [permissionGroups, setPermissionGroups] = useState<Record<string, string[]>>(PERMISSION_GROUPS)
-  const [enabledModules, setEnabledModules] = useState<string[]>([])
 
   useEffect(() => {
     fetchData()
@@ -176,10 +171,6 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
           setPermissionGroups(permission_groups)
         }
 
-        // Set enabled modules for reference
-        if (enabled_modules) {
-          setEnabledModules(enabled_modules)
-        }
 
         // Use all permissions including dynamic ones
         permsList = all_permissions || []
@@ -245,66 +236,13 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
 
       // Set state - these are the ONLY permissions we will use
       setRolePermissions(permMap)
-      setOriginalRolePermissions(JSON.parse(JSON.stringify(permMap)))
     } catch (error: any) {
       console.error('Failed to fetch data:', error)
-      toast.error('Failed to load roles and permissions')
     } finally {
       setLoading(false)
     }
   }
 
-  const togglePermission = (roleId: string, permissionId: string) => {
-    if (!isAdmin) return
-
-    setRolePermissions(prev => {
-      const newMap = { ...prev }
-      const rolePerms = [...(newMap[roleId] || [])]
-      const index = rolePerms.indexOf(permissionId)
-      if (index > -1) {
-        rolePerms.splice(index, 1)
-      } else {
-        rolePerms.push(permissionId)
-      }
-      newMap[roleId] = rolePerms
-      return newMap
-    })
-  }
-
-  const hasChanges = () => {
-    return Object.keys(rolePermissions).some(
-      roleId => {
-        const original = Array.from(originalRolePermissions[roleId] || []).sort()
-        const current = Array.from(rolePermissions[roleId] || []).sort()
-        return JSON.stringify(original) !== JSON.stringify(current)
-      }
-    )
-  }
-
-  const savePermissions = async () => {
-    setSaving(true)
-    try {
-      // Update each role with its new permissions
-      for (const role of roles) {
-        const permIds = Array.from(rolePermissions[role.id] || [])
-        await api.put(`/api/v1/roles/${role.id}`, {
-          permission_ids: permIds
-        })
-      }
-      toast.success('Permissions updated successfully!')
-      setOriginalRolePermissions(JSON.parse(JSON.stringify(rolePermissions)))
-    } catch (error: any) {
-      console.error('Failed to save permissions:', error)
-      toast.error(error.response?.data?.detail || 'Failed to save permissions')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const resetChanges = () => {
-    setRolePermissions(JSON.parse(JSON.stringify(originalRolePermissions)))
-    toast.info('Changes discarded')
-  }
 
   if (loading) {
     return (
@@ -323,44 +261,10 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
           Role Permissions Matrix
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Configure permissions for each role. Check the boxes to grant permissions.
+          View current role permissions (read-only)
         </p>
-        {!isAdmin && (
-          <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
-            Only administrators can modify role permissions.
-          </p>
-        )}
       </div>
 
-      {/* Controls */}
-      <div className="flex gap-3 justify-end">
-        <Button
-          variant="outline"
-          onClick={resetChanges}
-          disabled={!hasChanges() || saving || !isAdmin}
-          className="gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Discard Changes
-        </Button>
-        <Button
-          onClick={savePermissions}
-          disabled={!hasChanges() || saving || !isAdmin}
-          className="gap-2 bg-blue-600 hover:bg-blue-700"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Save Changes
-            </>
-          )}
-        </Button>
-      </div>
 
       {/* Permission Matrix */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
@@ -432,12 +336,10 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
                                   <input
                                     type="checkbox"
                                     checked={isChecked === true}
-                                    onChange={() => {
-                                      togglePermission(role.id, perm.id)
-                                    }}
-                                    className="w-4 h-4 cursor-pointer accent-primary"
-                                    disabled={saving}
-                                    title={isAdmin ? 'Click to change permission' : 'Admin permissions required to modify'}
+                                    onChange={() => {}}
+                                    className="w-4 h-4 accent-primary"
+                                    disabled={true}
+                                    title="Permission matrix is read-only"
                                     data-role={role.id}
                                     data-perm={perm.id}
                                   />
@@ -476,14 +378,6 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
         ))}
       </div>
 
-      {/* Change indicator */}
-      {hasChanges() && (
-        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            You have unsaved changes. Click "Save Changes" to apply them.
-          </p>
-        </div>
-      )}
     </div>
   )
 }
