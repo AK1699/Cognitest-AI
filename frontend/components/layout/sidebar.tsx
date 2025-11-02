@@ -45,7 +45,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/projects` : '/projects',
       icon: FolderOpen,
       iconColor: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      bgColor: 'bg-blue-100',
       allowMember: true, // Members can see this
     },
     {
@@ -53,7 +53,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/enterprise-reporting` : '/enterprise-reporting',
       icon: BarChart3,
       iconColor: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      bgColor: 'bg-purple-100',
       allowMember: false, // Only owners
     },
     {
@@ -61,7 +61,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/billing` : '/billing',
       icon: CreditCard,
       iconColor: 'text-green-600',
-      bgColor: 'bg-green-50',
+      bgColor: 'bg-green-100',
       allowMember: false, // Only owners
     },
     {
@@ -69,7 +69,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/users-teams` : '/users-teams',
       icon: Users,
       iconColor: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      bgColor: 'bg-orange-100',
       allowMember: false, // Only owners
     },
     {
@@ -77,7 +77,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/integrations` : '/integrations',
       icon: Puzzle,
       iconColor: 'text-pink-600',
-      bgColor: 'bg-pink-50',
+      bgColor: 'bg-pink-100',
       allowMember: false, // Only owners
     },
     {
@@ -85,7 +85,7 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
       href: organisationId ? `/organizations/${organisationId}/settings` : '/settings',
       icon: Settings,
       iconColor: 'text-gray-600',
-      bgColor: 'bg-gray-50',
+      bgColor: 'bg-gray-100',
       allowMember: false, // Only owners
     },
   ]
