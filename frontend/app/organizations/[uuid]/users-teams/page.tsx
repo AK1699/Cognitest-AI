@@ -418,16 +418,20 @@ export default function UsersTeamsPage() {
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={organisationId} />
-      <div className="flex-1 p-8">
-      <div className="flex items-center gap-4 mb-2">
-        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
-          <Users className="w-8 h-8 text-white" />
+      <main className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="px-8 py-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Users & Teams</h1>
+          </div>
+          <p className="text-sm text-gray-600 mt-2 ml-13">Manage user access, teams, and role assignments</p>
         </div>
-        <h1 className="text-4xl font-bold text-gray-900">Users & Teams</h1>
-      </div>
-      <p className="text-lg text-gray-600 mb-8 mt-4">Manage user access, teams, and role assignments</p>
 
-      <div className="flex items-center justify-end mb-8">
+        <div className="px-8 py-6">
+          <div className="flex items-center justify-end mb-8">
         <div className="flex gap-2">
           {activeTab === 'users' && (
             <Button onClick={() => setShowInviteModal(true)}>
@@ -1229,7 +1233,8 @@ export default function UsersTeamsPage() {
           </div>
         </div>
       )}
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

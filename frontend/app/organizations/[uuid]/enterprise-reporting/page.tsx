@@ -122,120 +122,125 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
-      <div className="flex-1 p-8">
-      <div className="flex items-center gap-4 mb-2">
-        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center flex-shrink-0">
-          <BarChart3 className="w-8 h-8 text-white" />
-        </div>
-        <h1 className="text-4xl font-bold text-gray-900">Enterprise Reporting</h1>
-      </div>
-      <p className="text-lg text-gray-600 mb-8 mt-4">Analytics and insights across all your projects</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Total Projects"
-          value={totalProjects}
-          icon={FolderOpen}
-          iconBgColor="bg-blue-100"
-          iconColor="text-blue-600"
-          textLabelColor="text-gray-600"
-          textNumberColor="text-gray-900"
-          borderColor="border-blue-200"
-        />
-        <StatsCard
-          title="Active Users"
-          value="128"
-          icon={Users}
-          iconBgColor="bg-orange-100"
-          iconColor="text-orange-600"
-          textLabelColor="text-gray-600"
-          textNumberColor="text-gray-900"
-          borderColor="border-orange-200"
-        />
-        <StatsCard
-          title="Overall Pass Rate"
-          value={`${overallPassRate}%`}
-          icon={CheckCircle}
-          iconBgColor="bg-green-100"
-          iconColor="text-green-600"
-          textLabelColor="text-gray-600"
-          textNumberColor="text-gray-900"
-          borderColor="border-green-200"
-        />
-        <StatsCard
-          title="Total Test Runs (Last 30 Days)"
-          value={totalTestRunsLast30Days}
-          icon={Activity}
-          iconBgColor="bg-purple-100"
-          iconColor="text-purple-600"
-          textLabelColor="text-gray-600"
-          textNumberColor="text-gray-900"
-          borderColor="border-purple-200"
-        />
-      </div>
-
-      <div className="space-y-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Test Activity Across Projects</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={testActivityByProject}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="testRuns" fill="#8884d8" name="Test Runs" />
-            </BarChart>
-          </ResponsiveContainer>
+      <main className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="px-8 py-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Enterprise Reporting</h1>
+          </div>
+          <p className="text-sm text-gray-600 mt-2 ml-13">Analytics and insights across all your projects</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Organization-Wide Test Runs Over Time</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={overallActivityData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="runs" stroke="#82ca9d" name="Test Runs" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <div className="px-8 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatsCard
+              title="Total Projects"
+              value={totalProjects}
+              icon={FolderOpen}
+              iconBgColor="bg-blue-100"
+              iconColor="text-blue-600"
+              textLabelColor="text-gray-600"
+              textNumberColor="text-gray-900"
+              borderColor="border-blue-200"
+            />
+            <StatsCard
+              title="Active Users"
+              value="128"
+              icon={Users}
+              iconBgColor="bg-orange-100"
+              iconColor="text-orange-600"
+              textLabelColor="text-gray-600"
+              textNumberColor="text-gray-900"
+              borderColor="border-orange-200"
+            />
+            <StatsCard
+              title="Overall Pass Rate"
+              value={`${overallPassRate}%`}
+              icon={CheckCircle}
+              iconBgColor="bg-green-100"
+              iconColor="text-green-600"
+              textLabelColor="text-gray-600"
+              textNumberColor="text-gray-900"
+              borderColor="border-green-200"
+            />
+            <StatsCard
+              title="Total Test Runs (Last 30 Days)"
+              value={totalTestRunsLast30Days}
+              icon={Activity}
+              iconBgColor="bg-purple-100"
+              iconColor="text-purple-600"
+              textLabelColor="text-gray-600"
+              textNumberColor="text-gray-900"
+              borderColor="border-purple-200"
+            />
+          </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <h3 className="text-lg font-semibold p-6">Projects Overview</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Project Name</th>
-                  <th scope="col" className="px-6 py-3">Test Cases</th>
-                  <th scope="col" className="px-6 py-3">Pass Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.map((p) => {
-                  const projectTestCases = testCases.filter(tc => (tc as any).project_id === p.id)
-                  const executed = projectTestCases.filter(tc => tc.status !== 'DRAFT' && tc.status !== 'READY')
-                  const passed = executed.filter(tc => tc.status === 'PASSED')
-                  const passRate = executed.length > 0 ? Math.round((passed.length / executed.length) * 100) : 0
-                  return (
-                    <tr key={p.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                        {p.name}
-                      </th>
-                      <td className="px-6 py-4">{projectTestCases.length}</td>
-                      <td className="px-6 py-4">{passRate}%</td>
+          <div className="space-y-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">Test Activity Across Projects</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={testActivityByProject}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="testRuns" fill="#8884d8" name="Test Runs" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">Organization-Wide Test Runs Over Time</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={overallActivityData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="runs" stroke="#82ca9d" name="Test Runs" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <h3 className="text-lg font-semibold p-6">Projects Overview</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                      <th scope="col" className="px-6 py-3">Project Name</th>
+                      <th scope="col" className="px-6 py-3">Test Cases</th>
+                      <th scope="col" className="px-6 py-3">Pass Rate</th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {projects.map((p) => {
+                      const projectTestCases = testCases.filter(tc => (tc as any).project_id === p.id)
+                      const executed = projectTestCases.filter(tc => tc.status !== 'DRAFT' && tc.status !== 'READY')
+                      const passed = executed.filter(tc => tc.status === 'PASSED')
+                      const passRate = executed.length > 0 ? Math.round((passed.length / executed.length) * 100) : 0
+                      return (
+                        <tr key={p.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                          <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                            {p.name}
+                          </th>
+                          <td className="px-6 py-4">{projectTestCases.length}</td>
+                          <td className="px-6 py-4">{passRate}%</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      </div>
+      </main>
     </div>
   )
 }
