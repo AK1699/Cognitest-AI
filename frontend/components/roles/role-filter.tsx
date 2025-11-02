@@ -10,11 +10,13 @@ export interface RoleOption {
 }
 
 const DEFAULT_ROLES: RoleOption[] = [
-  { id: 'viewer', name: 'Viewer', description: 'Can see projects assigned to their teams' },
-  { id: 'member', name: 'Member', description: 'Can create projects and manage configuration' },
-  { id: 'team_admin', name: 'Team admin', description: 'Can manage projects and team members' },
-  { id: 'org_admin', name: 'Org admin', description: 'Can manage organization and teams' },
-  { id: 'owner', name: 'Owner', description: 'Full administrative access' }
+  { id: 'owner', name: 'Owner', description: 'Full organization control - manage billing, plans, delete org, and user management' },
+  { id: 'admin', name: 'Admin', description: 'Full system access except for organization deletion' },
+  { id: 'qa_manager', name: 'QA Manager', description: 'Manage test projects, assign testers, and review results' },
+  { id: 'qa_lead', name: 'QA Lead', description: 'Manage test cases, assign tasks, and approve AI fixes' },
+  { id: 'qa_engineer', name: 'QA Engineer', description: 'Execute tests and manage test data' },
+  { id: 'product_owner', name: 'Product Owner', description: 'Read-only access to view reports and dashboards' },
+  { id: 'viewer', name: 'Viewer', description: 'View reports and results' }
 ]
 
 interface RoleFilterProps {

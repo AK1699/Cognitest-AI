@@ -15,46 +15,53 @@ router = APIRouter()
 
 # Default roles configuration
 DEFAULT_ROLES = {
-    "administrator": {
-        "name": "Administrator",
-        "role_type": "administrator",
-        "description": "Full system access with all permissions",
+    "owner": {
+        "name": "Owner",
+        "role_type": "owner",
+        "description": "Full organization control - manage billing, plans, delete org, and user management",
         "permissions": ["all"]
     },
-    "project_manager": {
-        "name": "Project Manager",
-        "role_type": "project_manager",
-        "description": "Manage project settings, users, and test management",
+    "admin": {
+        "name": "Admin",
+        "role_type": "admin",
+        "description": "Full system access except for organization deletion",
+        "permissions": ["all"]
+    },
+    "qa_manager": {
+        "name": "QA Manager",
+        "role_type": "qa_manager",
+        "description": "Manage test projects, assign testers, and review results",
         "permissions": [
             "read_project", "update_project", "manage_project",
             "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
             "create_test_suite", "read_test_suite", "update_test_suite", "delete_test_suite",
-            "create_test_case", "read_test_case", "update_test_case", "delete_test_case",
-            "execute_test", "read_test_execution",
+            "read_test_case", "read_test_execution",
             "read_user", "update_user", "manage_user",
             "read_group", "update_group", "manage_group",
-            "read_role", "manage_role",
+            "read_role",
             "read_settings", "manage_settings",
         ]
     },
-    "developer": {
-        "name": "Developer",
-        "role_type": "developer",
-        "description": "Create and edit test cases, execute tests",
+    "qa_lead": {
+        "name": "QA Lead",
+        "role_type": "qa_lead",
+        "description": "Manage test cases, assign tasks, and approve AI fixes",
         "permissions": [
             "read_project",
             "create_test_plan", "read_test_plan", "update_test_plan",
             "create_test_suite", "read_test_suite", "update_test_suite",
-            "create_test_case", "read_test_case", "update_test_case",
+            "create_test_case", "read_test_case", "update_test_case", "delete_test_case",
             "execute_test", "read_test_execution",
-            "read_user", "read_group", "read_role",
+            "read_user", "manage_user",
+            "read_group", "manage_group",
+            "read_role",
             "read_settings",
         ]
     },
-    "tester": {
-        "name": "Tester",
-        "role_type": "tester",
-        "description": "Execute tests and view test management",
+    "qa_engineer": {
+        "name": "QA Engineer",
+        "role_type": "qa_engineer",
+        "description": "Execute tests and manage test data",
         "permissions": [
             "read_project",
             "read_test_plan",
@@ -65,10 +72,24 @@ DEFAULT_ROLES = {
             "read_settings",
         ]
     },
+    "product_owner": {
+        "name": "Product Owner",
+        "role_type": "product_owner",
+        "description": "Read-only access to view reports and dashboards",
+        "permissions": [
+            "read_project",
+            "read_test_plan",
+            "read_test_suite",
+            "read_test_case",
+            "read_test_execution",
+            "read_user", "read_group", "read_role",
+            "read_settings",
+        ]
+    },
     "viewer": {
         "name": "Viewer",
         "role_type": "viewer",
-        "description": "Read-only access to project and test management",
+        "description": "View reports and results",
         "permissions": [
             "read_project",
             "read_test_plan",
@@ -217,7 +238,7 @@ async def create_organisation(
     Create a new organisation.
 
     Automatically initializes:
-    - Default roles (Administrator, Project Manager, Developer, Tester, Viewer)
+    - Default roles (Owner, Admin, QA Manager, QA Lead, QA Engineer, Product Owner, Viewer)
     - Group types (ADMIN, QA, DEV, PRODUCT) with their associated roles
     for the new organisation.
     """

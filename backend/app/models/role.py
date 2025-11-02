@@ -9,10 +9,12 @@ from app.core.database import Base
 
 class ProjectRoleType(str, enum.Enum):
     """Predefined project role types"""
-    ADMINISTRATOR = "administrator"
-    DEVELOPER = "developer"
-    TESTER = "tester"
-    PROJECT_MANAGER = "project_manager"
+    OWNER = "owner"
+    ADMIN = "admin"
+    QA_MANAGER = "qa_manager"
+    QA_LEAD = "qa_lead"
+    QA_ENGINEER = "qa_engineer"
+    PRODUCT_OWNER = "product_owner"
     VIEWER = "viewer"
 
 
@@ -72,7 +74,7 @@ class ProjectRole(Base):
     organisation_id = Column(UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False)
 
     name = Column(String(255), nullable=False)
-    role_type = Column(String(100), nullable=False)  # administrator, developer, tester, project_manager, viewer
+    role_type = Column(String(100), nullable=False)  # owner, admin, qa_manager, qa_lead, qa_engineer, product_owner, viewer
     description = Column(Text, nullable=True)
 
     # Role settings

@@ -45,7 +45,7 @@ class PermissionList(BaseModel):
 class ProjectRoleBase(BaseModel):
     """Base schema for ProjectRole"""
     name: str = Field(..., min_length=1, max_length=255, description="Role display name")
-    role_type: str = Field(..., description="Role type (administrator, developer, tester, project_manager, viewer)")
+    role_type: str = Field(..., description="Role type (owner, admin, qa_manager, qa_lead, qa_engineer, product_owner, viewer)")
     description: Optional[str] = Field(None, description="Role description")
 
 

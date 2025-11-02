@@ -14,7 +14,7 @@ router = APIRouter()
 
 async def is_user_org_admin(user_id: UUID, organisation_id: UUID, db: AsyncSession) -> bool:
     """
-    Check if a user has the administrator role for an organization.
+    Check if a user has the owner or admin role for an organization.
     This grants automatic access to all projects in the organization.
     """
     result = await db.execute(
@@ -22,7 +22,7 @@ async def is_user_org_admin(user_id: UUID, organisation_id: UUID, db: AsyncSessi
             SELECT 1 FROM user_project_roles upr
             INNER JOIN project_roles pr ON upr.role_id = pr.id
             WHERE pr.organisation_id = :org_id
-              AND pr.role_type = 'administrator'
+              AND pr.role_type IN ('owner', 'admin')
               AND upr.user_id = :user_id
             LIMIT 1
         """),
@@ -88,7 +88,7 @@ async def list_projects(
     """
     List projects for an organisation.
     - Owners: See all projects in the organisation
-    - Admins (with administrator role): See all projects in the organisation
+    - Admins (with owner or admin role): See all projects in the organisation
     - Members: Only see projects they're assigned to
     """
 
@@ -162,7 +162,7 @@ async def get_project(
     """
     Get a specific project by ID.
     - Owners: Can access any project in their organisation
-    - Admins (with administrator role): Can access any project in their organisation
+    - Admins (with owner or admin role): Can access any project in their organisation
     - Members: Can only access projects they're assigned to
     """
     result = await db.execute(

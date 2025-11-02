@@ -10,30 +10,40 @@ export interface RoleDescription {
 }
 
 const ROLE_DESCRIPTIONS: Record<string, RoleDescription> = {
-  viewer: {
-    name: 'Viewer',
-    description: 'Can see projects assigned to their teams.',
-    permissions: ['View projects', 'View test results', 'Read-only access']
-  },
-  member: {
-    name: 'Member',
-    description: 'Can create new projects and manage App Quality configuration.',
-    permissions: ['Create projects', 'Manage configuration', 'View & edit test cases']
-  },
-  team_admin: {
-    name: 'Team admin',
-    description: 'Can manage projects and members limited to their teams.',
-    permissions: ['Manage projects', 'Manage team members', 'Assign roles within team']
-  },
-  org_admin: {
-    name: 'Org admin',
-    description: 'Can manage organization, teams and billing.',
-    permissions: ['Manage organization', 'Manage all teams', 'Manage billing']
-  },
   owner: {
     name: 'Owner',
-    description: 'Can configure SSO integration and delete organization.',
-    permissions: ['Configure SSO', 'Delete organization', 'Full admin access']
+    description: 'Full organization control - manage billing, plans, delete org, and user management.',
+    permissions: ['Manage billing and plans', 'Delete organization', 'Manage users', 'Full admin access']
+  },
+  admin: {
+    name: 'Admin',
+    description: 'Full system access except for organization deletion.',
+    permissions: ['Manage all projects', 'Manage all users', 'Configure settings', 'Full system access']
+  },
+  qa_manager: {
+    name: 'QA Manager',
+    description: 'Manage test projects, assign testers, and review results.',
+    permissions: ['Manage test projects', 'Assign testers', 'Review test results', 'Manage team members']
+  },
+  qa_lead: {
+    name: 'QA Lead',
+    description: 'Manage test cases, assign tasks, and approve AI fixes.',
+    permissions: ['Manage test cases', 'Assign tasks', 'Approve AI fixes', 'Execute tests']
+  },
+  qa_engineer: {
+    name: 'QA Engineer',
+    description: 'Execute tests and manage test data.',
+    permissions: ['Execute tests', 'Create test cases', 'Manage test data', 'View results']
+  },
+  product_owner: {
+    name: 'Product Owner',
+    description: 'Read-only access to view reports and dashboards.',
+    permissions: ['View reports', 'View dashboards', 'View test results', 'Read-only access']
+  },
+  viewer: {
+    name: 'Viewer',
+    description: 'View reports and results.',
+    permissions: ['View projects', 'View test results', 'View dashboards', 'Read-only access']
   }
 }
 

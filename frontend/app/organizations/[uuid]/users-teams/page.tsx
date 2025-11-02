@@ -513,11 +513,25 @@ export default function UsersTeamsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {userRoles.filter(ur => ur.user_id === user.id).length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {userRoles
-                              .filter(ur => ur.user_id === user.id)
-                              .map(ur => (
+                        {(() => {
+                          const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
+                          if (userRolesList.length === 0) {
+                            return <span className="text-sm text-gray-500 dark:text-gray-400">No roles</span>
+                          }
+
+                          // Deduplicate roles by name
+                          const uniqueRoles = Array.from(
+                            new Map(
+                              userRolesList.map(ur => {
+                                const roleName = (ur as any).role?.name || (ur as any).role_name || 'Unknown Role'
+                                return [roleName, ur]
+                              })
+                            ).values()
+                          )
+
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {uniqueRoles.map(ur => (
                                 <span
                                   key={ur.id}
                                   className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
@@ -525,10 +539,9 @@ export default function UsersTeamsPage() {
                                   {(ur as any).role?.name || (ur as any).role_name || 'Unknown Role'}
                                 </span>
                               ))}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-500 dark:text-gray-400">No roles</span>
-                        )}
+                            </div>
+                          )
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
