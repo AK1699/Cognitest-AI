@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from uuid import UUID
+import logging
 
 from app.core.deps import get_db, get_current_active_user
 from app.models.test_case import TestCase
@@ -292,10 +293,10 @@ async def ai_generate_test_cases(
 ):
     """
     Generate test cases using AI based on feature description.
-    This is a placeholder - AI integration will be implemented later.
+    Uses LangChain and OpenAI to generate comprehensive test cases with steps and expected results.
     """
     # Verify project access
-    await verify_project_access(request.project_id, current_user, db)
+    project = await verify_project_access(request.project_id, current_user, db)
 
     # If test_suite_id is provided, verify it exists
     if request.test_suite_id:
@@ -312,9 +313,92 @@ async def ai_generate_test_cases(
                 detail="Test suite not found or does not belong to this project"
             )
 
-    # TODO: Implement AI generation with LangChain
-    # For now, return a placeholder response
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="AI generation not yet implemented. Will be available after LangChain integration."
-    )
+    try:
+        from app.services.test_plan_service import get_test_plan_service
+        from app.models.test_plan import GenerationType
+        from app.models.test_case import TestCasePriority, TestCaseStatus
+
+        # Get test plan service
+        test_plan_service = get_test_plan_service()
+
+        # Generate test cases using AI
+        generation_result = await test_plan_service.generate_test_cases(
+            project_id=request.project_id,
+            feature_description=request.feature_description,
+            test_scenarios=request.test_scenarios,
+            user_stories=request.user_stories,
+            count=request.count,
+            db=db,
+        )
+
+        if generation_result["status"] != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate test cases: {generation_result.get('error', 'Unknown error')}",
+            )
+
+        # Create test cases in database
+        created_test_cases = []
+        for case_data in generation_result["data"]:
+            # Parse steps
+            steps = []
+            if isinstance(case_data.get("steps"), list):
+                steps = case_data["steps"]
+            elif isinstance(case_data.get("steps"), str):
+                # Parse string steps
+                step_lines = case_data["steps"].split("\n")
+                for i, line in enumerate(step_lines, 1):
+                    if line.strip():
+                        steps.append({
+                            "step_number": i,
+                            "action": line.strip(),
+                            "expected_result": ""
+                        })
+
+            # Map priority
+            priority_str = case_data.get("priority", "medium").lower()
+            try:
+                priority = TestCasePriority(priority_str)
+            except (ValueError, KeyError):
+                priority = TestCasePriority.MEDIUM
+
+            # Create test case
+            test_case = TestCase(
+                project_id=request.project_id,
+                test_suite_id=request.test_suite_id,
+                title=case_data.get("title", f"Generated Test Case"),
+                description=case_data.get("description"),
+                steps=steps,
+                expected_result=case_data.get("expected_result"),
+                priority=priority,
+                status=TestCaseStatus.DRAFT,
+                ai_generated=True,
+                generated_by=GenerationType.AI,
+                tags=case_data.get("tags", []),
+                meta_data=case_data.get("meta_data", {}),
+                created_by=current_user.email,
+            )
+
+            db.add(test_case)
+            created_test_cases.append(test_case)
+
+        # Commit all test cases
+        await db.commit()
+        for case in created_test_cases:
+            await db.refresh(case)
+
+        return {
+            "test_cases": created_test_cases,
+            "coverage_analysis": generation_result.get("data", {}).get("coverage_analysis", "AI-generated test cases covering feature functionality"),
+            "suggestions": generation_result.get("data", {}).get("suggestions", []),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating test cases: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate test cases due to an internal error",
+        )

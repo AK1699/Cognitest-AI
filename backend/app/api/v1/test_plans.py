@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from uuid import UUID
+import logging
 
 from app.core.deps import get_db, get_current_active_user
-from app.models.test_plan import TestPlan
+from app.models.test_plan import TestPlan, GenerationType
 from app.models.project import Project
 from app.models.organisation import Organisation
 from app.models.user import User
@@ -198,14 +199,63 @@ async def ai_generate_test_plan(
 ):
     """
     Generate a test plan using AI based on source documents.
-    This is a placeholder - AI integration will be implemented later.
+    Uses LangChain and OpenAI to generate comprehensive test plans from BRDs.
     """
     # Verify project access
-    await verify_project_access(request.project_id, current_user, db)
+    project = await verify_project_access(request.project_id, current_user, db)
 
-    # TODO: Implement AI generation with LangChain
-    # For now, return a placeholder response
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="AI generation not yet implemented. Will be available after LangChain integration."
-    )
+    try:
+        from app.services.test_plan_service import get_test_plan_service
+
+        # Get test plan service
+        test_plan_service = get_test_plan_service()
+
+        # Generate test plan using AI
+        generation_result = await test_plan_service.generate_test_plan_from_brd(
+            project_id=request.project_id,
+            document_ids=request.source_documents,
+            additional_context=request.additional_context,
+            db=db,
+        )
+
+        if generation_result["status"] != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate test plan: {generation_result.get('error', 'Unknown error')}",
+            )
+
+        # Create test plan in database
+        plan_data = generation_result["data"]
+        test_plan = TestPlan(
+            project_id=request.project_id,
+            name=plan_data.get("name", "AI Generated Test Plan"),
+            description=plan_data.get("description"),
+            objectives=request.objectives or plan_data.get("objectives", []),
+            generated_by=GenerationType.AI,
+            source_documents=request.source_documents,
+            confidence_score=generation_result.get("confidence", "high"),
+            tags=plan_data.get("tags", []),
+            meta_data=plan_data.get("meta_data", {}),
+            created_by=current_user.email,
+        )
+
+        db.add(test_plan)
+        await db.commit()
+        await db.refresh(test_plan)
+
+        return {
+            "test_plan": test_plan,
+            "confidence_score": generation_result.get("confidence", "high"),
+            "suggestions": plan_data.get("suggestions", []),
+            "warnings": [],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating test plan: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate test plan due to an internal error",
+        )

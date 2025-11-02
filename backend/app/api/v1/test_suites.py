@@ -3,10 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from uuid import UUID
+import logging
 
 from app.core.deps import get_db, get_current_active_user
 from app.models.test_suite import TestSuite
-from app.models.test_plan import TestPlan
+from app.models.test_plan import TestPlan, GenerationType
 from app.models.project import Project
 from app.models.organisation import Organisation
 from app.models.user import User
@@ -232,10 +233,10 @@ async def ai_generate_test_suite(
 ):
     """
     Generate a test suite using AI based on requirements.
-    This is a placeholder - AI integration will be implemented later.
+    Uses LangChain and OpenAI to generate organized test suites.
     """
     # Verify project access
-    await verify_project_access(request.project_id, current_user, db)
+    project = await verify_project_access(request.project_id, current_user, db)
 
     # If test_plan_id is provided, verify it exists
     if request.test_plan_id:
@@ -252,9 +253,56 @@ async def ai_generate_test_suite(
                 detail="Test plan not found or does not belong to this project"
             )
 
-    # TODO: Implement AI generation with LangChain
-    # For now, return a placeholder response
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="AI generation not yet implemented. Will be available after LangChain integration."
-    )
+    try:
+        from app.services.test_plan_service import get_test_plan_service
+        from app.models.test_plan import GenerationType
+
+        # Get test plan service
+        test_plan_service = get_test_plan_service()
+
+        # Generate test suite using AI
+        generation_result = await test_plan_service.generate_test_suite_from_requirements(
+            project_id=request.project_id,
+            test_plan_id=request.test_plan_id,
+            requirements=request.requirements or "Feature testing",
+            test_scenarios=request.test_scenarios,
+            db=db,
+        )
+
+        if generation_result["status"] != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate test suite: {generation_result.get('error', 'Unknown error')}",
+            )
+
+        # Create test suite in database
+        suite_data = generation_result["data"]
+        test_suite = TestSuite(
+            project_id=request.project_id,
+            test_plan_id=request.test_plan_id,
+            name=suite_data.get("name", "AI Generated Test Suite"),
+            description=suite_data.get("description"),
+            generated_by=GenerationType.AI,
+            tags=suite_data.get("tags", []),
+            meta_data=suite_data.get("meta_data", {}),
+            created_by=current_user.email,
+        )
+
+        db.add(test_suite)
+        await db.commit()
+        await db.refresh(test_suite)
+
+        return {
+            "test_suite": test_suite,
+            "suggested_test_cases": suite_data.get("test_cases", []),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating test suite: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate test suite due to an internal error",
+        )

@@ -90,7 +90,10 @@
       "Bash(/tmp/test_role_assignment.sh:*)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzRhYWU1ZS1mMzUzLTRlMDMtODFjNy1iMTUzYzZlODZiYzIiLCJlbWFpbCI6Imtzc2FrYXNoMTY5OUBnbWFpbC5jb20iLCJleHAiOjE3NjEwNDY4NjEsInR5cGUiOiJhY2Nlc3MifQ.V0epj9B3hfm0sS9IfJ06r2_eH02cRAHrouZye73U6xY\" curl -s http://localhost:8000/api/v1/organisations/ -H \"Authorization: Bearer $TOKEN\")",
       "Bash(npm run dev:*)",
-      "Read(//Users/akash/**)"
+      "Read(//Users/akash/**)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzRhYWU1ZS1mMzUzLTRlMDMtODFjNy1iMTUzYzZlODZiYzIiLCJlbWFpbCI6Imtzc2FrYXNoMTY5OUBnbWFpbC5jb20iLCJleHAiOjE3NjEwNDY4NjEsInR5cGUiOiJhY2Nlc3MifQ.V0epj9B3hfm0sS9IfJ06r2_eH02cRAHrouZye73U6xY\")",
+      "Bash(echo \"Testing Test Plans API...\" curl -s http://localhost:8000/api/v1/test-plans/ -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\")",
+      "Bash(/tmp/test_implementation.sh:*)"
     ],
     "deny": [],
     "ask": []
