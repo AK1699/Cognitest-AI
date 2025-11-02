@@ -189,7 +189,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
-          backgroundColor: '#eaf2f4'
+          backgroundColor: '#f0f4f7'
         }}
       >
         <div className="flex flex-col h-full">
@@ -205,10 +205,10 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                     fetchOrganisations()
                   }
                 }}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
                   isProfileOpen
-                    ? 'border border-gray-400 bg-white/40'
-                    : 'border border-gray-300 hover:bg-white/20'
+                    ? 'border-2 border-gray-400 bg-white/40 shadow-lg'
+                    : 'border-2 border-gray-300 hover:bg-white/20'
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -352,11 +352,11 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                     href={item.href}
                     onClick={() => setIsMobileOpen(false)}
                     className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
+                      flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
                       ${
                         isActive
-                          ? `${item.bgColor} text-gray-900 shadow-md`
-                          : 'text-gray-700 hover:bg-white/30'
+                          ? `${item.bgColor} text-gray-900 shadow-lg border-2 border-gray-400`
+                          : 'text-gray-700 hover:bg-white/30 border-2 border-transparent'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
                     `}

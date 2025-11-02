@@ -46,67 +46,91 @@ interface PageParams {
   projectId: string
 }
 
+const colorToBg: Record<string, string> = {
+  'blue': 'bg-blue-100',
+  'green': 'bg-green-100',
+  'purple': 'bg-purple-100',
+  'red': 'bg-red-100',
+  'orange': 'bg-orange-100',
+  'indigo': 'bg-indigo-100',
+}
+
+const colorToText: Record<string, string> = {
+  'blue': 'text-blue-700',
+  'green': 'text-green-700',
+  'purple': 'text-purple-700',
+  'red': 'text-red-700',
+  'orange': 'text-orange-700',
+  'indigo': 'text-indigo-700',
+}
+
 const moduleConfig = {
-  'test-management': { 
-    name: 'Test Management', 
-    color: 'blue', 
-    icon: FileText, 
+  'test-management': {
+    name: 'Test Management',
+    color: 'blue',
+    icon: FileText,
     iconColor: 'text-blue-600',
+    bgColor: 'bg-blue-100',
     textLabelColor: 'text-blue-500',
     textNumberColor: 'text-blue-700',
     borderColor: 'border-blue-200',
     darkTextLabelColor: 'dark:text-blue-300',
     darkTextNumberColor: 'dark:text-blue-100',
   },
-  'api-testing': { 
-    name: 'API Testing', 
-    color: 'green', 
-    icon: Code, 
+  'api-testing': {
+    name: 'API Testing',
+    color: 'green',
+    icon: Code,
     iconColor: 'text-green-600',
+    bgColor: 'bg-green-100',
     textLabelColor: 'text-green-500',
     textNumberColor: 'text-green-700',
     borderColor: 'border-green-200',
     darkTextLabelColor: 'dark:text-green-300',
     darkTextNumberColor: 'dark:text-green-100',
   },
-  'automation-hub': { 
-    name: 'Automation Hub', 
-    color: 'purple', 
-    icon: Zap, 
+  'automation-hub': {
+    name: 'Automation Hub',
+    color: 'purple',
+    icon: Zap,
     iconColor: 'text-purple-600',
+    bgColor: 'bg-purple-100',
     textLabelColor: 'text-purple-500',
     textNumberColor: 'text-purple-700',
     borderColor: 'border-purple-200',
     darkTextLabelColor: 'dark:text-purple-300',
     darkTextNumberColor: 'dark:text-purple-100',
   },
-  'security-testing': { 
-    name: 'Security Testing', 
-    color: 'red', 
-    icon: Shield, 
+  'security-testing': {
+    name: 'Security Testing',
+    color: 'red',
+    icon: Shield,
     iconColor: 'text-red-600',
+    bgColor: 'bg-red-100',
     textLabelColor: 'text-red-500',
     textNumberColor: 'text-red-700',
     borderColor: 'border-red-200',
     darkTextLabelColor: 'dark:text-red-300',
     darkTextNumberColor: 'dark:text-red-100',
   },
-  'performance-testing': { 
-    name: 'Performance Testing', 
-    color: 'orange', 
-    icon: BarChart3, 
+  'performance-testing': {
+    name: 'Performance Testing',
+    color: 'orange',
+    icon: BarChart3,
     iconColor: 'text-orange-600',
+    bgColor: 'bg-orange-100',
     textLabelColor: 'text-orange-500',
     textNumberColor: 'text-orange-700',
     borderColor: 'border-orange-200',
     darkTextLabelColor: 'dark:text-orange-300',
     darkTextNumberColor: 'dark:text-orange-100',
   },
-  'mobile-testing': { 
-    name: 'Mobile Testing', 
-    color: 'indigo', 
-    icon: Smartphone, 
+  'mobile-testing': {
+    name: 'Mobile Testing',
+    color: 'indigo',
+    icon: Smartphone,
     iconColor: 'text-indigo-600',
+    bgColor: 'bg-indigo-100',
     textLabelColor: 'text-indigo-500',
     textNumberColor: 'text-indigo-700',
     borderColor: 'border-indigo-200',
@@ -288,7 +312,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0f4f7' }}>
         {/* Organization & User Header */}
         {organisation && user && (
           <div className="p-4 border-b border-gray-200 relative">
@@ -299,10 +323,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   fetchOrganisations()
                 }
               }}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
                 isProfileOpen
-                  ? 'border border-primary bg-primary/5'
-                  : 'border border-gray-200 hover:bg-gray-50'
+                  ? 'border-2 border-gray-400 bg-white/40 shadow-lg'
+                  : 'border-2 border-gray-300 hover:bg-white/20'
               }`}
             >
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -448,17 +472,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
         {/* Navigation */}
         <nav className="flex-1 p-4">
           <div className="space-y-1">
-            {/* Overview */}
+            {/* Home */}
             <button
               onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
                 activeTab === 'overview'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
               }`}
             >
               <Home className="w-4 h-4 text-blue-500" />
-              Overview
+              Home
             </button>
 
             {/* Module Navigation */}
@@ -475,14 +499,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 }
               }
 
+              const moduleItem = moduleConfig[item.id as keyof typeof moduleConfig] as any
+              const bgColor = moduleItem?.bgColor || 'bg-primary/10'
+              const textColor = moduleItem?.color ? colorToText[moduleItem.color] : 'text-primary'
+
               return (
                 <button
                   key={item.id}
                   onClick={handleClick}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
                     isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? `${bgColor} ${textColor} font-medium border-gray-400 shadow-lg`
+                      : 'text-gray-700 hover:bg-gray-100 border-transparent'
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${item.iconColor}`} />
@@ -496,29 +524,29 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
           <div className="mt-1 space-y-1">
             <button
               onClick={() => setActiveTab('reports')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
                 activeTab === 'reports'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
               }`}
             >
               <TrendingUp className="w-4 h-4 text-cyan-600" />
               Reports & Analytics
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border-2 border-transparent">
               <Puzzle className="w-4 h-4 text-pink-600" />
               Integrations
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border-2 border-transparent">
               <Activity className="w-4 h-4 text-teal-600" />
               Activity Log
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
                 activeTab === 'settings'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
               }`}
             >
               <Settings className="w-4 h-4 text-purple-600" />
