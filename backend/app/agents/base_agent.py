@@ -3,9 +3,14 @@ from typing import Dict, Any, List, Optional
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.schema import SystemMessage, HumanMessage
 import uuid
+import json
+import logging
 
 from app.core.config import settings
 from app.services.ai_service import get_ai_service
+from app.services.qdrant_service import get_qdrant_service
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
@@ -96,7 +101,6 @@ class BaseAgent(ABC):
     ):
         """
         Store knowledge in vector database for future retrieval.
-        Currently a placeholder - will be implemented when Qdrant is set up.
 
         Args:
             collection_name: Name of the collection
@@ -104,9 +108,37 @@ class BaseAgent(ABC):
             metadata: Metadata associated with the text
             point_id: Optional ID for the point
         """
-        # TODO: Implement Qdrant integration
-        print(f"Knowledge storage placeholder: {collection_name}")
-        pass
+        try:
+            # Get Qdrant service
+            qdrant_service = await get_qdrant_service()
+
+            # Ensure collection exists
+            await qdrant_service.ensure_collection_exists(collection_name)
+
+            # Create embedding for the text
+            embedding = await self.create_embedding(text)
+
+            # Prepare payload with metadata
+            payload = {
+                "text": text,
+                "agent": self.agent_name,
+                **metadata,
+            }
+
+            # Store in Qdrant
+            stored_id = await qdrant_service.store_vector(
+                collection_name=collection_name,
+                point_id=point_id,
+                vector=embedding,
+                payload=payload,
+            )
+
+            logger.info(f"Stored knowledge in '{collection_name}' with ID {stored_id}")
+            return stored_id
+
+        except Exception as e:
+            logger.error(f"Error storing knowledge: {e}")
+            raise
 
     async def retrieve_knowledge(
         self,
@@ -117,7 +149,6 @@ class BaseAgent(ABC):
     ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant knowledge from vector database.
-        Currently a placeholder - will be implemented when Qdrant is set up.
 
         Args:
             collection_name: Name of the collection
@@ -128,8 +159,27 @@ class BaseAgent(ABC):
         Returns:
             List of relevant documents with metadata
         """
-        # TODO: Implement Qdrant integration
-        return []
+        try:
+            # Get Qdrant service
+            qdrant_service = await get_qdrant_service()
+
+            # Create embedding for the query
+            query_embedding = await self.create_embedding(query)
+
+            # Search for similar vectors
+            matches = await qdrant_service.search_vectors(
+                collection_name=collection_name,
+                query_vector=query_embedding,
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+
+            logger.debug(f"Retrieved {len(matches)} knowledge items from '{collection_name}'")
+            return matches
+
+        except Exception as e:
+            logger.error(f"Error retrieving knowledge: {e}")
+            return []
 
     @abstractmethod
     async def execute(self, **kwargs) -> Dict[str, Any]:
@@ -150,13 +200,54 @@ class BaseAgent(ABC):
     ):
         """
         Learn from user feedback to improve future responses.
-        Currently a placeholder - will be implemented when Qdrant is set up.
 
         Args:
             input_data: Original input to the agent
             output_data: Agent's output
             feedback: User feedback (accepted/rejected, modifications, etc.)
         """
-        # TODO: Implement feedback storage in Qdrant
-        print(f"Feedback learning placeholder for {self.agent_name}")
-        pass
+        try:
+            # Create a feedback record combining input, output, and user feedback
+            feedback_record = {
+                "input": json.dumps(input_data) if isinstance(input_data, dict) else str(input_data),
+                "output": json.dumps(output_data) if isinstance(output_data, dict) else str(output_data),
+                "feedback": json.dumps(feedback) if isinstance(feedback, dict) else str(feedback),
+                "agent": self.agent_name,
+                "is_accepted": feedback.get("is_accepted", False),
+                "confidence_score": feedback.get("confidence_score", 0.0),
+            }
+
+            # Get project ID from context if available
+            project_id = input_data.get("project_id") or feedback.get("project_id", "default")
+            collection_name = f"project_{project_id}_feedback_{self.agent_name}"
+
+            # Store feedback as knowledge
+            feedback_text = f"Input: {feedback_record['input']}\nOutput: {feedback_record['output']}\nFeedback: {feedback_record['feedback']}"
+
+            stored_id = await self.store_knowledge(
+                collection_name=collection_name,
+                text=feedback_text,
+                metadata={
+                    "type": "user_feedback",
+                    "is_accepted": feedback_record["is_accepted"],
+                    "confidence_score": feedback_record["confidence_score"],
+                    "feedback_details": feedback,
+                },
+            )
+
+            logger.info(f"Stored feedback for {self.agent_name} with ID {stored_id}")
+
+            # Also store the feedback in a separate feedback collection for analytics
+            await self.store_knowledge(
+                collection_name=f"project_{project_id}_all_feedback",
+                text=f"{self.agent_name}: {feedback_text}",
+                metadata={
+                    "agent": self.agent_name,
+                    "type": "feedback",
+                    "is_accepted": feedback_record["is_accepted"],
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error learning from feedback: {e}")
+            # Don't raise, as this is an async learning process
