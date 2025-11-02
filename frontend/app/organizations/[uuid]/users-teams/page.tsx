@@ -188,8 +188,15 @@ export default function UsersTeamsPage() {
     if (organisation && user.id === organisation.owner_id) {
       return 'Owner'
     }
-    // Otherwise return "Member" (you can enhance this to fetch actual roles)
-    return 'Member'
+    // Check if user has any organization-level roles
+    const userOrgRoles = userRoles.filter(ur => ur.user_id === user.id)
+    if (userOrgRoles.length > 0) {
+      // Return the first organization-level role
+      const firstRole = userOrgRoles[0]
+      return (firstRole as any).role?.name || (firstRole as any).role_name || 'No Role'
+    }
+    // If no role assigned, return empty string
+    return ''
   }
 
   const fetchAllUserProjects = async (usersList: UserType[], projectsList: Project[] = projects) => {

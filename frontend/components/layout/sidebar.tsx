@@ -184,7 +184,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:sticky top-0 left-0 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300
+          fixed lg:sticky top-0 left-0 h-screen bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300
           ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
         `}
@@ -352,7 +352,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                       flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
                       ${
                         isActive
-                          ? `${item.bgColor} text-gray-900 dark:text-white`
+                          ? `${item.bgColor} text-gray-900 dark:text-white shadow-md`
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                       }
                       ${isCollapsed ? 'justify-center' : ''}

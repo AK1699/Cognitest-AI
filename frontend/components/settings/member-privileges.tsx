@@ -165,12 +165,6 @@ export function MemberPrivileges({ organisationId }: MemberPrivilegesProps) {
                   Can manage projects, members, and most settings except billing.
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Member</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Can create and manage projects they own.
-                </p>
-              </div>
             </div>
           </div>
         </div>
