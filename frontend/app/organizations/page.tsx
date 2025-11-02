@@ -38,7 +38,7 @@ export default function OrganizationsPage() {
     }
 
     fetchOrganisations()
-  }, [user, loading, router])
+  }, [user, loading])
 
   const fetchOrganisations = async () => {
     try {

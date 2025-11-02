@@ -2,13 +2,24 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
 
 export default function RootPage() {
   const router = useRouter()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    router.replace('/cognitest.ai')
-  }, [router])
+    if (loading) return
+
+    // Redirect based on authentication status
+    if (user) {
+      // Authenticated users go to organizations
+      router.replace('/organizations')
+    } else {
+      // Unauthenticated users go to signin
+      router.replace('/auth/signin')
+    }
+  }, [user, loading, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50">

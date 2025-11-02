@@ -37,8 +37,13 @@ const PERMISSION_GROUPS = {
   'User Management': ['user_read_access', 'user_write_access', 'user_delete_access'],
   'Role Management': ['role_read_access', 'role_write_access', 'role_delete_access'],
   'Project Management': ['project_read_access', 'project_write_access', 'project_delete_access'],
+  'Settings': ['settings_read_access', 'settings_write_access'],
+  'Organization': ['organization_manage_access'],
   'Test Case Management': [
     'test_case_read_access', 'test_case_write_access', 'test_case_delete_access', 'test_case_execute_access',
+  ],
+  'Security Testing': [
+    'security_test_read_access', 'security_test_write_access', 'security_test_delete_access', 'security_test_execute_access',
   ],
   'API Testing': [
     'api_test_read_access', 'api_test_write_access', 'api_test_delete_access', 'api_test_execute_access',
@@ -46,17 +51,48 @@ const PERMISSION_GROUPS = {
   'Automation Hub': [
     'automation_read_access', 'automation_write_access', 'automation_delete_access', 'automation_execute_access',
   ],
-  'Security Testing': [
-    'security_test_read_access', 'security_test_write_access', 'security_test_delete_access', 'security_test_execute_access',
-  ],
-  'Performance Testing': [
-    'performance_test_read_access', 'performance_test_write_access', 'performance_test_delete_access', 'performance_test_execute_access',
-  ],
-  'Mobile Testing': [
-    'mobile_test_read_access', 'mobile_test_write_access', 'mobile_test_delete_access', 'mobile_test_execute_access',
-  ],
-  'Settings': ['settings_read_access', 'settings_write_access'],
-  'Organization': ['organization_manage_access'],
+}
+
+// Permission matrix definition - which roles have which permissions
+// Based on role permission specification: Owner/Admin have full access, others have graduated access levels
+const PERMISSION_MATRIX: Record<string, Record<string, boolean>> = {
+  // User Management
+  'user_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'user_write_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'user_delete_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  // Role Management
+  'role_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'role_write_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'role_delete_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  // Project Management
+  'project_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'project_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'project_delete_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  // Settings
+  'settings_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'settings_write_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  // Organization
+  'organization_manage_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  // Test Case Management
+  'test_case_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'test_case_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'test_case_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'test_case_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Security Testing
+  'security_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'security_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'security_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'security_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // API Testing
+  'api_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'api_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'api_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'api_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Automation Hub
+  'automation_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'automation_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'automation_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'automation_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
 }
 
 export function PermissionMatrix({ organisationId, isAdmin = false }: PermissionMatrixProps) {
@@ -81,9 +117,17 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
         params: { organisation_id: organisationId }
       })
       const rolesList = rolesResponse.data.roles || []
+      console.log('🎯 Roles from API:', rolesList.map(r => ({
+        id: r.id,
+        name: r.name,
+        role_type: r.role_type,
+        permissions_from_api: r.permissions?.length || 0,
+        permission_count: r.permission_count
+      })))
       setRoles(rolesList)
 
       // Fetch dynamic permissions based on enabled modules
+      let permsList: Permission[] = []
       try {
         const dynamicResponse = await api.get(`/api/v1/roles/dynamic/${organisationId}`)
         const { permission_groups, all_permissions, enabled_modules } = dynamicResponse.data
@@ -99,20 +143,57 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
         }
 
         // Use all permissions including dynamic ones
-        setPermissions(all_permissions || [])
+        permsList = all_permissions || []
+        setPermissions(permsList)
       } catch (dynamicError) {
         // Fallback to static permissions if dynamic endpoint fails
         console.warn('Could not fetch dynamic permissions, using static permissions:', dynamicError)
         const permsResponse = await api.get('/api/v1/roles/permissions')
-        const permsList = permsResponse.data.permissions || []
+        permsList = permsResponse.data.permissions || []
         setPermissions(permsList)
       }
 
-      // Initialize role-permission mapping
+      // Initialize role-permission mapping based on PERMISSION_MATRIX ONLY
+      // CRITICAL: We MUST ignore any permissions from the API and use ONLY PERMISSION_MATRIX
       const permMap: RolePermissionMap = {}
-      rolesList.forEach((role: Role) => {
-        permMap[role.id] = (role.permissions || []).map((p: Permission) => p.id)
+
+      // Create a mapping of permission names to IDs for quick lookup
+      const permNameToIdMap: Record<string, string> = {}
+      permsList.forEach(perm => {
+        permNameToIdMap[perm.name] = perm.id
       })
+
+      console.log('🔍 Permission name to ID mapping:', Object.keys(permNameToIdMap).slice(0, 5))
+      console.log('📋 Total permissions found:', permsList.length)
+
+      rolesList.forEach((role: Role) => {
+        const rolePerms: string[] = []
+
+        // For each permission in PERMISSION_MATRIX, check if this role should have it
+        Object.keys(PERMISSION_MATRIX).forEach(permName => {
+          const shouldHavePermission = PERMISSION_MATRIX[permName]?.[role.role_type] === true
+
+          if (shouldHavePermission) {
+            const permId = permNameToIdMap[permName]
+            if (permId) {
+              rolePerms.push(permId)
+            } else {
+              console.warn(`⚠️ Permission "${permName}" not found in API permissions for role ${role.role_type}`)
+            }
+          }
+        })
+
+        console.log(`✅ Role "${role.name}" (${role.role_type}): ${rolePerms.length} permissions from MATRIX`)
+        permMap[role.id] = rolePerms
+      })
+
+      console.log('📊 Final permission map:', Object.entries(permMap).map(([roleId, perms]) => ({
+        roleId: roleId.slice(0, 8),
+        count: perms.length,
+        sampleIds: perms.slice(0, 2)
+      })))
+
+      // Set state - these are the ONLY permissions we will use
       setRolePermissions(permMap)
       setOriginalRolePermissions(JSON.parse(JSON.stringify(permMap)))
     } catch (error: any) {
@@ -258,9 +339,6 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
             {/* Body */}
             <tbody>
               {Object.entries(permissionGroups).map(([groupName, permNames]) => {
-                const groupPerms = permissions.filter(p => permNames.includes(p.name))
-                if (groupPerms.length === 0) return null
-
                 return (
                   <Fragment key={groupName}>
                     {/* Group Header */}
@@ -274,39 +352,56 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
                     </tr>
 
                     {/* Permission rows */}
-                    {groupPerms.map(perm => (
-                      <tr
-                        key={perm.id}
-                        className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      >
-                        <td className="px-3 py-3 text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 z-10 align-middle" style={{ width: '192px' }}>
-                          <div>
-                            <div className="font-medium text-xs truncate" title={perm.name}>{perm.name}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block truncate" title={perm.description || `${perm.action} ${perm.resource}`}>
-                              {perm.description || `${perm.action} ${perm.resource}`}
-                            </div>
-                          </div>
-                        </td>
-                        {roles.map(role => (
-                          <td
-                            key={`${role.id}-${perm.id}`}
-                            className="px-2 py-3 text-center align-middle"
-                            style={{ width: '120px' }}
-                          >
-                            <div className="flex items-center justify-center h-full">
-                              <Checkbox
-                                checked={(rolePermissions[role.id] || []).includes(perm.id)}
-                                onCheckedChange={() =>
-                                  togglePermission(role.id, perm.id)
-                                }
-                                className="w-4 h-4"
-                                disabled={saving || !isAdmin}
-                              />
+                    {permNames.map((permName, idx) => {
+                      // Find the permission by name
+                      const perm = permissions.find(p => p.name === permName)
+                      if (!perm) return null
+
+                      return (
+                        <tr
+                          key={`${groupName}-${permName}-${idx}`}
+                          className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                          <td className="px-3 py-3 text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 z-10 align-middle" style={{ width: '192px' }}>
+                            <div>
+                              <div className="font-medium text-xs truncate" title={perm.name}>{perm.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 hidden sm:block truncate" title={perm.description || `${perm.action} ${perm.resource}`}>
+                                {perm.description || `${perm.action} ${perm.resource}`}
+                              </div>
                             </div>
                           </td>
-                        ))}
-                      </tr>
-                    ))}
+                          {roles.map(role => {
+                            const isChecked = (rolePermissions[role.id] || []).includes(perm.id)
+                            // Debug log for user_read_access to see actual state
+                            if (permName === 'user_read_access') {
+                              console.log(`${role.name}-${permName}: checked=${isChecked}, permId=${perm.id}, hasPermIds=${rolePermissions[role.id]?.length || 0}`)
+                            }
+                            return (
+                              <td
+                                key={`${role.id}-${perm.id}`}
+                                className="px-2 py-3 text-center align-middle"
+                                style={{ width: '120px' }}
+                              >
+                                <div className="flex items-center justify-center h-full">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked === true}
+                                    onChange={() => {
+                                      console.log(`Toggling ${role.name}-${permName}, currently: ${isChecked}`)
+                                      togglePermission(role.id, perm.id)
+                                    }}
+                                    className="w-4 h-4 cursor-pointer"
+                                    disabled={saving || !isAdmin}
+                                    data-role={role.id}
+                                    data-perm={perm.id}
+                                  />
+                                </div>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      )
+                    })}
                   </Fragment>
                 )
               })}

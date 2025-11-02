@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { getAllRoleDisplayOptions } from '@/lib/role-display-utils'
 
 export interface RoleOption {
   id: string
@@ -9,15 +10,12 @@ export interface RoleOption {
   description: string
 }
 
-const DEFAULT_ROLES: RoleOption[] = [
-  { id: 'owner', name: 'Owner', description: 'Full organization control - manage billing, plans, delete org, and user management' },
-  { id: 'admin', name: 'Admin', description: 'Full system access except for organization deletion' },
-  { id: 'qa_manager', name: 'QA Manager', description: 'Manage test projects, assign testers, and review results' },
-  { id: 'qa_lead', name: 'QA Lead', description: 'Manage test cases, assign tasks, and approve AI fixes' },
-  { id: 'qa_engineer', name: 'QA Engineer', description: 'Execute tests and manage test data' },
-  { id: 'product_owner', name: 'Product Owner', description: 'Read-only access to view reports and dashboards' },
-  { id: 'viewer', name: 'Viewer', description: 'View reports and results' }
-]
+// Get default roles from centralized utility
+const DEFAULT_ROLES: RoleOption[] = getAllRoleDisplayOptions().map(role => ({
+  id: role.roleType,
+  name: role.displayName,
+  description: role.description
+}))
 
 interface RoleFilterProps {
   selectedRoles: string[]

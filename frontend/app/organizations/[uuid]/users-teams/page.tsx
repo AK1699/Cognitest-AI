@@ -6,6 +6,7 @@ import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
+import { getRoleType } from '@/lib/role-display-utils'
 import { Sidebar } from '@/components/layout/sidebar'
 import {
   listRoles,
@@ -679,7 +680,7 @@ export default function UsersTeamsPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                              {role.role_type.replace(/_/g, ' ')}
+                              {getRoleType(role.role_type)}
                             </span>
                           </td>
                           <td className="px-6 py-4">

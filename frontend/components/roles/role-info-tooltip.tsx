@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
+import { ROLE_DISPLAY_MAP } from '@/lib/role-display-utils'
 
 export interface RoleDescription {
   name: string
@@ -9,41 +10,42 @@ export interface RoleDescription {
   permissions: string[]
 }
 
+// Build role descriptions from centralized display map
 const ROLE_DESCRIPTIONS: Record<string, RoleDescription> = {
   owner: {
-    name: 'Owner',
-    description: 'Full organization control - manage billing, plans, delete org, and user management.',
-    permissions: ['Manage billing and plans', 'Delete organization', 'Manage users', 'Full admin access']
+    name: ROLE_DISPLAY_MAP.owner.displayName,
+    description: ROLE_DISPLAY_MAP.owner.description,
+    permissions: ['Manage billing and plans', 'Delete organization', 'Configure SSO', 'Full control']
   },
   admin: {
-    name: 'Admin',
-    description: 'Full system access except for organization deletion.',
-    permissions: ['Manage all projects', 'Manage all users', 'Configure settings', 'Full system access']
+    name: ROLE_DISPLAY_MAP.admin.displayName,
+    description: ROLE_DISPLAY_MAP.admin.description,
+    permissions: ['Manage organization settings', 'Manage all users', 'Configure integrations', 'Manage operations']
   },
   qa_manager: {
-    name: 'QA Manager',
-    description: 'Manage test projects, assign testers, and review results.',
-    permissions: ['Manage test projects', 'Assign testers', 'Review test results', 'Manage team members']
+    name: ROLE_DISPLAY_MAP.qa_manager.displayName,
+    description: ROLE_DISPLAY_MAP.qa_manager.description,
+    permissions: ['Manage QA teams', 'Assign testers', 'Oversee test execution', 'Review results']
   },
   qa_lead: {
-    name: 'QA Lead',
-    description: 'Manage test cases, assign tasks, and approve AI fixes.',
-    permissions: ['Manage test cases', 'Assign tasks', 'Approve AI fixes', 'Execute tests']
+    name: ROLE_DISPLAY_MAP.qa_lead.displayName,
+    description: ROLE_DISPLAY_MAP.qa_lead.description,
+    permissions: ['Lead QA engineers', 'Approve test cases', 'Validate AI fixes', 'Execute tests']
   },
   qa_engineer: {
-    name: 'QA Engineer',
-    description: 'Execute tests and manage test data.',
-    permissions: ['Execute tests', 'Create test cases', 'Manage test data', 'View results']
+    name: ROLE_DISPLAY_MAP.qa_engineer.displayName,
+    description: ROLE_DISPLAY_MAP.qa_engineer.description,
+    permissions: ['Create tests', 'Execute tests', 'Maintain test cases', 'Manage test data']
   },
   product_owner: {
-    name: 'Product Owner',
-    description: 'Read-only access to view reports and dashboards.',
-    permissions: ['View reports', 'View dashboards', 'View test results', 'Read-only access']
+    name: ROLE_DISPLAY_MAP.product_owner.displayName,
+    description: ROLE_DISPLAY_MAP.product_owner.description,
+    permissions: ['Review reports', 'View KPIs', 'Ensure alignment', 'Read-only access']
   },
   viewer: {
-    name: 'Viewer',
-    description: 'View reports and results.',
-    permissions: ['View projects', 'View test results', 'View dashboards', 'Read-only access']
+    name: ROLE_DISPLAY_MAP.viewer.displayName,
+    description: ROLE_DISPLAY_MAP.viewer.description,
+    permissions: ['View dashboards', 'View reports', 'View analytics', 'Read-only access']
   }
 }
 

@@ -95,19 +95,19 @@ DEFAULT_ROLES = {
     "owner": {
         "name": "Owner",
         "role_type": "owner",
-        "description": "Full organization control - manage billing, plans, delete org, and user management",
+        "description": "Has full control — can manage billing, delete the organization, assign roles, and configure SSO",
         "permissions": [p["name"] for p in DEFAULT_PERMISSIONS]  # All permissions
     },
     "admin": {
         "name": "Admin",
         "role_type": "admin",
-        "description": "Full system access except for organization deletion",
+        "description": "Manages organization settings, users, integrations, and platform operations",
         "permissions": [p["name"] for p in DEFAULT_PERMISSIONS if p["name"] != "delete_project"]  # All except delete org
     },
     "qa_manager": {
         "name": "QA Manager",
         "role_type": "qa_manager",
-        "description": "Manage test projects, assign testers, and review results",
+        "description": "Manages QA teams, assigns testers, oversees test execution, and reviews results",
         "permissions": [
             "read_project", "update_project", "manage_project",
             "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
@@ -122,7 +122,7 @@ DEFAULT_ROLES = {
     "qa_lead": {
         "name": "QA Lead",
         "role_type": "qa_lead",
-        "description": "Manage test cases, assign tasks, and approve AI fixes",
+        "description": "Leads QA engineers, approves test cases, and validates AI-generated fixes",
         "permissions": [
             "read_project",
             "create_test_plan", "read_test_plan", "update_test_plan",
@@ -138,7 +138,7 @@ DEFAULT_ROLES = {
     "qa_engineer": {
         "name": "QA Engineer",
         "role_type": "qa_engineer",
-        "description": "Execute tests and manage test data",
+        "description": "Creates, executes, and maintains automated and manual tests",
         "permissions": [
             "read_project",
             "read_test_plan",
@@ -152,7 +152,7 @@ DEFAULT_ROLES = {
     "product_owner": {
         "name": "Product Owner",
         "role_type": "product_owner",
-        "description": "Read-only access to view reports and dashboards",
+        "description": "Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals",
         "permissions": [
             "read_project",
             "read_test_plan",
@@ -166,7 +166,7 @@ DEFAULT_ROLES = {
     "viewer": {
         "name": "Viewer",
         "role_type": "viewer",
-        "description": "View reports and results",
+        "description": "Has view-only access to dashboards, reports, and analytics",
         "permissions": [
             "read_project",
             "read_test_plan",

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { X, Shield, Trash2, Plus, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
+import { getRoleDisplayWithType } from '@/lib/role-display-utils'
 import {
   listRoles,
   listUserRoles,
@@ -301,7 +302,7 @@ export function RoleAssignmentModal({
                       <option value="">Choose a role...</option>
                       {roles.map((role) => (
                         <option key={role.id} value={role.id}>
-                          {role.name} ({role.role_type.replace('_', ' ')})
+                          {getRoleDisplayWithType(role.role_type)}
                         </option>
                       ))}
                     </select>

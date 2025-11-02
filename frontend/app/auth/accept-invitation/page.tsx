@@ -27,7 +27,7 @@ function AcceptInvitationContent() {
       toast.error('Invalid invitation link')
       router.push('/auth/signin')
     }
-  }, [token, router])
+  }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
