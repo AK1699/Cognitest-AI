@@ -184,10 +184,13 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:sticky top-0 left-0 h-screen bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300
+          fixed lg:sticky top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300
           ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
         `}
+        style={{
+          backgroundColor: '#eaf2f4'
+        }}
       >
         <div className="flex flex-col h-full">
           {/* Profile Section */}
@@ -204,8 +207,8 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
                   isProfileOpen
-                    ? 'border border-primary bg-primary/5 dark:bg-primary/10'
-                    : 'border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'border border-gray-400 bg-white/40'
+                    : 'border border-gray-300 hover:bg-white/20'
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -214,15 +217,15 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight line-clamp-1">
+                  <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-1">
                     {currentOrganisation.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-0.5">
+                  <p className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">
                     {user.username}
                   </p>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${
+                  className={`w-4 h-4 text-gray-600 flex-shrink-0 transition-transform ${
                     isProfileOpen ? 'rotate-180' : ''
                   }`}
                 />
@@ -352,8 +355,8 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                       flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group
                       ${
                         isActive
-                          ? `${item.bgColor} text-gray-900 dark:text-white shadow-md`
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? `${item.bgColor} text-gray-900 shadow-md`
+                          : 'text-gray-700 hover:bg-white/30'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
                     `}
@@ -373,11 +376,11 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
 
           {/* Footer - Project Info */}
           {!isCollapsed && projectId && (
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <div className="p-4 border-t border-gray-300">
+              <div className="text-xs text-gray-600 mb-1">
                 Current Project
               </div>
-              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <div className="text-sm font-medium text-gray-800 truncate">
                 Project Name
               </div>
             </div>
