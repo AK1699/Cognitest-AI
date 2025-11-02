@@ -55,6 +55,7 @@ const PERMISSION_GROUPS = {
 
 // Permission matrix definition - which roles have which permissions
 // Based on role permission specification: Owner/Admin have full access, others have graduated access levels
+// NOTE: This matrix should include ALL permissions that exist in the database
 const PERMISSION_MATRIX: Record<string, Record<string, boolean>> = {
   // User Management
   'user_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
@@ -73,26 +74,64 @@ const PERMISSION_MATRIX: Record<string, Record<string, boolean>> = {
   'settings_write_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   // Organization
   'organization_manage_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
-  // Test Case Management
+  // Test Case Management (using newer naming convention)
   'test_case_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
   'test_case_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
   'test_case_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'test_case_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Test Management (alternate naming convention)
+  'read_test_management': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_test_management': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'manage_test_management': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_test_management': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
   // Security Testing
   'security_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
   'security_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'security_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'security_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Security Testing (alternate naming)
+  'read_security_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_security_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'manage_security_testing': { 'owner': true, 'admin': true, 'qa_manager': false, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_security_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
   // API Testing
   'api_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
   'api_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
   'api_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'api_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // API Testing (alternate naming)
+  'read_api_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_api_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'manage_api_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_api_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
   // Automation Hub
   'automation_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
   'automation_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'automation_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
   'automation_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Automation Hub (alternate naming)
+  'read_automation_hub': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_automation_hub': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'manage_automation_hub': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_automation_hub': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Performance Testing
+  'read_performance_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_performance_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'manage_performance_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_performance_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'performance_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'performance_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'performance_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'performance_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  // Mobile Testing
+  'read_mobile_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'write_mobile_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'manage_mobile_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'execute_mobile_testing': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'mobile_test_read_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': true, 'viewer': true },
+  'mobile_test_write_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
+  'mobile_test_delete_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': false, 'qa_engineer': false, 'product_owner': false, 'viewer': false },
+  'mobile_test_execute_access': { 'owner': true, 'admin': true, 'qa_manager': true, 'qa_lead': true, 'qa_engineer': true, 'product_owner': false, 'viewer': false },
 }
 
 export function PermissionMatrix({ organisationId, isAdmin = false }: PermissionMatrixProps) {
@@ -167,24 +206,35 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
       console.log('📋 Total permissions found:', permsList.length)
 
       rolesList.forEach((role: Role) => {
-        const rolePerms: string[] = []
+        let rolePerms: string[] = []
 
-        // For each permission in PERMISSION_MATRIX, check if this role should have it
-        Object.keys(PERMISSION_MATRIX).forEach(permName => {
-          const shouldHavePermission = PERMISSION_MATRIX[permName]?.[role.role_type] === true
-
-          if (shouldHavePermission) {
-            const permId = permNameToIdMap[permName]
-            if (permId) {
-              rolePerms.push(permId)
-            } else {
-              console.warn(`⚠️ Permission "${permName}" not found in API permissions for role ${role.role_type}`)
-            }
-          }
+        console.log(`🔍 Processing role "${role.name}" (${role.role_type}):`, {
+          hasPermissions: !!role.permissions,
+          permissionCount: role.permissions?.length || 0,
+          permissionIds: role.permissions?.map(p => p.id) || []
         })
 
-        console.log(`✅ Role "${role.name}" (${role.role_type}): ${rolePerms.length} permissions from MATRIX`)
+        // ALWAYS use permissions from the API - this is the source of truth
+        if (role.permissions && role.permissions.length > 0) {
+          rolePerms = role.permissions.map(p => p.id)
+          console.log(`✅ Role "${role.name}" (${role.role_type}): ${rolePerms.length} permissions from API`)
+          console.log(`   Permission IDs: ${rolePerms.slice(0, 3).join(', ')}...`)
+        } else {
+          // If no permissions from API, it means the role has NO permissions assigned
+          console.log(`⚠️ Role "${role.name}" (${role.role_type}) has NO permissions assigned in database`)
+        }
+
         permMap[role.id] = rolePerms
+      })
+
+      // Log detailed mapping for debugging
+      console.log('📝 Detailed permission mapping:')
+      Object.entries(permMap).forEach(([roleId, permIds]) => {
+        const role = rolesList.find(r => r.id === roleId)
+        console.log(`  ${role?.name}: [${permIds.map(id => {
+          const perm = permsList.find(p => p.id === id)
+          return perm?.name || id
+        }).join(', ')}]`)
       })
 
       console.log('📊 Final permission map:', Object.entries(permMap).map(([roleId, perms]) => ({
@@ -372,10 +422,6 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
                           </td>
                           {roles.map(role => {
                             const isChecked = (rolePermissions[role.id] || []).includes(perm.id)
-                            // Debug log for user_read_access to see actual state
-                            if (permName === 'user_read_access') {
-                              console.log(`${role.name}-${permName}: checked=${isChecked}, permId=${perm.id}, hasPermIds=${rolePermissions[role.id]?.length || 0}`)
-                            }
                             return (
                               <td
                                 key={`${role.id}-${perm.id}`}
@@ -387,11 +433,11 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
                                     type="checkbox"
                                     checked={isChecked === true}
                                     onChange={() => {
-                                      console.log(`Toggling ${role.name}-${permName}, currently: ${isChecked}`)
                                       togglePermission(role.id, perm.id)
                                     }}
-                                    className="w-4 h-4 cursor-pointer"
-                                    disabled={saving || !isAdmin}
+                                    className="w-4 h-4 cursor-pointer accent-primary"
+                                    disabled={saving}
+                                    title={isAdmin ? 'Click to change permission' : 'Admin permissions required to modify'}
                                     data-role={role.id}
                                     data-perm={perm.id}
                                   />

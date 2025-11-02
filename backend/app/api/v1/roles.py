@@ -987,11 +987,11 @@ async def get_dynamic_permissions(
     Get dynamic permission groups based on enabled modules in the organization.
 
     Returns permission groups with static permissions + dynamic permissions
-    for enabled testing modules.
+    for enabled testing modules, INCLUDING permission IDs from database.
     """
     from app.utils.dynamic_permissions import (
         generate_dynamic_permission_groups,
-        get_all_permissions_list,
+        get_all_permissions_list_async,
         get_enabled_modules_from_organisation,
     )
     from app.models.organisation import Organisation
@@ -1014,8 +1014,8 @@ async def get_dynamic_permissions(
     # Generate dynamic permission groups
     permission_groups = generate_dynamic_permission_groups(enabled_modules)
 
-    # Get all permission details
-    all_permissions = get_all_permissions_list(enabled_modules)
+    # Get all permission details WITH IDs from database
+    all_permissions = await get_all_permissions_list_async(enabled_modules, db)
 
     return {
         "permission_groups": permission_groups,

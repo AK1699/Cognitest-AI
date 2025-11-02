@@ -127,15 +127,91 @@ def generate_dynamic_permission_groups(enabled_modules: List[str]) -> Dict[str, 
     return groups
 
 
-def get_all_permissions_list(enabled_modules: List[str]) -> List[Dict]:
+async def get_all_permissions_list_async(enabled_modules: List[str], db) -> List[Dict]:
     """
-    Get flat list of all permissions with metadata
+    Get flat list of all permissions with metadata INCLUDING IDs from database
 
     Args:
         enabled_modules: List of enabled module keys
+        db: Database session
 
     Returns:
-        List of permission dictionaries with name, resource, action, description
+        List of permission dictionaries with id, name, resource, action, description
+    """
+    from sqlalchemy import select
+    from app.models.role import Permission
+
+    permissions = []
+
+    # Get all permissions from database
+    result = await db.execute(select(Permission))
+    all_perms_in_db = result.scalars().all()
+
+    # Create a mapping of permission name to full permission object
+    perm_name_map = {p.name: p for p in all_perms_in_db}
+
+    # Add static permissions
+    static_perms = [
+        ("user_read_access", "user", "read", "Read user information"),
+        ("user_write_access", "user", "write", "Create and update users"),
+        ("user_delete_access", "user", "delete", "Delete users"),
+        ("role_read_access", "role", "read", "Read role information"),
+        ("role_write_access", "role", "write", "Create and update roles"),
+        ("role_delete_access", "role", "delete", "Delete roles"),
+        ("project_read_access", "project", "read", "Read project information"),
+        ("project_write_access", "project", "write", "Create and update projects"),
+        ("project_delete_access", "project", "delete", "Delete projects"),
+        ("settings_read_access", "settings", "read", "Read settings"),
+        ("settings_write_access", "settings", "write", "Update settings"),
+        ("organization_manage_access", "organization", "manage", "Manage organization"),
+    ]
+
+    for name, resource, action, desc in static_perms:
+        perm_obj = perm_name_map.get(name)
+        permissions.append({
+            "id": str(perm_obj.id) if perm_obj else None,
+            "name": name,
+            "resource": resource,
+            "action": action,
+            "description": desc
+        })
+
+    # Add test case management permissions (always present)
+    if "test_management" in AVAILABLE_MODULES:
+        module_info = AVAILABLE_MODULES["test_management"]
+        for perm in module_info["permissions"]:
+            perm_obj = perm_name_map.get(perm["name"])
+            permissions.append({
+                "id": str(perm_obj.id) if perm_obj else None,
+                "name": perm["name"],
+                "resource": "test_management",
+                "action": perm["action"],
+                "description": perm["description"]
+            })
+
+    # Add enabled module permissions with granular details
+    for module_key in enabled_modules:
+        if module_key in AVAILABLE_MODULES and module_key != "test_management":
+            module_info = AVAILABLE_MODULES[module_key]
+            for perm in module_info["permissions"]:
+                perm_obj = perm_name_map.get(perm["name"])
+                permissions.append({
+                    "id": str(perm_obj.id) if perm_obj else None,
+                    "name": perm["name"],
+                    "resource": module_key,
+                    "action": perm["action"],
+                    "description": perm["description"]
+                })
+
+    return permissions
+
+
+def get_all_permissions_list(enabled_modules: List[str]) -> List[Dict]:
+    """
+    DEPRECATED: Use get_all_permissions_list_async instead.
+    This function is kept for backward compatibility but should not be used.
+
+    Get flat list of all permissions with metadata (WITHOUT IDs - use async version)
     """
     permissions = []
 
