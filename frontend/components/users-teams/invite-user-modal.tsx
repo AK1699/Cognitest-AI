@@ -10,6 +10,7 @@ import { Mail, AlertCircle, CheckCircle2, X } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { listGroups, type Group } from '@/lib/api/groups'
+import { listRoles, type ProjectRole } from '@/lib/api/roles'
 
 interface InviteUserModalProps {
   isOpen: boolean
@@ -21,6 +22,7 @@ interface InviteUserModalProps {
 /**
  * Modal to invite a user to the organisation
  * - Enter email and optional full name
+ * - Select a role (optional, for organization-level roles)
  * - Select groups to add user to
  * - System sends invitation email
  * - User receives link to accept invitation
@@ -28,17 +30,23 @@ interface InviteUserModalProps {
 export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: InviteUserModalProps) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
+  const [selectedRole, setSelectedRole] = useState<string>('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [roles, setRoles] = useState<ProjectRole[]>([])
   const [expiryDays, setExpiryDays] = useState(7)
   const [loading, setLoading] = useState(false)
   const [groupsLoading, setGroupsLoading] = useState(true)
+  const [rolesLoading, setRolesLoading] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Load groups
+  // Load groups and roles
   useEffect(() => {
-    loadGroups()
-  }, [organisationId])
+    if (isOpen) {
+      loadGroups()
+      loadRoles()
+    }
+  }, [organisationId, isOpen])
 
   const loadGroups = async () => {
     try {
@@ -50,6 +58,19 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
       toast.error('Failed to load groups')
     } finally {
       setGroupsLoading(false)
+    }
+  }
+
+  const loadRoles = async () => {
+    try {
+      setRolesLoading(true)
+      const rolesData = await listRoles(organisationId)
+      setRoles(rolesData)
+    } catch (error) {
+      console.error('Error loading roles:', error)
+      toast.error('Failed to load roles')
+    } finally {
+      setRolesLoading(false)
     }
   }
 
@@ -95,6 +116,7 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
         organisation_id: organisationId,
         expiry_days: expiryDays,
         group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
+        role_id: selectedRole || undefined,
       }
 
       const response = await api.post('/api/v1/invitations/', invitationData)
@@ -107,6 +129,7 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
       // Reset form
       setEmail('')
       setFullName('')
+      setSelectedRole('')
       setSelectedGroups([])
       setExpiryDays(7)
       setErrors({})
@@ -202,6 +225,39 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
             )}
           </div>
 
+          {/* Role Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="role" className="font-semibold">
+              Assign Role (Optional)
+            </Label>
+            {rolesLoading ? (
+              <div className="text-sm text-gray-600">Loading roles...</div>
+            ) : roles.length === 0 ? (
+              <div className="text-sm text-gray-600">No roles available</div>
+            ) : (
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={e => {
+                  setSelectedRole(e.target.value)
+                  if (errors.role) setErrors({ ...errors, role: '' })
+                }}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+              >
+                <option value="">Select a role...</option>
+                {roles.map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.role && (
+              <p className="text-sm text-red-600">{errors.role}</p>
+            )}
+          </div>
+
           {/* Expiry Days */}
           <div className="space-y-2">
             <Label htmlFor="expiryDays" className="font-semibold">
@@ -233,9 +289,6 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
             <Label className="font-semibold">
               Add to Groups (Optional)
             </Label>
-            <p className="text-sm text-gray-600 mb-3">
-              Select groups to automatically add the user to upon acceptance.
-            </p>
 
             {groupsLoading ? (
               <div className="text-center py-4 text-gray-500">Loading groups...</div>
