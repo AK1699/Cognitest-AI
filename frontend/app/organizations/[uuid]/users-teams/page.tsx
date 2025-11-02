@@ -383,11 +383,13 @@ export default function UsersTeamsPage() {
     (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  const filteredRoles = roles.filter(role =>
-    role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    role.role_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (role.description && role.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  const filteredRoles = roles
+    .filter(role =>
+      role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      role.role_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (role.description && role.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   if (loading) {
     return (
