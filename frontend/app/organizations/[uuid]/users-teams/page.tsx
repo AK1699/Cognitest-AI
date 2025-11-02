@@ -75,6 +75,7 @@ export default function UsersTeamsPage() {
     type: 'user'
     id: string
     name: string
+    initialRoleId?: string
   } | null>(null)
   const [selectedUserToAdd, setSelectedUserToAdd] = useState<string>('')
   const [showAddMemberSection, setShowAddMemberSection] = useState(false)
@@ -549,13 +550,19 @@ export default function UsersTeamsPage() {
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           {(() => {
-                            // Check if user is an Admin
-                            const hasAdminRole = userRoles.some(
+                            // Check if user has organization-level role (Owner or Admin)
+                            const hasOrgLevelRole = userRoles.some(
                               ur => ur.user_id === user.id &&
-                                ((ur as any).role?.name === 'Admin' || (ur as any).role_name === 'Admin')
+                                ((ur as any).role?.role_type === 'owner' ||
+                                 (ur as any).role?.role_type === 'admin' ||
+                                 (ur as any).role?.role_type === 'administrator' ||
+                                 (ur as any).role?.name === 'Owner' ||
+                                 (ur as any).role?.name === 'Admin' ||
+                                 (ur as any).role_name === 'Owner' ||
+                                 (ur as any).role_name === 'Admin')
                             )
 
-                            if (hasAdminRole) {
+                            if (hasOrgLevelRole) {
                               return (
                                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                                   <Shield className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -585,13 +592,33 @@ export default function UsersTeamsPage() {
                               <span className="text-sm text-gray-500 dark:text-gray-400">No projects</span>
                             )
                           })()}
-                          <button
-                            onClick={() => openProjectAssignmentModal(user)}
-                            className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Manage Projects
-                          </button>
+                          {(() => {
+                            // Don't show Manage Projects button for org-level roles
+                            const hasOrgLevelRole = userRoles.some(
+                              ur => ur.user_id === user.id &&
+                                ((ur as any).role?.role_type === 'owner' ||
+                                 (ur as any).role?.role_type === 'admin' ||
+                                 (ur as any).role?.role_type === 'administrator' ||
+                                 (ur as any).role?.name === 'Owner' ||
+                                 (ur as any).role?.name === 'Admin' ||
+                                 (ur as any).role_name === 'Owner' ||
+                                 (ur as any).role_name === 'Admin')
+                            )
+
+                            if (hasOrgLevelRole) {
+                              return null
+                            }
+
+                            return (
+                              <button
+                                onClick={() => openProjectAssignmentModal(user)}
+                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                              >
+                                <Plus className="w-3 h-3" />
+                                Manage Projects
+                              </button>
+                            )
+                          })()}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
@@ -600,10 +627,15 @@ export default function UsersTeamsPage() {
                       <td className="px-6 py-4 flex justify-center items-center">
                         <button
                           onClick={() => {
+                            // Get the first role ID if the user has roles
+                            const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
+                            const firstRoleId = userRolesList.length > 0 ? userRolesList[0].id : undefined
+
                             setRoleModalEntity({
                               type: 'user',
                               id: user.id,
-                              name: user.full_name || user.username
+                              name: user.full_name || user.username,
+                              initialRoleId: firstRoleId
                             })
                             setShowAssignRoleModal(true)
                           }}
@@ -1107,6 +1139,7 @@ export default function UsersTeamsPage() {
           entityId={roleModalEntity.id}
           entityName={roleModalEntity.name}
           availableProjects={projects}
+          initialRoleId={roleModalEntity.initialRoleId}
           onRoleAssigned={fetchData} // Refresh data immediately after role assignment
           onModalOpen={async () => {
             // Refresh projects when modal opens to ensure latest projects are available

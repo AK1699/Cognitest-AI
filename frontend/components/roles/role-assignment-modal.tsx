@@ -28,6 +28,7 @@ interface RoleAssignmentModalProps {
   entityId: string
   entityName: string
   availableProjects?: Array<{ id: string; name: string }>
+  initialRoleId?: string
   onRoleAssigned?: () => void | Promise<void>
   onModalOpen?: () => void | Promise<void>
 }
@@ -41,6 +42,7 @@ export function RoleAssignmentModal({
   entityId,
   entityName,
   availableProjects = [],
+  initialRoleId,
   onRoleAssigned,
   onModalOpen
 }: RoleAssignmentModalProps) {
@@ -51,6 +53,8 @@ export function RoleAssignmentModal({
   const [filterProjectId, setFilterProjectId] = useState<string>(initialProjectId || '')
   const [selectedRoleId, setSelectedRoleId] = useState<string>('')
   const [showAddRole, setShowAddRole] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string>('')
 
   // Fetch roles on modal open (independent of project selection)
   useEffect(() => {
@@ -61,8 +65,12 @@ export function RoleAssignmentModal({
       }
       fetchRoles()
       fetchAllUserRoles() // Fetch all roles for this user across all projects
+      // Set initial role if provided
+      if (initialRoleId) {
+        setSelectedRoleId(initialRoleId)
+      }
     }
-  }, [isOpen, organisationId])
+  }, [isOpen, organisationId, initialRoleId])
 
   // Fetch current assignments when filter project changes
   useEffect(() => {
@@ -127,7 +135,7 @@ export function RoleAssignmentModal({
 
   const handleAssignRole = async () => {
     const selectedRole = roles.find(r => r.id === selectedRoleId)
-    const isAdminRole = selectedRole?.role_type === 'administrator'
+    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
 
     // Admin role only needs role selection
     // Other roles require both role and project
@@ -211,13 +219,18 @@ export function RoleAssignmentModal({
   }
 
   const handleRemoveRole = async (assignmentId: string) => {
-    if (!confirm('Are you sure you want to remove this role assignment?')) return
+    setDeleteTargetId(assignmentId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmRemoveRole = async () => {
+    if (!deleteTargetId) return
 
     try {
       if (entityType === 'user') {
-        await removeRoleFromUser(assignmentId)
+        await removeRoleFromUser(deleteTargetId)
       } else {
-        await removeRoleFromGroup(assignmentId)
+        await removeRoleFromGroup(deleteTargetId)
       }
 
       toast.success('Role removed successfully')
@@ -226,6 +239,8 @@ export function RoleAssignmentModal({
       if (filterProjectId) {
         await fetchCurrentRoles()
       }
+      setShowDeleteConfirm(false)
+      setDeleteTargetId('')
     } catch (error: any) {
       toast.error(error.message || 'Failed to remove role')
     }
@@ -233,6 +248,8 @@ export function RoleAssignmentModal({
 
   const getRoleBadgeColor = (roleType: string) => {
     switch (roleType) {
+      case 'owner':
+      case 'admin':
       case 'administrator':
         return 'bg-red-100 text-red-800 border-red-200'
       case 'project_manager':
@@ -240,11 +257,34 @@ export function RoleAssignmentModal({
       case 'developer':
         return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'tester':
+      case 'qa_engineer':
         return 'bg-green-100 text-green-800 border-green-200'
       case 'viewer':
+      case 'product_owner':
         return 'bg-gray-100 text-gray-800 border-gray-200'
       default:
         return 'bg-cyan-100 text-cyan-800 border-cyan-200'
+    }
+  }
+
+  const getRoleDisplayName = (roleType: string) => {
+    switch (roleType) {
+      case 'owner':
+        return 'Super Administrator'
+      case 'admin':
+        return 'Administrator'
+      case 'qa_manager':
+        return 'Quality Assurance'
+      case 'qa_lead':
+        return 'Quality Assurance'
+      case 'qa_engineer':
+        return 'Quality Assurance'
+      case 'product_owner':
+        return 'Stakeholder'
+      case 'viewer':
+        return 'Read Only'
+      default:
+        return roleType.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
     }
   }
 
@@ -308,10 +348,10 @@ export function RoleAssignmentModal({
                     </select>
                   </div>
 
-                  {/* Project Selection for Assignment - Hidden for Admin Role */}
+                  {/* Project Selection for Assignment - Hidden for Admin/Owner Role */}
                   {selectedRoleId && (() => {
                     const selectedRole = roles.find(r => r.id === selectedRoleId)
-                    const isAdminRole = selectedRole?.role_type === 'administrator'
+                    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
 
                     if (isAdminRole) {
                       return (
@@ -320,10 +360,13 @@ export function RoleAssignmentModal({
                             <Shield className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                             <div>
                               <p className="text-sm font-semibold text-green-800 dark:text-green-200 mb-1">
-                                Admin Role - No Project Selection Needed
+                                {selectedRole?.role_type === 'owner' ? 'Owner Role' : 'Admin Role'} - No Project Selection Needed
                               </p>
                               <p className="text-sm text-green-700 dark:text-green-300">
-                                Admin users automatically have full access to all projects in this organization.
+                                {selectedRole?.role_type === 'owner'
+                                  ? 'Owner has full control — can manage billing, delete the organization, assign roles, and configure SSO.'
+                                  : 'Admin users automatically have full access to all projects in this organization.'
+                                }
                               </p>
                             </div>
                           </div>
@@ -408,7 +451,7 @@ export function RoleAssignmentModal({
                                 {selectedRole.name}
                               </span>
                               <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(selectedRole.role_type)}`}>
-                                {selectedRole.role_type.replace('_', ' ')}
+                                {getRoleDisplayName(selectedRole.role_type)}
                               </span>
                             </div>
                             {selectedRole.description && (
@@ -425,14 +468,28 @@ export function RoleAssignmentModal({
                   {/* Assign Button */}
                   {(() => {
                     const selectedRole = roles.find(r => r.id === selectedRoleId)
-                    const isAdminRole = selectedRole?.role_type === 'administrator'
+                    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
                     // Admin role only needs role selection, others need both role and project
                     const isEnabled = selectedRoleId && (isAdminRole || selectedProjectId)
+
+                    // Check if the selected role already exists
+                    const roleAlreadyExists = currentRoles.some(role => {
+                      const roleId = (role as any).role?.id || (role as any).role_id
+                      const projectId = (role as any).project_id
+
+                      // For admin roles, check if role exists (regardless of project)
+                      if (isAdminRole) {
+                        return roleId === selectedRoleId
+                      }
+
+                      // For non-admin roles, check if same role exists on same project
+                      return roleId === selectedRoleId && projectId === selectedProjectId
+                    })
 
                     return (
                       <Button
                         onClick={handleAssignRole}
-                        disabled={!isEnabled}
+                        disabled={!isEnabled || roleAlreadyExists}
                         className="w-full"
                       >
                         Assign Role
@@ -468,12 +525,21 @@ export function RoleAssignmentModal({
                                 {roleName}
                               </span>
                               <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(roleType)}`}>
-                                {roleType.replace('_', ' ')}
+                                {getRoleDisplayName(roleType)}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Project: {projectName}
-                            </p>
+                            {/* Only show project for non-org-level roles */}
+                            {!(roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Project: {projectName}
+                              </p>
+                            )}
+                            {/* Show org-level indicator for org roles */}
+                            {(roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
+                              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                Organization-level access
+                              </p>
+                            )}
                           </div>
                           <button
                             onClick={() => handleRemoveRole(roleAssignment.id)}
@@ -541,7 +607,7 @@ export function RoleAssignmentModal({
                                 {(assignment as any).role?.name || (assignment as any).role_name}
                               </span>
                               <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor((assignment as any).role?.role_type || (assignment as any).role_type)}`}>
-                                {((assignment as any).role?.role_type || (assignment as any).role_type).replace('_', ' ')}
+                                {getRoleDisplayName((assignment as any).role?.role_type || (assignment as any).role_type)}
                               </span>
                             </div>
                           </div>
@@ -570,6 +636,59 @@ export function RoleAssignmentModal({
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Remove Role Assignment
+              </h3>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-900 dark:text-white font-medium mb-2">
+                    Are you sure you want to remove this role assignment?
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    This action will revoke the {entityType}'s access to the assigned project. This cannot be undone.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmRemoveRole}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Remove Role
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
