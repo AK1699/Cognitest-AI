@@ -72,7 +72,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         value=access_token,
         httponly=True,  # Prevents JavaScript access (XSS protection)
         secure=is_production,    # Only sent over HTTPS in production
-        samesite="none" if not is_production else "none",  # "none" works for localhost even with HTTP
+        samesite="lax" if not is_production else "none",  # Use "lax" for localhost HTTP
         max_age=access_max_age,
         path="/"
     )
@@ -85,7 +85,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         value=refresh_token,
         httponly=True,
         secure=is_production,
-        samesite="none",  # Allow cross-origin requests to send cookies
+        samesite="lax" if not is_production else "none",  # Use "lax" for localhost HTTP
         max_age=refresh_max_age,
         path="/"
     )
