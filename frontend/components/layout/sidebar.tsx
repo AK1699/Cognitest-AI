@@ -189,7 +189,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
-          backgroundColor: '#f0f4f7'
+          backgroundColor: '#ecf4f6'
         }}
       >
         <div className="flex flex-col h-full">

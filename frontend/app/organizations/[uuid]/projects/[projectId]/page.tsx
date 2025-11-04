@@ -312,7 +312,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0f4f7' }}>
+      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#ecf4f6' }}>
         {/* Organization & User Header */}
         {organisation && user && (
           <div className="p-4 border-b border-gray-200 relative">
