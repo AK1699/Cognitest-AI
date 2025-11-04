@@ -1,0 +1,15 @@
+{
+  "/auth/signin/page": "app/auth/signin/page.js",
+  "/cognitest.ai/page": "app/cognitest.ai/page.js",
+  "/organizations/[uuid]/billing/page": "app/organizations/[uuid]/billing/page.js",
+  "/organizations/[uuid]/enterprise-reporting/page": "app/organizations/[uuid]/enterprise-reporting/page.js",
+  "/organizations/[uuid]/integrations/page": "app/organizations/[uuid]/integrations/page.js",
+  "/organizations/[uuid]/projects/[projectId]/page": "app/organizations/[uuid]/projects/[projectId]/page.js",
+  "/organizations/[uuid]/projects/[projectId]/test-management/page": "app/organizations/[uuid]/projects/[projectId]/test-management/page.js",
+  "/organizations/[uuid]/projects/page": "app/organizations/[uuid]/projects/page.js",
+  "/organizations/[uuid]/settings/page": "app/organizations/[uuid]/settings/page.js",
+  "/organizations/[uuid]/users-teams/page": "app/organizations/[uuid]/users-teams/page.js",
+  "/organizations/new/page": "app/organizations/new/page.js",
+  "/organizations/page": "app/organizations/page.js",
+  "/page": "app/page.js"
+}

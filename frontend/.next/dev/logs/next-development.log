@@ -1,0 +1,573 @@
+[00:00:11.298] Server  LOG      ✓ Ready in 5.8s
+[00:00:14.779] Server  LOG      ○ Compiling /organizations/new ...
+[00:01:29.718] Browser ERROR   Error creating organization: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","data":"{\"name\":\"test\",\"website\":null,\"description\":null}","env":{},"headers":{"Accept":"application/json, text/plain, */*","Content-Type":"application/json"},"maxBodyLength":-1,"maxContentLength":-1,"method":"post","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async handleSubmit (http://localhost:3000/_next/static/chunks/_7f8c5a4a._.js:54:30)"}
+[00:01:37.491] Browser ERROR   Error creating organization: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","data":"{\"name\":\"test\",\"website\":null,\"description\":null}","env":{},"headers":{"Accept":"application/json, text/plain, */*","Content-Type":"application/json"},"maxBodyLength":-1,"maxContentLength":-1,"method":"post","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async handleSubmit (http://localhost:3000/_next/static/chunks/_7f8c5a4a._.js:54:30)"}
+[00:17:58.545] Browser ERROR   Error creating organization: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","data":"{\"name\":\"test\",\"website\":null,\"description\":null}","env":{},"headers":{"Accept":"application/json, text/plain, */*","Content-Type":"application/json"},"maxBodyLength":-1,"maxContentLength":-1,"method":"post","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async handleSubmit (http://localhost:3000/_next/static/chunks/_7f8c5a4a._.js:54:30)"}
+[00:18:48.132] Server  LOG      ✓ Compiled in 213ms
+[00:18:54.333] Browser ERROR   Failed to fetch reporting data: {"code":"ERR_BAD_REQUEST","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"get","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/test_cases/?project_id=0b2093c6-77f0-4624-9e80-7733c5a3f529","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Request failed with status code 404","name":"AxiosError","stack":"AxiosError: Request failed with status code 404\n    at settle (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7050:16)\n    at XMLHttpRequest.onloadend (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7552:174)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async fetchData (http://localhost:3000/_next/static/chunks/frontend_59963633._.js:761:43)","status":404}
+[00:18:54.333] Browser ERROR   Failed to fetch reporting data: {"code":"ERR_BAD_REQUEST","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"get","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/test_cases/?project_id=0b2093c6-77f0-4624-9e80-7733c5a3f529","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Request failed with status code 404","name":"AxiosError","stack":"AxiosError: Request failed with status code 404\n    at settle (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7050:16)\n    at XMLHttpRequest.onloadend (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7552:174)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async fetchData (http://localhost:3000/_next/static/chunks/frontend_59963633._.js:761:43)","status":404}
+[00:20:10.127] Server  LOG      ✓ Compiled in 267ms
+[00:36:48.951] Browser ERROR   Error creating organization: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","data":"{\"name\":\"cognitest\",\"website\":null,\"description\":null}","env":{},"headers":{"Accept":"application/json, text/plain, */*","Content-Type":"application/json"},"maxBodyLength":-1,"maxContentLength":-1,"method":"post","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async handleSubmit (http://localhost:3000/_next/static/chunks/_7f8c5a4a._.js:54:30)"}
+[00:36:54.018] Browser ERROR   Error creating organization: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","data":"{\"name\":\"test\",\"website\":null,\"description\":null}","env":{},"headers":{"Accept":"application/json, text/plain, */*","Content-Type":"application/json"},"maxBodyLength":-1,"maxContentLength":-1,"method":"post","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async handleSubmit (http://localhost:3000/_next/static/chunks/_7f8c5a4a._.js:54:30)"}
+[01:00:07.730] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/ff9d5983-2857-4a33-8f47-f33c828aebc6","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:00:07.730] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/ff9d5983-2857-4a33-8f47-f33c828aebc6","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:16:31.962] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:16:31.962] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:16:54.932] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:16:54.932] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:20:41.434] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[01:20:41.434] Browser ERROR   Failed to delete organisation: {"code":"ERR_NETWORK","config":{"adapter":["xhr","http","fetch"],"allowAbsoluteUrls":true,"baseURL":"http://localhost:8000","env":{},"headers":{"Accept":"application/json, text/plain, */*"},"maxBodyLength":-1,"maxContentLength":-1,"method":"delete","timeout":0,"transformRequest":[null],"transformResponse":[null],"transitional":{"clarifyTimeoutError":false,"forcedJSONParsing":true,"silentJSONParsing":true},"url":"/api/v1/organisations/bb73b7fd-7a54-4aab-bebc-d007cf9195c2","withCredentials":true,"xsrfCookieName":"XSRF-TOKEN","xsrfHeaderName":"X-XSRF-TOKEN"},"message":"Network Error","name":"AxiosError","stack":"AxiosError: Network Error\n    at XMLHttpRequest.handleError (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:7598:25)\n    at Axios.request (http://localhost:3000/_next/static/chunks/node_modules_d4308453._.js:8321:49)\n    at async deleteOrganisation (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2240:13)\n    at async handleDelete (http://localhost:3000/_next/static/chunks/frontend_33c73c87._.js:2011:13)"}
+[08:29:27.553] Browser LOG     🎯 Roles from API: [{"id":"87a87ab9-c922-490b-bc3c-a812d43d73d8","name":"QA Lead","permission_count":15,"permissions_from_api":15,"role_type":"qa_lead"},{"id":"e62ed36f-df26-49a4-8dcb-e0d37b3c8e9f","name":"Owner","permission_count":28,"permissions_from_api":28,"role_type":"owner"},{"id":"3b4a916f-31b0-45b4-b07b-bb1c57d02ce1","name":"Product Owner","permission_count":5,"permissions_from_api":5,"role_type":"product_owner"},{"id":"48d41d99-9989-4d28-ad65-64014e8d6365","name":"QA Engineer","permission_count":11,"permissions_from_api":11,"role_type":"qa_engineer"},{"id":"00990874-0402-497f-abfd-035eddfcca95","name":"QA Manager","permission_count":20,"permissions_from_api":20,"role_type":"qa_manager"},{"id":"0586fcc0-b38f-41e6-b4f0-4c15cfb6d812","name":"Admin","permission_count":28,"permissions_from_api":28,"role_type":"admin"},{"id":"0fae22eb-8bc5-4ad8-9771-194afa8660ed","name":"Viewer","permission_count":5,"permissions_from_api":5,"role_type":"viewer"}]
+[08:29:27.554] Browser LOG     🎯 Roles from API: [{"id":"87a87ab9-c922-490b-bc3c-a812d43d73d8","name":"QA Lead","permission_count":15,"permissions_from_api":15,"role_type":"qa_lead"},{"id":"e62ed36f-df26-49a4-8dcb-e0d37b3c8e9f","name":"Owner","permission_count":28,"permissions_from_api":28,"role_type":"owner"},{"id":"3b4a916f-31b0-45b4-b07b-bb1c57d02ce1","name":"Product Owner","permission_count":5,"permissions_from_api":5,"role_type":"product_owner"},{"id":"48d41d99-9989-4d28-ad65-64014e8d6365","name":"QA Engineer","permission_count":11,"permissions_from_api":11,"role_type":"qa_engineer"},{"id":"00990874-0402-497f-abfd-035eddfcca95","name":"QA Manager","permission_count":20,"permissions_from_api":20,"role_type":"qa_manager"},{"id":"0586fcc0-b38f-41e6-b4f0-4c15cfb6d812","name":"Admin","permission_count":28,"permissions_from_api":28,"role_type":"admin"},{"id":"0fae22eb-8bc5-4ad8-9771-194afa8660ed","name":"Viewer","permission_count":5,"permissions_from_api":5,"role_type":"viewer"}]
+[08:29:27.554] Browser LOG     🔍 Permission name to ID mapping: ["user_read_access","user_write_access","user_delete_access","role_read_access","role_write_access"]
+[08:29:27.554] Browser LOG     📋 Total permissions found: 16
+[08:29:27.554] Browser LOG     🔍 Processing role "QA Lead" (qa_lead): {"hasPermissions":true,"permissionCount":15,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.554] Browser LOG     ✅ Role "QA Lead" (qa_lead): 15 permissions from API
+[08:29:27.554] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, 81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78, f3669f80-4cb8-4b73-9360-ec2d32edfc54...
+[08:29:27.554] Browser LOG     🔍 Processing role "Owner" (owner): {"hasPermissions":true,"permissionCount":28,"permissionIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c","09988dff-7a1f-491d-9705-31ce15d496b5","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","0303968b-0b01-4f60-a0d5-1cf9a514e6d0","9d13098c-fb2a-42f1-93e0-cab7a6f50544","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","866b4504-9463-4d98-9061-2ff1fb3b080b","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","82f24261-9a43-4322-85c6-3ced048ec423","088d7e4f-6b58-4ae2-8b8d-815f15c7f836","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","1d580fa3-d011-4f26-84b5-cffddf337b23","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.554] Browser LOG     ✅ Role "Owner" (owner): 28 permissions from API
+[08:29:27.554] Browser LOG        Permission IDs: 4a24623b-5934-43c3-b3c4-f99197b1b2a8, 6733cd94-04f0-44e3-9b0c-325bddb6e74c, 09988dff-7a1f-491d-9705-31ce15d496b5...
+[08:29:27.554] Browser LOG     🔍 Processing role "Product Owner" (product_owner): {"hasPermissions":true,"permissionCount":5,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","0f223297-6d6a-467d-9b74-7a1c0468aa9b","12ff3199-ab5f-4cf9-b233-e905ae529038"]}
+[08:29:27.554] Browser LOG     ✅ Role "Product Owner" (product_owner): 5 permissions from API
+[08:29:27.554] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670...
+[08:29:27.554] Browser LOG     🔍 Processing role "QA Engineer" (qa_engineer): {"hasPermissions":true,"permissionCount":11,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.554] Browser LOG     ✅ Role "QA Engineer" (qa_engineer): 11 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, 5fd45527-22e5-4590-8a75-60eef4a9faa2...
+[08:29:27.555] Browser LOG     🔍 Processing role "QA Manager" (qa_manager): {"hasPermissions":true,"permissionCount":20,"permissionIds":["445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a","4a24623b-5934-43c3-b3c4-f99197b1b2a8","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766"]}
+[08:29:27.555] Browser LOG     ✅ Role "QA Manager" (qa_manager): 20 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038...
+[08:29:27.555] Browser LOG     🔍 Processing role "Admin" (admin): {"hasPermissions":true,"permissionCount":28,"permissionIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c","09988dff-7a1f-491d-9705-31ce15d496b5","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","0303968b-0b01-4f60-a0d5-1cf9a514e6d0","9d13098c-fb2a-42f1-93e0-cab7a6f50544","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","866b4504-9463-4d98-9061-2ff1fb3b080b","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","82f24261-9a43-4322-85c6-3ced048ec423","088d7e4f-6b58-4ae2-8b8d-815f15c7f836","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","1d580fa3-d011-4f26-84b5-cffddf337b23","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.555] Browser LOG     ✅ Role "Admin" (admin): 28 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: 4a24623b-5934-43c3-b3c4-f99197b1b2a8, 6733cd94-04f0-44e3-9b0c-325bddb6e74c, 09988dff-7a1f-491d-9705-31ce15d496b5...
+[08:29:27.555] Browser LOG     🔍 Processing role "Viewer" (viewer): {"hasPermissions":true,"permissionCount":5,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","0f223297-6d6a-467d-9b74-7a1c0468aa9b","12ff3199-ab5f-4cf9-b233-e905ae529038"]}
+[08:29:27.555] Browser LOG     ✅ Role "Viewer" (viewer): 5 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670...
+[08:29:27.555] Browser LOG     📝 Detailed permission mapping:
+[08:29:27.555] Browser LOG       QA Lead: [project_read_access, project_write_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Owner: [user_read_access, user_write_access, user_delete_access, role_read_access, role_write_access, role_delete_access, project_read_access, project_write_access, project_delete_access, settings_read_access, settings_write_access, organization_manage_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, 1d580fa3-d011-4f26-84b5-cffddf337b23, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Product Owner: [project_read_access, test_case_read_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 12ff3199-ab5f-4cf9-b233-e905ae529038]
+[08:29:27.555] Browser LOG       QA Engineer: [project_read_access, test_case_read_access, test_case_write_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       QA Manager: [445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a, user_read_access, role_read_access, project_read_access, project_write_access, settings_read_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766]
+[08:29:27.555] Browser LOG       Admin: [user_read_access, user_write_access, user_delete_access, role_read_access, role_write_access, role_delete_access, project_read_access, project_write_access, project_delete_access, settings_read_access, settings_write_access, organization_manage_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, 1d580fa3-d011-4f26-84b5-cffddf337b23, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Viewer: [project_read_access, test_case_read_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 12ff3199-ab5f-4cf9-b233-e905ae529038]
+[08:29:27.555] Browser LOG     📊 Final permission map: [{"count":15,"roleId":"87a87ab9","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78"]},{"count":28,"roleId":"e62ed36f","sampleIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c"]},{"count":5,"roleId":"3b4a916f","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]},{"count":11,"roleId":"48d41d99","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]},{"count":20,"roleId":"00990874","sampleIds":["445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f"]},{"count":28,"roleId":"0586fcc0","sampleIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c"]},{"count":5,"roleId":"0fae22eb","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]}]
+[08:29:27.555] Browser LOG     🔍 Permission name to ID mapping: ["user_read_access","user_write_access","user_delete_access","role_read_access","role_write_access"]
+[08:29:27.555] Browser LOG     📋 Total permissions found: 16
+[08:29:27.555] Browser LOG     🔍 Processing role "QA Lead" (qa_lead): {"hasPermissions":true,"permissionCount":15,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.555] Browser LOG     ✅ Role "QA Lead" (qa_lead): 15 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, 81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78, f3669f80-4cb8-4b73-9360-ec2d32edfc54...
+[08:29:27.555] Browser LOG     🔍 Processing role "Owner" (owner): {"hasPermissions":true,"permissionCount":28,"permissionIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c","09988dff-7a1f-491d-9705-31ce15d496b5","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","0303968b-0b01-4f60-a0d5-1cf9a514e6d0","9d13098c-fb2a-42f1-93e0-cab7a6f50544","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","866b4504-9463-4d98-9061-2ff1fb3b080b","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","82f24261-9a43-4322-85c6-3ced048ec423","088d7e4f-6b58-4ae2-8b8d-815f15c7f836","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","1d580fa3-d011-4f26-84b5-cffddf337b23","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.555] Browser LOG     ✅ Role "Owner" (owner): 28 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: 4a24623b-5934-43c3-b3c4-f99197b1b2a8, 6733cd94-04f0-44e3-9b0c-325bddb6e74c, 09988dff-7a1f-491d-9705-31ce15d496b5...
+[08:29:27.555] Browser LOG     🔍 Processing role "Product Owner" (product_owner): {"hasPermissions":true,"permissionCount":5,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","0f223297-6d6a-467d-9b74-7a1c0468aa9b","12ff3199-ab5f-4cf9-b233-e905ae529038"]}
+[08:29:27.555] Browser LOG     ✅ Role "Product Owner" (product_owner): 5 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670...
+[08:29:27.555] Browser LOG     🔍 Processing role "QA Engineer" (qa_engineer): {"hasPermissions":true,"permissionCount":11,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.555] Browser LOG     ✅ Role "QA Engineer" (qa_engineer): 11 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, 5fd45527-22e5-4590-8a75-60eef4a9faa2...
+[08:29:27.555] Browser LOG     🔍 Processing role "QA Manager" (qa_manager): {"hasPermissions":true,"permissionCount":20,"permissionIds":["445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a","4a24623b-5934-43c3-b3c4-f99197b1b2a8","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766"]}
+[08:29:27.555] Browser LOG     ✅ Role "QA Manager" (qa_manager): 20 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038...
+[08:29:27.555] Browser LOG     🔍 Processing role "Admin" (admin): {"hasPermissions":true,"permissionCount":28,"permissionIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c","09988dff-7a1f-491d-9705-31ce15d496b5","3b8bb4a8-8611-4ae8-bde9-fb3aba9d074b","0303968b-0b01-4f60-a0d5-1cf9a514e6d0","9d13098c-fb2a-42f1-93e0-cab7a6f50544","ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78","866b4504-9463-4d98-9061-2ff1fb3b080b","4d74a200-ff3f-4012-9b8f-7ccf778e7e90","82f24261-9a43-4322-85c6-3ced048ec423","088d7e4f-6b58-4ae2-8b8d-815f15c7f836","f3669f80-4cb8-4b73-9360-ec2d32edfc54","5fd45527-22e5-4590-8a75-60eef4a9faa2","e91970aa-f3a5-4bbb-97c6-30af5963ebcf","a27f9047-099b-4f4d-9b79-92ab16267260","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","369c8ca9-90f6-4d41-9320-80a27cfbcc04","1d580fa3-d011-4f26-84b5-cffddf337b23","a1ce3a19-8229-4ea6-b37d-40765dd33117","0f223297-6d6a-467d-9b74-7a1c0468aa9b","784611e6-e998-449e-8899-8634fb62d766","445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f","12ff3199-ab5f-4cf9-b233-e905ae529038","6acf7193-c37a-4eb1-9798-3d1686af02e2","8956f29f-f156-4a90-8d60-d1db83db4a56","893a5d45-aa8b-4102-abe7-6984e4175f3a"]}
+[08:29:27.555] Browser LOG     ✅ Role "Admin" (admin): 28 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: 4a24623b-5934-43c3-b3c4-f99197b1b2a8, 6733cd94-04f0-44e3-9b0c-325bddb6e74c, 09988dff-7a1f-491d-9705-31ce15d496b5...
+[08:29:27.555] Browser LOG     🔍 Processing role "Viewer" (viewer): {"hasPermissions":true,"permissionCount":5,"permissionIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54","fb6a5a4c-9dc4-47f2-935d-c70ce0d47670","0f223297-6d6a-467d-9b74-7a1c0468aa9b","12ff3199-ab5f-4cf9-b233-e905ae529038"]}
+[08:29:27.555] Browser LOG     ✅ Role "Viewer" (viewer): 5 permissions from API
+[08:29:27.555] Browser LOG        Permission IDs: ae364a0d-8ecc-41f3-b9a6-4c558d10d258, f3669f80-4cb8-4b73-9360-ec2d32edfc54, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670...
+[08:29:27.555] Browser LOG     📝 Detailed permission mapping:
+[08:29:27.555] Browser LOG       QA Lead: [project_read_access, project_write_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Owner: [user_read_access, user_write_access, user_delete_access, role_read_access, role_write_access, role_delete_access, project_read_access, project_write_access, project_delete_access, settings_read_access, settings_write_access, organization_manage_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, 1d580fa3-d011-4f26-84b5-cffddf337b23, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Product Owner: [project_read_access, test_case_read_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 12ff3199-ab5f-4cf9-b233-e905ae529038]
+[08:29:27.555] Browser LOG       QA Engineer: [project_read_access, test_case_read_access, test_case_write_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       QA Manager: [445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a, user_read_access, role_read_access, project_read_access, project_write_access, settings_read_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766]
+[08:29:27.555] Browser LOG       Admin: [user_read_access, user_write_access, user_delete_access, role_read_access, role_write_access, role_delete_access, project_read_access, project_write_access, project_delete_access, settings_read_access, settings_write_access, organization_manage_access, test_case_read_access, test_case_write_access, test_case_delete_access, test_case_execute_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 369c8ca9-90f6-4d41-9320-80a27cfbcc04, 1d580fa3-d011-4f26-84b5-cffddf337b23, a1ce3a19-8229-4ea6-b37d-40765dd33117, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 784611e6-e998-449e-8899-8634fb62d766, 445790f6-90f0-400e-9458-c2c9900c498c, 9d8b5fee-85d5-47ef-ab67-1f57ae2b425f, 12ff3199-ab5f-4cf9-b233-e905ae529038, 6acf7193-c37a-4eb1-9798-3d1686af02e2, 8956f29f-f156-4a90-8d60-d1db83db4a56, 893a5d45-aa8b-4102-abe7-6984e4175f3a]
+[08:29:27.555] Browser LOG       Viewer: [project_read_access, test_case_read_access, fb6a5a4c-9dc4-47f2-935d-c70ce0d47670, 0f223297-6d6a-467d-9b74-7a1c0468aa9b, 12ff3199-ab5f-4cf9-b233-e905ae529038]
+[08:29:27.555] Browser LOG     📊 Final permission map: [{"count":15,"roleId":"87a87ab9","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","81cf8ce4-9be7-4d4a-b68b-bf2c9604ee78"]},{"count":28,"roleId":"e62ed36f","sampleIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c"]},{"count":5,"roleId":"3b4a916f","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]},{"count":11,"roleId":"48d41d99","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]},{"count":20,"roleId":"00990874","sampleIds":["445790f6-90f0-400e-9458-c2c9900c498c","9d8b5fee-85d5-47ef-ab67-1f57ae2b425f"]},{"count":28,"roleId":"0586fcc0","sampleIds":["4a24623b-5934-43c3-b3c4-f99197b1b2a8","6733cd94-04f0-44e3-9b0c-325bddb6e74c"]},{"count":5,"roleId":"0fae22eb","sampleIds":["ae364a0d-8ecc-41f3-b9a6-4c558d10d258","f3669f80-4cb8-4b73-9360-ec2d32edfc54"]}]
+[08:34:04.250] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.253] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.255] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.258] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.297] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.298] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.299] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.300] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.302] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.303] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.303] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.304] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:04.326] Server  LOG      ✓ Compiled in 307ms
+[08:34:04.806] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:34:10.632] Server  ERROR    ⨯ ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:10.739] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:34:11.351] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:34:11.351] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:34:11.811] Browser ERROR   uncaughtError: Error: ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[08:34:12.021] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:34:12.021] Browser ERROR   ./frontend/lib/api/roles.ts:1:1
+Module not found: Can't resolve '@/lib/axios'
+> 1 | import axios from '@/lib/axios'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | export interface Permission {
+  4 |   id: string
+
+Import map: aliased to relative './lib/axios' inside of [project]/frontend
+
+Import traces:
+  Client Component Browser:
+    ./frontend/lib/api/roles.ts [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component Browser]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./frontend/lib/api/roles.ts [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Client Component SSR]
+    ./frontend/app/organizations/[uuid]/users-teams/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[08:35:02.203] Server  LOG      ✓ Compiled in 112ms
+[08:36:06.298] Browser LOG     [testCasesAPI.list] Fetching from: /api/v1/test-cases/?project_id=43080958-325e-4536-b321-27f460e36eec
+[08:36:06.298] Browser LOG     [2;38;2;124;124;124m%s[0m [testCasesAPI.list] Fetching from: /api/v1/test-cases/?project_id=43080958-325e-4536-b321-27f460e36eec
+[08:36:11.662] Browser LOG     [testCasesAPI.list] Fetching from: /api/v1/test-cases/?project_id=43080958-325e-4536-b321-27f460e36eec
+[08:36:11.662] Browser LOG     [2;38;2;124;124;124m%s[0m [testCasesAPI.list] Fetching from: /api/v1/test-cases/?project_id=43080958-325e-4536-b321-27f460e36eec
