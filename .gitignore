@@ -29,14 +29,6 @@ build/
 *.egg
 MANIFEST
 
-# Database & Storage (Local development - recreated via migrations)
-postgres_data/
-qdrant_storage/
-minio_data/
-*.db
-*.sqlite
-*.sqlite3
-
 # Logs
 logs/
 *.log
