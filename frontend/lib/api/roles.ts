@@ -1,4 +1,4 @@
-import api from './index'
+import axios from '@/lib/axios'
 
 export interface Permission {
   id: string
@@ -44,21 +44,21 @@ export interface GroupProjectRoleWithDetails {
 }
 
 export async function listRoles(organisationId: string): Promise<{ roles: ProjectRole[] }> {
-  const response = await api.get(`/api/v1/roles/`, {
+  const response = await axios.get(`/api/v1/roles/`, {
     params: { organisation_id: organisationId }
   })
   return response.data
 }
 
 export async function listUserRoles(userId: string, projectId: string): Promise<UserProjectRoleWithDetails[]> {
-  const response = await api.get(`/api/v1/roles/assignments/users`, {
+  const response = await axios.get(`/api/v1/roles/assignments/users`, {
     params: { user_id: userId, project_id: projectId }
   })
   return response.data.assignments || []
 }
 
 export async function listGroupRoles(groupId: string, projectId: string): Promise<GroupProjectRoleWithDetails[]> {
-  const response = await api.get(`/api/v1/roles/assignments/groups`, {
+  const response = await axios.get(`/api/v1/roles/assignments/groups`, {
     params: { group_id: groupId, project_id: projectId }
   })
   return response.data.assignments || []
@@ -69,7 +69,7 @@ export async function assignRoleToUser(
   roleId: string,
   projectId: string
 ): Promise<UserProjectRoleWithDetails> {
-  const response = await api.post('/api/v1/roles/assignments/users', {
+  const response = await axios.post('/api/v1/roles/assignments/users', {
     user_id: userId,
     role_id: roleId,
     project_id: projectId
@@ -82,7 +82,7 @@ export async function assignRoleToGroup(
   roleId: string,
   projectId: string
 ): Promise<GroupProjectRoleWithDetails> {
-  const response = await api.post('/api/v1/roles/assignments/groups', {
+  const response = await axios.post('/api/v1/roles/assignments/groups', {
     group_id: groupId,
     role_id: roleId,
     project_id: projectId
@@ -91,11 +91,11 @@ export async function assignRoleToGroup(
 }
 
 export async function removeRoleFromUser(assignmentId: string): Promise<void> {
-  await api.delete(`/api/v1/roles/assignments/users/${assignmentId}`)
+  await axios.delete(`/api/v1/roles/assignments/users/${assignmentId}`)
 }
 
 export async function removeRoleFromGroup(assignmentId: string): Promise<void> {
-  await api.delete(`/api/v1/roles/assignments/groups/${assignmentId}`)
+  await axios.delete(`/api/v1/roles/assignments/groups/${assignmentId}`)
 }
 
 export async function createRole(
@@ -105,7 +105,7 @@ export async function createRole(
   description?: string,
   permissions?: string[]
 ): Promise<ProjectRole> {
-  const response = await api.post('/api/v1/roles/', {
+  const response = await axios.post('/api/v1/roles/', {
     organisation_id: organisationId,
     name,
     role_type: roleType,
@@ -116,10 +116,10 @@ export async function createRole(
 }
 
 export async function deleteRole(roleId: string): Promise<void> {
-  await api.delete(`/api/v1/roles/${roleId}`)
+  await axios.delete(`/api/v1/roles/${roleId}`)
 }
 
 export async function listPermissions(): Promise<Permission[]> {
-  const response = await api.get('/api/v1/roles/permissions')
+  const response = await axios.get('/api/v1/roles/permissions')
   return response.data.permissions || []
 }
