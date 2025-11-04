@@ -1,6 +1,7 @@
 # Node (Build artifacts)
 node_modules/
 .next/
+frontend/.next/
 .turbo/
 out/
 .vercel/

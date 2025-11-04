@@ -96,7 +96,9 @@
       "Bash(/tmp/test_implementation.sh:*)",
       "Bash(alembic history:*)",
       "Bash(alembic stamp:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(git rm:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
