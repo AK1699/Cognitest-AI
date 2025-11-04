@@ -47,7 +47,7 @@ export default function OrganizationsPage() {
       // If user has exactly one organization, redirect directly to it
       if (response.data.length === 1) {
         const org = response.data[0]
-        localStorage.setItem('current_organisation', JSON.stringify(org))
+        localStorage.setItem('current_organization', JSON.stringify(org))
         window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
         router.push(`/organizations/${org.id}/projects`)
         return
@@ -87,7 +87,7 @@ export default function OrganizationsPage() {
   }
 
   const handleSelectOrganisation = (org: Organisation) => {
-    localStorage.setItem('current_organisation', JSON.stringify(org))
+    localStorage.setItem('current_organization', JSON.stringify(org))
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     router.push(`/organizations/${org.id}/projects`)
   }

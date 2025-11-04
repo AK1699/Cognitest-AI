@@ -277,7 +277,7 @@ async def create_organisation(
 
     # Automatically initialize group types (ADMIN, QA, DEV, PRODUCT)
     from app.services.group_type_service import GroupTypeService
-    await GroupTypeService.initialize_group_types(db, new_organisation.id)
+    await GroupTypeService.initialize_group_types(db, new_organisation.id, created_by=current_user.email)
 
     await db.commit()
     await db.refresh(new_organisation)

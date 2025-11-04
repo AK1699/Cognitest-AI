@@ -299,7 +299,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const switchOrganisation = (org: Organisation) => {
     setOrganisation(org)
-    localStorage.setItem('current_organisation', JSON.stringify(org))
+    localStorage.setItem('current_organization', JSON.stringify(org))
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     router.push(`/organizations/${org.id}/projects`)

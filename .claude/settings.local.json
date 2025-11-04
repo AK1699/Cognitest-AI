@@ -95,7 +95,8 @@
       "Bash(echo \"Testing Test Plans API...\" curl -s http://localhost:8000/api/v1/test-plans/ -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\")",
       "Bash(/tmp/test_implementation.sh:*)",
       "Bash(alembic history:*)",
-      "Bash(alembic stamp:*)"
+      "Bash(alembic stamp:*)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

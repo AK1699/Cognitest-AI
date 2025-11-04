@@ -123,12 +123,12 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
-    const currentOrg = localStorage.getItem('current_organisation')
+    const currentOrg = localStorage.getItem('current_organization')
     if (currentOrg) {
       try {
         setCurrentOrganisation(JSON.parse(currentOrg))
       } catch (error) {
-        console.error('Failed to parse organisation from localStorage', error)
+        console.error('Failed to parse organization from localStorage', error)
       }
     }
     if (user) {
@@ -155,7 +155,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
 
   const switchOrganisation = (org: Organisation) => {
     setCurrentOrganisation(org)
-    localStorage.setItem('current_organisation', JSON.stringify(org))
+    localStorage.setItem('current_organization', JSON.stringify(org))
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     // Refetch organizations after switching
@@ -189,7 +189,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
-          backgroundColor: '#ecf4f6'
+          backgroundColor: '#f0fefa'
         }}
       >
         <div className="flex flex-col h-full">

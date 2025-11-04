@@ -1,19 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import api from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 
-export default function CreateOrganisationPage() {
+export default function CreateOrganizationPage() {
   const [name, setName] = useState('')
   const [website, setWebsite] = useState('')
   const [nameError, setNameError] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/signin')
+    }
+  }, [user, authLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,17 +44,34 @@ export default function CreateOrganisationPage() {
       )
 
       // Store current organization
-      localStorage.setItem('current_organisation', JSON.stringify(response.data))
+      localStorage.setItem('current_organization', JSON.stringify(response.data))
 
       toast.success('Organization created successfully!')
 
       // Redirect to projects with organization UUID
       router.push(`/organizations/${response.data.id}/projects`)
     } catch (error: any) {
-      console.error('Error creating organisation:', error)
+      console.error('Error creating organization:', error)
       toast.error(error.response?.data?.detail || 'Failed to create organization')
       setLoading(false)
     }
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-teal-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!user) {
+    return null
   }
 
   return (

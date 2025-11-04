@@ -137,19 +137,25 @@ class GroupTypeService:
     """Service for managing group types"""
 
     @staticmethod
-    async def initialize_group_types(db: AsyncSession, organization_id: str) -> None:
+    async def initialize_group_types(db: AsyncSession, organization_id, created_by: str = "system") -> None:
         """
         Initialize default group types for an organization
         """
+        # Convert UUID to string if needed
+        org_id_str = str(organization_id)
+
         for group_type_code, config in DEFAULT_GROUP_TYPES.items():
             # Check if already exists
             result = await db.execute(
                 select(GroupType).where(
                     GroupType.code == group_type_code,
-                    GroupType.organization_id == organization_id,
+                    GroupType.organization_id == org_id_str,
                 )
             )
-            if result.scalar_one_or_none():
+            existing_group_type = result.scalar_one_or_none()
+
+            # Skip if it already exists
+            if existing_group_type:
                 continue
 
             # Create group type
@@ -157,7 +163,7 @@ class GroupTypeService:
                 code=group_type_code,
                 name=config["name"],
                 description=config["description"],
-                organization_id=organization_id,
+                organization_id=org_id_str,
                 is_system_type=False,
                 order=list(DEFAULT_GROUP_TYPES.keys()).index(group_type_code),
             )
@@ -170,7 +176,7 @@ class GroupTypeService:
                 result = await db.execute(
                     select(ProjectRole).where(
                         ProjectRole.name == role_config["name"],
-                        ProjectRole.organisation_id == organization_id,
+                        ProjectRole.organisation_id == org_id_str,
                     )
                 )
                 role = result.scalar_one_or_none()
@@ -181,38 +187,53 @@ class GroupTypeService:
                         name=role_config["name"],
                         role_type=role_config["role_type"],
                         description=role_config.get("description", ""),
-                        organization_id=organization_id,
+                        organisation_id=org_id_str,
+                        created_by=created_by,
                         is_system_role=False,
                         is_active=True,
                     )
                     db.add(role)
                     await db.flush()
 
-                # Link role to group type
-                group_type_role = GroupTypeRole(
-                    group_type_id=group_type.id,
-                    role_id=role.id,
-                    role_name=role_config["name"],
-                    description=role_config.get("description", ""),
-                    is_default=role_config.get("is_default", False),
-                    order=config["roles"].index(role_config),
+                # Check if group type role already exists
+                result = await db.execute(
+                    select(GroupTypeRole).where(
+                        GroupTypeRole.group_type_id == group_type.id,
+                        GroupTypeRole.role_id == role.id,
+                    )
                 )
-                db.add(group_type_role)
+                if not result.scalar_one_or_none():
+                    # Link role to group type
+                    group_type_role = GroupTypeRole(
+                        group_type_id=group_type.id,
+                        role_id=role.id,
+                        role_name=role_config["name"],
+                        description=role_config.get("description", ""),
+                        is_default=role_config.get("is_default", False),
+                        order=config["roles"].index(role_config),
+                    )
+                    db.add(group_type_role)
 
-            # Create access configuration
-            access = GroupTypeAccess(
-                group_type_id=group_type.id,
-                organization_id=organization_id,
-                access_level=config["access_level"],
-                accessible_modules=None,  # All modules
-                can_manage_users=config["can_manage_users"],
-                can_manage_groups=config["can_manage_groups"],
-                can_manage_roles=config["can_manage_roles"],
-                can_manage_organization=config["can_manage_organization"],
+            # Check if access configuration already exists
+            result = await db.execute(
+                select(GroupTypeAccess).where(
+                    GroupTypeAccess.group_type_id == group_type.id,
+                    GroupTypeAccess.organization_id == org_id_str,
+                )
             )
-            db.add(access)
-
-        await db.commit()
+            if not result.scalar_one_or_none():
+                # Create access configuration
+                access = GroupTypeAccess(
+                    group_type_id=group_type.id,
+                    organization_id=org_id_str,
+                    access_level=config["access_level"],
+                    accessible_modules=None,  # All modules
+                    can_manage_users=config["can_manage_users"],
+                    can_manage_groups=config["can_manage_groups"],
+                    can_manage_roles=config["can_manage_roles"],
+                    can_manage_organization=config["can_manage_organization"],
+                )
+                db.add(access)
 
     @staticmethod
     async def get_group_type(db: AsyncSession, group_type_id: str):

@@ -61,15 +61,15 @@ export function UserNav() {
           } else if (response.data.length > 0) {
             // Set first org as current if the stored one doesn't exist
             setCurrentOrganisation(response.data[0])
-            localStorage.setItem('current_organisation', JSON.stringify(response.data[0]))
+            localStorage.setItem('current_organization', JSON.stringify(response.data[0]))
           }
         } catch (error) {
-          console.error('Failed to parse organisation from localStorage', error)
+          console.error('Failed to parse organization from localStorage', error)
         }
       } else if (response.data.length > 0) {
         // Set first org as current if none is set
         setCurrentOrganisation(response.data[0])
-        localStorage.setItem('current_organisation', JSON.stringify(response.data[0]))
+        localStorage.setItem('current_organization', JSON.stringify(response.data[0]))
       }
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -80,7 +80,7 @@ export function UserNav() {
 
   const switchOrganisation = (org: Organisation) => {
     setCurrentOrganisation(org)
-    localStorage.setItem('current_organisation', JSON.stringify(org))
+    localStorage.setItem('current_organization', JSON.stringify(org))
 
     // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
@@ -109,12 +109,12 @@ export function UserNav() {
         const remainingOrgs = organisations.filter(o => o.id !== org.id)
         if (remainingOrgs.length > 0) {
           setCurrentOrganisation(remainingOrgs[0])
-          localStorage.setItem('current_organisation', JSON.stringify(remainingOrgs[0]))
+          localStorage.setItem('current_organization', JSON.stringify(remainingOrgs[0]))
           // Dispatch event to update dashboard
           window.dispatchEvent(new CustomEvent('organisationChanged', { detail: remainingOrgs[0] }))
         } else {
           setCurrentOrganisation(null)
-          localStorage.removeItem('current_organisation')
+          localStorage.removeItem('current_organization')
           router.push('/organizations/new')
         }
       }
