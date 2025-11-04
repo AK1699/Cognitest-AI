@@ -51,7 +51,7 @@ class Issue(Base):
 
     # Metadata
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

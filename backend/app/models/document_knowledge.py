@@ -66,7 +66,7 @@ class DocumentKnowledge(Base):
     chunk_hashes = Column(JSON, default=list)  # List of chunk IDs in vector DB
 
     # Metadata
-    metadata = Column(JSON, default=dict)  # Additional metadata (title, author, tags, etc.)
+    meta_data = Column(JSON, default=dict)  # Additional metadata (title, author, tags, etc.)
     tags = Column(JSON, default=list)  # Searchable tags
 
     # Learning tracking
@@ -159,7 +159,7 @@ class DocumentUsageLog(Base):
     user_feedback = Column(Text, nullable=True)  # User comments on usefulness
 
     # Metadata
-    metadata = Column(JSON, default=dict)
+    meta_data = Column(JSON, default=dict)
 
     # Timestamp
     used_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
