@@ -473,7 +473,13 @@ async def delete_organisation(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Delete an organisation.
+    Delete an organisation and all related data.
+    This will cascade delete:
+    - Projects
+    - Roles
+    - Groups and Group Types
+    - User organisation memberships
+    - And all related data
     """
     result = await db.execute(
         select(Organisation).where(
@@ -489,6 +495,82 @@ async def delete_organisation(
             detail="Organisation not found"
         )
 
+    # Delete related data in correct order to avoid foreign key constraint violations
+
+    # 1. Delete user organisations
+    await db.execute(
+        text("DELETE FROM user_organisations WHERE organisation_id = :org_id"),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 2. Delete group type access (has FK to group_types) - uses "organization_id" (US spelling)
+    await db.execute(
+        text("DELETE FROM group_type_access WHERE organization_id = :org_id"),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 3. Delete group type roles (has FK to group_types)
+    await db.execute(
+        text("""
+            DELETE FROM group_type_roles
+            WHERE group_type_id IN (
+                SELECT id FROM group_types WHERE organization_id = :org_id
+            )
+        """),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 4. Delete group types - uses "organization_id" (US spelling)
+    await db.execute(
+        text("DELETE FROM group_types WHERE organization_id = :org_id"),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 5. Delete groups (has FK to group_types, but we already deleted group_types)
+    await db.execute(
+        text("""
+            DELETE FROM groups
+            WHERE organisation_id = :org_id
+        """),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 6. Delete projects and all related data
+    await db.execute(
+        text("""
+            DELETE FROM user_project_roles
+            WHERE project_id IN (
+                SELECT id FROM projects WHERE organisation_id = :org_id
+            )
+        """),
+        {"org_id": str(organisation_id)}
+    )
+
+    await db.execute(
+        text("""
+            DELETE FROM projects
+            WHERE organisation_id = :org_id
+        """),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 7. Delete project roles
+    await db.execute(
+        text("""
+            DELETE FROM role_permissions
+            WHERE role_id IN (
+                SELECT id FROM project_roles WHERE organisation_id = :org_id
+            )
+        """),
+        {"org_id": str(organisation_id)}
+    )
+
+    await db.execute(
+        text("DELETE FROM project_roles WHERE organisation_id = :org_id"),
+        {"org_id": str(organisation_id)}
+    )
+
+    # 8. Finally, delete the organisation itself
     await db.delete(organisation)
     await db.commit()
 
