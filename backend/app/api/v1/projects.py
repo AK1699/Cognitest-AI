@@ -60,22 +60,38 @@ async def create_project(
     await db.commit()
     await db.refresh(project)
 
-    # Automatically assign the creator to the project
-    from sqlalchemy import text
-    await db.execute(
+    # Automatically assign the creator to the project with Owner role
+    # First, get the Owner role for this organisation
+    owner_role_result = await db.execute(
         text("""
-            INSERT INTO user_projects (user_id, project_id, role, assigned_by)
-            VALUES (:user_id, :project_id, :role, :assigned_by)
-            ON CONFLICT (user_id, project_id) DO NOTHING
+            SELECT id FROM project_roles
+            WHERE organisation_id = :org_id
+              AND role_type = 'owner'
+              AND is_system_role = true
+            LIMIT 1
         """),
-        {
-            "user_id": str(project.owner_id),
-            "project_id": str(project.id),
-            "role": "owner",
-            "assigned_by": str(current_user.id)
-        }
+        {"org_id": str(project.organisation_id)}
     )
-    await db.commit()
+    owner_role = owner_role_result.fetchone()
+
+    if owner_role:
+        # Insert user-project-role assignment
+        from uuid import uuid4
+        await db.execute(
+            text("""
+                INSERT INTO user_project_roles (id, user_id, project_id, role_id, assigned_by)
+                VALUES (:id, :user_id, :project_id, :role_id, :assigned_by)
+                ON CONFLICT DO NOTHING
+            """),
+            {
+                "id": str(uuid4()),
+                "user_id": str(project.owner_id),
+                "project_id": str(project.id),
+                "role_id": str(owner_role[0]),
+                "assigned_by": str(current_user.id)
+            }
+        )
+        await db.commit()
 
     return project
 

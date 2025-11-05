@@ -98,7 +98,8 @@
       "Bash(alembic stamp:*)",
       "Bash(netstat:*)",
       "Bash(git rm:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(./venv/bin/uvicorn:*)"
     ],
     "deny": [],
     "ask": []
