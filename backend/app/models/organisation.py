@@ -25,9 +25,10 @@ class Organisation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships - commented out until ready
+    # Relationships
     # owner = relationship("User", back_populates="organisations")
     # projects = relationship("Project", back_populates="organisation", cascade="all, delete-orphan")
+    integrations = relationship("Integration", back_populates="organisation", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Organisation {self.name}>"

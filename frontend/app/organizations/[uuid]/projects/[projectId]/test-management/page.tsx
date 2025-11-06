@@ -2,18 +2,23 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles } from 'lucide-react'
+import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3 } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { testPlansAPI, testSuitesAPI, testCasesAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-management'
 import TestPlanList from '@/components/test-management/TestPlanList'
 import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModal'
+import CreateTestPlanModalV2 from '@/components/test-management/CreateTestPlanModalV2'
 import AITestPlanGenerator from '@/components/test-management/AITestPlanGenerator'
 import TestSuiteList from '@/components/test-management/TestSuiteList'
 import CreateTestSuiteModal from '@/components/test-management/CreateTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
 import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModal'
+import DocumentUploadModal from '@/components/test-management/DocumentUploadModal'
+import IntegrationsManager from '@/components/integrations/IntegrationsManager'
+import IssuesManager from '@/components/issues/IssuesManager'
+import DefectDashboard from '@/components/issues/DefectDashboard'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -72,6 +77,12 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [filteredTestCases, setFilteredTestCases] = useState<TestCase[]>([])
   const [showCaseForm, setShowCaseForm] = useState(false)
+
+  // New Features State
+  const [showDocuments, setShowDocuments] = useState(false)
+  const [showIntegrations, setShowIntegrations] = useState(false)
+  const [showIssues, setShowIssues] = useState(false)
+  const [showDefectDashboard, setShowDefectDashboard] = useState(false)
 
   useEffect(() => {
     fetchProject()
@@ -463,42 +474,83 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Test Management</div>
-            <button
-              onClick={() => setActiveTab('plans')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                activeTab === 'plans'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Test Plans
-            </button>
-            <button
-              onClick={() => setActiveTab('suites')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                activeTab === 'suites'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Test Suites
-            </button>
-            <button
-              onClick={() => setActiveTab('cases')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                activeTab === 'cases'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Test Cases
-            </button>
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="space-y-6">
+            {/* Test Management Section */}
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Test Management</div>
+              <button
+                onClick={() => setActiveTab('plans')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  activeTab === 'plans'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                Test Plans
+              </button>
+              <button
+                onClick={() => setActiveTab('suites')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  activeTab === 'suites'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                Test Suites
+              </button>
+              <button
+                onClick={() => setActiveTab('cases')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  activeTab === 'cases'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                Test Cases
+              </button>
+              <button
+                onClick={() => setShowDocuments(true)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+              >
+                <Upload className="w-4 h-4" />
+                Documents
+              </button>
+            </div>
+
+            {/* Issues & Defects Section */}
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Issues & Defects</div>
+              <button
+                onClick={() => setShowIssues(true)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+              >
+                <AlertCircle className="w-4 h-4" />
+                All Issues
+              </button>
+              <button
+                onClick={() => setShowDefectDashboard(true)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </button>
+            </div>
+
+            {/* Integrations Section */}
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Integrations</div>
+              <button
+                onClick={() => setShowIntegrations(true)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+              >
+                <Zap className="w-4 h-4" />
+                External Tools
+              </button>
+            </div>
           </div>
         </nav>
       </aside>
@@ -723,7 +775,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
       {/* Modals */}
       {showManualForm && (
-        <CreateTestPlanModal
+        <CreateTestPlanModalV2
           onClose={() => setShowManualForm(false)}
           onCreate={handleCreateManual}
         />
@@ -750,6 +802,40 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
           onClose={() => setShowCaseForm(false)}
           onCreate={handleCreateTestCase}
           testSuites={testSuites}
+        />
+      )}
+
+      {/* New Feature Modals */}
+      {showDocuments && (
+        <DocumentUploadModal
+          projectId={projectId}
+          onClose={() => setShowDocuments(false)}
+          onUploadSuccess={() => {
+            toast.success('Document uploaded successfully')
+            fetchTestPlans() // Refresh in case test plan was generated
+          }}
+        />
+      )}
+
+      {showIntegrations && organisation && (
+        <IntegrationsManager
+          organisationId={organisation.id}
+          projectId={projectId}
+          onClose={() => setShowIntegrations(false)}
+        />
+      )}
+
+      {showIssues && (
+        <IssuesManager
+          projectId={projectId}
+          onClose={() => setShowIssues(false)}
+        />
+      )}
+
+      {showDefectDashboard && (
+        <DefectDashboard
+          projectId={projectId}
+          onClose={() => setShowDefectDashboard(false)}
         />
       )}
     </div>

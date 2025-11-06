@@ -62,16 +62,87 @@ export interface TestSuite {
   updated_at?: string
 }
 
+export interface Milestone {
+  name: string
+  description?: string
+  due_date?: string
+  status: 'pending' | 'in_progress' | 'completed'
+  completed_date?: string
+}
+
 export interface TestPlan {
   id: string
-  name: string
-  description: string
   project_id: string
+
+  // 1. Basic Information
+  name: string
+  version?: string
+  modules: string[]
+  test_plan_type: 'regression' | 'sanity' | 'smoke' | 'uat' | 'performance' | 'security' | 'integration' | 'unit' | 'e2e' | 'api' | 'mobile' | 'other'
+
+  // 2. Objectives & Scope
+  objective?: string
+  description?: string
+  scope_in: string[]
+  scope_out: string[]
+  assumptions?: string
+  constraints_risks?: string
   objectives: string[]
+
+  // 3. Test Strategy & Approach
+  testing_approach?: string
+  test_levels: string[]
+  test_types: string[]
+  entry_criteria?: string
+  exit_criteria?: string
+  defect_management_approach?: string
+
+  // 4. Environment & Tools
+  test_environments: string[]
+  environment_urls: Record<string, string>
+  tools_used: string[]
+  data_setup?: string
+
+  // 5. Roles & Responsibilities
+  test_manager_id?: string
+  qa_lead_ids: string[]
+  qa_engineer_ids: string[]
+  stakeholder_ids: string[]
+
+  // 6. Schedule & Milestones
+  planned_start_date?: string
+  planned_end_date?: string
+  actual_start_date?: string
+  actual_end_date?: string
+  milestones: Milestone[]
+
+  // 7. Metrics & Reporting
+  test_coverage_target?: number
+  automation_coverage_target?: number
+  defect_density_target?: number
+  reporting_frequency: 'daily' | 'weekly' | 'biweekly' | 'end_of_cycle' | 'on_demand'
+  dashboard_links: string[]
+
+  // 8. Review & Approval
+  review_status: 'draft' | 'under_review' | 'approved' | 'rejected'
+  reviewed_by_ids: string[]
+  review_comments?: string
+  approval_date?: string
+
+  // Metadata
   tags: string[]
+  meta_data: Record<string, any>
+
+  // AI Generation
+  generated_by: 'ai' | 'manual' | 'hybrid'
+  source_documents: string[]
+  confidence_score?: string
+
+  // Audit
   created_by: string
   created_at: string
   updated_at?: string
+  last_updated_by?: string
 }
 
 // API functions
@@ -206,5 +277,42 @@ export const testPlansAPI = {
   }) => {
     const response = await axiosInstance.post(`/api/v1/test-plans/ai-generate`, request)
     return response.data
+  },
+
+  approve: async (id: string, data: {
+    review_status: 'draft' | 'under_review' | 'approved' | 'rejected'
+    review_comments?: string
+    reviewer_id: string
+  }) => {
+    const response = await axiosInstance.post(`/api/v1/test-plans/${id}/approve`, data)
+    return response.data
+  },
+
+  getSummary: async (id: string) => {
+    const response = await axiosInstance.get(`/api/v1/test-plans/${id}/summary`)
+    return response.data
+  },
+
+  listByStatus: async (projectId: string, reviewStatus?: string, testPlanType?: string) => {
+    const params = new URLSearchParams({ project_id: projectId })
+    if (reviewStatus) params.append('review_status', reviewStatus)
+    if (testPlanType) params.append('test_plan_type', testPlanType)
+
+    const response = await axiosInstance.get(`/api/v1/test-plans/by-status/?${params}`)
+    return response.data
+  },
+
+  generateComprehensive: async (request: {
+    project_id: string
+    project_type: string
+    description: string
+    features: string[]
+    platforms: string[]
+    priority: 'low' | 'medium' | 'high' | 'critical'
+    complexity: 'low' | 'medium' | 'high'
+    timeframe: string
+  }) => {
+    const response = await axiosInstance.post(`/api/v1/test-plans/generate-comprehensive`, request)
+    return response.data as TestPlan
   },
 }
