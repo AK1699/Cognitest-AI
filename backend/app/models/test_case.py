@@ -41,12 +41,12 @@ class TestCase(Base):
     actual_result = Column(Text, nullable=True)
 
     # Status & Priority
-    status = Column(SQLEnum(TestCaseStatus), default=TestCaseStatus.DRAFT)
-    priority = Column(SQLEnum(TestCasePriority), default=TestCasePriority.MEDIUM)
+    status = Column(SQLEnum(TestCaseStatus, values_callable=lambda x: [e.value for e in x]), default=TestCaseStatus.DRAFT)
+    priority = Column(SQLEnum(TestCasePriority, values_callable=lambda x: [e.value for e in x]), default=TestCasePriority.MEDIUM)
 
     # AI Generation
     ai_generated = Column(Boolean, default=False)
-    generated_by = Column(SQLEnum(GenerationType), default=GenerationType.MANUAL)
+    generated_by = Column(SQLEnum(GenerationType, values_callable=lambda x: [e.value for e in x]), default=GenerationType.MANUAL)
     confidence_score = Column(String(50), nullable=True)
 
     # Execution logs

@@ -8,6 +8,8 @@ from datetime import datetime
 
 from app.core.deps import get_db, get_current_active_user
 from app.models.test_plan import TestPlan, GenerationType, TestPlanType, ReviewStatus
+from app.models.test_suite import TestSuite
+from app.models.test_case import TestCase, TestCasePriority, TestCaseStatus
 from app.models.project import Project
 from app.models.organisation import Organisation
 from app.models.user import User
@@ -526,6 +528,13 @@ async def generate_comprehensive_test_plan(
     - complexity: Complexity level (low, medium, high)
     - timeframe: Expected timeframe (e.g., "2-4 weeks")
     """
+    # Log incoming request for debugging
+    print(f"\n\n{'='*80}")
+    print(f"COMPREHENSIVE TEST PLAN REQUEST RECEIVED")
+    print(f"Request data: {request}")
+    print(f"{'='*80}\n")
+    logger.info(f"Received comprehensive test plan request: {request}")
+
     # Extract project_id and verify access
     project_id = request.get("project_id")
     if not project_id:
@@ -567,12 +576,13 @@ async def generate_comprehensive_test_plan(
 
         # Create test plan in database with IEEE 829 sections
         plan_data = generation_result["data"]
+        logger.info(f"Creating TestPlan with plan_data keys: {plan_data.keys()}")
 
         test_plan = TestPlan(
             project_id=project_id,
             name=plan_data.get("name", "Comprehensive Test Plan"),
             description=plan_data.get("description"),
-            test_plan_type=TestPlanType.REGRESSION,  # Default type
+            test_plan_type=TestPlanType.REGRESSION.value,  # Default type - use .value for enum
 
             # IEEE 829 comprehensive sections
             test_objectives_ieee=plan_data.get("test_objectives", []),
@@ -593,8 +603,9 @@ async def generate_comprehensive_test_plan(
             scope_out=plan_data.get("scope_of_testing", {}).get("out_of_scope", []),
 
             # Metadata
-            generated_by=GenerationType.AI,
+            generated_by=GenerationType.AI.value,
             confidence_score=generation_result.get("confidence", "high"),
+            review_status=ReviewStatus.DRAFT.value,
             tags=plan_data.get("tags", []),
             meta_data={
                 "estimated_hours": plan_data.get("estimated_hours"),
@@ -608,17 +619,26 @@ async def generate_comprehensive_test_plan(
         )
 
         db.add(test_plan)
+        logger.info("Added test_plan to session, flushing...")
         await db.flush()  # Flush to get test_plan.id
+        logger.info(f"TestPlan created with ID: {test_plan.id}")
 
         # Create test suites and test cases if provided
         test_suites_data = plan_data.get("test_suites", [])
         for suite_data in test_suites_data:
+            # Store category in meta_data if provided
+            suite_meta_data = suite_data.get("meta_data", {})
+            if "category" in suite_data:
+                suite_meta_data["category"] = suite_data["category"]
+
             test_suite = TestSuite(
                 project_id=project_id,
                 test_plan_id=test_plan.id,
                 name=suite_data.get("name", "Test Suite"),
                 description=suite_data.get("description", ""),
-                category=suite_data.get("category", "functional"),
+                tags=suite_data.get("tags", []),
+                meta_data=suite_meta_data,
+                generated_by=GenerationType.AI.value,
                 created_by=current_user.email,
             )
             db.add(test_suite)
@@ -643,6 +663,11 @@ async def generate_comprehensive_test_plan(
                         for idx, step in enumerate(steps)
                     ]
 
+                # Store estimated_time in meta_data if provided
+                case_meta_data = case_data.get("meta_data", {})
+                if "estimated_time" in case_data:
+                    case_meta_data["estimated_time"] = case_data["estimated_time"]
+
                 test_case = TestCase(
                     project_id=project_id,
                     test_suite_id=test_suite.id,
@@ -650,9 +675,10 @@ async def generate_comprehensive_test_plan(
                     description=case_data.get("description", ""),
                     steps=steps,
                     expected_result=case_data.get("expected_result", ""),
-                    priority=TestCasePriority[case_data.get("priority", "medium").upper()],
-                    status=TestCaseStatus.DRAFT,
-                    estimated_time=case_data.get("estimated_time", 30),
+                    priority=TestCasePriority[case_data.get("priority", "medium").upper()].value,
+                    status=TestCaseStatus.DRAFT.value,
+                    generated_by=GenerationType.AI.value,
+                    meta_data=case_meta_data,
                     created_by=current_user.email,
                 )
                 db.add(test_case)
@@ -665,6 +691,14 @@ async def generate_comprehensive_test_plan(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"\n\n{'='*80}")
+        print(f"ERROR IN COMPREHENSIVE TEST PLAN GENERATION")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback:")
+        traceback.print_exc()
+        print(f"{'='*80}\n")
         logger.error(f"Error generating comprehensive test plan: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

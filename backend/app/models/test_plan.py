@@ -49,7 +49,7 @@ class TestPlan(Base):
     name = Column(String(255), nullable=False, index=True)
     version = Column(String(100), nullable=True)  # Version/Release
     modules = Column(JSON, default=list)  # List of modules/features covered
-    test_plan_type = Column(SQLEnum(TestPlanType), default=TestPlanType.REGRESSION)
+    test_plan_type = Column(SQLEnum(TestPlanType, values_callable=lambda x: [e.value for e in x]), default=TestPlanType.REGRESSION)
 
     # ========== 2. OBJECTIVES & SCOPE ==========
     objective = Column(Text, nullable=True)  # Purpose/Goal
@@ -93,17 +93,17 @@ class TestPlan(Base):
     test_coverage_target = Column(Float, nullable=True)  # Target coverage %
     automation_coverage_target = Column(Float, nullable=True)  # Target automation %
     defect_density_target = Column(Float, nullable=True)  # Expected quality threshold
-    reporting_frequency = Column(SQLEnum(ReportingFrequency), default=ReportingFrequency.WEEKLY)
+    reporting_frequency = Column(SQLEnum(ReportingFrequency, values_callable=lambda x: [e.value for e in x]), default=ReportingFrequency.WEEKLY)
     dashboard_links = Column(JSON, default=list)  # Links to dashboards/reports
 
     # ========== 8. REVIEW & APPROVAL ==========
-    review_status = Column(SQLEnum(ReviewStatus), default=ReviewStatus.DRAFT)
+    review_status = Column(SQLEnum(ReviewStatus, values_callable=lambda x: [e.value for e in x]), default=ReviewStatus.DRAFT)
     reviewed_by_ids = Column(JSON, default=list)  # List of reviewer IDs
     review_comments = Column(Text, nullable=True)  # Reviewer feedback
     approval_date = Column(DateTime(timezone=True), nullable=True)
 
     # ========== AI GENERATION ==========
-    generated_by = Column(SQLEnum(GenerationType), default=GenerationType.MANUAL)
+    generated_by = Column(SQLEnum(GenerationType, values_callable=lambda x: [e.value for e in x]), default=GenerationType.MANUAL)
     source_documents = Column(JSON, default=list)  # List of source doc URLs/paths
     confidence_score = Column(String(50), nullable=True)  # AI confidence
 

@@ -18,7 +18,7 @@ class TestSuite(Base):
     description = Column(Text, nullable=True)
 
     # AI Generation
-    generated_by = Column(SQLEnum(GenerationType), default=GenerationType.MANUAL)
+    generated_by = Column(SQLEnum(GenerationType, values_callable=lambda x: [e.value for e in x]), default=GenerationType.MANUAL)
 
     # Execution history
     execution_history = Column(JSON, default=list)

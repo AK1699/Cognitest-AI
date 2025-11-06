@@ -101,7 +101,11 @@
       "Bash(pip install:*)",
       "Bash(./venv/bin/uvicorn:*)",
       "Bash(./venv/bin/alembic revision:*)",
-      "Bash(./venv/bin/alembic upgrade:*)"
+      "Bash(./venv/bin/alembic upgrade:*)",
+      "Bash(journalctl:*)",
+      "Bash(dmesg:*)",
+      "Bash(timeout 2 journalctl:*)",
+      "Bash(/tmp/test_api_call.sh)"
     ],
     "deny": [],
     "ask": []
