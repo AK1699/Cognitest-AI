@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info, Upload, FileText } from 'lucide-react'
 import { testPlansAPI } from '@/lib/api/test-management'
+import { documentsAPI } from '@/lib/api/documents'
 
 interface AITestPlanGeneratorProps {
   projectId: string
@@ -41,6 +42,7 @@ const COMPLEXITIES = [
 ]
 
 export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: AITestPlanGeneratorProps) {
+  const [mode, setMode] = useState<'manual' | 'document'>('manual')
   const [step, setStep] = useState<'form' | 'generating' | 'success'>('form')
 
   const [formData, setFormData] = useState({
@@ -52,6 +54,12 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
     complexity: 'medium' as 'low' | 'medium' | 'high',
     timeframe: '',
   })
+
+  // Document upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [documentContext, setDocumentContext] = useState('')
+  const [documentObjectives, setDocumentObjectives] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [error, setError] = useState('')
   const [generatedPlan, setGeneratedPlan] = useState<any>(null)
@@ -76,6 +84,65 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
       ? formData.platforms.filter(p => p !== platform)
       : [...formData.platforms, platform]
     setFormData({ ...formData, platforms })
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.md']
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+
+    if (!allowedTypes.includes(fileExtension)) {
+      setError(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`)
+      return
+    }
+
+    // Validate file size (50MB max)
+    const maxSize = 50 * 1024 * 1024
+    if (file.size > maxSize) {
+      setError('File size exceeds 50MB limit')
+      return
+    }
+
+    setSelectedFile(file)
+    setError('')
+  }
+
+  const handleDocumentUpload = async () => {
+    if (!selectedFile) {
+      setError('Please select a document to upload')
+      return
+    }
+
+    setStep('generating')
+
+    try {
+      // First upload the document
+      const uploadResult = await documentsAPI.upload(selectedFile, {
+        project_id: projectId,
+        document_type: 'requirements',
+        source: 'upload',
+        description: documentContext || `Uploaded ${selectedFile.name} for test plan generation`,
+      })
+
+      // Then generate test plan from the document
+      const result = await documentsAPI.generateTestPlan(uploadResult.document.id)
+
+      setGeneratedPlan(result)
+      setStep('success')
+
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess()
+          onClose()
+        }, 3000)
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to generate test plan from document')
+      setStep('form')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,8 +238,37 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
               </div>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Mode Toggle */}
+            <div className="mx-6 mt-4 flex gap-2 p-1 bg-gray-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setMode('manual')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'manual'
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                Manual Input
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('document')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'document'
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                Upload Document
+              </button>
+            </div>
+
+            {/* Manual Input Form */}
+            {mode === 'manual' && (
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Project Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -348,6 +444,133 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
                 </button>
               </div>
             </form>
+            )}
+
+            {/* Document Upload Form */}
+            {mode === 'document' && (
+              <div className="p-6 space-y-6">
+                {/* File Upload Info */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">Supported File Types</h3>
+                  <div className="flex flex-wrap gap-2 text-sm text-blue-700">
+                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📄 PDF</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📝 Word (DOC, DOCX)</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📃 Text (TXT)</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📋 Markdown (MD)</span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">Maximum file size: 50MB</p>
+                </div>
+
+                {/* File Upload Area */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Requirements Document <span className="text-red-500">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx,.txt,.md"
+                      className="hidden"
+                    />
+
+                    {selectedFile ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <FileText className="w-8 h-8 text-purple-600" />
+                        <div className="text-left">
+                          <div className="font-medium text-gray-900">{selectedFile.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFile(null)}
+                          className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Requirements Document</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          BRD, PRD, FRD, or any requirements document
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                        >
+                          Choose File
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Context */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Context (Optional)
+                  </label>
+                  <textarea
+                    value={documentContext}
+                    onChange={(e) => setDocumentContext(e.target.value)}
+                    placeholder="Provide any additional information that might help the AI generate better test cases...&#10;Example: Focus on security testing, include edge cases, prioritize user workflows"
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Specific Objectives */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Specific Objectives (Optional)
+                  </label>
+                  <textarea
+                    value={documentObjectives}
+                    onChange={(e) => setDocumentObjectives(e.target.value)}
+                    placeholder="Enter specific objectives, one per line:&#10;Verify login functionality&#10;Test password reset flow&#10;Validate session management"
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                  />
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium text-red-900">Error</h3>
+                      <p className="text-sm text-red-700 mt-1">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDocumentUpload}
+                    disabled={!selectedFile}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generate from Document
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -368,31 +591,60 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
                 Generating Your Test Plan
               </h3>
               <p className="text-gray-600 mb-8">
-                Our AI is analyzing your project and creating a comprehensive test plan...
+                {mode === 'document'
+                  ? 'Our AI is analyzing your document and creating a comprehensive test plan...'
+                  : 'Our AI is analyzing your project and creating a comprehensive test plan...'}
               </p>
 
               {/* Progress Steps */}
               <div className="space-y-3 text-left bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6">
-                <div className="flex items-center gap-3 text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="text-gray-700">Analyzing project requirements</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="text-gray-700">Generating test objectives and scope</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="text-gray-700">Creating test strategy and approach</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                  <span className="text-gray-700 font-medium">Generating test suites and cases...</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm opacity-50">
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
-                  <span className="text-gray-500">Finalizing test plan structure</span>
-                </div>
+                {mode === 'document' ? (
+                  <>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Uploading document</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Extracting requirements and features</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Identifying test scenarios</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                      <span className="text-gray-700 font-medium">Generating comprehensive test plan...</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm opacity-50">
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                      <span className="text-gray-500">Creating test suites and cases</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Analyzing project requirements</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Generating test objectives and scope</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-gray-700">Creating test strategy and approach</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                      <span className="text-gray-700 font-medium">Generating test suites and cases...</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm opacity-50">
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                      <span className="text-gray-500">Finalizing test plan structure</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <p className="text-sm text-gray-500 mt-6">
