@@ -5,19 +5,31 @@ from langchain.output_parsers import PydanticOutputParser, StructuredOutputParse
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
 from app.core.config import settings
+from app.services.gemini_service import GeminiService
 
 
 class AIService:
     """
-    Service for AI operations using LangChain and OpenAI.
+    Unified AI service that supports multiple providers (OpenAI, Gemini).
+    Automatically selects provider based on configuration.
     """
 
     def __init__(self):
+        self.provider = settings.AI_PROVIDER.lower()
+
+        # OpenAI settings
         self.api_key = settings.OPENAI_API_KEY
         self.model_name = settings.OPENAI_MODEL
         self.embedding_model = settings.OPENAI_EMBEDDING_MODEL
         self._llm: Optional[ChatOpenAI] = None
         self._embeddings: Optional[OpenAIEmbeddings] = None
+
+        # Gemini service
+        self._gemini_service: Optional[GeminiService] = None
+
+        # Initialize the selected provider
+        if self.provider == "gemini":
+            self._gemini_service = GeminiService()
 
     def _check_api_key(self):
         """Check if API key is configured."""
@@ -77,6 +89,7 @@ class AIService:
     ) -> str:
         """
         Generate text completion from messages.
+        Automatically uses configured AI provider (OpenAI or Gemini).
 
         Args:
             messages: List of message dicts with 'role' and 'content'
@@ -86,6 +99,17 @@ class AIService:
         Returns:
             Generated text
         """
+        # Use Gemini if configured
+        if self.provider == "gemini":
+            if self._gemini_service is None:
+                self._gemini_service = GeminiService()
+            return await self._gemini_service.generate_completion(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+        # Use OpenAI (default)
         llm = self.get_llm(temperature=temperature, max_tokens=max_tokens)
 
         # Convert dict messages to LangChain message format
@@ -170,6 +194,7 @@ class AIService:
     async def create_embedding(self, text: str) -> List[float]:
         """
         Create embedding vector for text.
+        Automatically uses configured AI provider.
 
         Args:
             text: Input text
@@ -177,6 +202,13 @@ class AIService:
         Returns:
             Embedding vector as list of floats
         """
+        # Use Gemini if configured
+        if self.provider == "gemini":
+            if self._gemini_service is None:
+                self._gemini_service = GeminiService()
+            return await self._gemini_service.create_embedding(text)
+
+        # Use OpenAI (default)
         embeddings = self.get_embeddings()
         vector = await embeddings.aembed_query(text)
         return vector
@@ -184,6 +216,7 @@ class AIService:
     async def create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
         Create embedding vectors for multiple texts.
+        Automatically uses configured AI provider.
 
         Args:
             texts: List of input texts
@@ -191,6 +224,13 @@ class AIService:
         Returns:
             List of embedding vectors
         """
+        # Use Gemini if configured
+        if self.provider == "gemini":
+            if self._gemini_service is None:
+                self._gemini_service = GeminiService()
+            return await self._gemini_service.create_embeddings_batch(texts)
+
+        # Use OpenAI (default)
         embeddings = self.get_embeddings()
         vectors = await embeddings.aembed_documents(texts)
         return vectors

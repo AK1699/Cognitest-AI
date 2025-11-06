@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     REMEMBER_ME_REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
 
+    # AI Provider Selection
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")  # Options: "openai", "gemini"
+
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
@@ -47,6 +50,8 @@ class Settings(BaseSettings):
 
     # Google Gemini
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
 
     # Qdrant (Vector DB)
     QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
