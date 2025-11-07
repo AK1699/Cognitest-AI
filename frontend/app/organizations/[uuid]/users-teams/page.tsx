@@ -26,6 +26,7 @@ import { createInvitation } from '@/lib/api/invitations'
 import { PermissionMatrix } from '@/components/settings/permission-matrix'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 type Tab = 'users' | 'roles'
 
@@ -79,6 +80,7 @@ export default function UsersTeamsPage() {
   } | null>(null)
   const [selectedUserToAdd, setSelectedUserToAdd] = useState<string>('')
   const [showAddMemberSection, setShowAddMemberSection] = useState(false)
+  const { confirm, ConfirmDialog } = useConfirm()
 
   // Form data
   const [userFormData, setUserFormData] = useState({
@@ -326,7 +328,12 @@ export default function UsersTeamsPage() {
   const handleRemoveFromProject = async (projectId: string) => {
     if (!selectedUserForProjects) return
 
-    if (!confirm(`Remove ${selectedUserForProjects.username} from this project?`)) return
+    const confirmed = await confirm({
+      message: `Remove ${selectedUserForProjects.username} from this project?`,
+      variant: 'warning',
+      confirmText: 'Remove User'
+    })
+    if (!confirmed) return
 
     try {
       await api.delete(
@@ -1243,6 +1250,9 @@ export default function UsersTeamsPage() {
       )}
         </div>
       </main>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

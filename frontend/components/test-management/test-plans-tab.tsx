@@ -12,6 +12,7 @@ import { Plus, FileText, Calendar, Tag, Trash2, Edit, Sparkles } from 'lucide-re
 import { testPlansAPI, type TestPlan } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface TestPlansTabProps {
   projectId: string
@@ -23,6 +24,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<TestPlan | null>(null)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -86,7 +88,12 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this test plan?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this test plan?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await testPlansAPI.delete(id)
@@ -398,6 +405,9 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

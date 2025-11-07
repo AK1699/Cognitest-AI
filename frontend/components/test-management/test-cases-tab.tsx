@@ -13,6 +13,7 @@ import { Plus, CheckSquare, Calendar, Trash2, Play, CheckCircle, XCircle, AlertC
 import { testCasesAPI, testSuitesAPI, type TestCase, type TestSuite, type TestStep } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface TestCasesTabProps {
   projectId: string
@@ -43,6 +44,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
   const [selectedCase, setSelectedCase] = useState<TestCase | null>(null)
   const [showExecuteDialog, setShowExecuteDialog] = useState(false)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const [formData, setFormData] = useState({
     title: '',
@@ -153,7 +155,12 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this test case?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this test case?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await testCasesAPI.delete(id)
@@ -692,6 +699,9 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

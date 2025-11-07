@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatDateHumanReadable } from '@/lib/date-utils';
+import { useConfirm } from '@/lib/hooks/use-confirm';
 
 // ============================================
 // API Service
@@ -135,6 +136,7 @@ export const UsersAndTeamsPage: React.FC<{
   projects: Array<{ id: string; name: string }>;
 }> = ({ organisationId, projects }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'roles'>('users');
+  const { confirm, ConfirmDialog } = useConfirm();
 
   return (
     <div className="users-teams-page">
@@ -181,6 +183,9 @@ export const UsersAndTeamsPage: React.FC<{
           <RoleManagementTab organisationId={organisationId} />
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 };
@@ -230,7 +235,12 @@ const UserRoleAssignmentTab: React.FC<{
   };
 
   const handleRemoveAssignment = async (assignmentId: string) => {
-    if (!confirm('Remove this role assignment?')) return;
+    const confirmed = await confirm({
+      message: 'Remove this role assignment?',
+      variant: 'warning',
+      confirmText: 'Remove'
+    });
+    if (!confirmed) return;
 
     try {
       await rbacAPI.removeUserAssignment(assignmentId);
@@ -461,7 +471,12 @@ const RoleManagementTab: React.FC<{
   };
 
   const handleInitializeRoles = async () => {
-    if (!confirm('Initialize default roles? This will create 5 system roles.')) return;
+    const confirmed = await confirm({
+      message: 'Initialize default roles? This will create 5 system roles.',
+      variant: 'info',
+      confirmText: 'Initialize'
+    });
+    if (!confirmed) return;
 
     try {
       await rbacAPI.initializeRoles(organisationId);

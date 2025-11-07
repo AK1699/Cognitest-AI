@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, Settings, Zap, Check, AlertTriangle, Loader2, ExternalLink, RefreshCw, Trash2, Edit, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { integrationsAPI, Integration, IntegrationType, IntegrationStatus } from '@/lib/api/integrations'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface IntegrationsManagerProps {
   organisationId: string
@@ -35,6 +36,7 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
   const [syncing, setSyncing] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -166,7 +168,12 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
   }
 
   const handleDelete = async (integrationId: string) => {
-    if (!confirm('Are you sure you want to delete this integration?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this integration?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await integrationsAPI.delete(integrationId)
@@ -535,6 +542,9 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
           </div>
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

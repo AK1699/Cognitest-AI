@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { Check, Unlink, Plus } from 'lucide-react'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface LinkedAccount {
   provider: string
@@ -23,6 +24,7 @@ export function OAuthAccountLinking({ userId, onLinkSuccess }: OAuthAccountLinki
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([])
   const [loading, setLoading] = useState(false)
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null)
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     fetchLinkedAccounts()
@@ -63,7 +65,12 @@ export function OAuthAccountLinking({ userId, onLinkSuccess }: OAuthAccountLinki
   }
 
   const handleUnlinkAccount = async (provider: string) => {
-    if (!confirm(`Are you sure you want to unlink your ${provider} account?`)) {
+    const confirmed = await confirm({
+      message: `Are you sure you want to unlink your ${provider} account?`,
+      variant: 'warning',
+      confirmText: 'Unlink Account'
+    })
+    if (!confirmed) {
       return
     }
 
@@ -160,6 +167,9 @@ export function OAuthAccountLinking({ userId, onLinkSuccess }: OAuthAccountLinki
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

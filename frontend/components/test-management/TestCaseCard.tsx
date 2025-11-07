@@ -4,6 +4,7 @@ import { TestCase } from '@/lib/api/test-plans'
 import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface TestCaseCardProps {
   testCase: TestCase
@@ -20,6 +21,7 @@ export default function TestCaseCard({
 }: TestCaseCardProps) {
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -130,8 +132,13 @@ export default function TestCaseCard({
               )}
               {onDelete && (
                 <button
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this test case?')) {
+                  onClick={async () => {
+                    const confirmed = await confirm({
+                      message: 'Are you sure you want to delete this test case?',
+                      variant: 'danger',
+                      confirmText: 'Delete'
+                    })
+                    if (confirmed) {
                       onDelete(testCase.id)
                     }
                     setShowMenu(false)
@@ -212,6 +219,9 @@ export default function TestCaseCard({
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut, FolderKanban, Check, Trash2, User, Settings, HelpCircle } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -40,6 +41,7 @@ export function UserNav() {
   const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(false)
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const fetchOrganisations = async () => {
     if (!user) return
@@ -94,7 +96,12 @@ export function UserNav() {
   const handleDeleteOrganisation = async (org: Organisation, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering the switch action
 
-    if (!confirm(`Are you sure you want to delete "${org.name}"? This action cannot be undone.`)) {
+    const confirmed = await confirm({
+      message: `Are you sure you want to delete "${org.name}"? This action cannot be undone.`,
+      variant: 'danger',
+      confirmText: 'Delete Organization'
+    })
+    if (!confirmed) {
       return
     }
 
@@ -146,5 +153,9 @@ export function UserNav() {
   }
 
   // Profile is now in the sidebar, so hide the top-right profile
-  return null
+  return (
+    <>
+      <ConfirmDialog />
+    </>
+  )
 }

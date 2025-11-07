@@ -15,7 +15,6 @@ import TestSuiteList from '@/components/test-management/TestSuiteList'
 import CreateTestSuiteModal from '@/components/test-management/CreateTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
 import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModal'
-import DeleteConfirmModal from '@/components/test-management/DeleteConfirmModal'
 import IntegrationsManager from '@/components/integrations/IntegrationsManager'
 import IssuesManager from '@/components/issues/IssuesManager'
 import DefectDashboard from '@/components/issues/DefectDashboard'
@@ -82,10 +81,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [showIssues, setShowIssues] = useState(false)
   const [showDefectDashboard, setShowDefectDashboard] = useState(false)
-
-  // Delete Modal State
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [testPlanToDelete, setTestPlanToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProject()
@@ -218,23 +213,14 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     }
   }
 
-  const handleDeleteTestPlan = (testPlanId: string) => {
-    setTestPlanToDelete(testPlanId)
-    setShowDeleteModal(true)
-  }
-
-  const confirmDeleteTestPlan = async () => {
-    if (!testPlanToDelete) return
-
+  const handleDeleteTestPlan = async (testPlanId: string) => {
     try {
-      await testPlansAPI.delete(testPlanToDelete)
+      await testPlansAPI.delete(testPlanId)
       toast.success('Test plan deleted successfully')
       fetchTestPlans()
     } catch (error) {
       console.error('Failed to delete test plan:', error)
       toast.error('Failed to delete test plan')
-    } finally {
-      setTestPlanToDelete(null)
     }
   }
 
@@ -266,8 +252,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }
 
   const handleDeleteTestSuite = async (testSuiteId: string) => {
-    if (!confirm('Are you sure you want to delete this test suite?')) return
-
     try {
       await testSuitesAPI.delete(testSuiteId)
       toast.success('Test suite deleted successfully')
@@ -306,8 +290,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }
 
   const handleDeleteTestCase = async (testCaseId: string) => {
-    if (!confirm('Are you sure you want to delete this test case?')) return
-
     try {
       await testCasesAPI.delete(testCaseId)
       toast.success('Test case deleted successfully')
@@ -830,18 +812,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
           onClose={() => setShowDefectDashboard(false)}
         />
       )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false)
-          setTestPlanToDelete(null)
-        }}
-        onConfirm={confirmDeleteTestPlan}
-        title="Confirm Delete"
-        message="Are you sure you want to delete this test plan?"
-      />
     </div>
   )
 }

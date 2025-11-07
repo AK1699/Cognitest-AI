@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, Upload, FileText, CheckCircle2, AlertTriangle, Loader2, File, Trash2, Download, Sparkles } from 'lucide-react'
 import { documentsAPI } from '@/lib/api/documents'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface Document {
   id: string
@@ -32,6 +33,7 @@ export default function DocumentUploadModal({ projectId, onClose, onUploadSucces
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -145,7 +147,12 @@ export default function DocumentUploadModal({ projectId, onClose, onUploadSucces
   }
 
   const handleDelete = async (documentId: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this document?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await documentsAPI.delete(documentId)
@@ -419,6 +426,9 @@ export default function DocumentUploadModal({ projectId, onClose, onUploadSucces
           </button>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

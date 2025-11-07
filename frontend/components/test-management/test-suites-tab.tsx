@@ -13,6 +13,7 @@ import { Plus, FolderKanban, Calendar, Trash2, FileText } from 'lucide-react'
 import { testSuitesAPI, testPlansAPI, type TestSuite, type TestPlan } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface TestSuitesTabProps {
   projectId: string
@@ -25,6 +26,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedSuite, setSelectedSuite] = useState<TestSuite | null>(null)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -90,7 +92,12 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this test suite?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this test suite?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await testSuitesAPI.delete(id)
@@ -381,6 +388,9 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

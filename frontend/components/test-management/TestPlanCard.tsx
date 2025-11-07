@@ -4,6 +4,7 @@ import { TestPlan } from '@/lib/api/test-plans'
 import { Sparkles, User, Target, Calendar, Tag, MoreVertical, Edit, Trash2, Eye } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState } from 'react'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface TestPlanCardProps {
   testPlan: TestPlan
@@ -14,6 +15,7 @@ interface TestPlanCardProps {
 
 export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: TestPlanCardProps) {
   const [showMenu, setShowMenu] = useState(false)
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const getConfidenceColor = (score?: string) => {
     if (!score) return ''
@@ -98,8 +100,15 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
                 )}
                 {onDelete && (
                   <button
-                    onClick={() => {
-                      onDelete(testPlan.id)
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        message: 'Are you sure you want to delete this test plan? This action cannot be undone.',
+                        variant: 'danger',
+                        confirmText: 'Delete Test Plan'
+                      })
+                      if (confirmed) {
+                        onDelete(testPlan.id)
+                      }
                       setShowMenu(false)
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
@@ -174,6 +183,9 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
           <span className="truncate max-w-[150px]">{testPlan.created_by}</span>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import api from '../axios'
+import api from './index'
 
 /**
  * Authorization is handled via httpOnly cookies

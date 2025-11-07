@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, Filter, Search, AlertCircle, Loader2, MessageSquare, Paperclip, Sparkles, ExternalLink, Trash2, Edit, CheckCircle2, Clock, User, Tag } from 'lucide-react'
 import { issuesAPI, Issue } from '@/lib/api/issues'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface IssuesManagerProps {
   projectId: string
@@ -45,6 +46,7 @@ export default function IssuesManager({ projectId, onClose }: IssuesManagerProps
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { confirm, ConfirmDialog } = useConfirm()
 
   // Filters
   const [filters, setFilters] = useState({
@@ -152,7 +154,12 @@ export default function IssuesManager({ projectId, onClose }: IssuesManagerProps
   }
 
   const handleDelete = async (issueId: string) => {
-    if (!confirm('Are you sure you want to delete this issue?')) return
+    const confirmed = await confirm({
+      message: 'Are you sure you want to delete this issue?',
+      variant: 'danger',
+      confirmText: 'Delete'
+    })
+    if (!confirmed) return
 
     try {
       await issuesAPI.delete(issueId)
@@ -685,6 +692,9 @@ export default function IssuesManager({ projectId, onClose }: IssuesManagerProps
           </div>
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   )
 }
