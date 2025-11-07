@@ -1,23 +1,4 @@
-import axios from 'axios'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-// Configure axios to include credentials (cookies) with all requests
-const axiosInstance = axios.create({
-  baseURL: API_URL,
-  withCredentials: true, // This allows cookies to be sent with requests
-})
-
-// Add response interceptor to log errors
-axiosInstance.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      console.error('[API] 401 Unauthorized - Token may be missing or expired')
-    }
-    return Promise.reject(error)
-  }
-)
+import api from '../axios'
 
 /**
  * Authorization is handled via httpOnly cookies
@@ -153,27 +134,27 @@ export const testCasesAPI = {
 
     console.log('[testCasesAPI.list] Fetching from:', `/api/v1/test-cases/?${params}`)
 
-    const response = await axiosInstance.get(`/api/v1/test-cases/?${params}`)
+    const response = await api.get(`/api/v1/test-cases/?${params}`)
     return response.data
   },
 
   get: async (id: string) => {
-    const response = await axiosInstance.get(`/api/v1/test-cases/${id}`)
+    const response = await api.get(`/api/v1/test-cases/${id}`)
     return response.data
   },
 
   create: async (data: Omit<TestCase, 'id' | 'created_at' | 'updated_at'>) => {
-    const response = await axiosInstance.post(`/api/v1/test-cases/`, data)
+    const response = await api.post(`/api/v1/test-cases/`, data)
     return response.data
   },
 
   update: async (id: string, data: Partial<TestCase>) => {
-    const response = await axiosInstance.put(`/api/v1/test-cases/${id}`, data)
+    const response = await api.put(`/api/v1/test-cases/${id}`, data)
     return response.data
   },
 
   delete: async (id: string) => {
-    const response = await axiosInstance.delete(`/api/v1/test-cases/${id}`)
+    const response = await api.delete(`/api/v1/test-cases/${id}`)
     return response.data
   },
 
@@ -183,7 +164,7 @@ export const testCasesAPI = {
     execution_notes?: string
     attachments?: string[]
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-cases/execute`, {
+    const response = await api.post(`/api/v1/test-cases/execute`, {
       test_case_id: testCaseId,
       ...data
     })
@@ -198,7 +179,7 @@ export const testCasesAPI = {
     user_stories?: string[]
     count: number
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-cases/ai-generate`, request)
+    const response = await api.post(`/api/v1/test-cases/ai-generate`, request)
     return response.data
   },
 }
@@ -208,27 +189,27 @@ export const testSuitesAPI = {
     const params = new URLSearchParams({ project_id: projectId })
     if (planId) params.append('test_plan_id', planId)
 
-    const response = await axiosInstance.get(`/api/v1/test-suites/?${params}`)
+    const response = await api.get(`/api/v1/test-suites/?${params}`)
     return response.data
   },
 
   get: async (id: string) => {
-    const response = await axiosInstance.get(`/api/v1/test-suites/${id}`)
+    const response = await api.get(`/api/v1/test-suites/${id}`)
     return response.data
   },
 
   create: async (data: Omit<TestSuite, 'id' | 'created_at' | 'updated_at'>) => {
-    const response = await axiosInstance.post(`/api/v1/test-suites/`, data)
+    const response = await api.post(`/api/v1/test-suites/`, data)
     return response.data
   },
 
   update: async (id: string, data: Partial<TestSuite>) => {
-    const response = await axiosInstance.put(`/api/v1/test-suites/${id}`, data)
+    const response = await api.put(`/api/v1/test-suites/${id}`, data)
     return response.data
   },
 
   delete: async (id: string) => {
-    const response = await axiosInstance.delete(`/api/v1/test-suites/${id}`)
+    const response = await api.delete(`/api/v1/test-suites/${id}`)
     return response.data
   },
 
@@ -238,34 +219,34 @@ export const testSuitesAPI = {
     requirements: string
     test_scenarios?: string[]
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-suites/ai-generate`, request)
+    const response = await api.post(`/api/v1/test-suites/ai-generate`, request)
     return response.data
   },
 }
 
 export const testPlansAPI = {
   list: async (projectId: string) => {
-    const response = await axiosInstance.get(`/api/v1/test-plans/?project_id=${projectId}`)
+    const response = await api.get(`/api/v1/test-plans/?project_id=${projectId}`)
     return response.data
   },
 
   get: async (id: string) => {
-    const response = await axiosInstance.get(`/api/v1/test-plans/${id}`)
+    const response = await api.get(`/api/v1/test-plans/${id}`)
     return response.data
   },
 
   create: async (data: Omit<TestPlan, 'id' | 'created_at' | 'updated_at'>) => {
-    const response = await axiosInstance.post(`/api/v1/test-plans/`, data)
+    const response = await api.post(`/api/v1/test-plans/`, data)
     return response.data
   },
 
   update: async (id: string, data: Partial<TestPlan>) => {
-    const response = await axiosInstance.put(`/api/v1/test-plans/${id}`, data)
+    const response = await api.put(`/api/v1/test-plans/${id}`, data)
     return response.data
   },
 
   delete: async (id: string) => {
-    const response = await axiosInstance.delete(`/api/v1/test-plans/${id}`)
+    const response = await api.delete(`/api/v1/test-plans/${id}`)
     return response.data
   },
 
@@ -275,7 +256,7 @@ export const testPlansAPI = {
     additional_context?: string
     objectives?: string[]
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-plans/ai-generate`, request)
+    const response = await api.post(`/api/v1/test-plans/ai-generate`, request)
     return response.data
   },
 
@@ -284,12 +265,12 @@ export const testPlansAPI = {
     review_comments?: string
     reviewer_id: string
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-plans/${id}/approve`, data)
+    const response = await api.post(`/api/v1/test-plans/${id}/approve`, data)
     return response.data
   },
 
   getSummary: async (id: string) => {
-    const response = await axiosInstance.get(`/api/v1/test-plans/${id}/summary`)
+    const response = await api.get(`/api/v1/test-plans/${id}/summary`)
     return response.data
   },
 
@@ -298,7 +279,7 @@ export const testPlansAPI = {
     if (reviewStatus) params.append('review_status', reviewStatus)
     if (testPlanType) params.append('test_plan_type', testPlanType)
 
-    const response = await axiosInstance.get(`/api/v1/test-plans/by-status/?${params}`)
+    const response = await api.get(`/api/v1/test-plans/by-status/?${params}`)
     return response.data
   },
 
@@ -312,7 +293,7 @@ export const testPlansAPI = {
     complexity: 'low' | 'medium' | 'high'
     timeframe: string
   }) => {
-    const response = await axiosInstance.post(`/api/v1/test-plans/generate-comprehensive`, request)
+    const response = await api.post(`/api/v1/test-plans/generate-comprehensive`, request)
     return response.data as TestPlan
   },
 }
