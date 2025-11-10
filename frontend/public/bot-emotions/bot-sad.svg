@@ -1,0 +1,39 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @keyframes pupilMove {
+        0% { cx: 83; cy: 92; }
+        25% { cx: 88; cy: 87; }
+        50% { cx: 80; cy: 95; }
+        75% { cx: 75; cy: 89; }
+        100% { cx: 83; cy: 92; }
+      }
+
+      @keyframes pupilMoveRight {
+        0% { cx: 123; cy: 92; }
+        25% { cx: 118; cy: 87; }
+        50% { cx: 130; cy: 95; }
+        75% { cx: 135; cy: 89; }
+        100% { cx: 123; cy: 92; }
+      }
+
+      .left-pupil { animation: pupilMove 5s ease-in-out infinite; }
+      .right-pupil { animation: pupilMoveRight 5s ease-in-out infinite; }
+    </style>
+  </defs>
+
+  <!-- Simple blue circle background -->
+  <circle cx="100" cy="100" r="90" fill="#4A90E2"/>
+
+  <!-- Left eye white (droopy) -->
+  <circle cx="80" cy="92" r="16" fill="white"/>
+
+  <!-- Right eye white (droopy) -->
+  <circle cx="120" cy="92" r="16" fill="white"/>
+
+  <!-- Left pupil (animated) -->
+  <circle class="left-pupil" r="7" fill="#4A90E2"/>
+
+  <!-- Right pupil (animated) -->
+  <circle class="right-pupil" r="7" fill="#4A90E2"/>
+</svg>

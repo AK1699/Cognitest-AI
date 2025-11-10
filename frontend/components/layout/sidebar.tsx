@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+import KimiBot3D from '@/components/ui/KimiBot3D'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -193,6 +194,21 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         }}
       >
         <div className="flex flex-col h-full">
+          {/* Logo Section - 3D Kimi Bot with CogniTest text */}
+          <div className="p-4 flex items-center gap-3 border-b border-gray-300">
+            {/* 3D Kimi Bot Icon - Glossy, animated sphere */}
+            <KimiBot3D size={48} className="flex-shrink-0" />
+
+            {/* CogniTest Text - Hidden when collapsed */}
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-bold text-gray-800 dark:text-white tracking-tight">
+                  Cogni<span className="text-primary">Test</span>
+                </h1>
+              </div>
+            )}
+          </div>
+
           {/* Profile Section */}
           {!isCollapsed && user && currentOrganisation && (
             <div className="p-4 relative">
