@@ -1,23 +1,23 @@
-# KimiBot3D - Quick Start Guide
+# CognitestBot3D - Quick Start Guide
 
 ## What Was Created
 
 ### 🎨 Component Files
 
-1. **KimiBot3D.tsx** (7.8 KB)
+1. **CognitestBot3D.tsx** (7.8 KB)
    - Main production-ready React component
    - Pure SVG with CSS animations
    - Fully typed TypeScript
    - Comprehensive comments
 
-2. **KimiBot3D.stories.tsx** (11 KB)
+2. **CognitestBot3D.stories.tsx** (11 KB)
    - Interactive showcase/documentation
    - Size variations demo
    - Animation states
    - Usage examples
    - Props table
 
-3. **KIMI_BOT_3D_GUIDE.md** (Comprehensive guide)
+3. **COGNITEST_BOT_3D_GUIDE.md** (Comprehensive guide)
    - Complete documentation
    - Usage examples
    - API reference
@@ -57,27 +57,27 @@
 
 ### Import
 ```tsx
-import KimiBot3D from '@/components/ui/KimiBot3D';
+import CognitestBot3D from '@/components/ui/CognitestBot3D';
 ```
 
 ### Default (50px, animated)
 ```tsx
-<KimiBot3D />
+<CognitestBot3D />
 ```
 
 ### Custom Size
 ```tsx
-<KimiBot3D size={60} />
+<CognitestBot3D size={60} />
 ```
 
 ### Static (no animation)
 ```tsx
-<KimiBot3D size={50} animate={false} />
+<CognitestBot3D size={50} animate={false} />
 ```
 
 ### With Styling
 ```tsx
-<KimiBot3D
+<CognitestBot3D
   size={48}
   className="hover:drop-shadow-lg"
 />
@@ -159,15 +159,15 @@ No changes needed.
 frontend/
 ├── components/
 │   ├── ui/
-│   │   ├── KimiBot3D.tsx              ← Main component
-│   │   └── KimiBot3D.stories.tsx      ← Documentation & showcase
+│   │   ├── CognitestBot3D.tsx              ← Main component
+│   │   └── CognitestBot3D.stories.tsx      ← Documentation & showcase
 │   └── layout/
 │       └── sidebar.tsx                 ← Already integrated!
 └── [other files...]
 
 Documentation:
-├── KIMI_BOT_3D_GUIDE.md               ← Full guide
-└── KIMI_BOT_3D_QUICK_START.md         ← This file
+├── COGNITEST_BOT_3D_GUIDE.md               ← Full guide
+└── COGNITEST_BOT_3D_QUICK_START.md         ← This file
 ```
 
 ## ✅ Checklist
@@ -207,15 +207,15 @@ Documentation:
    - Add className for styling
 
 5. **Explore Showcase**
-   - View `KimiBot3D.stories.tsx`
+   - View `CognitestBot3D.stories.tsx`
    - See all variations and examples
    - Copy code examples
 
 ## 📚 Resources
 
-- **Full Guide**: `KIMI_BOT_3D_GUIDE.md`
-- **Showcase**: `KimiBot3D.stories.tsx`
-- **Component**: `KimiBot3D.tsx`
+- **Full Guide**: `COGNITEST_BOT_3D_GUIDE.md`
+- **Showcase**: `CognitestBot3D.stories.tsx`
+- **Component**: `CognitestBot3D.tsx`
 - **Integrated In**: `sidebar.tsx` (line 33, 200)
 
 ## 🎨 Design Specs
@@ -251,8 +251,3 @@ The component is:
 
 Just import and use!
 
----
-
-**Version**: 1.0.0
-**Status**: Production-Ready ✅
-**Created**: November 10, 2024

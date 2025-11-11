@@ -22,7 +22,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
-import KimiBot3D from '@/components/ui/KimiBot3D'
+import CognitestBot3D from '@/components/ui/CognitestBot3D'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 

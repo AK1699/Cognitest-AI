@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 
 type EmotionState = 'happy' | 'surprised' | 'thinking' | 'sad';
 
-interface KimiBot3DProps {
+interface CognitestBot3DProps {
   /** Size of the bot in pixels (default: 50px, recommended: 40-60px) */
   size?: number;
   /** Optional CSS class for additional styling */
@@ -14,9 +14,9 @@ interface KimiBot3DProps {
 }
 
 /**
- * KimiBot3D Component with Emotions
+ * CognitestBot3D Component with Emotions
  *
- * A beautiful 3D animated logo inspired by Kimi with:
+ * A beautiful 3D animated logo inspired by Cognitest with:
  * - Glossy spherical shape with realistic 3D lighting
  * - Four emotion states: Happy, Surprised, Thinking, Sad
  * - Click to cycle through emotions
@@ -31,10 +31,10 @@ interface KimiBot3DProps {
  * - Production-ready with comprehensive comments
  *
  * @example
- * <KimiBot3D size={50} />
- * <KimiBot3D size={60} className="my-logo" animate={true} />
+ * <CognitestBot3D size={50} />
+ * <CognitestBot3D size={60} className="my-logo" animate={true} />
  */
-const KimiBot3D: React.FC<KimiBot3DProps> = ({
+const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
   size = 50,
   className = '',
   animate = true,
@@ -224,12 +224,12 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
           }
         }
 
-        .kimi-bot-3d-container {
+        .cognitest-bot-3d-container {
           ${animate ? 'animation: float 3s ease-in-out infinite;' : ''}
           display: inline-block;
         }
 
-        .kimi-bot-3d-container:hover {
+        .cognitest-bot-3d-container:hover {
           animation: ${animate ? 'float 3s ease-in-out infinite, pulse 2s ease-in-out infinite;' : 'pulse 2s ease-in-out infinite;'}
         }
 
@@ -238,13 +238,13 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
           transform-origin: center;
         }
 
-        .kimi-bot-3d-sphere {
+        .cognitest-bot-3d-sphere {
           ${animate ? 'animation: wobble 6s ease-in-out infinite;' : ''}
           transform-origin: center;
           animation-fill-mode: both;
         }
 
-        .kimi-emotion-content {
+        .cognitest-emotion-content {
           animation: emotionFade 0.3s ease-in-out forwards;
         }
       `}</style>
@@ -253,7 +253,7 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
       <button
         onClick={handleBotClick}
         onKeyDown={handleKeyDown}
-        className={`kimi-bot-3d-container cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-full ${
+        className={`cognitest-bot-3d-container cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-full ${
           isTransitioning ? 'opacity-70' : 'opacity-100'
         } ${className}`}
         style={{
@@ -261,9 +261,9 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
           height: size,
           padding: '0',
           border: 'none',
-          background: 'transparent',
+background: 'transparent',
         }}
-        aria-label={`CogniTest 3D bot - Current emotion: ${currentEmotion}. Click to change emotion!`}
+        aria-label={`Cognitest 3D bot - Current emotion: ${currentEmotion}. Click to change emotion!`}
         title={`Current: ${currentEmotion} | Click to change emotion!`}
       >
         <svg
@@ -322,7 +322,7 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
           />
 
           {/* Main glossy sphere - 3D effect */}
-          <g className="kimi-bot-3d-sphere">
+          <g className="cognitest-bot-3d-sphere">
             {/* Base sphere with main gradient */}
             <circle
               cx="100"
@@ -364,7 +364,7 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
             />
 
             {/* Emotion-specific facial features */}
-            <g className="kimi-emotion-content">
+            <g className="cognitest-emotion-content">
               {renderEmotion()}
             </g>
           </g>
@@ -374,4 +374,4 @@ const KimiBot3D: React.FC<KimiBot3DProps> = ({
   );
 };
 
-export default KimiBot3D;
+export default CognitestBot3D;

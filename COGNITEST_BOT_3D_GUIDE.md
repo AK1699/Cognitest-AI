@@ -1,8 +1,8 @@
-# KimiBot3D - 3D Animated Logo Component
+# CognitestBot3D - 3D Animated Logo Component
 
 ## Overview
 
-**KimiBot3D** is a production-ready, beautifully animated 3D logo component inspired by the Kimi bot. It features a glossy spherical design with realistic lighting effects, cute white oval eyes, and smooth animations.
+**CognitestBot3D** is a production-ready, beautifully animated 3D logo component inspired by the Cognitest bot. It features a glossy spherical design with realistic lighting effects, cute white oval eyes, and smooth animations.
 
 Perfect for:
 - Navbar/header branding
@@ -53,7 +53,7 @@ Perfect for:
 The component is already integrated into the CogniTest-AI project. Located at:
 
 ```
-frontend/components/ui/KimiBot3D.tsx
+frontend/components/ui/CognitestBot3D.tsx
 ```
 
 ## Usage
@@ -61,10 +61,10 @@ frontend/components/ui/KimiBot3D.tsx
 ### Basic Usage (Interactive with Emotions)
 
 ```tsx
-import KimiBot3D from '@/components/ui/KimiBot3D';
+import CognitestBot3D from '@/components/ui/CognitestBot3D';
 
 export default function App() {
-  return <KimiBot3D />;
+  return <CognitestBot3D />;
   // Click the bot to cycle through emotions!
 }
 ```
@@ -72,14 +72,14 @@ export default function App() {
 ### With Custom Size
 
 ```tsx
-<KimiBot3D size={50} />
+<CognitestBot3D size={50} />
 ```
 
 ### In Navbar
 
 ```tsx
 <nav className="flex items-center gap-3 p-4">
-  <KimiBot3D size={48} />
+  <CognitestBot3D size={48} />
   <h1 className="text-xl font-bold">CogniTest</h1>
 </nav>
 ```
@@ -87,7 +87,7 @@ export default function App() {
 ### With Custom Styling
 
 ```tsx
-<KimiBot3D
+<CognitestBot3D
   size={60}
   className="hover:drop-shadow-lg transition-all"
 />
@@ -96,7 +96,7 @@ export default function App() {
 ### Static (No Animation, Still Interactive)
 
 ```tsx
-<KimiBot3D size={50} animate={false} />
+<CognitestBot3D size={50} animate={false} />
 ```
 
 ## Component API
@@ -104,7 +104,7 @@ export default function App() {
 ### Props
 
 ```typescript
-interface KimiBot3DProps {
+interface CognitestBot3DProps {
   /** Size of the bot in pixels (default: 50px, recommended: 40-60px) */
   size?: number;
 
@@ -120,19 +120,19 @@ interface KimiBot3DProps {
 
 ```tsx
 // Default (50px, animated, interactive)
-<KimiBot3D />
+<CognitestBot3D />
 
 // Custom size (60px, animated)
-<KimiBot3D size={60} />
+<CognitestBot3D size={60} />
 
 // Static version (no animation, emotions still clickable)
-<KimiBot3D size={50} animate={false} />
+<CognitestBot3D size={50} animate={false} />
 
 // With className
-<KimiBot3D size={48} className="my-logo" />
+<CognitestBot3D size={48} className="my-logo" />
 
 // Full customization
-<KimiBot3D
+<CognitestBot3D
   size={55}
   animate={true}
   className="hover:scale-110 transition-transform"
@@ -156,7 +156,7 @@ The bot cycles through four unique emotions when clicked:
 
 **Click anywhere on the bot:**
 ```tsx
-<KimiBot3D size={50} />
+<CognitestBot3D size={50} />
 // Click → Surprised
 // Click → Thinking
 // Click → Sad
@@ -326,10 +326,10 @@ The component works perfectly in dark mode without any changes:
 
 ```tsx
 // Light mode
-<KimiBot3D size={50} />
+<CognitestBot3D size={50} />
 
 // Dark mode (automatic)
-<KimiBot3D size={50} />
+<CognitestBot3D size={50} />
 ```
 
 The blue colors work well on both light and dark backgrounds due to the glossy highlight effect.
@@ -362,7 +362,7 @@ Modify the animation duration in the `<style>` block:
 Set `animate={false}`:
 
 ```tsx
-<KimiBot3D animate={false} />
+<CognitestBot3D animate={false} />
 ```
 
 Or disable specific animations by removing them from the CSS.
@@ -383,7 +383,7 @@ return (
     onClick={handleClick}
     style={{ transform: `scale(${scale})`, transition: '0.3s' }}
   >
-    <KimiBot3D size={50} />
+    <CognitestBot3D size={50} />
   </div>
 );
 ```
@@ -402,7 +402,7 @@ return (
       value={size}
       onChange={(e) => setSize(Number(e.target.value))}
     />
-    <KimiBot3D size={size} />
+    <CognitestBot3D size={size} />
   </>
 );
 ```
@@ -413,7 +413,7 @@ return (
 const [isAnimating, setIsAnimating] = React.useState(true);
 
 return (
-  <KimiBot3D size={50} animate={isAnimating} />
+  <CognitestBot3D size={50} animate={isAnimating} />
 );
 ```
 
@@ -422,12 +422,12 @@ return (
 ### In Header/Navbar
 
 ```tsx
-import KimiBot3D from '@/components/ui/KimiBot3D';
+import CognitestBot3D from '@/components/ui/CognitestBot3D';
 
 export function Header() {
   return (
     <header className="border-b px-6 py-4 flex items-center gap-3">
-      <KimiBot3D size={48} />
+      <CognitestBot3D size={48} />
       <h1 className="text-2xl font-bold text-gray-900">
         Cogni<span className="text-blue-500">Test</span>
       </h1>
@@ -440,7 +440,7 @@ export function Header() {
 
 ```tsx
 <div className="p-4 flex items-center gap-3 border-b">
-  <KimiBot3D size={48} />
+  <CognitestBot3D size={48} />
   {!isCollapsed && (
     <h1 className="text-lg font-bold">CogniTest</h1>
   )}
@@ -452,7 +452,7 @@ export function Header() {
 ```tsx
 <section className="text-center py-20">
   <div className="mb-8 flex justify-center">
-    <KimiBot3D size={100} />
+    <CognitestBot3D size={100} />
   </div>
   <h1 className="text-4xl font-bold">Welcome to CogniTest</h1>
   <p className="text-gray-600 mt-4">AI-Powered Testing Platform</p>
@@ -466,7 +466,7 @@ const [isAnimating, setIsAnimating] = React.useState(true);
 
 return (
   <div className="flex flex-col items-center gap-4">
-    <KimiBot3D size={60} animate={isAnimating} />
+    <CognitestBot3D size={60} animate={isAnimating} />
     <button
       onClick={() => setIsAnimating(!isAnimating)}
       className="px-4 py-2 bg-blue-500 text-white rounded"
@@ -498,7 +498,7 @@ return (
 ### Component Not Displaying
 
 1. **Check import path**: Verify path matches your project structure
-2. **Check file exists**: `frontend/components/ui/KimiBot3D.tsx`
+2. **Check file exists**: `frontend/components/ui/CognitestBot3D.tsx`
 3. **Check TypeScript errors**: Run `tsc` to check for errors
 4. **Check console**: Look for error messages
 
@@ -549,14 +549,3 @@ Possible improvements for future versions:
 ✅ **Testing**: Ready for unit/integration tests
 ✅ **Production-Ready**: No console warnings/errors
 
-## License & Attribution
-
-Part of the CogniTest-AI project.
-Inspired by the Kimi bot design.
-
----
-
-**Version**: 1.0.0
-**Created**: November 10, 2024
-**Framework**: Next.js 16, React 18, TypeScript
-**Status**: Production-Ready ✅

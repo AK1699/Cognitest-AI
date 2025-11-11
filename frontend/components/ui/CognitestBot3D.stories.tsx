@@ -1,21 +1,21 @@
 /**
- * KimiBot3D Component Stories
+ * CognitestBot3D Component Stories
  *
- * Showcase and documentation for the 3D animated Kimi-inspired bot logo.
+ * Showcase and documentation for the 3D animated Cognitest-inspired bot logo.
  * Demonstrates different sizes, states, and customization options.
  */
 
 import React from 'react';
-import KimiBot3D from './KimiBot3D';
+import CognitestBot3D from './CognitestBot3D';
 
-export default function KimiBot3DShowcase() {
+export default function CognitestBot3DShowcase() {
   return (
     <div className="w-full max-w-4xl mx-auto p-8 bg-gray-50 dark:bg-gray-900 rounded-lg">
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        KimiBot3D Component
+        CognitestBot3D Component
       </h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8">
-        A beautiful 3D animated logo inspired by Kimi with glossy sphere effect,
+        A beautiful 3D animated logo inspired by Cognitest with glossy sphere effect,
         realistic lighting, and playful animations.
       </p>
 
@@ -26,23 +26,23 @@ export default function KimiBot3DShowcase() {
         </h2>
         <div className="flex items-center gap-8 p-6 bg-white dark:bg-gray-800 rounded-lg">
           <div className="flex flex-col items-center gap-2">
-            <KimiBot3D size={40} />
+            <CognitestBot3D size={40} />
             <span className="text-xs text-gray-600 dark:text-gray-400">40px</span>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <KimiBot3D size={50} />
+            <CognitestBot3D size={50} />
             <span className="text-xs text-gray-600 dark:text-gray-400">50px (default)</span>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <KimiBot3D size={60} />
+            <CognitestBot3D size={60} />
             <span className="text-xs text-gray-600 dark:text-gray-400">60px</span>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <KimiBot3D size={80} />
+            <CognitestBot3D size={80} />
             <span className="text-xs text-gray-600 dark:text-gray-400">80px</span>
           </div>
           <div className="flex flex-col items-center gap-2">
-            <KimiBot3D size={100} />
+            <CognitestBot3D size={100} />
             <span className="text-xs text-gray-600 dark:text-gray-400">100px</span>
           </div>
         </div>
@@ -59,7 +59,7 @@ export default function KimiBot3DShowcase() {
               With Animation (default)
             </h3>
             <div className="flex justify-center">
-              <KimiBot3D size={60} animate={true} />
+              <CognitestBot3D size={60} animate={true} />
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
               Floating, blinking, wobbling
@@ -71,7 +71,7 @@ export default function KimiBot3DShowcase() {
               Static (no animation)
             </h3>
             <div className="flex justify-center">
-              <KimiBot3D size={60} animate={false} />
+              <CognitestBot3D size={60} animate={false} />
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-4 text-center">
               Pulse on hover only
@@ -87,7 +87,7 @@ export default function KimiBot3DShowcase() {
         </h2>
         <div className="p-6 bg-white dark:bg-gray-800 rounded-lg">
           <div className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 rounded">
-            <KimiBot3D size={48} />
+            <CognitestBot3D size={48} />
             <div>
               <h3 className="font-bold text-gray-900 dark:text-white">CogniTest</h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -173,12 +173,12 @@ export default function KimiBot3DShowcase() {
           {/* Example 1 */}
           <div className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
             <p className="text-xs text-gray-500 mb-2">Basic usage:</p>
-            <pre className="text-sm">{`import KimiBot3D from '@/components/ui/KimiBot3D';
+            <pre className="text-sm">{`import CognitestBot3D from '@/components/ui/CognitestBot3D';
 
 export default function Navbar() {
   return (
     <nav className="flex items-center gap-2">
-      <KimiBot3D size={50} />
+      <CognitestBot3D size={50} />
       <span className="font-bold">CogniTest</span>
     </nav>
   );
@@ -188,7 +188,7 @@ export default function Navbar() {
           {/* Example 2 */}
           <div className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
             <p className="text-xs text-gray-500 mb-2">With custom styling:</p>
-            <pre className="text-sm">{`<KimiBot3D
+            <pre className="text-sm">{`<CognitestBot3D
   size={60}
   animate={true}
   className="hover:drop-shadow-lg transition-all"
@@ -198,7 +198,7 @@ export default function Navbar() {
           {/* Example 3 */}
           <div className="p-4 bg-gray-900 text-gray-100 rounded-lg overflow-x-auto">
             <p className="text-xs text-gray-500 mb-2">Static variant:</p>
-            <pre className="text-sm">{`<KimiBot3D size={48} animate={false} />`}</pre>
+            <pre className="text-sm">{`<CognitestBot3D size={48} animate={false} />`}</pre>
           </div>
         </div>
       </div>
