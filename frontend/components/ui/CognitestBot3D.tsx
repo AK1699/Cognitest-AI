@@ -90,75 +90,54 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
       case 'happy':
         return (
           <>
-            {/* Left eye - normal */}
-            <ellipse cx="75" cy="90" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Right eye - normal */}
-            <ellipse cx="125" cy="90" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Left eye blink */}
-            <ellipse className="emotion-blink" cx="75" cy="90" rx="20" ry="26" fill="#4A90E2" />
-            {/* Right eye blink */}
-            <ellipse className="emotion-blink" cx="125" cy="90" rx="20" ry="26" fill="#4A90E2" style={{ animationDelay: '0.3s' }} />
-            {/* Eye shine left */}
-            <ellipse cx="70" cy="82" rx="6" ry="8" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Eye shine right */}
-            <ellipse cx="120" cy="82" rx="6" ry="8" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Happy smile */}
-            <path d="M 80 135 Q 100 145 120 135" stroke="rgba(74, 144, 226, 0.4)" strokeWidth="3" fill="none" strokeLinecap="round" />
+            {/* Left eye - glowing line */}
+            <rect x="60" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing line */}
+            <rect x="110" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Happy mouth - segmented line */}
+            <path d="M 80 135 L 90 138 L 110 138 L 120 135" stroke="#00FFFF" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
           </>
         );
 
       case 'surprised':
         return (
           <>
-            {/* Left eye - bigger for surprise */}
-            <ellipse cx="75" cy="85" rx="26" ry="32" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Right eye - bigger for surprise */}
-            <ellipse cx="125" cy="85" rx="26" ry="32" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Eye shine left */}
-            <ellipse cx="70" cy="75" rx="7" ry="10" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Eye shine right */}
-            <ellipse cx="120" cy="75" rx="7" ry="10" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Surprised O mouth */}
-            <circle cx="100" cy="140" r="12" fill="rgba(255, 255, 255, 0.8)" stroke="rgba(74, 144, 226, 0.5)" strokeWidth="2" />
+            {/* Left eye - glowing line (wider) */}
+            <rect x="55" y="83" width="40" height="6" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing line (wider) */}
+            <rect x="105" y="83" width="40" height="6" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Surprised mouth - open rectangle */}
+            <rect x="90" y="130" width="20" height="15" rx="2" ry="2" fill="#00FFFF" className="mouth-glow" />
           </>
         );
 
       case 'thinking':
         return (
           <>
-            {/* Left eye - looking up */}
-            <ellipse cx="75" cy="75" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Right eye - normal */}
-            <ellipse cx="125" cy="90" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Eye shine left (looking up) */}
-            <ellipse cx="70" cy="67" rx="6" ry="8" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Eye shine right */}
-            <ellipse cx="120" cy="82" rx="6" ry="8" fill="rgba(255, 255, 255, 0.6)" />
-            {/* Thinking mouth (small line) */}
-            <line x1="90" y1="135" x2="110" y2="135" stroke="rgba(74, 144, 226, 0.4)" strokeWidth="2" strokeLinecap="round" />
-            {/* Thinking bubbles */}
-            <circle cx="155" cy="50" r="6" fill="rgba(74, 144, 226, 0.3)" />
-            <circle cx="145" cy="35" r="4" fill="rgba(74, 144, 226, 0.2)" />
+            {/* Left eye - glowing line (looking up) */}
+            <rect x="60" y="75" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing line (normal) */}
+            <rect x="110" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Thinking mouth - subtle line */}
+            <rect x="85" y="135" width="30" height="2" rx="1" ry="1" fill="#00FFFF" className="mouth-glow" />
+            {/* Thinking bubbles - small glowing circles */}
+            <circle cx="155" cy="50" r="4" fill="#00FFFF" opacity="0.6" />
+            <circle cx="145" cy="35" r="3" fill="#00FFFF" opacity="0.4" />
           </>
         );
 
       case 'sad':
         return (
           <>
-            {/* Left eye - droopy */}
-            <ellipse cx="75" cy="98" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Right eye - droopy */}
-            <ellipse cx="125" cy="98" rx="22" ry="28" fill="rgba(255, 255, 255, 0.95)" opacity="0.9" />
-            {/* Eye shine left */}
-            <ellipse cx="70" cy="90" rx="5" ry="7" fill="rgba(255, 255, 255, 0.5)" />
-            {/* Eye shine right */}
-            <ellipse cx="120" cy="90" rx="5" ry="7" fill="rgba(255, 255, 255, 0.5)" />
-            {/* Sad frown */}
-            <path d="M 80 145 Q 100 135 120 145" stroke="rgba(74, 144, 226, 0.4)" strokeWidth="3" fill="none" strokeLinecap="round" />
-            {/* Tear drop left */}
-            <ellipse cx="65" cy="115" rx="3" ry="8" fill="rgba(135, 206, 235, 0.6)" />
-            {/* Tear drop right */}
-            <ellipse cx="135" cy="115" rx="3" ry="8" fill="rgba(135, 206, 235, 0.6)" />
+            {/* Left eye - glowing line (droopy) */}
+            <rect x="60" y="90" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing line (droopy) */}
+            <rect x="110" y="90" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Sad mouth - downward segmented line */}
+            <path d="M 80 140 L 90 137 L 110 137 L 120 140" stroke="#00FFFF" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
+            {/* Tear drops - small glowing circles */}
+            <circle cx="65" cy="110" r="3" fill="#00FFFF" opacity="0.6" />
+            <circle cx="135" cy="110" r="3" fill="#00FFFF" opacity="0.6" />
           </>
         );
 
@@ -181,13 +160,13 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           }
         }
 
-        /* Blinking animation for the eyes */
+        /* Blinking animation for the eyes (dimming effect) */
         @keyframes blink {
           0%, 10%, 20%, 100% {
-            transform: scaleY(1);
+            opacity: 1;
           }
           5%, 15% {
-            transform: scaleY(0.05);
+            opacity: 0.2; /* Dim the glowing lines */
           }
         }
 
@@ -197,20 +176,20 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
             transform: rotate(0deg);
           }
           25% {
-            transform: rotate(1deg);
+            transform: rotate(0.5deg); /* Less wobble for futuristic feel */
           }
           75% {
-            transform: rotate(-1deg);
+            transform: rotate(-0.5deg);
           }
         }
 
         /* Pulse on hover for interactivity */
         @keyframes pulse {
           0%, 100% {
-            filter: drop-shadow(0 4px 12px rgba(74, 144, 226, 0.3));
+            filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.4)); /* Cyan glow */
           }
           50% {
-            filter: drop-shadow(0 8px 20px rgba(74, 144, 226, 0.5));
+            filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.7));
           }
         }
 
@@ -224,6 +203,26 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           }
         }
 
+        /* Eye glow effect */
+        @keyframes eyeGlow {
+          0%, 100% {
+            filter: drop-shadow(0 0 3px #00FFFF);
+          }
+          50% {
+            filter: drop-shadow(0 0 6px #00FFFF);
+          }
+        }
+
+        /* Mouth glow effect */
+        @keyframes mouthGlow {
+          0%, 100% {
+            filter: drop-shadow(0 0 2px #00FFFF);
+          }
+          50% {
+            filter: drop-shadow(0 0 4px #00FFFF);
+          }
+        }
+
         .cognitest-bot-3d-container {
           ${animate ? 'animation: float 3s ease-in-out infinite;' : ''}
           display: inline-block;
@@ -233,9 +232,13 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           animation: ${animate ? 'float 3s ease-in-out infinite, pulse 2s ease-in-out infinite;' : 'pulse 2s ease-in-out infinite;'}
         }
 
-        .emotion-blink {
-          ${animate ? 'animation: blink 5s ease-in-out infinite;' : ''}
-          transform-origin: center;
+        .eye-glow {
+          animation: eyeGlow 3s ease-in-out infinite alternate;
+          ${animate ? 'animation: eyeGlow 3s ease-in-out infinite alternate, blink 5s ease-in-out infinite;' : ''}
+        }
+
+        .mouth-glow {
+          animation: mouthGlow 3s ease-in-out infinite alternate;
         }
 
         .cognitest-bot-3d-sphere {
@@ -276,28 +279,28 @@ background: 'transparent',
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
-            {/* Main sphere gradient - creates 3D bulge effect */}
+            {/* Main sphere gradient - creates 3D bulge effect (brushed metallic) */}
             <radialGradient id="sphereGradient" cx="35%" cy="35%" r="60%">
-              {/* Bright highlight for glossy effect */}
-              <stop offset="0%" style={{ stopColor: '#E8F4F8', stopOpacity: 1 }} />
-              {/* Main blue color */}
-              <stop offset="40%" style={{ stopColor: '#4A90E2', stopOpacity: 1 }} />
-              {/* Darker blue for depth on edges */}
-              <stop offset="100%" style={{ stopColor: '#2E5C8A', stopOpacity: 1 }} />
+              {/* Bright highlight for metallic sheen */}
+              <stop offset="0%" style={{ stopColor: '#A0A0A0', stopOpacity: 1 }} />
+              {/* Main dark grey metallic color */}
+              <stop offset="40%" style={{ stopColor: '#404040', stopOpacity: 1 }} />
+              {/* Darker grey for depth on edges */}
+              <stop offset="100%" style={{ stopColor: '#202020', stopOpacity: 1 }} />
             </radialGradient>
 
-            {/* Secondary gradient for additional depth */}
+            {/* Secondary gradient for additional depth (subtle) */}
             <radialGradient id="depthGradient" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.1)', stopOpacity: 1 }} />
-              <stop offset="100%" style={{ stopColor: 'rgba(0, 0, 0, 0.2)', stopOpacity: 1 }} />
+              <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.05)', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: 'rgba(0, 0, 0, 0.3)', stopOpacity: 1 }} />
             </radialGradient>
 
-            {/* Filter for soft shadow/glow effect */}
+            {/* Filter for soft shadow/glow effect (sharper) */}
             <filter id="softShadow">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
-              <feOffset dx="0" dy="2" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1" />
+              <feOffset dx="0" dy="1" />
               <feComponentTransfer>
-                <feFuncA type="linear" slope="0.3" />
+                <feFuncA type="linear" slope="0.2" />
               </feComponentTransfer>
               <feMerge>
                 <feMergeNode />
@@ -305,9 +308,9 @@ background: 'transparent',
               </feMerge>
             </filter>
 
-            {/* Filter for strong highlight */}
+            {/* Filter for strong highlight (sharper) */}
             <filter id="brighten">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" />
             </filter>
           </defs>
 
@@ -317,11 +320,11 @@ background: 'transparent',
             cy="165"
             rx="50"
             ry="12"
-            fill="rgba(0, 0, 0, 0.15)"
+            fill="rgba(0, 0, 0, 0.2)"
             filter="url(#softShadow)"
           />
 
-          {/* Main glossy sphere - 3D effect */}
+          {/* Main metallic sphere - 3D effect */}
           <g className="cognitest-bot-3d-sphere">
             {/* Base sphere with main gradient */}
             <circle
@@ -335,32 +338,38 @@ background: 'transparent',
             {/* Depth enhancement - subtle second gradient */}
             <circle cx="100" cy="100" r="85" fill="url(#depthGradient)" />
 
-            {/* Top-left highlight for glossy, shiny effect */}
-            <ellipse
-              cx="65"
-              cy="55"
-              rx="28"
-              ry="32"
-              fill="rgba(255, 255, 255, 0.4)"
+            {/* Top-left sharp highlight for metallic sheen */}
+            <rect
+              x="40"
+              y="30"
+              width="40"
+              height="5"
+              rx="2"
+              ry="2"
+              fill="rgba(255, 255, 255, 0.6)"
               filter="url(#brighten)"
+              transform="rotate(-20 60 32.5)"
             />
 
-            {/* Smaller bright spot for ultra-glossy appearance */}
+            {/* Smaller bright spot for ultra-sharp reflection */}
             <circle
-              cx="62"
-              cy="48"
-              r="12"
-              fill="rgba(255, 255, 255, 0.7)"
+              cx="60"
+              cy="40"
+              r="5"
+              fill="rgba(255, 255, 255, 0.8)"
               filter="url(#brighten)"
             />
 
-            {/* Bottom-right shadow for depth and dimension */}
-            <ellipse
-              cx="130"
-              cy="140"
-              rx="35"
-              ry="30"
-              fill="rgba(20, 40, 80, 0.2)"
+            {/* Bottom-right sharp shadow for depth and dimension */}
+            <rect
+              x="120"
+              y="130"
+              width="40"
+              height="5"
+              rx="2"
+              ry="2"
+              fill="rgba(0, 0, 0, 0.3)"
+              transform="rotate(20 140 132.5)"
             />
 
             {/* Emotion-specific facial features */}
