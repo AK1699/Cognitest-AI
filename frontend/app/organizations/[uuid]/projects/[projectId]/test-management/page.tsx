@@ -6,6 +6,8 @@ import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus,
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
+import { UserNav } from '@/components/layout/user-nav'
+import KimiBot3D from '@/components/ui/KimiBot3D'
 import { testPlansAPI, testSuitesAPI, testCasesAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-management'
 import TestPlanList from '@/components/test-management/TestPlanList'
 import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModal'
@@ -176,10 +178,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const fetchTestPlans = async () => {
     try {
       const data = await testPlansAPI.list(projectId)
-      setTestPlans(data)
+      setTestPlans(data || [])
     } catch (error: any) {
       console.error('Failed to fetch test plans:', error)
-      toast.error('Failed to load test plans')
+      // Set empty array on error to avoid blocking the UI
+      setTestPlans([])
+      // Only show error if it's not a 403 or 404 (expected for new projects)
+      if (error.response?.status && ![403, 404].includes(error.response.status)) {
+        toast.error('Failed to load test plans')
+      }
     }
   }
 
@@ -227,10 +234,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const fetchTestSuites = async () => {
     try {
       const data = await testSuitesAPI.list(projectId)
-      setTestSuites(data)
+      setTestSuites(data || [])
     } catch (error: any) {
       console.error('Failed to fetch test suites:', error)
-      toast.error('Failed to load test suites')
+      // Set empty array on error to avoid blocking the UI
+      setTestSuites([])
+      // Only show error if it's not a 403 or 404 (expected for new projects)
+      if (error.response?.status && ![403, 404].includes(error.response.status)) {
+        toast.error('Failed to load test suites')
+      }
     }
   }
 
@@ -265,10 +277,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const fetchTestCases = async () => {
     try {
       const data = await testCasesAPI.list(projectId)
-      setTestCases(data)
+      setTestCases(data || [])
     } catch (error: any) {
       console.error('Failed to fetch test cases:', error)
-      toast.error('Failed to load test cases')
+      // Set empty array on error to avoid blocking the UI
+      setTestCases([])
+      // Only show error if it's not a 403 or 404 (expected for new projects)
+      if (error.response?.status && ![403, 404].includes(error.response.status)) {
+        toast.error('Failed to load test cases')
+      }
     }
   }
 
@@ -322,129 +339,16 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        {/* Organization & User Header */}
-        {organisation && user && (
-          <div className="p-4 border-b border-gray-200 relative">
-            <button
-              onClick={() => {
-                setIsProfileOpen(!isProfileOpen)
-                if (!isProfileOpen) {
-                  fetchOrganisations()
-                }
-              }}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                isProfileOpen
-                  ? 'border border-primary bg-primary/5'
-                  : 'border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-semibold text-white">
-                  {organisation.name.substring(0, 2).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <h2 className="text-base font-semibold truncate text-gray-900">{organisation.name}</h2>
-                <p className="text-xs text-gray-500 uppercase">{user.username}</p>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${
-                  isProfileOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {/* Profile Dropdown */}
-            {isProfileOpen && (
-              <div className="absolute top-24 left-4 right-4 p-4 rounded-lg border border-gray-200 bg-white shadow-lg space-y-4 z-50">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-600">
-                    Organisations ({organisations.length})
-                  </h3>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {organisations.map((org) => (
-                      <button
-                        key={org.id}
-                        onClick={() => switchOrganisation(org)}
-                        className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                      >
-                        <Building2 className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                        <span className="text-sm text-gray-900 flex-1 truncate">
-                          {org.name}
-                        </span>
-                        {organisation?.id === org.id && (
-                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <hr className="border-gray-200" />
-                <button
-                  onClick={() => {
-                    router.push('/organizations/new')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <Plus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Add Organisation</span>
-                </button>
-                <hr className="border-gray-200" />
-                <button
-                  onClick={() => {
-                    router.push('/profile/edit')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <User className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Edit profile</span>
-                </button>
-                <button
-                  onClick={() => {
-                    router.push('/account/settings')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Account settings</span>
-                </button>
-                <button
-                  onClick={() => {
-                    router.push('/support')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <HelpCircle className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Support</span>
-                </button>
-                <hr className="border-gray-200" />
-                <button
-                  onClick={() => {
-                    logout()
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-red-100 transition-colors text-left"
-                >
-                  <LogOut className="w-4 h-4 text-red-600" />
-                  <span className="text-sm text-red-600 font-medium">Sign out</span>
-                </button>
-              </div>
-            )}
+      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
+        {/* Logo Section - CogniTest branding */}
+        <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+          <KimiBot3D size={48} className="flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-gray-800 tracking-tight">
+              Cogni<span className="text-primary">Test</span>
+            </h1>
           </div>
-        )}
-
-        {/* Close profile dropdown when clicking outside */}
-        {isProfileOpen && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsProfileOpen(false)}
-          />
-        )}
+        </div>
 
         {/* Project Header */}
         <div className="p-4 border-b border-gray-200">
@@ -542,17 +446,32 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="border-b border-gray-200 bg-white">
-          <div className="px-8 py-5 flex items-center justify-between">
-            <h1 className="text-2xl font-normal text-gray-900">
-              {activeTab === 'plans' && 'Test Plans'}
-              {activeTab === 'suites' && 'Test Suites'}
-              {activeTab === 'cases' && 'Test Cases'}
-            </h1>
+        {/* Top Bar with Title and Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                {activeTab === 'plans' && 'Test Plans'}
+                {activeTab === 'suites' && 'Test Suites'}
+                {activeTab === 'cases' && 'Test Cases'}
+              </h1>
+              <p className="text-xs text-gray-500">
+                {activeTab === 'plans' && 'Manage and create test plans'}
+                {activeTab === 'suites' && 'Organize test cases into suites'}
+                {activeTab === 'cases' && 'Define and manage test cases'}
+              </p>
+            </div>
+            <UserNav />
+          </div>
+        </div>
 
+        {/* Action Buttons Section - Only show when there's data */}
+        {((activeTab === 'plans' && testPlans.length > 0) ||
+          (activeTab === 'suites' && testSuites.length > 0) ||
+          (activeTab === 'cases' && testCases.length > 0)) && (
+          <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
             {activeTab === 'plans' && testPlans.length > 0 && (
-              <div className="flex gap-3">
+              <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowManualForm(true)}
                   className="px-4 py-2 bg-white hover:bg-gray-50 text-primary border border-primary rounded-lg font-medium transition-all flex items-center gap-2"
@@ -571,26 +490,30 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
             )}
 
             {activeTab === 'suites' && testSuites.length > 0 && (
-              <button
-                onClick={() => setShowSuiteForm(true)}
-                className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create Test Suite
-              </button>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowSuiteForm(true)}
+                  className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Test Suite
+                </button>
+              </div>
             )}
 
             {activeTab === 'cases' && testCases.length > 0 && (
-              <button
-                onClick={() => setShowCaseForm(true)}
-                className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create Test Case
-              </button>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowCaseForm(true)}
+                  className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Test Case
+                </button>
+              </div>
             )}
           </div>
-        </div>
+        )}
 
         {/* Content Area */}
         <div className="px-8 py-6">

@@ -7,8 +7,10 @@ import api from '@/lib/api'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import { UserNav } from '@/components/layout/user-nav'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import KimiBot3D from '@/components/ui/KimiBot3D'
 import { ReportsAnalyticsTab } from '@/components/dashboard/reports-analytics-tab'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { TestManagementOverview } from '@/components/dashboard/module-overviews/test-management-overview'
@@ -313,142 +315,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
       <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
-        {/* Organization & User Header */}
-        {organisation && user && (
-          <div className="p-4 border-b border-gray-200 relative">
-            <button
-              onClick={() => {
-                setIsProfileOpen(!isProfileOpen)
-                if (!isProfileOpen) {
-                  fetchOrganisations()
-                }
-              }}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                isProfileOpen
-                  ? 'border-2 border-gray-400 bg-white/40 shadow-lg'
-                  : 'border-2 border-gray-300 hover:bg-white/20'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-semibold text-white">
-                  {organisation.name.substring(0, 2).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <h2 className="text-base font-semibold truncate text-gray-900">{organisation.name}</h2>
-                <p className="text-xs text-gray-500 uppercase">{user.username}</p>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${
-                  isProfileOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {/* Profile Dropdown */}
-            {isProfileOpen && (
-              <div className="absolute top-24 left-4 right-4 p-4 rounded-lg border border-gray-200 bg-white shadow-lg space-y-4 z-50">
-                {/* Organisations Section */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-600">
-                    Organisations ({organisations.length})
-                  </h3>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {organisations.map((org) => (
-                      <button
-                        key={org.id}
-                        onClick={() => switchOrganisation(org)}
-                        className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                      >
-                        <Building2 className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                        <span className="text-sm text-gray-900 flex-1 truncate">
-                          {org.name}
-                        </span>
-                        {organisation?.id === org.id && (
-                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <hr className="border-gray-200" />
-
-                {/* Add Organisation */}
-                <button
-                  onClick={() => {
-                    router.push('/organizations/new')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <Plus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Add Organisation</span>
-                </button>
-
-                <hr className="border-gray-200" />
-
-                {/* Edit Profile */}
-                <button
-                  onClick={() => {
-                    router.push('/profile/edit')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <User className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Edit profile</span>
-                </button>
-
-                {/* Account Settings */}
-                <button
-                  onClick={() => {
-                    router.push('/account/settings')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Account settings</span>
-                </button>
-
-                {/* Support */}
-                <button
-                  onClick={() => {
-                    router.push('/support')
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 transition-colors text-left"
-                >
-                  <HelpCircle className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Support</span>
-                </button>
-
-                <hr className="border-gray-200" />
-
-                {/* Sign Out */}
-                <button
-                  onClick={() => {
-                    logout()
-                    setIsProfileOpen(false)
-                  }}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-red-100 transition-colors text-left"
-                >
-                  <LogOut className="w-4 h-4 text-red-600" />
-                  <span className="text-sm text-red-600 font-medium">Sign out</span>
-                </button>
-              </div>
-            )}
+        {/* Logo Section - CogniTest branding */}
+        <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+          <KimiBot3D size={48} className="flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-gray-800 tracking-tight">
+              Cogni<span className="text-primary">Test</span>
+            </h1>
           </div>
-        )}
-
-        {/* Close profile dropdown when clicking outside */}
-        {isProfileOpen && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsProfileOpen(false)}
-          />
-        )}
+        </div>
 
         {/* Project Header */}
         <div className="p-4 border-b border-gray-200">
@@ -558,20 +433,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {activeTab !== 'settings' && (
-          /* Header */
-          <div className="border-b border-gray-200 bg-white">
-            <div className="px-8 py-5">
-              <h1 className="text-2xl font-normal text-gray-900">
+        {/* Top Bar with Title and Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
                 {activeTab === 'overview'
                   ? 'Overview'
                   : activeTab === 'reports'
                   ? 'Reports & Analytics'
+                  : activeTab === 'settings'
+                  ? 'Settings'
                   : getModuleNavItems().find((item: any) => item.id === activeTab)?.label || 'Dashboard'}
               </h1>
+              <p className="text-xs text-gray-500">
+                {activeTab === 'overview' && 'Project dashboard and metrics'}
+                {activeTab === 'reports' && 'Analytics and insights'}
+                {activeTab === 'settings' && 'Manage project settings'}
+              </p>
             </div>
+            <UserNav />
           </div>
-        )}
+        </div>
 
         {/* Content Area */}
         <div className={activeTab === 'settings' ? 'px-8 py-8' : 'px-8 py-6'}>
