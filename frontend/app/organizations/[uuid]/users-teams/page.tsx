@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { getRoleType } from '@/lib/role-display-utils'
 import { Sidebar } from '@/components/layout/sidebar'
+import { UserNav } from '@/components/layout/user-nav'
 import {
   listRoles,
   listUserRoles,
@@ -434,18 +435,24 @@ export default function UsersTeamsPage() {
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={organisationId} />
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="px-8 py-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <Users className="w-5 h-5 text-white" />
+        {/* Top Bar with Title and Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Users & Teams</h1>
+                <p className="text-xs text-gray-500">Manage user access and roles</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Users & Teams</h1>
+            <UserNav />
           </div>
-          <p className="text-sm text-gray-600 mt-2 ml-13">Manage user access, teams, and role assignments</p>
         </div>
 
-        <div className="px-8 py-6">
+        {/* Page Content */}
+        <div className="px-8 py-8">
           <div className="flex items-center justify-end mb-8">
         <div className="flex gap-2">
           {activeTab === 'users' && (

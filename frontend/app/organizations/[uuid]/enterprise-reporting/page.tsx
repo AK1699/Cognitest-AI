@@ -124,27 +124,24 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
-        {/* Top Bar with Profile */}
+        {/* Top Bar with Title and Profile */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-end">
+          <div className="h-[80px] px-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Enterprise Reporting</h1>
+                <p className="text-xs text-gray-500">Analytics and insights across projects</p>
+              </div>
+            </div>
             <UserNav />
           </div>
         </div>
 
         {/* Page Content */}
         <div className="px-8 py-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Enterprise Reporting</h1>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 ml-15">Analytics and insights across all your projects</p>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatsCard
               title="Total Projects"

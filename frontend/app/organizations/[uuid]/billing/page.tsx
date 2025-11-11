@@ -25,27 +25,24 @@ export default function BillingPage({ params }: { params: Promise<PageParams> })
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
-        {/* Top Bar with Profile */}
+        {/* Top Bar with Title and Profile */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-end">
+          <div className="h-[80px] px-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Billing & Usage</h1>
+                <p className="text-xs text-gray-500">Manage your subscription and usage</p>
+              </div>
+            </div>
             <UserNav />
           </div>
         </div>
 
         {/* Page Content */}
         <div className="px-8 py-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <CreditCard className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Billing & Usage</h1>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 ml-15">Manage your subscription, invoices, and usage metrics</p>
-          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <Card>
