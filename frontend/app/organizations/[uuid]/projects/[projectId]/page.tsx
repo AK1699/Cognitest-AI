@@ -317,7 +317,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
       <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
         {/* Logo Section - CogniTest branding */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-          <KimiBot3D size={48} className="flex-shrink-0" />
+          <CognitestBot3D size={48} className="flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 tracking-tight">
               Cogni<span className="text-primary">Test</span>
