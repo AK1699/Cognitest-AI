@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 
-type EmotionState = 'happy' | 'surprised' | 'thinking' | 'sad';
+type EmotionState = 'happy' | 'surprised' | 'thinking' | 'sad' | 'neutral' | 'confused' | 'angry' | 'sleeping' | 'loading' | 'speaking';
 
 interface CognitestBot3DProps {
   /** Size of the bot in pixels (default: 50px, recommended: 40-60px) */
@@ -11,6 +11,8 @@ interface CognitestBot3DProps {
   className?: string;
   /** Whether to show animation (default: true) */
   animate?: boolean;
+  /** Initial emotion state of the bot */
+  initialEmotion?: EmotionState;
 }
 
 /**
@@ -18,7 +20,7 @@ interface CognitestBot3DProps {
  *
  * A beautiful 3D animated logo inspired by Cognitest with:
  * - Glossy spherical shape with realistic 3D lighting
- * - Four emotion states: Happy, Surprised, Thinking, Sad
+ * - Multiple emotion states: Happy, Surprised, Thinking, Sad, Neutral, Confused, Angry, Sleeping, Loading, Speaking
  * - Click to cycle through emotions
  * - Smooth animations and transitions
  * - Perfect for navbar/header placement
@@ -38,15 +40,27 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
   size = 50,
   className = '',
   animate = true,
+  initialEmotion = 'neutral', // Set neutral as default initial emotion
 }) => {
   // State for emotion cycling
-  const [currentEmotion, setCurrentEmotion] = useState<EmotionState>('happy');
+  const [currentEmotion, setCurrentEmotion] = useState<EmotionState>(initialEmotion);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   /**
-   * Emotion cycle: happy -> surprised -> thinking -> sad -> happy
+   * Emotion cycle: neutral -> happy -> surprised -> thinking -> sad -> confused -> angry -> sleeping -> loading -> speaking
    */
-  const emotionCycle: EmotionState[] = ['happy', 'surprised', 'thinking', 'sad'];
+  const emotionCycle: EmotionState[] = [
+    'neutral',
+    'happy',
+    'surprised',
+    'thinking',
+    'sad',
+    'confused',
+    'angry',
+    'sleeping',
+    'loading',
+    'speaking',
+  ];
 
   /**
    * Handle bot click to cycle to next emotion
@@ -87,13 +101,25 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
    */
   const renderEmotion = () => {
     switch (currentEmotion) {
+      case 'neutral':
+        return (
+          <>
+            {/* Left eye - glowing sphere */}
+            <ellipse cx="75" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing sphere */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+            {/* Neutral mouth - simple line */}
+            <rect x="85" y="135" width="30" height="2" rx="1" ry="1" fill="#00FFFF" className="mouth-glow" />
+          </>
+        );
+
       case 'happy':
         return (
           <>
-            {/* Left eye - glowing line */}
-            <rect x="60" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
-            {/* Right eye - glowing line */}
-            <rect x="110" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Left eye - glowing sphere */}
+            <ellipse cx="75" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing sphere */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
             {/* Happy mouth - segmented line */}
             <path d="M 80 135 L 90 138 L 110 138 L 120 135" stroke="#00FFFF" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
           </>
@@ -102,10 +128,10 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
       case 'surprised':
         return (
           <>
-            {/* Left eye - glowing line (wider) */}
-            <rect x="55" y="83" width="40" height="6" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
-            {/* Right eye - glowing line (wider) */}
-            <rect x="105" y="83" width="40" height="6" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Left eye - glowing sphere (wider) */}
+            <ellipse cx="75" cy="85" rx="12" ry="12" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing sphere (wider) */}
+            <ellipse cx="125" cy="85" rx="12" ry="12" fill="#00FFFF" className="eye-glow" />
             {/* Surprised mouth - open rectangle */}
             <rect x="90" y="130" width="20" height="15" rx="2" ry="2" fill="#00FFFF" className="mouth-glow" />
           </>
@@ -114,10 +140,10 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
       case 'thinking':
         return (
           <>
-            {/* Left eye - glowing line (looking up) */}
-            <rect x="60" y="75" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
-            {/* Right eye - glowing line (normal) */}
-            <rect x="110" y="85" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Left eye - glowing sphere (looking up) */}
+            <ellipse cx="75" cy="80" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing sphere (normal) */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
             {/* Thinking mouth - subtle line */}
             <rect x="85" y="135" width="30" height="2" rx="1" ry="1" fill="#00FFFF" className="mouth-glow" />
             {/* Thinking bubbles - small glowing circles */}
@@ -129,10 +155,10 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
       case 'sad':
         return (
           <>
-            {/* Left eye - glowing line (droopy) */}
-            <rect x="60" y="90" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
-            {/* Right eye - glowing line (droopy) */}
-            <rect x="110" y="90" width="30" height="4" rx="1" ry="1" fill="#00FFFF" className="eye-glow" />
+            {/* Left eye - glowing sphere (droopy) */}
+            <ellipse cx="75" cy="90" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+            {/* Right eye - glowing sphere (droopy) */}
+            <ellipse cx="125" cy="90" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
             {/* Sad mouth - downward segmented line */}
             <path d="M 80 140 L 90 137 L 110 137 L 120 140" stroke="#00FFFF" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
             {/* Tear drops - small glowing circles */}
@@ -141,8 +167,95 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           </>
         );
 
+            case 'confused':
+              return (
+                <>
+                  {/* Left eye - glowing sphere (slightly raised) */}
+                  <ellipse cx="75" cy="82" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+                  {/* Right eye - glowing sphere (normal) */}
+                  <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow" />
+                  {/* Confused mouth - zigzag or question mark like */}
+                  <path d="M 80 135 L 90 130 L 110 130 L 120 135" stroke="#00FFFF" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
+                  <circle cx="100" cy="145" r="2" fill="#00FFFF" className="mouth-glow" /> {/* Dot for question mark */}
+                </>
+              );
+      case 'angry':
+        return (
+          <>
+            {/* Left eye - glowing sphere (red, angled down) */}
+            <ellipse cx="75" cy="87" rx="10" ry="10" fill="#FF0000" className="eye-glow" />
+            {/* Right eye - glowing sphere (red, angled down) */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#FF0000" className="eye-glow" />
+            {/* Angry mouth - sharp V-shape */}
+            <path d="M 80 140 L 100 130 L 120 140" stroke="#FF0000" strokeWidth="2" fill="none" strokeLinecap="round" className="mouth-glow" />
+          </>
+        );
+
+      case 'sleeping':
+        return (
+          <>
+            {/* Left eye - very dim glowing sphere */}
+            <ellipse cx="75" cy="87" rx="8" ry="8" fill="#00FFFF" opacity="0.2" className="eye-glow" />
+            {/* Right eye - very dim glowing sphere */}
+            <ellipse cx="125" cy="87" rx="8" ry="8" fill="#00FFFF" opacity="0.2" className="eye-glow" />
+            {/* Sleeping mouth - gentle curve */}
+            <path d="M 85 140 Q 100 145 115 140" stroke="#00FFFF" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.3" className="mouth-glow" />
+          </>
+        );
+
+                  case 'loading':
+
+                    return (
+
+                      <>
+
+                        {/* Left eye - pulsing glowing sphere */}
+
+                        <ellipse cx="75" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+
+                        {/* Right eye - pulsing glowing sphere */}
+
+                        <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+
+                        {/* Loading mouth - spinning dots */}
+
+                        <g className="loading-spinner">
+
+                          <circle cx="90" cy="135" r="2" fill="#00FFFF" />
+
+                          <circle cx="100" cy="135" r="2" fill="#00FFFF" style={{ animationDelay: '0.2s' }} />
+
+                          <circle cx="110" cy="135" r="2" fill="#00FFFF" style={{ animationDelay: '0.4s' }} />
+
+                        </g>
+
+                      </>
+
+                    );
+
+      
+
+            case 'speaking':
+
+            case 'speaking':
+        return (
+          <>
+            {/* Left eye - pulsing glowing sphere */}
+            <ellipse cx="75" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+            {/* Right eye - pulsing glowing sphere */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+            {/* Speaking mouth - animating bars */}
+            <g className="speaking-mouth">
+              <rect x="85" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" />
+              <rect x="95" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" style={{ animationDelay: '0.1s' }} />
+              <rect x="105" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" style={{ animationDelay: '0.2s' }} />
+            </g>
+          </>
+        );
+
       default:
-        return null;
+
+              return null;
     }
   };
 
@@ -203,13 +316,13 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           }
         }
 
-        /* Eye glow effect */
+        /* Eye glow effect for spherical eyes */
         @keyframes eyeGlow {
           0%, 100% {
-            filter: drop-shadow(0 0 3px #00FFFF);
+            filter: drop-shadow(0 0 4px #00FFFF);
           }
           50% {
-            filter: drop-shadow(0 0 6px #00FFFF);
+            filter: drop-shadow(0 0 8px #00FFFF);
           }
         }
 
@@ -220,6 +333,36 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           }
           50% {
             filter: drop-shadow(0 0 4px #00FFFF);
+          }
+        }
+
+        /* Loading pulse for eyes */
+        @keyframes loadingPulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.4;
+          }
+        }
+
+        /* Loading spinner animation for mouth */
+        @keyframes loadingSpinner {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+
+        /* Speaking mouth animation */
+        @keyframes speaking {
+          0%, 100% {
+            transform: scaleY(1);
+          }
+          50% {
+            transform: scaleY(0.6);
           }
         }
 
@@ -239,6 +382,20 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
 
         .mouth-glow {
           animation: mouthGlow 3s ease-in-out infinite alternate;
+        }
+
+        .loading-pulse {
+          animation: loadingPulse 1.5s ease-in-out infinite alternate;
+        }
+
+        .loading-spinner {
+          transform-origin: center;
+          animation: loadingSpinner 1s linear infinite;
+        }
+
+        .speaking-mouth rect {
+          transform-origin: bottom;
+          animation: speaking 0.5s ease-in-out infinite alternate;
         }
 
         .cognitest-bot-3d-sphere {
