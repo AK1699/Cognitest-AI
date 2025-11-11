@@ -180,13 +180,29 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       const data = await testPlansAPI.list(projectId)
       setTestPlans(data || [])
     } catch (error: any) {
-      console.error('Failed to fetch test plans:', error)
       // Set empty array on error to avoid blocking the UI
       setTestPlans([])
-      // Only show error if it's not a 403 or 404 (expected for new projects)
-      if (error.response?.status && ![403, 404].includes(error.response.status)) {
-        toast.error('Failed to load test plans')
+
+      // Handle different error types with detailed classification
+      const status = error.response?.status
+
+      if (status === 401) {
+        // Authentication expired - will auto-redirect to login via interceptor
+        console.warn('Authentication required - redirecting to login')
+      } else if (status === 403 || status === 404) {
+        // Access denied or not found - expected for new/empty projects
+        // Silently handle without logging to avoid console noise
+      } else if (error.isNetworkError) {
+        // True network error - request sent but no response
+        // This can happen due to: CORS issues, server down, or authentication cookies not sent
+        // Note: Browser will always log this, we can't suppress it
+        console.warn('Unable to connect to server. The page will still work for creating new test plans.')
+      } else if (error.isServerError) {
+        // Server returned an error response
+        console.error('Server error:', status, error.response?.data)
+        toast.error(`Failed to load test plans (Error ${status})`)
       }
+      // For all cases, UI continues to work with empty state
     }
   }
 
@@ -236,13 +252,16 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       const data = await testSuitesAPI.list(projectId)
       setTestSuites(data || [])
     } catch (error: any) {
-      console.error('Failed to fetch test suites:', error)
       // Set empty array on error to avoid blocking the UI
       setTestSuites([])
-      // Only show error if it's not a 403 or 404 (expected for new projects)
-      if (error.response?.status && ![403, 404].includes(error.response.status)) {
+
+      // Only log and show errors that are not expected (403/404 are normal for new projects)
+      const status = error.response?.status
+      if (status && ![403, 404].includes(status)) {
+        console.error('Failed to fetch test suites:', error)
         toast.error('Failed to load test suites')
       }
+      // For 403/404, silently handle - these are expected for new projects
     }
   }
 
@@ -279,13 +298,16 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       const data = await testCasesAPI.list(projectId)
       setTestCases(data || [])
     } catch (error: any) {
-      console.error('Failed to fetch test cases:', error)
       // Set empty array on error to avoid blocking the UI
       setTestCases([])
-      // Only show error if it's not a 403 or 404 (expected for new projects)
-      if (error.response?.status && ![403, 404].includes(error.response.status)) {
+
+      // Only log and show errors that are not expected (403/404 are normal for new projects)
+      const status = error.response?.status
+      if (status && ![403, 404].includes(status)) {
+        console.error('Failed to fetch test cases:', error)
         toast.error('Failed to load test cases')
       }
+      // For 403/404, silently handle - these are expected for new projects
     }
   }
 

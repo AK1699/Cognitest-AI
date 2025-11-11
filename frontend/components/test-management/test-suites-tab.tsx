@@ -46,14 +46,23 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
         testSuitesAPI.list(projectId),
         testPlansAPI.list(projectId),
       ])
-      setTestSuites(suites)
-      setTestPlans(plans)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load test suites',
-        variant: 'destructive',
-      })
+      setTestSuites(suites || [])
+      setTestPlans(plans || [])
+    } catch (error: any) {
+      // Set empty arrays on error to avoid blocking the UI
+      setTestSuites([])
+      setTestPlans([])
+
+      // Only show error if it's not a 403 or 404 (expected for new projects)
+      const status = error.response?.status
+      if (status && ![403, 404].includes(status)) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load test suites',
+          variant: 'destructive',
+        })
+      }
+      // For 403/404, silently handle - these are expected for new projects
     } finally {
       setLoading(false)
     }

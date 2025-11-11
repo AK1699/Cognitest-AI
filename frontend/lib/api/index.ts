@@ -24,6 +24,19 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // Add detailed error information for debugging
+    if (error.response) {
+      // Server responded with error status
+      error.isServerError = true
+      error.statusCode = error.response.status
+    } else if (error.request) {
+      // Request was made but no response received
+      error.isNetworkError = true
+    } else {
+      // Error in request configuration
+      error.isConfigError = true
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 

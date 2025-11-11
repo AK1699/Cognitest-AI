@@ -42,13 +42,21 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
     try {
       setLoading(true)
       const plans = await testPlansAPI.list(projectId)
-      setTestPlans(plans)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load test plans',
-        variant: 'destructive',
-      })
+      setTestPlans(plans || [])
+    } catch (error: any) {
+      // Set empty array on error to avoid blocking the UI
+      setTestPlans([])
+
+      // Only show error if it's not a 403 or 404 (expected for new projects)
+      const status = error.response?.status
+      if (status && ![403, 404].includes(status)) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load test plans',
+          variant: 'destructive',
+        })
+      }
+      // For 403/404, silently handle - these are expected for new projects
     } finally {
       setLoading(false)
     }
