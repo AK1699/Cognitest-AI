@@ -236,8 +236,22 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
       
 
             case 'speaking':
+        return (
+          <>
+            {/* Left eye - pulsing glowing sphere */}
+            <ellipse cx="75" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+            {/* Right eye - pulsing glowing sphere */}
+            <ellipse cx="125" cy="87" rx="10" ry="10" fill="#00FFFF" className="eye-glow loading-pulse" />
+            {/* Speaking mouth - animating bars */}
+            <g className="speaking-mouth">
+              <rect x="85" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" />
+              <rect x="95" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" style={{ animationDelay: '0.1s' }} />
+              <rect x="105" y="130" width="8" height="15" rx="1" ry="1" fill="#00FFFF" style={{ animationDelay: '0.2s' }} />
+            </g>
+          </>
+        );
 
-            case 'speaking':
+      case 'speaking':
         return (
           <>
             {/* Left eye - pulsing glowing sphere */}
@@ -366,6 +380,16 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
           }
         }
 
+        /* Continuous Y-axis rotation for 3D effect */
+        @keyframes rotateY {
+          0% {
+            transform: rotateY(0deg);
+          }
+          100% {
+            transform: rotateY(360deg);
+          }
+        }
+
         .cognitest-bot-3d-container {
           ${animate ? 'animation: float 3s ease-in-out infinite;' : ''}
           display: inline-block;
@@ -399,7 +423,7 @@ const CognitestBot3D: React.FC<CognitestBot3DProps> = ({
         }
 
         .cognitest-bot-3d-sphere {
-          ${animate ? 'animation: wobble 6s ease-in-out infinite;' : ''}
+          ${animate ? 'animation: wobble 6s ease-in-out infinite, rotateY 15s linear infinite;' : ''} /* Added rotateY */
           transform-origin: center;
           animation-fill-mode: both;
         }
