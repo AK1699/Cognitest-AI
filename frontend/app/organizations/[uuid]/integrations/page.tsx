@@ -4,6 +4,7 @@ import { use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sidebar } from '@/components/layout/sidebar'
+import { UserNav } from '@/components/layout/user-nav'
 import { Puzzle } from 'lucide-react'
 
 const integrationsData = [
@@ -56,18 +57,27 @@ export default function IntegrationsPage({ params }: { params: Promise<PageParam
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="px-8 py-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <Puzzle className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
+        {/* Top Bar with Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-end">
+            <UserNav />
           </div>
-          <p className="text-sm text-gray-600 mt-2 ml-13">Connect your favorite tools and services</p>
         </div>
 
-        <div className="px-8 py-6">
+        {/* Page Content */}
+        <div className="px-8 py-8">
+          {/* Page Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <Puzzle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 ml-15">Connect your favorite tools and services</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {integrationsData.map((integration) => (
               <Card key={integration.name}>

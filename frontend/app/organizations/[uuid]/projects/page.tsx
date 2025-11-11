@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
+import { UserNav } from '@/components/layout/user-nav'
 import { CreateProjectModal } from '@/components/projects/create-project-modal'
 import api from '@/lib/api'
 import { toast } from 'sonner'
@@ -92,18 +93,28 @@ export default function ProjectsPage({ params }: { params: Promise<PageParams> }
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="px-8 py-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <FolderOpen className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+        {/* Top Bar with Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-end">
+            <UserNav />
           </div>
-          <p className="text-sm text-gray-600 mt-2 ml-13">Create and manage your testing projects</p>
         </div>
 
-        <div className="px-8 py-6">
+        {/* Page Content */}
+        <div className="px-8 py-8">
+          {/* Page Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <FolderOpen className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 ml-15">Create and manage your testing projects</p>
+          </div>
+
           {/* Search and New Project Button */}
           <div className="flex items-center gap-4 mb-8">
             <div className="flex-1 flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg">

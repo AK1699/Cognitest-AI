@@ -16,20 +16,12 @@ import {
   CreditCard,
   Users,
   Puzzle,
-  ChevronDown,
-  Building2,
-  Plus,
-  User,
-  Settings,
-  HelpCircle,
-  LogOut,
-  Check
+  Settings
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
-import { toast } from 'sonner'
 import KimiBot3D from '@/components/ui/KimiBot3D'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -120,7 +112,6 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
   const [organisations, setOrganisations] = useState<Organisation[]>([])
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
@@ -154,16 +145,6 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
     }
   }
 
-  const switchOrganisation = (org: Organisation) => {
-    setCurrentOrganisation(org)
-    localStorage.setItem('current_organization', JSON.stringify(org))
-    window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
-    setIsProfileOpen(false)
-    // Refetch organizations after switching
-    setTimeout(() => fetchOrganisations(), 100)
-    router.push(`/organizations/${org.id}/projects`)
-  }
-
   return (
     <>
       {/* Mobile Menu Button */}
@@ -195,7 +176,7 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       >
         <div className="flex flex-col h-full">
           {/* Logo Section - 3D Kimi Bot with CogniTest text */}
-          <div className="p-4 flex items-center gap-3 border-b border-gray-300">
+          <div className="p-4 flex items-center gap-3 border-b border-gray-200">
             {/* 3D Kimi Bot Icon - Glossy, animated sphere */}
             <KimiBot3D size={48} className="flex-shrink-0" />
 
@@ -209,151 +190,6 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
             )}
           </div>
 
-          {/* Profile Section */}
-          {!isCollapsed && user && currentOrganisation && (
-            <div className="p-4 relative">
-              {/* Main Profile Button */}
-              <button
-                onClick={() => {
-                  setIsProfileOpen(!isProfileOpen)
-                  if (!isProfileOpen) {
-                    // Refetch organizations when opening the profile menu
-                    fetchOrganisations()
-                  }
-                }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                  isProfileOpen
-                    ? 'border-2 border-gray-400 bg-white/40 shadow-lg'
-                    : 'border-2 border-gray-300 hover:bg-white/20'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-semibold text-white">
-                    {currentOrganisation.name.substring(0, 2).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-1">
-                    {currentOrganisation.name}
-                  </p>
-                  <p className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">
-                    {user.username}
-                  </p>
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-gray-600 flex-shrink-0 transition-transform ${
-                    isProfileOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Profile Dropdown Details - Overlay */}
-              {isProfileOpen && (
-                <div className="absolute top-24 left-4 right-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg space-y-4 z-50">
-                  {/* Organisations Section */}
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                      Organisations ({organisations.length})
-                    </h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {organisations.map((org) => (
-                        <button
-                          key={org.id}
-                          onClick={() => switchOrganisation(org)}
-                          className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                        >
-                          <Building2 className="w-4 h-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-900 dark:text-white flex-1 truncate">
-                            {org.name}
-                          </span>
-                          {currentOrganisation?.id === org.id && (
-                            <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Add Organisation - Only show for owners */}
-                  {isOwner && (
-                    <>
-                      <hr className="border-gray-200 dark:border-gray-700" />
-                      <button
-                        onClick={() => {
-                          router.push('/organizations/new')
-                          setIsProfileOpen(false)
-                        }}
-                        className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                      >
-                        <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        <span className="text-sm text-gray-900 dark:text-white">Add Organisation</span>
-                      </button>
-                    </>
-                  )}
-
-                  <hr className="border-gray-200 dark:border-gray-700" />
-
-                  {/* Edit Profile */}
-                  <button
-                    onClick={() => {
-                      router.push('/profile/edit')
-                      setIsProfileOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-sm text-gray-900 dark:text-white">Edit profile</span>
-                  </button>
-
-                  {/* Account Settings */}
-                  <button
-                    onClick={() => {
-                      router.push('/account/settings')
-                      setIsProfileOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-sm text-gray-900 dark:text-white">Account settings</span>
-                  </button>
-
-                  {/* Support */}
-                  <button
-                    onClick={() => {
-                      router.push('/support')
-                      setIsProfileOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <HelpCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-sm text-gray-900 dark:text-white">Support</span>
-                  </button>
-
-                  <hr className="border-gray-200 dark:border-gray-700" />
-
-                  {/* Sign Out */}
-                  <button
-                    onClick={() => {
-                      logout()
-                      setIsProfileOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-left"
-                  >
-                    <LogOut className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    <span className="text-sm text-red-600 dark:text-red-400 font-medium">Sign out</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Close profile dropdown when clicking outside */}
-          {isProfileOpen && (
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setIsProfileOpen(false)}
-            />
-          )}
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-6 px-3">

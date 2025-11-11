@@ -7,6 +7,7 @@ import { FolderOpen, Users, CheckCircle, Activity, BarChart3 } from 'lucide-reac
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { Sidebar } from '@/components/layout/sidebar'
+import { UserNav } from '@/components/layout/user-nav'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -123,18 +124,27 @@ export default function EnterpriseReportingPage({ params }: { params: Promise<Pa
     <div className="flex min-h-screen bg-white">
       <Sidebar organisationId={uuid} />
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="px-8 py-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <BarChart3 className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Enterprise Reporting</h1>
+        {/* Top Bar with Profile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className="h-[80px] px-8 flex items-center justify-end">
+            <UserNav />
           </div>
-          <p className="text-sm text-gray-600 mt-2 ml-13">Analytics and insights across all your projects</p>
         </div>
 
-        <div className="px-8 py-6">
+        {/* Page Content */}
+        <div className="px-8 py-8">
+          {/* Page Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Enterprise Reporting</h1>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 ml-15">Analytics and insights across all your projects</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatsCard
               title="Total Projects"
