@@ -714,8 +714,9 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       {showAIGenerator && (
         <AITestPlanGenerator
           projectId={projectId}
+          organisationId={uuid}
           onClose={() => setShowAIGenerator(false)}
-          onGenerate={handleAIGenerate}
+          onSuccess={handleAIGenerate}
         />
       )}
 

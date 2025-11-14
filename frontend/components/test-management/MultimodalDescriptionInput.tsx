@@ -133,13 +133,14 @@ export default function MultimodalDescriptionInput({
         </div>
       )}
 
-      {/* Textarea with Drag & Drop */}
+      {/* Description Field Container (JIRA-style) */}
       <div
-        className={`relative ${isDragging ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
+        className={`border rounded-lg ${isDragging ? 'ring-2 ring-purple-500 ring-offset-2 border-purple-500 bg-purple-50' : 'border-gray-300 bg-white'} focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-transparent`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
+        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={value}
@@ -147,11 +148,53 @@ export default function MultimodalDescriptionInput({
           onPaste={handlePaste}
           placeholder={placeholder}
           rows={rows}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none ${
-            isDragging ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
-          }`}
+          className="w-full px-4 py-3 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none"
         />
 
+        {/* Image Previews Inside Description Area (JIRA-style) */}
+        {imagePreviews.length > 0 && (
+          <div className="px-4 pb-3 space-y-3">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative inline-block group max-w-full">
+                {/* Image with toolbar like JIRA */}
+                <div className="relative border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+                  <img
+                    src={preview}
+                    alt={`Screenshot ${index + 1}`}
+                    className="max-w-full h-auto max-h-96 object-contain"
+                  />
+
+                  {/* Toolbar below image (JIRA-style) */}
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-800 text-white text-xs">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 hover:text-purple-300 transition-colors"
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                        <span className="hidden sm:inline">Edit alt text</span>
+                      </button>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-300">{images[index]?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="p-1 hover:bg-red-600 rounded transition-colors"
+                        title="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Drag overlay */}
         {isDragging && (
           <div className="absolute inset-0 flex items-center justify-center bg-purple-50 bg-opacity-90 rounded-lg pointer-events-none">
             <div className="text-center">
@@ -181,38 +224,6 @@ export default function MultimodalDescriptionInput({
             <ImageIcon className="w-4 h-4" />
             Upload Screenshots ({images.length}/{maxImages})
           </button>
-        </div>
-      )}
-
-      {/* Image Previews */}
-      {imagePreviews.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Attached Screenshots ({images.length})
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {imagePreviews.map((preview, index) => (
-              <div key={index} className="relative group">
-                <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                  <img
-                    src={preview}
-                    alt={`Screenshot ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="mt-1 text-xs text-gray-500 text-center truncate">
-                  {images[index]?.name}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

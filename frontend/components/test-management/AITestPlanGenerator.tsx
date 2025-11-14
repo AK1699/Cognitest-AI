@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info, Upload, FileText } from 'lucide-react'
+import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info, Upload, FileText, Image as ImageIcon } from 'lucide-react'
 import { testPlansAPI } from '@/lib/api/test-management'
 import { documentsAPI } from '@/lib/api/documents'
+import { organisationMemoryAPI } from '@/lib/api/organisation-memory'
+import JiraLikeEditor from './JiraLikeEditor'
 
 interface AITestPlanGeneratorProps {
   projectId: string
+  organisationId: string
   onClose: () => void
   onSuccess?: () => void
 }
@@ -41,9 +44,12 @@ const COMPLEXITIES = [
   { value: 'high', label: 'High - Complex system', description: '1-3 months' },
 ]
 
-export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: AITestPlanGeneratorProps) {
+export default function AITestPlanGenerator({ projectId, organisationId, onClose, onSuccess }: AITestPlanGeneratorProps) {
   const [mode, setMode] = useState<'manual' | 'document'>('manual')
   const [step, setStep] = useState<'form' | 'generating' | 'success'>('form')
+
+  // Manual input with images
+  const [manualImages, setManualImages] = useState<File[]>([])
 
   const [formData, setFormData] = useState({
     project_type: 'web-app',
@@ -169,6 +175,27 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
     setStep('generating')
 
     try {
+      // Step 1: Store in organization memory if images are provided (for self-evolving AI)
+      if (manualImages.length > 0) {
+        try {
+          const fullDescription = `Project Type: ${formData.project_type}\n\nDescription: ${formData.description}\n\nFeatures: ${validFeatures.join(', ')}\n\nPlatforms: ${formData.platforms.join(', ')}\n\nPriority: ${formData.priority}\nComplexity: ${formData.complexity}`
+
+          await organisationMemoryAPI.storeMemory(
+            {
+              organisation_id: organisationId,
+              description: fullDescription,
+              project_id: projectId,
+              source: 'test_plan_generator',
+              images: manualImages,
+            },
+            localStorage.getItem('access_token') || ''
+          )
+        } catch (memoryErr) {
+          console.log('Failed to store in organization memory, continuing with generation:', memoryErr)
+        }
+      }
+
+      // Step 2: Generate test plan
       const request = {
         project_id: projectId,
         project_type: formData.project_type,
@@ -233,6 +260,7 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
                     <li>✓ <strong>30-70 Test Cases</strong> with detailed steps and expected results</li>
                     <li>✓ <strong>Entry/Exit Criteria</strong>, Risk Assessment, and Resource Planning</li>
                     <li>✓ <strong>Milestones & Schedule</strong> based on your complexity and timeframe</li>
+                    <li>✓ <strong>📸 Paste Screenshots</strong> in description (Ctrl/Cmd+V) for better AI analysis</li>
                   </ul>
                 </div>
               </div>
@@ -286,19 +314,21 @@ export default function AITestPlanGenerator({ projectId, onClose, onSuccess }: A
                 </select>
               </div>
 
-              {/* Description */}
+              {/* Description with JIRA-like Editor */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Project Description <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe your project, its purpose, and key functionality...&#10;Example: A modern e-commerce platform for selling electronics with user accounts, shopping cart, payment integration, order tracking, and admin dashboard."
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                <JiraLikeEditor
+                  content={formData.description}
+                  onChange={(value) => setFormData({ ...formData, description: value })}
+                  onImagesChange={setManualImages}
+                  placeholder="Describe your project, its purpose, and key functionality... You can paste screenshots (Ctrl/Cmd+V) or drag & drop images directly!"
+                  className="min-h-[250px]"
                 />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 <strong>Tip:</strong> Use the toolbar for rich formatting. Paste or drag & drop screenshots directly into the editor!
+                </p>
               </div>
 
               {/* Features */}

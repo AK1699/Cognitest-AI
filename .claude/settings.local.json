@@ -110,7 +110,9 @@
       "Bash(timeout 30 npm start)",
       "Bash(npm run status:*)",
       "Bash(npm run health:*)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(alembic heads:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
