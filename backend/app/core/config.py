@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     APPLE_KEY_ID: str = os.getenv("APPLE_KEY_ID", "")
     APPLE_REDIRECT_URI: str = os.getenv("APPLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/apple/callback")
 
+    # File Upload
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 

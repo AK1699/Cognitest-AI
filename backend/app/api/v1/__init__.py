@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents
+from app.api.v1.endpoints import organisation_memory, test_plans_multimodal
 
 api_router = APIRouter()
 
@@ -18,3 +19,7 @@ api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
 api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])
 api_router.include_router(group_types.router, prefix="/group-types", tags=["group-types"])
+
+# New endpoints for multimodal test plan generation
+api_router.include_router(organisation_memory.router, tags=["organisation-memory"])
+api_router.include_router(test_plans_multimodal.router, tags=["test-plans-multimodal"])

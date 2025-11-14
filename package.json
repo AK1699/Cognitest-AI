@@ -1,30 +1,56 @@
 {
   "name": "cognitest",
   "version": "0.1.0",
-  "description": "AI-Powered Testing Platform",
+  "description": "AI-Powered Testing Platform - Start everything with one command!",
   "private": true,
   "workspaces": [
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
-    "dev:all": "bash scripts/start-all.sh",
     "start": "bash scripts/start-all.sh",
+    "stop": "bash scripts/stop-dev.sh",
+    "restart": "npm run stop && npm start",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
     "backend": "bash scripts/start-backend.sh",
     "frontend": "cd frontend && npm run dev",
-    "services:start": "bash scripts/start-dev.sh",
-    "services:stop": "bash scripts/stop-dev.sh",
+    "status": "npm run status:services && npm run status:databases",
+    "status:services": "echo '🔍 Service Status:' && (lsof -ti:8000 > /dev/null && echo '✅ Backend (8000) - Running' || echo '❌ Backend (8000) - Stopped') && (lsof -ti:3000 > /dev/null && echo '✅ Frontend (3000) - Running' || echo '❌ Frontend (3000) - Stopped')",
+    "status:databases": "echo '' && echo '📊 Database Status:' && (pg_isready -h localhost > /dev/null 2>&1 && echo '✅ PostgreSQL - Running' || echo '❌ PostgreSQL - Stopped') && (redis-cli ping > /dev/null 2>&1 && echo '✅ Redis - Running' || echo '❌ Redis - Stopped') && (lsof -ti:6333 > /dev/null 2>&1 && echo '✅ Qdrant (6333) - Running' || echo '⚪ Qdrant - Stopped (optional)')",
+    "health": "echo '🏥 Health Check:' && curl -s http://localhost:8000/health || echo '❌ Backend unhealthy'",
+    "logs": "npm run logs:backend",
+    "logs:backend": "tail -f /tmp/cognitest-backend.log 2>/dev/null || echo 'No backend logs found'",
+    "logs:frontend": "tail -f frontend/.next/trace 2>/dev/null || echo 'No frontend logs found'",
+    "db:migrate": "cd backend && . venv/bin/activate && alembic upgrade head",
+    "db:reset": "cd backend && . venv/bin/activate && alembic downgrade base && alembic upgrade head",
+    "db:revision": "cd backend && . venv/bin/activate && alembic revision --autogenerate -m",
+    "setup": "npm run install:all && npm run db:migrate",
+    "install:all": "npm run install:backend && npm run install:frontend",
     "install:backend": "cd backend && python3 -m venv venv && . venv/bin/activate && pip install -r requirements.txt",
     "install:frontend": "cd frontend && npm install",
-    "install:all": "npm run install:backend && npm run install:frontend",
-    "migrate": "cd backend && . venv/bin/activate && alembic upgrade head",
-    "celery": "cd backend && . venv/bin/activate && celery -A app.celery_app worker --loglevel=info"
+    "celery": "cd backend && . venv/bin/activate && celery -A app.celery_app worker --loglevel=info",
+    "test": "echo '🧪 Running tests...' && npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && . venv/bin/activate && pytest",
+    "test:frontend": "cd frontend && npm run test",
+    "clean": "npm run clean:backend && npm run clean:frontend",
+    "clean:backend": "cd backend && rm -rf __pycache__ .pytest_cache && find . -type d -name '__pycache__' -exec rm -rf {} +",
+    "clean:frontend": "cd frontend && rm -rf .next node_modules/.cache"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=10.0.0"
-  }
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "testing",
+    "qa",
+    "ai",
+    "test-automation",
+    "test-management",
+    "ai-powered",
+    "test-planning"
+  ],
+  "author": "Cognitest AI Team",
+  "license": "MIT"
 }

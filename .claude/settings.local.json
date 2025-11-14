@@ -105,7 +105,12 @@
       "Bash(journalctl:*)",
       "Bash(dmesg:*)",
       "Bash(timeout 2 journalctl:*)",
-      "Bash(/tmp/test_api_call.sh)"
+      "Bash(/tmp/test_api_call.sh)",
+      "Bash(npm run stop)",
+      "Bash(timeout 30 npm start)",
+      "Bash(npm run status:*)",
+      "Bash(npm run health:*)",
+      "Bash(/dev/null)"
     ],
     "deny": [],
     "ask": []

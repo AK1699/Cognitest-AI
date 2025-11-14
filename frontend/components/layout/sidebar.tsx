@@ -175,10 +175,12 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo Section - 3D Kimi Bot with CogniTest text */}
+          {/* Logo Section - 3D Emo Robot with CogniTest text */}
           <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-            {/* 3D Kimi Bot Icon - Glossy, animated sphere */}
-            <CognitestBot3D size={48} className="flex-shrink-0" />
+            {/* 3D Emo Robot Face - TV screen head with square eyes */}
+            <div className="w-20 h-20 rounded-full border-4 border-cyan-400 flex items-center justify-center bg-white flex-shrink-0">
+              <CognitestBot3D size={60} className="flex-shrink-0" />
+            </div>
 
             {/* CogniTest Text - Hidden when collapsed */}
             {!isCollapsed && (
