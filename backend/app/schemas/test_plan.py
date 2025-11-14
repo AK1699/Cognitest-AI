@@ -167,6 +167,17 @@ class TestPlanResponse(TestPlanBase):
     created_by: str
     last_updated_by: Optional[str]
 
+    @field_validator('objectives', mode='before')
+    @classmethod
+    def extract_objectives_text(cls, v):
+        """Extract objective text from complex objects if needed."""
+        if not v:
+            return []
+        return [
+            obj.get("objective", "") if isinstance(obj, dict) else str(obj)
+            for obj in v
+        ]
+
     class Config:
         from_attributes = True
 

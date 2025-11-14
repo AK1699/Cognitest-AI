@@ -63,6 +63,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
   // Document upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [documentTitle, setDocumentTitle] = useState('')
   const [documentContext, setDocumentContext] = useState('')
   const [documentObjectives, setDocumentObjectives] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -117,36 +118,53 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
   }
 
   const handleDocumentUpload = async () => {
+    if (!documentTitle.trim()) {
+      setError('Please provide a title for the document')
+      return
+    }
+
     if (!selectedFile) {
       setError('Please select a document to upload')
       return
     }
 
     setStep('generating')
+    setError('')
 
     try {
-      // First upload the document
+      // Step 1: Upload the document with title
+      setGeneratedPlan({ message: 'Uploading document...' } as any)
       const uploadResult = await documentsAPI.upload(selectedFile, {
         project_id: projectId,
-        document_type: 'requirements',
-        source: 'upload',
+        document_type: 'requirement',
+        document_name: documentTitle,
+        source: 'file_upload',
         description: documentContext || `Uploaded ${selectedFile.name} for test plan generation`,
       })
 
-      // Then generate test plan from the document
+      console.log('Document uploaded:', uploadResult.document.id)
+
+      // Step 2: Analyze the document and generate test plan
+      // The backend will automatically analyze the PDF content and extract requirements
+      setGeneratedPlan({ message: 'Analyzing document and generating comprehensive test plan...' } as any)
       const result = await documentsAPI.generateTestPlan(uploadResult.document.id)
+
+      console.log('Test plan generated:', result)
 
       setGeneratedPlan(result)
       setStep('success')
 
       if (onSuccess) {
+        // Reload the page to show the new test plan
         setTimeout(() => {
           onSuccess()
           onClose()
-        }, 3000)
+        }, 2000)
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to generate test plan from document')
+      console.error('Error generating test plan:', err)
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate test plan from document'
+      setError(errorMessage)
       setStep('form')
     }
   }
@@ -491,6 +509,20 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   <p className="text-xs text-blue-600 mt-2">Maximum file size: 50MB</p>
                 </div>
 
+                {/* Title Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={documentTitle}
+                    onChange={(e) => setDocumentTitle(e.target.value)}
+                    placeholder="e.g., User Authentication Module Requirements"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
                 {/* File Upload Area */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -592,7 +624,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   <button
                     type="button"
                     onClick={handleDocumentUpload}
-                    disabled={!selectedFile}
+                    disabled={!selectedFile || !documentTitle.trim()}
                     className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Sparkles className="w-4 h-4" />
@@ -707,22 +739,36 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 text-left mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Generated Content:</h4>
                 <div className="space-y-2 text-sm text-gray-700">
-                  <div className="flex justify-between">
-                    <span>Test Plan ID:</span>
-                    <span className="font-mono font-medium">{generatedPlan.id?.slice(0, 8)}...</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Test Suites:</span>
-                    <span className="font-medium">Ready to view</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Test Cases:</span>
-                    <span className="font-medium">Ready to execute</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Confidence Score:</span>
-                    <span className="font-medium">{generatedPlan.confidence_score || 'High'}</span>
-                  </div>
+                  {generatedPlan.test_plan_id && (
+                    <div className="flex justify-between">
+                      <span>Test Plan ID:</span>
+                      <span className="font-mono font-medium">{generatedPlan.test_plan_id.slice(0, 8)}...</span>
+                    </div>
+                  )}
+                  {generatedPlan.summary?.test_plan_name && (
+                    <div className="flex justify-between">
+                      <span>Plan Name:</span>
+                      <span className="font-medium truncate ml-2">{generatedPlan.summary.test_plan_name}</span>
+                    </div>
+                  )}
+                  {generatedPlan.summary?.test_suites_count !== undefined && (
+                    <div className="flex justify-between">
+                      <span>Test Suites:</span>
+                      <span className="font-medium">{generatedPlan.summary.test_suites_count} suites created</span>
+                    </div>
+                  )}
+                  {generatedPlan.summary?.test_cases_count !== undefined && (
+                    <div className="flex justify-between">
+                      <span>Test Cases:</span>
+                      <span className="font-medium">{generatedPlan.summary.test_cases_count} cases generated</span>
+                    </div>
+                  )}
+                  {generatedPlan.summary?.confidence_score && (
+                    <div className="flex justify-between">
+                      <span>Confidence Score:</span>
+                      <span className="font-medium capitalize">{generatedPlan.summary.confidence_score}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

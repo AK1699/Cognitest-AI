@@ -460,11 +460,19 @@ async def ai_generate_test_plan(
 
         # Create test plan in database
         plan_data = generation_result["data"]
+
+        # Extract objectives - handle both simple strings and complex objects
+        objectives_raw = request.objectives or plan_data.get("objectives", [])
+        objectives_list = [
+            obj.get("objective", "") if isinstance(obj, dict) else str(obj)
+            for obj in objectives_raw
+        ] if objectives_raw else []
+
         test_plan = TestPlan(
             project_id=request.project_id,
             name=plan_data.get("name", "AI Generated Test Plan"),
             description=plan_data.get("description"),
-            objectives=request.objectives or plan_data.get("objectives", []),
+            objectives=objectives_list,
             generated_by=GenerationType.AI,
             source_documents=request.source_documents,
             confidence_score=generation_result.get("confidence", "high"),
@@ -598,7 +606,11 @@ async def generate_comprehensive_test_plan(
             approval_signoff_ieee=plan_data.get("approval_signoff", {}),
 
             # Legacy fields for backward compatibility
-            objectives=plan_data.get("test_objectives", []),
+            # Extract objective text from test_objectives objects
+            objectives=[
+                obj.get("objective", "") if isinstance(obj, dict) else str(obj)
+                for obj in plan_data.get("test_objectives", [])
+            ],
             scope_in=plan_data.get("scope_of_testing", {}).get("in_scope", []),
             scope_out=plan_data.get("scope_of_testing", {}).get("out_of_scope", []),
 

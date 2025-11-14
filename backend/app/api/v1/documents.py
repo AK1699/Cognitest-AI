@@ -14,7 +14,7 @@ from datetime import datetime
 import mimetypes
 
 from app.core.deps import get_db, get_current_active_user
-from app.models.document_knowledge import DocumentKnowledge
+from app.models.document_knowledge import DocumentKnowledge, DocumentType, DocumentSource
 from app.models.project import Project
 from app.models.user import User
 
@@ -73,6 +73,7 @@ async def upload_document(
     file: UploadFile = File(...),
     project_id: UUID = Form(...),
     document_type: str = Form("requirement"),
+    document_name: Optional[str] = Form(None),
     source: str = Form("upload"),
     description: Optional[str] = Form(None),
     current_user: User = Depends(get_current_active_user),
@@ -113,20 +114,33 @@ async def upload_document(
         with open(file_path, "wb") as f:
             f.write(content)
 
+        # Convert string to enum values
+        try:
+            doc_type_enum = DocumentType[document_type.upper()] if document_type.upper() in DocumentType.__members__ else DocumentType.DOCUMENT
+        except (KeyError, AttributeError):
+            doc_type_enum = DocumentType.DOCUMENT
+
+        try:
+            source_enum = DocumentSource[source.upper()] if source.upper() in DocumentSource.__members__ else DocumentSource.FILE_UPLOAD
+        except (KeyError, AttributeError):
+            source_enum = DocumentSource.FILE_UPLOAD
+
         # Create document record
         document = DocumentKnowledge(
             project_id=project_id,
-            title=file.filename,
+            created_by=current_user.id,
+            document_name=document_name or file.filename,
             content="",  # Will be extracted by ingestion service
-            document_type=document_type,
-            source=source,
-            file_path=str(file_path),
-            file_size=str(file_size),
+            document_type=doc_type_enum,
+            source=source_enum,
             file_type=file_ext,
-            uploaded_by=current_user.email,
-            description=description,
+            content_length=file_size,
             meta_data={
                 "original_filename": file.filename,
+                "file_path": str(file_path),
+                "file_size": str(file_size),
+                "uploaded_by": current_user.email,
+                "description": description,
                 "upload_timestamp": datetime.utcnow().isoformat(),
             }
         )
@@ -150,9 +164,9 @@ async def upload_document(
             "message": "Document uploaded successfully",
             "document": {
                 "id": str(document.id),
-                "title": document.title,
+                "title": document.document_name,
                 "file_type": document.file_type,
-                "file_size": document.file_size,
+                "file_size": document.meta_data.get("file_size", "0"),
                 "uploaded_at": document.created_at.isoformat(),
                 "status": "processing",
             }
@@ -202,14 +216,14 @@ async def list_documents(
         "documents": [
             {
                 "id": str(doc.id),
-                "title": doc.title,
-                "document_type": doc.document_type,
-                "source": doc.source,
+                "title": doc.document_name,
+                "document_type": doc.document_type.value if doc.document_type else "",
+                "source": doc.source.value if doc.source else "",
                 "file_type": doc.file_type,
-                "file_size": doc.file_size,
-                "uploaded_by": doc.uploaded_by,
+                "file_size": doc.meta_data.get("file_size", "0"),
+                "uploaded_by": doc.meta_data.get("uploaded_by", ""),
                 "created_at": doc.created_at.isoformat(),
-                "chunk_count": doc.chunk_count,
+                "chunk_count": doc.total_chunks,
                 "is_active": doc.is_active,
             }
             for doc in documents
@@ -241,18 +255,18 @@ async def get_document(
 
     return {
         "id": str(document.id),
-        "title": document.title,
-        "description": document.description,
-        "document_type": document.document_type,
-        "source": document.source,
-        "file_path": document.file_path,
+        "title": document.document_name,
+        "description": document.meta_data.get("description", ""),
+        "document_type": document.document_type.value if document.document_type else "",
+        "source": document.source.value if document.source else "",
+        "file_path": document.meta_data.get("file_path", ""),
         "file_type": document.file_type,
-        "file_size": document.file_size,
-        "uploaded_by": document.uploaded_by,
+        "file_size": document.meta_data.get("file_size", "0"),
+        "uploaded_by": document.meta_data.get("uploaded_by", ""),
         "created_at": document.created_at.isoformat(),
         "updated_at": document.updated_at.isoformat() if document.updated_at else None,
-        "chunk_count": document.chunk_count,
-        "embedding_model": document.embedding_model,
+        "chunk_count": document.total_chunks,
+        "embedding_model": document.qdrant_collection,
         "is_active": document.is_active,
         "meta_data": document.meta_data,
     }
@@ -283,9 +297,10 @@ async def delete_document(
     await verify_project_access(document.project_id, current_user, db)
 
     # Delete file if exists
-    if document.file_path and os.path.exists(document.file_path):
+    file_path = document.meta_data.get("file_path")
+    if file_path and os.path.exists(file_path):
         try:
-            os.remove(document.file_path)
+            os.remove(file_path)
         except Exception as e:
             logger.warning(f"Failed to delete file: {e}")
 
@@ -306,8 +321,8 @@ async def analyze_document(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Trigger analysis of a document.
-    This will extract requirements, acceptance criteria, and testable scenarios.
+    Analyze a document to extract requirements, features, and testable scenarios.
+    Uses AI to comprehensively analyze the document content.
     """
     result = await db.execute(
         select(DocumentKnowledge).where(DocumentKnowledge.id == document_id)
@@ -323,26 +338,107 @@ async def analyze_document(
     # Verify project access
     await verify_project_access(document.project_id, current_user, db)
 
-    # TODO: Implement actual document analysis
-    # This would:
-    # 1. Read the document file
-    # 2. Extract text content
-    # 3. Use AI to analyze and extract:
-    #    - Requirements
-    #    - Acceptance criteria
-    #    - Testable scenarios
-    #    - Features
-    # 4. Store extracted data in meta_data
-    # 5. Create embeddings and store in vector DB
+    try:
+        # Get document content
+        file_path = document.meta_data.get("file_path")
+        content = ""
 
-    logger.info(f"Document analysis triggered: {document_id}")
+        if file_path and os.path.exists(file_path):
+            # Extract content from file
+            try:
+                import PyPDF2
+                file_ext = Path(file_path).suffix.lower()
 
-    return {
-        "success": True,
-        "message": "Document analysis initiated",
-        "document_id": str(document_id),
-        "status": "processing",
-    }
+                if file_ext == '.pdf':
+                    # Extract PDF content
+                    with open(file_path, 'rb') as f:
+                        reader = PyPDF2.PdfReader(f)
+                        content_parts = []
+                        for page in reader.pages:
+                            content_parts.append(page.extract_text())
+                        content = '\n'.join(content_parts)
+                elif file_ext in ['.txt', '.md']:
+                    # Read text files
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                elif file_ext == '.docx':
+                    # Extract DOCX content
+                    from docx import Document as DocxDocument
+                    doc = DocxDocument(file_path)
+                    content = '\n'.join([para.text for para in doc.paragraphs])
+                else:
+                    content = document.content or ""
+            except Exception as e:
+                logger.warning(f"Error extracting content from file: {e}")
+                content = document.content or ""
+        else:
+            # Use stored content
+            content = document.content or ""
+
+        if not content or len(content) < 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Document content is too short or empty to analyze"
+            )
+
+        # Analyze document using AI
+        from app.services.document_analysis_service import get_document_analysis_service
+        from app.services.ai_service import AIService
+
+        ai_service = AIService()
+        analysis_service = get_document_analysis_service(ai_service)
+
+        analysis_result = await analysis_service.analyze_document_content(
+            content=content,
+            document_type=document.document_type.value if document.document_type else "document",
+            additional_context=document.meta_data.get("description"),
+        )
+
+        # Store analysis results in meta_data
+        document.meta_data = {
+            **document.meta_data,
+            "analysis": analysis_result.get("data", {}),
+            "analysis_status": analysis_result.get("status", "completed"),
+            "analyzed_at": datetime.utcnow().isoformat(),
+            "content_length_analyzed": analysis_result.get("content_length", 0),
+        }
+
+        # Update content if it was extracted
+        if content and not document.content:
+            document.content = content[:5000]  # Store first 5000 chars
+
+        await db.commit()
+        await db.refresh(document)
+
+        logger.info(f"Document analysis completed: {document_id}")
+
+        # Extract analysis data for response
+        analysis_data = analysis_result.get("data", {})
+
+        return {
+            "success": True,
+            "message": "Document analysis completed successfully",
+            "document_id": str(document_id),
+            "status": "completed",
+            "analysis": {
+                "project_name": analysis_data.get("project_name"),
+                "project_description": analysis_data.get("project_description"),
+                "features_count": len(analysis_data.get("features", [])),
+                "requirements_count": len(analysis_data.get("requirements", [])),
+                "test_scenarios_count": len(analysis_data.get("test_scenarios", [])),
+                "complexity": analysis_data.get("complexity"),
+                "estimated_effort": analysis_data.get("estimated_effort"),
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing document: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze document: {str(e)}"
+        )
 
 
 @router.post("/{document_id}/generate-test-plan")
@@ -352,8 +448,8 @@ async def generate_test_plan_from_document(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a test plan from a document.
-    This uses the document analysis results to create a comprehensive test plan.
+    Generate a comprehensive test plan from an analyzed document.
+    Uses the document analysis results to create a detailed test plan with test suites and cases.
     """
     result = await db.execute(
         select(DocumentKnowledge).where(DocumentKnowledge.id == document_id)
@@ -369,18 +465,249 @@ async def generate_test_plan_from_document(
     # Verify project access
     project = await verify_project_access(document.project_id, current_user, db)
 
-    # TODO: Implement test plan generation from document
-    # This would:
-    # 1. Retrieve document analysis results
-    # 2. Use comprehensive_test_plan_service to generate test plan
-    # 3. Create test plan, suites, and cases in database
-    # 4. Return the generated test plan
+    try:
+        # Check if document has been analyzed
+        analysis_data = document.meta_data.get("analysis")
 
-    logger.info(f"Test plan generation from document: {document_id}")
+        if not analysis_data:
+            # Analyze document first
+            logger.info(f"Document not yet analyzed, analyzing now: {document_id}")
 
-    return {
-        "success": True,
-        "message": "Test plan generation initiated",
-        "document_id": str(document_id),
-        "status": "generating",
-    }
+            # Get document content
+            file_path = document.meta_data.get("file_path")
+            content = ""
+
+            if file_path and os.path.exists(file_path):
+                try:
+                    import PyPDF2
+                    file_ext = Path(file_path).suffix.lower()
+
+                    if file_ext == '.pdf':
+                        with open(file_path, 'rb') as f:
+                            reader = PyPDF2.PdfReader(f)
+                            content_parts = []
+                            for page in reader.pages:
+                                content_parts.append(page.extract_text())
+                            content = '\n'.join(content_parts)
+                    elif file_ext in ['.txt', '.md']:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                    elif file_ext == '.docx':
+                        from docx import Document as DocxDocument
+                        doc = DocxDocument(file_path)
+                        content = '\n'.join([para.text for para in doc.paragraphs])
+                    else:
+                        content = document.content or ""
+                except Exception as e:
+                    logger.warning(f"Error extracting content: {e}")
+                    content = document.content or ""
+            else:
+                content = document.content or ""
+
+            if not content or len(content) < 50:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Document content is too short or empty. Please ensure the document has been uploaded correctly."
+                )
+
+            # Analyze the document
+            from app.services.document_analysis_service import get_document_analysis_service
+            from app.services.ai_service import AIService
+
+            ai_service = AIService()
+            analysis_service = get_document_analysis_service(ai_service)
+
+            analysis_result = await analysis_service.analyze_document_content(
+                content=content,
+                document_type=document.document_type.value if document.document_type else "document",
+                additional_context=document.meta_data.get("description"),
+            )
+
+            analysis_data = analysis_result.get("data", {})
+
+            # Store analysis results
+            document.meta_data = {
+                **document.meta_data,
+                "analysis": analysis_data,
+                "analysis_status": analysis_result.get("status", "completed"),
+                "analyzed_at": datetime.utcnow().isoformat(),
+            }
+            await db.commit()
+
+        # Build requirements for comprehensive test plan service
+        requirements = {
+            "project_id": str(document.project_id),
+            "project_type": analysis_data.get("project_type", "web-app"),
+            "description": analysis_data.get("project_description", document.document_name),
+            "features": [f.get("name") for f in analysis_data.get("features", [])],
+            "platforms": analysis_data.get("platforms", ["web"]),
+            "priority": "high",  # Default priority
+            "complexity": analysis_data.get("complexity", "medium"),
+            "timeframe": analysis_data.get("estimated_effort", "2-4 weeks"),
+            "objectives": analysis_data.get("objectives", []),
+            "requirements": analysis_data.get("requirements", []),
+            "test_scenarios": analysis_data.get("test_scenarios", []),
+            "constraints": analysis_data.get("constraints", []),
+            "assumptions": analysis_data.get("assumptions", []),
+            "technical_details": analysis_data.get("technical_details", {}),
+        }
+
+        # Generate comprehensive test plan
+        from app.services.comprehensive_test_plan_service import get_comprehensive_test_plan_service
+
+        comprehensive_service = get_comprehensive_test_plan_service()
+        generation_result = await comprehensive_service.generate_comprehensive_test_plan(
+            project_id=document.project_id,
+            requirements=requirements,
+            db=db,
+        )
+
+        if generation_result["status"] != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate test plan: {generation_result.get('error', 'Unknown error')}",
+            )
+
+        # Create test plan in database
+        from app.models.test_plan import TestPlan, GenerationType, TestPlanType, ReviewStatus
+        from app.models.test_suite import TestSuite
+        from app.models.test_case import TestCase, TestCasePriority, TestCaseStatus
+
+        plan_data = generation_result["data"]
+
+        test_plan = TestPlan(
+            project_id=document.project_id,
+            name=plan_data.get("name", f"Test Plan - {document.document_name}"),
+            description=plan_data.get("description"),
+            test_plan_type=TestPlanType.REGRESSION.value,
+
+            # IEEE 829 comprehensive sections
+            test_objectives_ieee=plan_data.get("test_objectives", []),
+            scope_of_testing_ieee=plan_data.get("scope_of_testing", {}),
+            test_approach_ieee=plan_data.get("test_approach", {}),
+            assumptions_constraints_ieee=plan_data.get("assumptions_and_constraints", []),
+            test_schedule_ieee=plan_data.get("test_schedule", {}),
+            resources_roles_ieee=plan_data.get("resources_and_roles", []),
+            test_environment_ieee=plan_data.get("test_environment", {}),
+            entry_exit_criteria_ieee=plan_data.get("entry_exit_criteria", {}),
+            risk_management_ieee=plan_data.get("risk_management", {}),
+            deliverables_reporting_ieee=plan_data.get("deliverables_and_reporting", {}),
+            approval_signoff_ieee=plan_data.get("approval_signoff", {}),
+
+            # Legacy fields
+            objectives=[
+                obj.get("objective", "") if isinstance(obj, dict) else str(obj)
+                for obj in plan_data.get("test_objectives", [])
+            ],
+            scope_in=plan_data.get("scope_of_testing", {}).get("in_scope", []),
+            scope_out=plan_data.get("scope_of_testing", {}).get("out_of_scope", []),
+
+            # Metadata
+            generated_by=GenerationType.AI.value,
+            source_documents=[str(document_id)],
+            confidence_score=generation_result.get("confidence", "high"),
+            review_status=ReviewStatus.DRAFT.value,
+            tags=plan_data.get("tags", []),
+            meta_data={
+                "source_document_id": str(document_id),
+                "source_document_name": document.document_name,
+                "generated_from_analysis": True,
+                "estimated_hours": plan_data.get("estimated_hours"),
+                "complexity": plan_data.get("complexity"),
+                "timeframe": plan_data.get("timeframe"),
+            },
+            created_by=current_user.email,
+        )
+
+        db.add(test_plan)
+        await db.flush()
+
+        # Create test suites and test cases
+        test_suites_data = plan_data.get("test_suites", [])
+        suites_created = 0
+        cases_created = 0
+
+        for suite_data in test_suites_data:
+            suite_meta_data = suite_data.get("meta_data", {})
+            if "category" in suite_data:
+                suite_meta_data["category"] = suite_data["category"]
+
+            test_suite = TestSuite(
+                project_id=document.project_id,
+                test_plan_id=test_plan.id,
+                name=suite_data.get("name", "Test Suite"),
+                description=suite_data.get("description", ""),
+                tags=suite_data.get("tags", []),
+                meta_data=suite_meta_data,
+                generated_by=GenerationType.AI.value,
+                created_by=current_user.email,
+            )
+            db.add(test_suite)
+            await db.flush()
+            suites_created += 1
+
+            # Create test cases
+            test_cases_data = suite_data.get("test_cases", [])
+            for case_data in test_cases_data:
+                steps = case_data.get("steps", [])
+                if steps and isinstance(steps[0], dict):
+                    pass
+                else:
+                    steps = [
+                        {
+                            "step_number": idx + 1,
+                            "action": step if isinstance(step, str) else step.get("action", ""),
+                            "expected_result": step.get("expected_result", "") if isinstance(step, dict) else ""
+                        }
+                        for idx, step in enumerate(steps)
+                    ]
+
+                case_meta_data = case_data.get("meta_data", {})
+                if "estimated_time" in case_data:
+                    case_meta_data["estimated_time"] = case_data["estimated_time"]
+
+                test_case = TestCase(
+                    project_id=document.project_id,
+                    test_suite_id=test_suite.id,
+                    title=case_data.get("name", "Test Case"),
+                    description=case_data.get("description", ""),
+                    steps=steps,
+                    expected_result=case_data.get("expected_result", ""),
+                    priority=TestCasePriority[case_data.get("priority", "medium").upper()].value,
+                    status=TestCaseStatus.DRAFT.value,
+                    generated_by=GenerationType.AI.value,
+                    meta_data=case_meta_data,
+                    created_by=current_user.email,
+                )
+                db.add(test_case)
+                cases_created += 1
+
+        await db.commit()
+        await db.refresh(test_plan)
+
+        logger.info(f"Test plan generated from document {document_id}: {test_plan.id} with {suites_created} suites and {cases_created} cases")
+
+        return {
+            "success": True,
+            "message": "Test plan generated successfully from document",
+            "test_plan_id": str(test_plan.id),
+            "document_id": str(document_id),
+            "status": "completed",
+            "summary": {
+                "test_plan_name": test_plan.name,
+                "test_suites_count": suites_created,
+                "test_cases_count": cases_created,
+                "confidence_score": test_plan.confidence_score,
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating test plan from document: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate test plan: {str(e)}"
+        )

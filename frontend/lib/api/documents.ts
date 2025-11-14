@@ -32,6 +32,7 @@ export const documentsAPI = {
   upload: async (file: File, data: {
     project_id: string
     document_type?: string
+    document_name?: string
     source?: string
     description?: string
   }) => {
@@ -39,6 +40,7 @@ export const documentsAPI = {
     formData.append('file', file)
     formData.append('project_id', data.project_id)
     if (data.document_type) formData.append('document_type', data.document_type)
+    if (data.document_name) formData.append('document_name', data.document_name)
     if (data.source) formData.append('source', data.source || 'upload')
     if (data.description) formData.append('description', data.description)
 

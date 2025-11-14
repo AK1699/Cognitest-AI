@@ -126,6 +126,7 @@ async def upload_file(
     project_id: uuid.UUID,
     file: UploadFile = File(...),
     document_type: str = Form(default="document"),
+    document_name: Optional[str] = Form(None),
     tags: Optional[List[str]] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -171,7 +172,7 @@ async def upload_file(
                 id=uuid.UUID(doc_id),
                 project_id=project_id,
                 created_by=current_user.id,
-                document_name=file.filename,
+                document_name=document_name or file.filename,
                 document_type=DocumentType[document_type.upper()] if document_type.upper() in DocumentType.__members__ else DocumentType.DOCUMENT,
                 source=DocumentSource.FILE_UPLOAD,
                 file_type=ingest_result.get("file_type"),
@@ -179,7 +180,7 @@ async def upload_file(
                 content_preview=ingest_result.get("content", "")[:1000],
                 content_length=ingest_result.get("content_length", 0),
                 total_chunks=len(ingest_result["chunks"]),
-                metadata=ingest_result["metadata"],
+                meta_data=ingest_result["metadata"],
                 tags=tags or [],
             )
 
