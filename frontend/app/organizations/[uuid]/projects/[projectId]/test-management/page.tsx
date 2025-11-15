@@ -240,7 +240,10 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     try {
       await testPlansAPI.delete(testPlanId)
       toast.success('Test plan deleted successfully')
+      // Refresh all lists since deleting a test plan also deletes related suites and cases
       fetchTestPlans()
+      fetchTestSuites()
+      fetchTestCases()
     } catch (error) {
       console.error('Failed to delete test plan:', error)
       toast.error('Failed to delete test plan')
@@ -286,7 +289,9 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     try {
       await testSuitesAPI.delete(testSuiteId)
       toast.success('Test suite deleted successfully')
+      // Refresh suites and cases since deleting a suite also deletes related test cases
       fetchTestSuites()
+      fetchTestCases()
     } catch (error) {
       console.error('Failed to delete test suite:', error)
       toast.error('Failed to delete test suite')
@@ -716,7 +721,14 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
           projectId={projectId}
           organisationId={uuid}
           onClose={() => setShowAIGenerator(false)}
-          onSuccess={handleAIGenerate}
+          onSuccess={() => {
+            setShowAIGenerator(false)
+            // Refresh all lists to show the newly generated test plan, suites, and cases
+            fetchTestPlans()
+            fetchTestSuites()
+            fetchTestCases()
+            toast.success('Test plan generated successfully!')
+          }}
         />
       )}
 

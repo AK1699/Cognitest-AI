@@ -435,6 +435,8 @@ async def ai_generate_test_plan(
     Generate a test plan using AI based on source documents.
     Uses LangChain and OpenAI to generate comprehensive test plans from BRDs.
     """
+    logger.info(f"AI Generate Test Plan Request: project_id={request.project_id}, source_docs={request.source_documents}")
+
     # Verify project access
     project = await verify_project_access(request.project_id, current_user, db)
 
@@ -485,21 +487,33 @@ async def ai_generate_test_plan(
         await db.commit()
         await db.refresh(test_plan)
 
-        return {
-            "test_plan": test_plan,
-            "confidence_score": generation_result.get("confidence", "high"),
-            "suggestions": plan_data.get("suggestions", []),
-            "warnings": [],
-        }
+        logger.info(f"Test plan created successfully: {test_plan.id}")
+        logger.info(f"Test plan objectives type: {type(test_plan.objectives)}, value: {test_plan.objectives}")
+
+        try:
+            response_data = {
+                "test_plan": test_plan,
+                "confidence_score": generation_result.get("confidence", "high"),
+                "suggestions": plan_data.get("suggestions", []),
+                "warnings": [],
+            }
+            logger.info(f"Returning response with test_plan id: {test_plan.id}")
+            return response_data
+        except Exception as response_error:
+            logger.error(f"Error creating response object: {response_error}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     except HTTPException:
         raise
     except Exception as e:
-        logger = logging.getLogger(__name__)
         logger.error(f"Error generating test plan: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate test plan due to an internal error",
+            detail=f"Failed to generate test plan: {str(e)}",
         )
 
 
