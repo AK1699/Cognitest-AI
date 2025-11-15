@@ -48,6 +48,7 @@ class GeminiService:
         self,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        json_mode: bool = False,
     ):
         """
         Get Gemini model instance.
@@ -55,6 +56,7 @@ class GeminiService:
         Args:
             temperature: Controls randomness (0=deterministic, 1=creative)
             max_tokens: Maximum tokens in response
+            json_mode: Force JSON response format (eliminates markdown wrapping)
 
         Returns:
             Gemini model instance
@@ -70,6 +72,10 @@ class GeminiService:
         if max_tokens:
             generation_config["max_output_tokens"] = max_tokens
 
+        # Force JSON mode to eliminate markdown wrapping issues
+        if json_mode:
+            generation_config["response_mime_type"] = "application/json"
+
         return genai.GenerativeModel(
             model_name=self.model_name,
             generation_config=generation_config,
@@ -80,6 +86,7 @@ class GeminiService:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        json_mode: bool = False,
     ) -> str:
         """
         Generate text completion from messages.
@@ -88,6 +95,7 @@ class GeminiService:
             messages: List of message dicts with 'role' and 'content'
             temperature: Controls randomness
             max_tokens: Maximum tokens in response
+            json_mode: Force JSON response format (eliminates markdown wrapping)
 
         Returns:
             Generated text
@@ -95,7 +103,7 @@ class GeminiService:
         self._check_api_key()
 
         try:
-            model = self.get_model(temperature=temperature, max_tokens=max_tokens)
+            model = self.get_model(temperature=temperature, max_tokens=max_tokens, json_mode=json_mode)
 
             # Convert messages to Gemini format
             # Gemini uses a simpler prompt format
@@ -104,7 +112,60 @@ class GeminiService:
             # Generate response
             response = model.generate_content(prompt)
 
-            return response.text
+            # Handle multi-part responses properly
+            try:
+                # Try simple text accessor first
+                return response.text
+            except ValueError as ve:
+                # Handle multi-part response
+                logger.info(f"Handling multi-part Gemini response (error: {ve})")
+
+                # Try multiple methods to extract text
+                text_parts = []
+
+                # Method 1: Try response.parts directly (as error message suggests)
+                if hasattr(response, 'parts'):
+                    logger.info("Trying response.parts accessor")
+                    try:
+                        for idx, part in enumerate(response.parts):
+                            if hasattr(part, 'text'):
+                                text_parts.append(part.text)
+                                logger.info(f"Extracted {len(part.text)} chars from response.parts[{idx}]")
+                    except Exception as ex:
+                        logger.warning(f"Failed to use response.parts: {ex}")
+
+                # Method 2: Try candidates[0].content.parts
+                if not text_parts and response.candidates:
+                    logger.info(f"Trying candidates[0].content.parts")
+                    parts = response.candidates[0].content.parts
+                    logger.info(f"Found {len(parts)} parts in candidate.content")
+
+                    for idx, part in enumerate(parts):
+                        logger.info(f"Part {idx}: has text={hasattr(part, 'text')}")
+                        if hasattr(part, 'text'):
+                            try:
+                                part_text = part.text
+                                logger.info(f"Part {idx} text length: {len(part_text)}")
+                                text_parts.append(part_text)
+                            except Exception as ex:
+                                logger.warning(f"Failed to get text from part {idx}: {ex}")
+
+                # Method 3: Try to get prompt_feedback or other fields
+                if not text_parts:
+                    logger.warning("No text found in parts, checking response structure")
+                    logger.info(f"Response type: {type(response)}")
+                    logger.info(f"Response attributes: {[a for a in dir(response) if not a.startswith('_')][:20]}")
+
+                    # Sometimes the response might be blocked or filtered
+                    if hasattr(response, 'prompt_feedback'):
+                        logger.info(f"Prompt feedback: {response.prompt_feedback}")
+
+                if text_parts:
+                    result = ''.join(text_parts)
+                    logger.info(f"Multi-part extraction complete: {len(result)} total characters")
+                    return result
+                else:
+                    raise ValueError("No valid text content found in Gemini response")
 
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}")

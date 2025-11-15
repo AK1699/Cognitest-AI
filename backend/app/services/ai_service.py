@@ -86,6 +86,7 @@ class AIService:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        json_mode: bool = False,
     ) -> str:
         """
         Generate text completion from messages.
@@ -95,6 +96,7 @@ class AIService:
             messages: List of message dicts with 'role' and 'content'
             temperature: Controls randomness
             max_tokens: Maximum tokens in response
+            json_mode: Force JSON response format (for Gemini, eliminates markdown wrapping)
 
         Returns:
             Generated text
@@ -107,6 +109,7 @@ class AIService:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                json_mode=json_mode,
             )
 
         # Use OpenAI (default)

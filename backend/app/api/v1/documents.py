@@ -451,6 +451,12 @@ async def generate_test_plan_from_document(
     Generate a comprehensive test plan from an analyzed document.
     Uses the document analysis results to create a detailed test plan with test suites and cases.
     """
+    logger.info(f"=" * 80)
+    logger.info(f"📄 GENERATE TEST PLAN FROM DOCUMENT REQUEST")
+    logger.info(f"Document ID: {document_id}")
+    logger.info(f"User: {current_user.email}")
+    logger.info(f"=" * 80)
+
     result = await db.execute(
         select(DocumentKnowledge).where(DocumentKnowledge.id == document_id)
     )
@@ -517,6 +523,7 @@ async def generate_test_plan_from_document(
             ai_service = AIService()
             analysis_service = get_document_analysis_service(ai_service)
 
+            logger.info(f"🔍 Analyzing document with AI (content length: {len(content)} chars)")
             analysis_result = await analysis_service.analyze_document_content(
                 content=content,
                 document_type=document.document_type.value if document.document_type else "document",
@@ -524,6 +531,10 @@ async def generate_test_plan_from_document(
             )
 
             analysis_data = analysis_result.get("data", {})
+            logger.info(f"✅ Document analysis completed")
+            logger.info(f"   Features found: {len(analysis_data.get('features', []))}")
+            logger.info(f"   Requirements found: {len(analysis_data.get('requirements', []))}")
+            logger.info(f"   Test scenarios: {len(analysis_data.get('test_scenarios', []))}")
 
             # Store analysis results
             document.meta_data = {

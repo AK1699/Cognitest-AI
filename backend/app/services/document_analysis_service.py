@@ -45,12 +45,15 @@ class DocumentAnalysisService:
 
             # If content is too long, chunk it and analyze in parts
             if len(content) > 12000:
+                logger.info("Document is long, using chunked analysis")
                 return await self._analyze_long_document(content, document_type, additional_context)
 
             # Build analysis prompt
             prompt = self._build_analysis_prompt(content, document_type, additional_context)
+            logger.info(f"Analysis prompt length: {len(prompt)} characters")
 
             # Generate AI analysis
+            logger.info("Calling AI service to analyze document...")
             response = await self.ai_service.generate_completion(
                 messages=[
                     {
@@ -60,13 +63,16 @@ class DocumentAnalysisService:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,  # Lower temperature for more accurate extraction
-                max_tokens=3000,
+                max_tokens=8000,  # Increased to allow complete JSON responses
+                json_mode=True,  # Force JSON response, eliminates markdown wrapping
             )
+
+            logger.info(f"AI response received: {len(response)} characters")
 
             # Parse AI response
             analysis_data = self._parse_analysis_response(response)
 
-            logger.info(f"Document analysis completed: {len(analysis_data.get('features', []))} features identified")
+            logger.info(f"✅ Document analysis completed: {len(analysis_data.get('features', []))} features, {len(analysis_data.get('requirements', []))} requirements identified")
 
             return {
                 "status": "success",
@@ -75,14 +81,19 @@ class DocumentAnalysisService:
             }
 
         except Exception as e:
-            logger.error(f"Error analyzing document: {e}")
+            logger.error(f"❌ Error analyzing document with AI: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
             # Fallback to basic extraction
+            logger.warning("⚠️  Using fallback basic extraction")
             fallback_data = self._basic_content_extraction(content)
             return {
                 "status": "partial",
                 "data": fallback_data,
                 "error": str(e),
-                "note": "Using fallback extraction due to error",
+                "note": "Using fallback extraction due to AI error",
             }
 
     async def _analyze_long_document(
@@ -131,7 +142,8 @@ class DocumentAnalysisService:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.3,
-                    max_tokens=2000,
+                    max_tokens=8000,  # Increased to allow complete responses
+                    json_mode=True,  # Force JSON response
                 )
                 chunk_data = self._parse_analysis_response(response)
                 chunk_results.append(chunk_data)
@@ -149,17 +161,12 @@ class DocumentAnalysisService:
 
     def _get_document_analysis_system_prompt(self) -> str:
         """Get system prompt for document analysis."""
-        return """You are an expert QA analyst and requirements engineer.
-Your task is to analyze requirement documents, BRDs, specifications, and other documents to extract:
-1. Project description and objectives
-2. Features and functionality
-3. Specific requirements
-4. Acceptance criteria
-5. Testable scenarios
-6. Technical details and constraints
+        return """You are an expert QA analyst and requirements engineer specializing in test automation.
 
-Be thorough, accurate, and focus on extracting testable information.
-Format your response as valid JSON only, no additional text or markdown."""
+Your task is to analyze requirement documents and extract structured testing information.
+
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any markdown formatting, code blocks, or additional text.
+The response will be parsed directly as JSON, so it must be perfectly formatted."""
 
     def _build_analysis_prompt(
         self,
@@ -262,25 +269,50 @@ Analyze the following {document_type} document and extract all testable informat
     def _parse_analysis_response(self, response: str) -> Dict[str, Any]:
         """Parse AI response into structured data."""
         try:
-            # Try to extract JSON from response
-            # Sometimes AI adds markdown code blocks
-            json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                # Try to find JSON object
-                json_match = re.search(r'\{.*\}', response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                else:
-                    json_str = response
+            logger.info(f"Parsing response (length: {len(response)})")
+            logger.info(f"Response starts with: {repr(response[:100])}")
+            logger.info(f"Response ends with: {repr(response[-100:])}")
 
-            data = json.loads(json_str)
-            return data
+            # Clean the response
+            cleaned_response = response.strip()
+
+            # Try direct JSON parse first (JSON mode should return pure JSON)
+            try:
+                data = json.loads(cleaned_response)
+                logger.info(f"✅ JSON parsed successfully on first attempt!")
+                return data
+            except json.JSONDecodeError as first_error:
+                logger.info(f"First parse failed: {first_error}, trying extraction...")
+
+                # Fallback: Try to extract JSON from markdown blocks (shouldn't happen with JSON mode)
+                json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                    logger.info(f"Extracted JSON from markdown block (length: {len(json_str)})")
+                else:
+                    # Try to find JSON object
+                    json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(0)
+                        logger.info(f"Found JSON object via regex (length: {len(json_str)})")
+                    else:
+                        logger.warning("No JSON object found, using raw response")
+                        json_str = cleaned_response
+
+                # Clean up trailing commas and extra whitespace
+                json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+                json_str = json_str.strip()
+
+                logger.info(f"JSON string to parse: {repr(json_str[:200])}")
+                data = json.loads(json_str)
+                logger.info(f"✅ JSON parsed successfully after cleanup!")
+                return data
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {e}")
-            logger.error(f"Response: {response[:500]}")
+            logger.error(f"Response length: {len(response)}")
+            logger.error(f"Response preview: {response[:500]}")
+            logger.error(f"JSON string attempted: {repr(json_str[:200]) if 'json_str' in locals() else 'N/A'}")
             # Return basic structure
             return self._get_empty_analysis_structure()
 

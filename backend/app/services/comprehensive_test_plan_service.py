@@ -54,11 +54,14 @@ class ComprehensiveTestPlanService:
         """
         try:
             logger.info(f"Generating comprehensive test plan for project {project_id}")
+            logger.info(f"Using AI provider: {self.ai_service.provider}")
 
             # Build comprehensive prompt
             prompt = self._build_comprehensive_prompt(requirements)
+            logger.info(f"Prompt length: {len(prompt)} characters")
 
             # Generate using AI
+            logger.info("Calling AI service to generate test plan...")
             response = await self.ai_service.generate_completion(
                 messages=[
                     {
@@ -68,12 +71,16 @@ class ComprehensiveTestPlanService:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=4000,
+                max_tokens=10000,  # Balanced to avoid timeout while allowing good responses
+                json_mode=True,  # Force JSON response, eliminates markdown wrapping
             )
+
+            logger.info(f"AI response received: {len(response)} characters")
 
             # Parse AI response
             test_plan_data = self._parse_comprehensive_response(response, requirements)
 
+            logger.info(f"✅ AI-generated test plan successfully! Confidence: HIGH")
             return {
                 "status": "success",
                 "data": test_plan_data,
@@ -81,14 +88,19 @@ class ComprehensiveTestPlanService:
             }
 
         except Exception as e:
-            logger.error(f"Error generating comprehensive test plan: {e}")
+            logger.error(f"❌ Error generating comprehensive test plan with AI: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
             # Fallback to rule-based generation
+            logger.warning("⚠️  Falling back to rule-based generation")
             fallback_data = self._generate_fallback_test_plan(requirements)
             return {
                 "status": "success",
                 "data": fallback_data,
                 "confidence": "medium",
-                "note": "Generated using fallback mechanism",
+                "note": "Generated using fallback mechanism due to AI error",
             }
 
     def _get_ieee_system_prompt(self) -> str:
@@ -498,19 +510,43 @@ Generate a comprehensive test plan following IEEE 829 standard.
     ) -> Dict[str, Any]:
         """Parse AI response and ensure all required fields exist."""
         try:
-            # Extract JSON from response
+            logger.info(f"Parsing comprehensive response (length: {len(response)})")
+            logger.info(f"Response starts with: {repr(response[:100])}")
+            logger.info(f"Response ends with: {repr(response[-100:])}")
+
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
-            if not json_match:
-                raise ValueError("No valid JSON found in response")
 
-            cleaned_text = json_match.group()
-            # Remove comments and trailing commas
-            cleaned_text = re.sub(r'//.*$', '', cleaned_text, flags=re.MULTILINE)
-            cleaned_text = re.sub(r'/\*[\s\S]*?\*/', '', cleaned_text)
-            cleaned_text = re.sub(r',(\s*[}\]])', r'\1', cleaned_text)
+            # Clean the response
+            cleaned_response = response.strip()
 
-            parsed = json.loads(cleaned_text)
+            # Try direct JSON parse first (JSON mode should return pure JSON)
+            try:
+                parsed = json.loads(cleaned_response)
+                logger.info(f"✅ JSON parsed successfully on first attempt!")
+            except json.JSONDecodeError as first_error:
+                logger.info(f"First parse failed: {first_error}, trying extraction...")
+
+                # Fallback: Try to extract JSON from markdown blocks (shouldn't happen with JSON mode)
+                json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                    logger.info(f"Extracted JSON from markdown block (length: {len(json_str)})")
+                else:
+                    # Try to find JSON object
+                    json_match = re.search(r'\{[\s\S]*\}', response)
+                    if not json_match:
+                        raise ValueError("No valid JSON found in response")
+                    json_str = json_match.group()
+                    logger.info(f"Extracted JSON object (length: {len(json_str)})")
+
+                # Remove comments and trailing commas
+                cleaned_text = re.sub(r'//.*$', '', json_str, flags=re.MULTILINE)
+                cleaned_text = re.sub(r'/\*[\s\S]*?\*/', '', cleaned_text)
+                cleaned_text = re.sub(r',(\s*[}\]])', r'\1', cleaned_text)
+
+                logger.info(f"Attempting to parse JSON (length after cleaning: {len(cleaned_text)})")
+                parsed = json.loads(cleaned_text)
+                logger.info(f"✅ JSON parsed successfully after cleanup!")
 
             # Ensure all required fields with fallbacks
             result = {
@@ -542,8 +578,15 @@ Generate a comprehensive test plan following IEEE 829 standard.
 
             return result
 
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {e}")
+            logger.error(f"JSON string attempted (first 500 chars): {cleaned_text[:500] if 'cleaned_text' in locals() else 'N/A'}")
+            logger.error(f"JSON string attempted (last 500 chars): {cleaned_text[-500:] if 'cleaned_text' in locals() else 'N/A'}")
+            return self._generate_fallback_test_plan(requirements)
         except Exception as e:
             logger.error(f"Error parsing AI response: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return self._generate_fallback_test_plan(requirements)
 
     def _generate_fallback_test_plan(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
