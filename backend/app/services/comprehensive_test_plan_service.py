@@ -71,7 +71,7 @@ class ComprehensiveTestPlanService:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=20000,  # Increased to allow Gemini to complete detailed responses without truncation
+                max_tokens=50000,  # Increased to 50k to allow Gemini to complete full IEEE 829 responses (~35k chars typical)
                 json_mode=True,  # Force JSON response, eliminates markdown wrapping
             )
 
@@ -540,6 +540,8 @@ Generate a comprehensive test plan following IEEE 829 standard.
             try:
                 parsed = json.loads(cleaned_response)
                 logger.info(f"✅ JSON parsed successfully on first attempt!")
+                logger.info(f"🔍 AI-generated name field: {repr(parsed.get('name'))}")
+                logger.info(f"🔍 AI response has {len(parsed)} top-level keys: {list(parsed.keys())[:20]}")
             except json.JSONDecodeError as first_error:
                 logger.info(f"First parse failed: {first_error}, trying extraction...")
 
@@ -564,10 +566,20 @@ Generate a comprehensive test plan following IEEE 829 standard.
                 logger.info(f"Attempting to parse JSON (length after cleaning: {len(cleaned_text)})")
                 parsed = json.loads(cleaned_text)
                 logger.info(f"✅ JSON parsed successfully after cleanup!")
+                logger.info(f"🔍 AI-generated name field: {repr(parsed.get('name'))}")
+                logger.info(f"🔍 AI response has {len(parsed)} top-level keys: {list(parsed.keys())[:20]}")
 
             # Ensure all required fields with fallbacks
+            ai_name = parsed.get("name")
+            fallback_name = f"{requirements.get('project_type', 'Test').title()} Plan"
+
+            if ai_name:
+                logger.info(f"✅ Using AI-generated name: '{ai_name}'")
+            else:
+                logger.warning(f"⚠️  No AI name found! Using fallback: '{fallback_name}'")
+
             result = {
-                "name": parsed.get("name", f"{requirements.get('project_type', 'Test')} Plan"),
+                "name": ai_name or fallback_name,
                 "description": parsed.get("description", requirements.get("description", "")),
                 "priority": requirements.get("priority", "medium"),
                 "estimated_hours": parsed.get("estimated_hours", self._estimate_hours(requirements)),
