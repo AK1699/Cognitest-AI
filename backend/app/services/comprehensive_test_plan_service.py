@@ -71,7 +71,7 @@ class ComprehensiveTestPlanService:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=10000,  # Balanced to avoid timeout while allowing good responses
+                max_tokens=20000,  # Increased to allow Gemini to complete detailed responses without truncation
                 json_mode=True,  # Force JSON response, eliminates markdown wrapping
             )
 
@@ -80,11 +80,19 @@ class ComprehensiveTestPlanService:
             # Parse AI response
             test_plan_data = self._parse_comprehensive_response(response, requirements)
 
-            logger.info(f"✅ AI-generated test plan successfully! Confidence: HIGH")
+            # Calculate confidence score based on multiple quality factors
+            confidence_score = self._calculate_confidence_score(
+                test_plan_data=test_plan_data,
+                requirements=requirements,
+                response_length=len(response),
+                used_ai=True
+            )
+
+            logger.info(f"✅ AI-generated test plan successfully! Confidence: {confidence_score}%")
             return {
                 "status": "success",
                 "data": test_plan_data,
-                "confidence": "high",
+                "confidence": confidence_score,
             }
 
         except Exception as e:
@@ -96,10 +104,19 @@ class ComprehensiveTestPlanService:
             # Fallback to rule-based generation
             logger.warning("⚠️  Falling back to rule-based generation")
             fallback_data = self._generate_fallback_test_plan(requirements)
+
+            # Calculate confidence for fallback (will be lower)
+            confidence_score = self._calculate_confidence_score(
+                test_plan_data=fallback_data,
+                requirements=requirements,
+                response_length=0,
+                used_ai=False
+            )
+
             return {
                 "status": "success",
                 "data": fallback_data,
-                "confidence": "medium",
+                "confidence": confidence_score,
                 "note": "Generated using fallback mechanism due to AI error",
             }
 
@@ -618,6 +635,102 @@ Generate a comprehensive test plan following IEEE 829 standard.
             "approval_signoff": self._default_approval(requirements),
             "test_suites": self._default_test_suites(requirements),
         }
+
+    def _calculate_confidence_score(
+        self,
+        test_plan_data: Dict[str, Any],
+        requirements: Dict[str, Any],
+        response_length: int,
+        used_ai: bool
+    ) -> int:
+        """
+        Calculate confidence score (0-100%) based on multiple quality factors.
+
+        Factors considered:
+        1. AI vs Fallback (40 points)
+        2. Input quality - features, description (20 points)
+        3. Output completeness - IEEE sections filled (20 points)
+        4. Test suite quality - number and detail (10 points)
+        5. Response quality - length and detail (10 points)
+
+        Args:
+            test_plan_data: Generated test plan data
+            requirements: Input requirements
+            response_length: Length of AI response
+            used_ai: Whether AI was used or fallback
+
+        Returns:
+            Confidence score as integer percentage (0-100)
+        """
+        score = 0
+
+        # Factor 1: AI vs Fallback (40 points)
+        if used_ai:
+            score += 40  # Full points for using AI
+        else:
+            score += 10  # Minimal points for fallback
+
+        # Factor 2: Input Quality (20 points)
+        input_score = 0
+        if requirements.get("description") and len(requirements.get("description", "")) > 50:
+            input_score += 5
+        if requirements.get("features") and len(requirements.get("features", [])) > 0:
+            input_score += 5
+        if requirements.get("platforms") and len(requirements.get("platforms", [])) > 0:
+            input_score += 3
+        if requirements.get("project_type"):
+            input_score += 3
+        if requirements.get("complexity"):
+            input_score += 2
+        if requirements.get("priority"):
+            input_score += 2
+        score += input_score
+
+        # Factor 3: Output Completeness - IEEE 829 sections (20 points)
+        ieee_sections = [
+            "test_objectives",
+            "scope_of_testing",
+            "test_approach",
+            "assumptions_and_constraints",
+            "test_schedule",
+            "resources_and_roles",
+            "test_environment",
+            "entry_exit_criteria",
+            "risk_management",
+            "deliverables_and_reporting",
+            "approval_signoff"
+        ]
+        filled_sections = sum(1 for section in ieee_sections if test_plan_data.get(section))
+        completeness_score = int((filled_sections / len(ieee_sections)) * 20)
+        score += completeness_score
+
+        # Factor 4: Test Suite Quality (10 points)
+        test_suites = test_plan_data.get("test_suites", [])
+        if test_suites:
+            suite_score = min(len(test_suites) * 2, 5)  # Up to 5 points for suites
+            total_cases = sum(len(suite.get("test_cases", [])) for suite in test_suites)
+            case_score = min(total_cases, 5)  # Up to 5 points for test cases
+            score += suite_score + case_score
+
+        # Factor 5: Response Quality (10 points)
+        if used_ai:
+            if response_length > 5000:
+                score += 10  # Detailed response
+            elif response_length > 2000:
+                score += 7  # Good response
+            elif response_length > 1000:
+                score += 5  # Adequate response
+            else:
+                score += 3  # Minimal response
+
+        # Cap at 100%
+        final_score = min(score, 100)
+
+        logger.info(f"Confidence calculation: AI={used_ai}, Input={input_score}/20, "
+                   f"Completeness={completeness_score}/20, Suites={len(test_suites)}, "
+                   f"Final={final_score}%")
+
+        return final_score
 
     # Utility methods
     def _estimate_hours(self, requirements: Dict[str, Any]) -> int:

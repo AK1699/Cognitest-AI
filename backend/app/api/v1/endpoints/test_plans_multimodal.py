@@ -17,7 +17,6 @@ from app.schemas.organisation_memory import (
     AISuggestionsResponse,
 )
 from app.services.organisation_memory_service import get_organisation_memory_service
-from app.services.test_plan_service import TestPlanService
 
 logger = logging.getLogger(__name__)
 
@@ -165,9 +164,23 @@ async def generate_test_plan_with_multimodal_input(
             "created_by": str(current_user.id),
         }
 
-        # Use test plan service to generate
-        test_plan_service = TestPlanService(db)
-        test_plan = await test_plan_service.generate_comprehensive_test_plan(generation_request)
+        # Use comprehensive test plan service to generate (with AI)
+        from app.services.comprehensive_test_plan_service import get_comprehensive_test_plan_service
+
+        comprehensive_service = get_comprehensive_test_plan_service()
+        generation_result = await comprehensive_service.generate_comprehensive_test_plan(
+            project_id=proj_uuid,
+            requirements=generation_request,
+            db=db,
+        )
+
+        if generation_result["status"] != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate test plan: {generation_result.get('error', 'Unknown error')}",
+            )
+
+        test_plan = generation_result["data"]
 
         # Step 5: Link memory to generated test plan
         await memory_service.log_memory_usage(

@@ -477,7 +477,7 @@ async def ai_generate_test_plan(
             objectives=objectives_list,
             generated_by=GenerationType.AI,
             source_documents=request.source_documents,
-            confidence_score=generation_result.get("confidence", "high"),
+            confidence_score=str(generation_result.get("confidence", "high")),  # Convert to string
             tags=plan_data.get("tags", []),
             meta_data=plan_data.get("meta_data", {}),
             created_by=current_user.email,
@@ -630,7 +630,7 @@ async def generate_comprehensive_test_plan(
 
             # Metadata
             generated_by=GenerationType.AI.value,
-            confidence_score=generation_result.get("confidence", "high"),
+            confidence_score=str(generation_result.get("confidence", "high")),  # Convert to string
             review_status=ReviewStatus.DRAFT.value,
             tags=plan_data.get("tags", []),
             meta_data={

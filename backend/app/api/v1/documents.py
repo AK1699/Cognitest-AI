@@ -616,7 +616,7 @@ async def generate_test_plan_from_document(
             # Metadata
             generated_by=GenerationType.AI.value,
             source_documents=[str(document_id)],
-            confidence_score=generation_result.get("confidence", "high"),
+            confidence_score=str(generation_result.get("confidence", "high")),  # Convert to string
             review_status=ReviewStatus.DRAFT.value,
             tags=plan_data.get("tags", []),
             meta_data={
