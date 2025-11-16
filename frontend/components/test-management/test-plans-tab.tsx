@@ -13,6 +13,7 @@ import { testPlansAPI, type TestPlan } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 import { useConfirm } from '@/lib/hooks/use-confirm'
+import { TestPlanDetailsModal } from './TestPlanDetailsModal'
 
 interface TestPlansTabProps {
   projectId: string
@@ -324,95 +325,13 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* View Dialog */}
-      {selectedPlan && (
-        <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
-          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {selectedPlan.name}
-                {selectedPlan.generated_by === 'ai' && (
-                  <Badge variant="secondary" className="ml-2">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    AI Generated
-                  </Badge>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                Created on {formatDateHumanReadable(selectedPlan.created_at)}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
-              {selectedPlan.description && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Description
-                  </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selectedPlan.description}
-                  </p>
-                </div>
-              )}
-
-              {selectedPlan.objectives.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Objectives
-                  </h4>
-                  <ul className="space-y-2">
-                    {selectedPlan.objectives.map((obj, i) => (
-                      <li key={i} className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
-                        <span className="text-primary mt-1">"</span>
-                        <span>{obj}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {selectedPlan.tags.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlan.tags.map((tag, i) => (
-                      <Badge key={i} variant="secondary">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Created By:</span>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {selectedPlan.created_by}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Generation Type:</span>
-                    <p className="font-medium text-gray-900 dark:text-white capitalize">
-                      {selectedPlan.generated_by}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedPlan(null)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Comprehensive Details Modal */}
+      <TestPlanDetailsModal
+        testPlan={selectedPlan}
+        open={!!selectedPlan}
+        onOpenChange={(open) => !open && setSelectedPlan(null)}
+        readOnly={true}
+      />
 
       {/* Confirm Dialog */}
       <ConfirmDialog />

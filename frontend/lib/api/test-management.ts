@@ -119,6 +119,19 @@ export interface TestPlan {
   source_documents: string[]
   confidence_score?: string
 
+  // IEEE 829 Comprehensive Sections
+  test_objectives_ieee?: any[]
+  scope_of_testing_ieee?: any
+  test_approach_ieee?: any
+  assumptions_constraints_ieee?: any[]
+  test_schedule_ieee?: any
+  resources_roles_ieee?: any[]
+  test_environment_ieee?: any
+  entry_exit_criteria_ieee?: any
+  risk_management_ieee?: any
+  deliverables_reporting_ieee?: any
+  approval_signoff_ieee?: any
+
   // Audit
   created_by: string
   created_at: string

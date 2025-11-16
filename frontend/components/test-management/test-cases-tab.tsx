@@ -14,6 +14,7 @@ import { testCasesAPI, testSuitesAPI, type TestCase, type TestSuite, type TestSt
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 import { useConfirm } from '@/lib/hooks/use-confirm'
+import { TestCaseDetailsModal } from './TestCaseDetailsModal'
 
 interface TestCasesTabProps {
   projectId: string
@@ -504,112 +505,13 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* View Dialog */}
-      {selectedCase && !showExecuteDialog && (
-        <Dialog open={!!selectedCase} onOpenChange={() => setSelectedCase(null)}>
-          <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <DialogTitle>{selectedCase.title}</DialogTitle>
-                  <DialogDescription className="mt-2">
-                    Created on {formatDateHumanReadable(selectedCase.created_at)}
-                  </DialogDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Badge className={`${STATUS_COLORS[selectedCase.status]} text-white`}>
-                    {selectedCase.status.replace('_', ' ')}
-                  </Badge>
-                  <Badge className={`${PRIORITY_COLORS[selectedCase.priority]} text-white`}>
-                    {selectedCase.priority}
-                  </Badge>
-                </div>
-              </div>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
-              {selectedCase.description && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Description
-                  </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selectedCase.description}
-                  </p>
-                </div>
-              )}
-
-              {selectedCase.steps.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">
-                    Test Steps
-                  </h4>
-                  <div className="space-y-3">
-                    {selectedCase.steps.map((step, i) => (
-                      <div key={i} className="border rounded-lg p-3 space-y-2">
-                        <div className="font-medium text-sm text-primary">
-                          Step {step.step_number}
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-500">Action:</span>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">
-                            {step.action}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-500">Expected Result:</span>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">
-                            {step.expected_result}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedCase.expected_result && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Overall Expected Result
-                  </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selectedCase.expected_result}
-                  </p>
-                </div>
-              )}
-
-              {selectedCase.tags.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedCase.tags.map((tag, i) => (
-                      <Badge key={i} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedCase(null)}>
-                Close
-              </Button>
-              <Button
-                onClick={() => setShowExecuteDialog(true)}
-                className="bg-primary hover:bg-primary/90"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Execute Test
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Comprehensive Test Case Details Modal */}
+      <TestCaseDetailsModal
+        testCase={selectedCase && !showExecuteDialog ? selectedCase : null}
+        open={!!selectedCase && !showExecuteDialog}
+        onOpenChange={(open) => !open && setSelectedCase(null)}
+        readOnly={true}
+      />
 
       {/* Execute Dialog */}
       {showExecuteDialog && selectedCase && (

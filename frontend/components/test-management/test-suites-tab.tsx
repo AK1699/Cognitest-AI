@@ -10,10 +10,12 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, FolderKanban, Calendar, Trash2, FileText } from 'lucide-react'
-import { testSuitesAPI, testPlansAPI, type TestSuite, type TestPlan } from '@/lib/api/test-management'
+import { testSuitesAPI, testPlansAPI, type TestSuite, type TestPlan, type TestCase } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 import { useConfirm } from '@/lib/hooks/use-confirm'
+import { TestSuiteDetailsModal } from './TestSuiteDetailsModal'
+import { TestCaseDetailsModal } from './TestCaseDetailsModal'
 
 interface TestSuitesTabProps {
   projectId: string
@@ -25,6 +27,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
   const [loading, setLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedSuite, setSelectedSuite] = useState<TestSuite | null>(null)
+  const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null)
   const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -139,6 +142,10 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
     if (!planId) return null
     const plan = testPlans.find(p => p.id === planId)
     return plan?.name
+  }
+
+  const handleViewTestCase = (testCase: TestCase) => {
+    setSelectedTestCase(testCase)
   }
 
   if (loading) {
@@ -322,81 +329,22 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
         </DialogContent>
       </Dialog>
 
-      {selectedSuite && (
-        <Dialog open={!!selectedSuite} onOpenChange={() => setSelectedSuite(null)}>
-          <DialogContent className="sm:max-w-[700px]">
-            <DialogHeader>
-              <DialogTitle>{selectedSuite.name}</DialogTitle>
-              <DialogDescription>
-                Created on {formatDateHumanReadable(selectedSuite.created_at)}
-              </DialogDescription>
-            </DialogHeader>
+      {/* Comprehensive Test Suite Details Modal */}
+      <TestSuiteDetailsModal
+        testSuite={selectedSuite}
+        open={!!selectedSuite}
+        onOpenChange={(open) => !open && setSelectedSuite(null)}
+        onViewTestCase={handleViewTestCase}
+        readOnly={true}
+      />
 
-            <div className="space-y-6 py-4">
-              {selectedSuite.description && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Description
-                  </h4>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {selectedSuite.description}
-                  </p>
-                </div>
-              )}
-
-              {selectedSuite.test_plan_id && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Test Plan
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <span>{getTestPlanName(selectedSuite.test_plan_id)}</span>
-                  </div>
-                </div>
-              )}
-
-              {selectedSuite.tags.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedSuite.tags.map((tag, i) => (
-                      <Badge key={i} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Created By:</span>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {selectedSuite.created_by}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Generation Type:</span>
-                    <p className="font-medium text-gray-900 dark:text-white capitalize">
-                      {selectedSuite.generated_by}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedSuite(null)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Test Case Details Modal (for drilling down from suite) */}
+      <TestCaseDetailsModal
+        testCase={selectedTestCase}
+        open={!!selectedTestCase}
+        onOpenChange={(open) => !open && setSelectedTestCase(null)}
+        readOnly={true}
+      />
 
       {/* Confirm Dialog */}
       <ConfirmDialog />

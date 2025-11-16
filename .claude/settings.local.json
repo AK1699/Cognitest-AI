@@ -114,7 +114,9 @@
       "Bash(alembic heads:*)",
       "Bash(npm install:*)",
       "Bash(/tmp/test_ai_generate_endpoint.sh)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(echo:*)",
+      "Bash(/tmp/test_suite_api.sh)"
     ],
     "deny": [],
     "ask": []

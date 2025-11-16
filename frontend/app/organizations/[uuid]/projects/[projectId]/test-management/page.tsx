@@ -13,6 +13,7 @@ import TestPlanList from '@/components/test-management/TestPlanList'
 import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModal'
 import CreateTestPlanModalV2 from '@/components/test-management/CreateTestPlanModalV2'
 import AITestPlanGenerator from '@/components/test-management/AITestPlanGenerator'
+import { TestPlanDetailsModal } from '@/components/test-management/TestPlanDetailsModal'
 import TestSuiteList from '@/components/test-management/TestSuiteList'
 import CreateTestSuiteModal from '@/components/test-management/CreateTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
@@ -64,6 +65,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   // Test Management State
   const [testPlans, setTestPlans] = useState<TestPlan[]>([])
   const [filteredTestPlans, setFilteredTestPlans] = useState<TestPlan[]>([])
+  const [selectedTestPlan, setSelectedTestPlan] = useState<TestPlan | null>(null)
   const [showManualForm, setShowManualForm] = useState(false)
   const [showAIGenerator, setShowAIGenerator] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -233,6 +235,16 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       return response
     } catch (error: any) {
       throw error
+    }
+  }
+
+  const handleViewTestPlan = async (testPlanId: string) => {
+    try {
+      const testPlan = await testPlansAPI.get(testPlanId)
+      setSelectedTestPlan(testPlan)
+    } catch (error) {
+      console.error('Failed to fetch test plan:', error)
+      toast.error('Failed to load test plan details')
     }
   }
 
@@ -596,6 +608,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   {/* Test Plans List */}
                   <TestPlanList
                     testPlans={filteredTestPlans}
+                    onView={handleViewTestPlan}
                     onDelete={handleDeleteTestPlan}
                     onRefresh={fetchTestPlans}
                   />
@@ -770,6 +783,14 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
           onClose={() => setShowDefectDashboard(false)}
         />
       )}
+
+      {/* Test Plan Details Modal */}
+      <TestPlanDetailsModal
+        testPlan={selectedTestPlan}
+        open={!!selectedTestPlan}
+        onOpenChange={(open) => !open && setSelectedTestPlan(null)}
+        readOnly={true}
+      />
     </div>
   )
 }
