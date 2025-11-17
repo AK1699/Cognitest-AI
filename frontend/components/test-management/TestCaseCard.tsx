@@ -1,7 +1,7 @@
 'use client'
 
 import { TestCase } from '@/lib/api/test-plans'
-import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle } from 'lucide-react'
+import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'
 import { useConfirm } from '@/lib/hooks/use-confirm'
@@ -20,6 +20,7 @@ export default function TestCaseCard({
   onDelete
 }: TestCaseCardProps) {
   const [showMenu, setShowMenu] = useState(false)
+  const [isStepsExpanded, setIsStepsExpanded] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { confirm, ConfirmDialog } = useConfirm()
 
@@ -71,13 +72,23 @@ export default function TestCaseCard({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-gray-300 transition-all relative cursor-pointer" onClick={() => onView && onView(testCase.id)}>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-gray-300 transition-all relative">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
+        <div
+          className="flex-1 cursor-pointer"
+          onClick={() => setIsStepsExpanded(!isStepsExpanded)}
+        >
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-base font-bold text-gray-900 line-clamp-1">
-              {testCase.id.slice(0, 13).toUpperCase()}: {testCase.title.length > 30 ? testCase.title.slice(0, 30) + '...' : testCase.title}
+            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+              {isStepsExpanded ? (
+                <ChevronDown className="w-5 h-5" />
+              ) : (
+                <ChevronRight className="w-5 h-5" />
+              )}
+            </button>
+            <h3 className="text-base font-bold text-gray-900 line-clamp-1 flex-1">
+              {testCase.title}
             </h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -176,33 +187,51 @@ export default function TestCaseCard({
         </div>
       )}
 
-      {/* Steps Preview */}
-      {testCase.steps && testCase.steps.length > 0 && (
-        <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+      {/* Test Steps - Only show when expanded */}
+      {isStepsExpanded && testCase.steps && testCase.steps.length > 0 && (
+        <div className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-1.5 bg-blue-100 rounded">
               <FileText className="w-3.5 h-3.5 text-blue-600" />
             </div>
             <span className="text-xs font-semibold text-blue-900">
-              {testCase.steps.length} Test {testCase.steps.length === 1 ? 'Step' : 'Steps'}
+              Test Steps ({testCase.steps.length})
             </span>
           </div>
+
           <div className="space-y-2">
-            {testCase.steps.slice(0, 2).map((step, index) => (
-              <div key={index} className="flex items-start gap-2 bg-white/60 p-2 rounded border border-blue-100/50">
-                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                  {step.step_number}
+            {testCase.steps.map((step, index) => (
+              <div key={index} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-100">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                    {step.step_number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">
+                      Step {step.step_number}
+                    </p>
+                    <p className="text-sm text-gray-900 mb-2">
+                      {step.action}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold">Expected Result:</span>{' '}
+                      <span className="text-gray-700">{step.expected_result}</span>
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-700 line-clamp-1 flex-1 leading-relaxed">
-                  {step.action}
-                </p>
               </div>
             ))}
-            {testCase.steps.length > 2 && (
-              <div className="text-center pt-1">
-                <span className="text-xs text-blue-600 font-medium">
-                  +{testCase.steps.length - 2} more steps
-                </span>
+
+            {/* Overall Expected Result */}
+            {testCase.expected_result && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200 mt-3">
+                <h5 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Overall Expected Result
+                </h5>
+                <p className="text-sm text-gray-800 leading-relaxed">
+                  {testCase.expected_result}
+                </p>
               </div>
             )}
           </div>

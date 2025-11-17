@@ -149,11 +149,15 @@ export default function HierarchicalTestSuiteList({
                       key={testCase.id}
                       className={`${
                         index !== 0 ? 'border-t border-gray-200' : ''
-                      } bg-white`}
+                      } bg-white relative`}
                     >
+                      {/* Hierarchy Line */}
+                      <div className="absolute left-8 top-0 bottom-0 w-px bg-gray-300" />
+                      <div className="absolute left-8 top-8 w-8 h-px bg-gray-300" />
+
                       {/* Test Case Row */}
                       <div
-                        className="p-4 pl-16 hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="p-4 pl-16 hover:bg-gray-50 transition-colors cursor-pointer relative"
                         onClick={() => toggleCase(testCase.id)}
                       >
                         <div className="flex items-start gap-3">
@@ -213,11 +217,11 @@ export default function HierarchicalTestSuiteList({
 
                       {/* Expanded Test Case Details */}
                       {isCaseExpanded && (
-                        <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-t border-slate-700 p-6 pl-20">
+                        <div className="bg-gray-50 border-t border-gray-200 p-6 pl-20">
                           {/* Description */}
                           {testCase.description && (
                             <div className="mb-6">
-                              <p className="text-sm text-slate-300 leading-relaxed">
+                              <p className="text-sm text-gray-700 leading-relaxed">
                                 {testCase.description}
                               </p>
                             </div>
@@ -226,7 +230,7 @@ export default function HierarchicalTestSuiteList({
                           {/* Test Steps */}
                           {testCase.steps && testCase.steps.length > 0 && (
                             <div className="mb-6">
-                              <h5 className="text-sm font-semibold text-cyan-400 mb-4 flex items-center gap-2">
+                              <h5 className="text-sm font-semibold text-blue-700 mb-4 flex items-center gap-2">
                                 <FileText className="w-4 h-4" />
                                 Test Steps ({testCase.steps.length})
                               </h5>
@@ -234,22 +238,22 @@ export default function HierarchicalTestSuiteList({
                                 {testCase.steps.map((step, stepIdx) => (
                                   <div
                                     key={stepIdx}
-                                    className="bg-slate-700/50 rounded-lg p-4 border border-slate-600"
+                                    className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 shadow-sm"
                                   >
                                     <div className="flex items-start gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-semibold flex items-center justify-center flex-shrink-0">
+                                      <div className="w-8 h-8 rounded-full bg-blue-100 border border-blue-300 text-blue-700 text-sm font-semibold flex items-center justify-center flex-shrink-0">
                                         {step.step_number}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-slate-400 mb-1">
+                                        <p className="text-xs font-semibold text-gray-500 mb-1">
                                           Step {step.step_number}
                                         </p>
-                                        <p className="text-sm text-slate-100 mb-2">
+                                        <p className="text-sm text-gray-900 mb-2">
                                           {step.action}
                                         </p>
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-gray-600">
                                           <span className="font-semibold">Expected Result:</span>{' '}
-                                          <span className="text-slate-300">{step.expected_result}</span>
+                                          <span className="text-gray-700">{step.expected_result}</span>
                                         </p>
                                       </div>
                                     </div>
@@ -261,46 +265,46 @@ export default function HierarchicalTestSuiteList({
 
                           {/* Overall Expected Result */}
                           {testCase.expected_result && (
-                            <div className="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30 mb-6">
-                              <h5 className="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200 mb-6">
+                              <h5 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
                                 <CheckCircle2 className="w-4 h-4" />
                                 Overall Expected Result
                               </h5>
-                              <p className="text-sm text-slate-200 leading-relaxed">
+                              <p className="text-sm text-gray-800 leading-relaxed">
                                 {testCase.expected_result}
                               </p>
                             </div>
                           )}
 
                           {/* Bottom Metadata Bar */}
-                          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                             <div className="grid grid-cols-4 gap-6 text-sm">
                               <div>
-                                <span className="text-slate-500 block mb-1">Priority:</span>
+                                <span className="text-gray-500 block mb-1">Priority:</span>
                                 <span className={`inline-block px-2 py-0.5 rounded font-semibold ${
-                                  testCase.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                  testCase.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                  testCase.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-green-500/20 text-green-400'
+                                  testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                  testCase.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                  testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-green-100 text-green-700'
                                 }`}>
                                   {testCase.priority.toUpperCase()}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500 block mb-1">Category:</span>
-                                <span className="text-slate-200 font-medium">
+                                <span className="text-gray-500 block mb-1">Category:</span>
+                                <span className="text-gray-900 font-medium">
                                   {testCase.tags?.[0] || 'N/A'}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500 block mb-1">Duration:</span>
-                                <span className="text-slate-200 font-medium">
+                                <span className="text-gray-500 block mb-1">Duration:</span>
+                                <span className="text-gray-900 font-medium">
                                   {testCase.steps && testCase.steps.length > 0 ? `${testCase.steps.length * 4}m` : 'N/A'}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500 block mb-1">Created:</span>
-                                <span className="text-slate-200">
+                                <span className="text-gray-500 block mb-1">Created:</span>
+                                <span className="text-gray-900">
                                   {new Date(testCase.created_at).toLocaleDateString()}
                                 </span>
                               </div>
