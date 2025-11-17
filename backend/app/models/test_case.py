@@ -8,6 +8,11 @@ import enum
 from app.core.database import Base
 from app.models.test_plan import GenerationType
 
+# Forward declarations for circular import handling
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.models.automation import AutomationScript, TestCaseExecutionRecord
+
 class TestCaseStatus(str, enum.Enum):
     DRAFT = "draft"
     READY = "ready"
@@ -52,6 +57,11 @@ class TestCase(Base):
     # Execution logs
     execution_logs = Column(JSON, default=list)
 
+    # Automation Integration
+    automation_script_id = Column(UUID(as_uuid=True), ForeignKey("automation_scripts.id", ondelete="SET NULL"), nullable=True)
+    automation_enabled = Column(Boolean, default=False)
+    automation_metadata = Column(JSON, default=dict)  # Script config, parameters, etc.
+
     # Metadata
     tags = Column(JSON, default=list)
     attachments = Column(JSON, default=list)
@@ -66,6 +76,8 @@ class TestCase(Base):
     # Relationships
     project = relationship("Project", back_populates="test_cases")
     test_suite = relationship("TestSuite", back_populates="test_cases")
+    automation_script = relationship("AutomationScript", foreign_keys=[automation_script_id])
+    execution_records = relationship("TestCaseExecutionRecord", back_populates="test_case", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<TestCase {self.title}>"

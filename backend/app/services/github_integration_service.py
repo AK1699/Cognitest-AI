@@ -102,9 +102,43 @@ class GitHubIntegrationService:
             logger.error(f"Error fetching GitHub issues: {e}")
             return []
 
+    async def fetch_issue(self, issue_number: int) -> Optional[Dict[str, Any]]:
+        """
+        Fetch raw GitHub issue by number (returns raw GitHub API response)
+
+        Args:
+            issue_number: GitHub issue number
+
+        Returns:
+            Raw GitHub issue data or None
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/repos/{self.owner}/{self.repo}/issues/{issue_number}",
+                    headers=self.headers,
+                    timeout=30.0,
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"GitHub API error for issue #{issue_number}: {response.status_code}")
+                    return None
+
+                issue = response.json()
+
+                # Skip pull requests
+                if "pull_request" in issue:
+                    return None
+
+                return issue
+
+        except Exception as e:
+            logger.error(f"Error fetching GitHub issue #{issue_number}: {e}")
+            return None
+
     async def fetch_issue_details(self, issue_number: int) -> Optional[Dict[str, Any]]:
         """
-        Fetch detailed information about a specific issue
+        Fetch detailed information about a specific issue (formatted)
 
         Args:
             issue_number: GitHub issue number

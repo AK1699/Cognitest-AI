@@ -28,12 +28,16 @@ const STATUS_COLORS = {
 }
 
 export default function IntegrationsManager({ organisationId, projectId, onClose }: IntegrationsManagerProps) {
-  const [step, setStep] = useState<'list' | 'create' | 'edit' | 'logs'>('list')
+  const [step, setStep] = useState<'list' | 'create' | 'edit' | 'logs' | 'import'>('list')
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null)
   const [loading, setLoading] = useState(false)
   const [testing, setTesting] = useState(false)
   const [syncing, setSyncing] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [fetchingItems, setFetchingItems] = useState(false)
+  const [availableItems, setAvailableItems] = useState<any[]>([])
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const { confirm, ConfirmDialog } = useConfirm()
@@ -184,6 +188,74 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
     }
   }
 
+  const handleOpenImportDialog = async (integration: Integration) => {
+    if (!projectId) {
+      setError('Please select a project first')
+      return
+    }
+
+    setSelectedIntegration(integration)
+    setStep('import')
+    setAvailableItems([])
+    setSelectedItems(new Set())
+    setFetchingItems(true)
+    setError('')
+
+    try {
+      const items = await integrationsAPI.fetchAvailableItems(integration.id, {
+        entity_type: 'issue',
+        max_results: 100,
+      })
+      setAvailableItems(items)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to fetch items from external system')
+    } finally {
+      setFetchingItems(false)
+    }
+  }
+
+  const handleImportAndGenerate = async () => {
+    if (!selectedIntegration || !projectId || selectedItems.size === 0) return
+
+    setImporting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const result = await integrationsAPI.importAndGenerateTestPlan({
+        integration_id: selectedIntegration.id,
+        project_id: projectId,
+        entity_type: 'issue',
+        external_keys: Array.from(selectedItems),
+        generate_suites: true,
+        generate_cases: true,
+      })
+
+      setSuccess(`Successfully imported ${result.import_result.imported_entities.length} items and generated test plan with ${result.test_suites?.length || 0} suites!`)
+      setStep('list')
+      setSelectedItems(new Set())
+
+      // Close after success
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to import and generate test plan')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const toggleItemSelection = (key: string) => {
+    const newSelection = new Set(selectedItems)
+    if (newSelection.has(key)) {
+      newSelection.delete(key)
+    } else {
+      newSelection.add(key)
+    }
+    setSelectedItems(newSelection)
+  }
+
   const getTypeInfo = (type: IntegrationType) => {
     return INTEGRATION_TYPES.find(t => t.value === type) || INTEGRATION_TYPES[0]
   }
@@ -323,6 +395,16 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
 
                       {/* Actions */}
                       <div className="flex gap-2">
+                        {projectId && (
+                          <button
+                            onClick={() => handleOpenImportDialog(integration)}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                          >
+                            <Zap className="w-4 h-4" />
+                            Import & Generate
+                          </button>
+                        )}
+
                         <button
                           onClick={() => handleSync(integration.id)}
                           disabled={syncing === integration.id}
@@ -336,7 +418,7 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
                           ) : (
                             <>
                               <RefreshCw className="w-4 h-4" />
-                              Sync Now
+                              Sync
                             </>
                           )}
                         </button>
@@ -354,6 +436,121 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Import & Generate View */}
+        {step === 'import' && selectedIntegration && (
+          <div className="p-6">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Import & Generate Test Plan</h3>
+              <p className="text-sm text-gray-500">
+                Select items from {getTypeInfo(selectedIntegration.integration_type).label} to import and generate test plan
+              </p>
+            </div>
+
+            {/* Items List */}
+            <div className="border border-gray-200 rounded-lg max-h-[50vh] overflow-y-auto mb-6">
+              {fetchingItems ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-indigo-600 mx-auto mb-4 animate-spin" />
+                  <p className="text-gray-600">Loading items from {getTypeInfo(selectedIntegration.integration_type).label}...</p>
+                </div>
+              ) : availableItems.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No items found</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {availableItems.map((item) => (
+                    <div
+                      key={item.key}
+                      onClick={() => toggleItemSelection(item.key)}
+                      className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(item.key)}
+                          onChange={() => toggleItemSelection(item.key)}
+                          className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-900">{item.key}</span>
+                            {item.type && (
+                              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                                {item.type}
+                              </span>
+                            )}
+                            {item.status && (
+                              <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
+                                {item.status}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-medium text-gray-900 mb-1">{item.summary}</h4>
+                          {item.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
+                          )}
+                          {item.labels && item.labels.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {item.labels.slice(0, 3).map((label: string, i: number) => (
+                                <span key={i} className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                  {label}
+                                </span>
+                              ))}
+                              {item.labels.length > 3 && (
+                                <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                                  +{item.labels.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                {selectedItems.size} item(s) selected
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setStep('list')
+                    setSelectedItems(new Set())
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportAndGenerate}
+                  disabled={selectedItems.size === 0 || importing}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating Test Plan...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Import & Generate Test Plan
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

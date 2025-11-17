@@ -113,6 +113,7 @@ export interface TestPlan {
   // Metadata
   tags: string[]
   meta_data: Record<string, any>
+  priority?: 'low' | 'medium' | 'high' | 'critical'
 
   // AI Generation
   generated_by: 'ai' | 'manual' | 'hybrid'

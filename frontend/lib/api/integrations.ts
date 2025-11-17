@@ -199,4 +199,63 @@ export const integrationsAPI = {
     const response = await axiosInstance.get(`/api/v1/integrations/${id}/logs?limit=${limit}`)
     return response.data as IntegrationSyncLog[]
   },
+
+  /**
+   * Import from external system and generate test plan
+   * This combines import + AI test plan generation in one workflow
+   */
+  importAndGenerateTestPlan: async (data: {
+    integration_id: string
+    project_id: string
+    entity_type: 'issue' | 'test_case' | 'user_story'
+    external_keys: string[]
+    test_plan_name?: string
+    generate_suites?: boolean
+    generate_cases?: boolean
+  }) => {
+    const response = await axiosInstance.post(`/api/v1/integrations/import-and-generate`, data)
+    return response.data as {
+      success: boolean
+      message: string
+      import_result: {
+        success: boolean
+        imported_entities: Array<Record<string, any>>
+        failed_imports: Array<Record<string, string>>
+      }
+      test_plan?: any
+      test_suites?: any[]
+      test_cases?: any[]
+    }
+  },
+
+  /**
+   * Fetch available items from external system (for selection before import)
+   */
+  fetchAvailableItems: async (
+    id: string,
+    params?: {
+      entity_type?: 'issue' | 'test_case' | 'user_story'
+      project_key?: string
+      status_filter?: string
+      max_results?: number
+    }
+  ) => {
+    const searchParams = new URLSearchParams()
+    if (params?.entity_type) searchParams.append('entity_type', params.entity_type)
+    if (params?.project_key) searchParams.append('project_key', params.project_key)
+    if (params?.status_filter) searchParams.append('status_filter', params.status_filter)
+    if (params?.max_results) searchParams.append('max_results', params.max_results.toString())
+
+    const response = await axiosInstance.get(`/api/v1/integrations/${id}/fetch-items?${searchParams}`)
+    return response.data as Array<{
+      key: string
+      id: string
+      summary: string
+      description?: string
+      status?: string
+      type?: string
+      assignee?: string
+      labels?: string[]
+    }>
+  },
 }

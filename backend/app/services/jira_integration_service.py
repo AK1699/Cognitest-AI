@@ -97,9 +97,37 @@ class JiraIntegrationService:
             logger.error(f"Error fetching user stories: {e}")
             return []
 
+    async def fetch_issue_by_key(self, issue_key: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch raw JIRA issue by key (returns raw JIRA API response)
+
+        Args:
+            issue_key: JIRA issue key (e.g., 'PROJ-123')
+
+        Returns:
+            Raw JIRA issue data or None
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/issue/{issue_key}",
+                    auth=self.auth,
+                    timeout=30.0,
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"JIRA API error for {issue_key}: {response.status_code}")
+                    return None
+
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Error fetching issue {issue_key}: {e}")
+            return None
+
     async def fetch_issue_details(self, issue_key: str) -> Optional[Dict[str, Any]]:
         """
-        Fetch detailed information about a specific issue
+        Fetch detailed information about a specific issue (formatted)
 
         Args:
             issue_key: JIRA issue key (e.g., 'PROJ-123')

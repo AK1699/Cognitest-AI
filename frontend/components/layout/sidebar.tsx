@@ -31,6 +31,53 @@ interface SidebarProps {
   projectId?: string
 }
 
+const getProjectMenuItems = (organisationId: string, projectId: string) => {
+  return [
+    {
+      name: 'Home',
+      href: `/organizations/${organisationId}/projects/${projectId}`,
+      icon: LayoutDashboard,
+      iconColor: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+    },
+    {
+      name: 'Test Management',
+      href: `/organizations/${organisationId}/projects/${projectId}/test-management`,
+      icon: ClipboardList,
+      iconColor: 'text-green-600',
+      bgColor: 'bg-green-100',
+    },
+    {
+      name: 'Automation Hub',
+      href: `/organizations/${organisationId}/projects/${projectId}/automation-hub`,
+      icon: Zap,
+      iconColor: 'text-purple-600',
+      bgColor: 'bg-purple-100',
+    },
+    {
+      name: 'Reports & Analytics',
+      href: `/organizations/${organisationId}/projects/${projectId}/reports`,
+      icon: BarChart3,
+      iconColor: 'text-orange-600',
+      bgColor: 'bg-orange-100',
+    },
+    {
+      name: 'Activity Log',
+      href: `/organizations/${organisationId}/projects/${projectId}/activity`,
+      icon: Workflow,
+      iconColor: 'text-cyan-600',
+      bgColor: 'bg-cyan-100',
+    },
+    {
+      name: 'Settings',
+      href: `/organizations/${organisationId}/projects/${projectId}/settings`,
+      icon: Settings,
+      iconColor: 'text-gray-600',
+      bgColor: 'bg-gray-100',
+    },
+  ]
+}
+
 const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
   const allItems = [
     {
@@ -196,7 +243,10 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-6 px-3">
             <div className="space-y-1 mb-6">
-              {getMainMenuItems(currentOrganisation?.id, isOwner).map((item) => {
+              {(projectId && organisationId
+                ? getProjectMenuItems(organisationId, projectId)
+                : getMainMenuItems(currentOrganisation?.id, isOwner)
+              ).map((item) => {
                 const isActive = pathname === item.href
                 const Icon = item.icon
 

@@ -1,10 +1,10 @@
 """
 External Integration API endpoints for managing JIRA, GitHub, TestRail integrations
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 import logging
 from datetime import datetime
@@ -560,3 +560,347 @@ async def handle_webhook(
         processed=False,
         message="Webhook handling implementation pending"
     )
+
+
+@router.get("/{integration_id}/fetch-items")
+async def fetch_available_items(
+    integration_id: UUID,
+    entity_type: str = Query("issue", description="Type: issue, test_case, user_story"),
+    project_key: Optional[str] = Query(None, description="External project key"),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    max_results: int = Query(50, le=200),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Fetch available items from external system for selection before import.
+    Supports JIRA, TestRail, and GitHub.
+    """
+    # Get integration configuration
+    result = await db.execute(
+        select(Integration).where(Integration.id == integration_id)
+    )
+    integration = result.scalar_one_or_none()
+
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    # Verify permissions
+    await verify_organisation_access(integration.organisation_id, current_user, db)
+
+    try:
+        # Route to appropriate service
+        if integration.integration_type == IntegrationType.JIRA:
+            from app.services.jira_integration_service import get_jira_service
+            service = await get_jira_service(
+                jira_url=integration.base_url,
+                jira_username=integration.username or "",
+                jira_api_token=integration.api_token,
+            )
+
+            items = await service.fetch_user_stories(
+                project_key=project_key or integration.config.get("default_project", ""),
+                max_results=max_results,
+            )
+
+            # Transform to standard format
+            return [
+                {
+                    "key": item.get("key"),
+                    "id": item.get("id"),
+                    "summary": item.get("fields", {}).get("summary", ""),
+                    "description": item.get("fields", {}).get("description", ""),
+                    "status": item.get("fields", {}).get("status", {}).get("name"),
+                    "type": item.get("fields", {}).get("issuetype", {}).get("name"),
+                    "assignee": item.get("fields", {}).get("assignee", {}).get("displayName") if item.get("fields", {}).get("assignee") else None,
+                    "labels": item.get("fields", {}).get("labels", []),
+                }
+                for item in items
+            ]
+
+        elif integration.integration_type == IntegrationType.GITHUB:
+            from app.services.github_integration_service import get_github_service
+            owner = integration.config.get("owner", "")
+            repo = integration.config.get("repo", "")
+            service = await get_github_service(
+                github_token=integration.api_token,
+                owner=owner,
+                repo=repo,
+            )
+
+            issues = await service.fetch_issues(
+                state=status_filter or "open",
+                labels=[],
+                max_results=max_results,
+            )
+
+            return [
+                {
+                    "key": f"#{issue.get('number')}",
+                    "id": str(issue.get("number")),
+                    "summary": issue.get("title", ""),
+                    "description": issue.get("body", ""),
+                    "status": issue.get("state", "").capitalize(),
+                    "type": "Issue",
+                    "assignee": issue.get("assignee", {}).get("login") if issue.get("assignee") else None,
+                    "labels": [label.get("name") for label in issue.get("labels", [])],
+                }
+                for issue in issues
+            ]
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Integration type {integration.integration_type} not supported for fetching items"
+            )
+
+    except Exception as e:
+        logger.error(f"Error fetching items from {integration.integration_type}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch items: {str(e)}"
+        )
+
+
+@router.post("/import-and-generate")
+async def import_and_generate_test_plan(
+    data: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Import items from external system and auto-generate test plan with suites and cases.
+
+    Request body:
+    {
+        "integration_id": "uuid",
+        "project_id": "uuid",
+        "entity_type": "issue" | "test_case" | "user_story",
+        "external_keys": ["PROJ-123", "PROJ-124"],
+        "test_plan_name": "Optional custom name",
+        "generate_suites": true,
+        "generate_cases": true
+    }
+    """
+    integration_id = data.get("integration_id")
+    project_id = data.get("project_id")
+    entity_type = data.get("entity_type", "issue")
+    external_keys = data.get("external_keys", [])
+    test_plan_name = data.get("test_plan_name")
+    generate_suites = data.get("generate_suites", True)
+    generate_cases = data.get("generate_cases", True)
+
+    if not integration_id or not project_id or not external_keys:
+        raise HTTPException(
+            status_code=400,
+            detail="integration_id, project_id, and external_keys are required"
+        )
+
+    # Get integration
+    result = await db.execute(
+        select(Integration).where(Integration.id == UUID(integration_id))
+    )
+    integration = result.scalar_one_or_none()
+
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    # Verify permissions
+    await verify_organisation_access(integration.organisation_id, current_user, db)
+
+    try:
+        # Step 1: Import items from external system
+        logger.info(f"Importing {len(external_keys)} items from {integration.integration_type}")
+
+        imported_entities = []
+        failed_imports = []
+
+        # Route to appropriate service
+        if integration.integration_type == IntegrationType.JIRA:
+            from app.services.jira_integration_service import get_jira_service
+            service = await get_jira_service(
+                jira_url=integration.base_url,
+                jira_username=integration.username or "",
+                jira_api_token=integration.api_token,
+            )
+
+            for key in external_keys:
+                try:
+                    issue = await service.fetch_issue_by_key(key)
+                    imported_entities.append({
+                        "key": key,
+                        "summary": issue.get("fields", {}).get("summary"),
+                        "description": issue.get("fields", {}).get("description", ""),
+                        "type": issue.get("fields", {}).get("issuetype", {}).get("name"),
+                        "status": issue.get("fields", {}).get("status", {}).get("name"),
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to import {key}: {e}")
+                    failed_imports.append({"key": key, "error": str(e)})
+
+        elif integration.integration_type == IntegrationType.GITHUB:
+            from app.services.github_integration_service import get_github_service
+            owner = integration.config.get("owner", "")
+            repo = integration.config.get("repo", "")
+            service = await get_github_service(
+                github_token=integration.api_token,
+                owner=owner,
+                repo=repo,
+            )
+
+            for key in external_keys:
+                try:
+                    issue_number = int(key.replace("#", ""))
+                    issue = await service.fetch_issue(issue_number)
+                    imported_entities.append({
+                        "key": key,
+                        "summary": issue.get("title"),
+                        "description": issue.get("body", ""),
+                        "type": "Issue",
+                        "status": issue.get("state"),
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to import {key}: {e}")
+                    failed_imports.append({"key": key, "error": str(e)})
+
+        # Step 2: Combine all descriptions for AI analysis
+        combined_description = f"# Test Plan: {test_plan_name or 'Imported Requirements'}\n\n"
+        combined_description += "## Requirements from External System\n\n"
+
+        for idx, entity in enumerate(imported_entities, 1):
+            combined_description += f"### {idx}. {entity['summary']} ({entity['key']})\n"
+            combined_description += f"**Type**: {entity['type']}\n"
+            combined_description += f"**Status**: {entity['status']}\n\n"
+            if entity.get("description"):
+                combined_description += f"{entity['description']}\n\n"
+            combined_description += "---\n\n"
+
+        # Step 3: Generate comprehensive test plan using AI
+        logger.info("Generating comprehensive test plan with AI")
+
+        from app.services.ai_test_plan_service import get_ai_test_plan_service
+        ai_service = await get_ai_test_plan_service()
+
+        plan_data = await ai_service.generate_comprehensive_plan(
+            description=combined_description,
+            features=[entity["summary"] for entity in imported_entities],
+            platforms=data.get("platforms", ["Web", "Mobile"]),
+            include_performance=True,
+            include_security=True,
+        )
+
+        # Step 4: Create test plan in database
+        from app.models.test_management import TestPlan, TestSuite, TestCase, GenerationType, TestCasePriority, TestCaseStatus
+
+        test_plan = TestPlan(
+            project_id=UUID(project_id),
+            name=test_plan_name or plan_data.get("test_plan_name", "Imported Test Plan"),
+            description=plan_data.get("description", ""),
+            objectives=plan_data.get("objectives", []),
+            scope=plan_data.get("scope", {}),
+            test_strategy=plan_data.get("test_strategy", {}),
+            schedule=plan_data.get("schedule", {}),
+            resources=plan_data.get("resources", {}),
+            risks=plan_data.get("risks", []),
+            deliverables=plan_data.get("deliverables", []),
+            tags=["imported", integration.integration_type.value],
+            generated_by=GenerationType.AI.value,
+            ai_generated=True,
+            created_by=current_user.email,
+        )
+        db.add(test_plan)
+        await db.flush()
+
+        # Step 5: Create test suites if requested
+        test_suites = []
+        test_cases_count = 0
+
+        if generate_suites:
+            test_suites_data = plan_data.get("test_suites", [])
+
+            for suite_data in test_suites_data:
+                test_suite = TestSuite(
+                    project_id=UUID(project_id),
+                    test_plan_id=test_plan.id,
+                    name=suite_data.get("name", "Test Suite"),
+                    description=suite_data.get("description", ""),
+                    tags=suite_data.get("tags", []),
+                    generated_by=GenerationType.AI.value,
+                    ai_generated=True,
+                    created_by=current_user.email,
+                )
+                db.add(test_suite)
+                await db.flush()
+                test_suites.append(test_suite)
+
+                # Step 6: Create test cases if requested
+                if generate_cases:
+                    test_cases_data = suite_data.get("test_cases", [])
+
+                    for case_data in test_cases_data:
+                        # Parse steps
+                        steps = []
+                        steps_data = case_data.get("steps", [])
+                        for step in steps_data:
+                            steps.append({
+                                "step_number": step.get("step_number", len(steps) + 1),
+                                "action": step.get("action", ""),
+                                "expected_result": step.get("expected_result", ""),
+                            })
+
+                        test_case = TestCase(
+                            project_id=UUID(project_id),
+                            test_suite_id=test_suite.id,
+                            title=case_data.get("name", "Test Case"),
+                            description=case_data.get("description", ""),
+                            steps=steps,
+                            expected_result=case_data.get("expected_result", ""),
+                            priority=TestCasePriority[case_data.get("priority", "medium").upper()].value,
+                            status=TestCaseStatus.DRAFT.value,
+                            tags=case_data.get("tags", []),
+                            generated_by=GenerationType.AI.value,
+                            ai_generated=True,
+                            created_by=current_user.email,
+                        )
+                        db.add(test_case)
+                        test_cases_count += 1
+
+        await db.commit()
+
+        # Step 7: Return comprehensive result
+        return {
+            "success": True,
+            "message": f"Successfully imported {len(imported_entities)} items and generated test plan",
+            "import_result": {
+                "success": len(failed_imports) == 0,
+                "imported_entities": imported_entities,
+                "failed_imports": failed_imports,
+            },
+            "test_plan": {
+                "id": str(test_plan.id),
+                "name": test_plan.name,
+                "description": test_plan.description,
+            },
+            "test_suites": [
+                {
+                    "id": str(suite.id),
+                    "name": suite.name,
+                    "description": suite.description,
+                }
+                for suite in test_suites
+            ],
+            "statistics": {
+                "items_imported": len(imported_entities),
+                "items_failed": len(failed_imports),
+                "test_suites_created": len(test_suites),
+                "test_cases_created": test_cases_count,
+                "test_plan_id": str(test_plan.id),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error in import-and-generate workflow: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to import and generate test plan: {str(e)}"
+        )

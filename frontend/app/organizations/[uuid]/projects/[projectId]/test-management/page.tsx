@@ -14,7 +14,7 @@ import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModa
 import CreateTestPlanModalV2 from '@/components/test-management/CreateTestPlanModalV2'
 import AITestPlanGenerator from '@/components/test-management/AITestPlanGenerator'
 import { TestPlanDetailsModal } from '@/components/test-management/TestPlanDetailsModal'
-import TestSuiteList from '@/components/test-management/TestSuiteList'
+import HierarchicalTestSuiteList from '@/components/test-management/HierarchicalTestSuiteList'
 import CreateTestSuiteModal from '@/components/test-management/CreateTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
 import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModal'
@@ -658,10 +658,9 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   </div>
 
                   {/* Test Suites List */}
-                  <TestSuiteList
+                  <HierarchicalTestSuiteList
                     testSuites={filteredTestSuites}
-                    onDelete={handleDeleteTestSuite}
-                    onRefresh={fetchTestSuites}
+                    testCases={testCases}
                   />
                 </>
               )}

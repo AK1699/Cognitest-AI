@@ -71,28 +71,36 @@ export default function TestCaseCard({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow relative">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-gray-300 transition-all relative cursor-pointer" onClick={() => onView && onView(testCase.id)}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
-              {testCase.title}
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-base font-bold text-gray-900 line-clamp-1">
+              {testCase.id.slice(0, 13).toUpperCase()}: {testCase.title.length > 30 ? testCase.title.slice(0, 30) + '...' : testCase.title}
             </h3>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
             {testCase.test_suite_id && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-medium border border-blue-200">
                 <LinkIcon className="w-3 h-3" />
                 Linked
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(testCase.priority)}`}>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border ${
+              testCase.priority === 'critical' ? 'bg-red-50 text-red-600 border-red-200' :
+              testCase.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+              testCase.priority === 'medium' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+              'bg-green-50 text-green-600 border-green-200'
+            }`}>
               <AlertCircle className="w-3 h-3" />
               {testCase.priority}
             </span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(testCase.status)}`}>
-              {testCase.status.replace('_', ' ')}
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+              testCase.status === 'draft' ? 'bg-gray-50 text-gray-600 border-gray-200' :
+              'bg-green-50 text-green-600 border-green-200'
+            }`}>
+              {testCase.status ? testCase.status.replace('_', ' ') : 'draft'}
             </span>
           </div>
         </div>
@@ -100,39 +108,45 @@ export default function TestCaseCard({
         {/* Actions Menu */}
         <div className="relative" ref={menuRef}>
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(!showMenu)
+            }}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <MoreVertical className="w-5 h-5 text-gray-500" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-10">
               {onView && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation()
                     onView(testCase.id)
                     setShowMenu(false)
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
                 >
                   View Details
                 </button>
               )}
               {onEdit && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation()
                     onEdit(testCase.id)
                     setShowMenu(false)
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition-colors font-medium"
                 >
                   Edit
                 </button>
               )}
               {onDelete && (
                 <button
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.stopPropagation()
                     const confirmed = await confirm({
                       message: 'Are you sure you want to delete this test case?',
                       variant: 'danger',
@@ -143,7 +157,7 @@ export default function TestCaseCard({
                     }
                     setShowMenu(false)
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors font-medium border-t border-gray-100"
                 >
                   Delete
                 </button>
@@ -155,8 +169,8 @@ export default function TestCaseCard({
 
       {/* Description */}
       {testCase.description && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 line-clamp-2">
+        <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100">
+          <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
             {testCase.description}
           </p>
         </div>
@@ -164,25 +178,34 @@ export default function TestCaseCard({
 
       {/* Steps Preview */}
       {testCase.steps && testCase.steps.length > 0 && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="w-4 h-4 text-gray-600" />
-            <span className="text-xs font-medium text-gray-700">
-              {testCase.steps.length} {testCase.steps.length === 1 ? 'Step' : 'Steps'}
+        <div className="mb-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1.5 bg-blue-100 rounded">
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <span className="text-xs font-semibold text-blue-900">
+              {testCase.steps.length} Test {testCase.steps.length === 1 ? 'Step' : 'Steps'}
             </span>
           </div>
-          <ol className="space-y-1 text-xs text-gray-600">
+          <div className="space-y-2">
             {testCase.steps.slice(0, 2).map((step, index) => (
-              <li key={index} className="line-clamp-1">
-                {step.step_number}. {step.action}
-              </li>
+              <div key={index} className="flex items-start gap-2 bg-white/60 p-2 rounded border border-blue-100/50">
+                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                  {step.step_number}
+                </div>
+                <p className="text-xs text-gray-700 line-clamp-1 flex-1 leading-relaxed">
+                  {step.action}
+                </p>
+              </div>
             ))}
             {testCase.steps.length > 2 && (
-              <li className="text-gray-500 italic">
-                +{testCase.steps.length - 2} more steps...
-              </li>
+              <div className="text-center pt-1">
+                <span className="text-xs text-blue-600 font-medium">
+                  +{testCase.steps.length - 2} more steps
+                </span>
+              </div>
             )}
-          </ol>
+          </div>
         </div>
       )}
 
@@ -192,14 +215,14 @@ export default function TestCaseCard({
           {testCase.tags.slice(0, 3).map((tag, index) => (
             <span
               key={index}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 rounded-md text-xs font-medium border border-purple-200"
             >
               <Tag className="w-3 h-3" />
               {tag}
             </span>
           ))}
           {testCase.tags.length > 3 && (
-            <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">
+            <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium border border-gray-200">
               +{testCase.tags.length - 3} more
             </span>
           )}
@@ -207,15 +230,19 @@ export default function TestCaseCard({
       )}
 
       {/* Footer */}
-      <div className="pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDateHumanReadable(testCase.created_at)}</span>
+      <div className="pt-4 mt-2 border-t border-gray-200">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-gray-500">
+            <div className="p-1 bg-gray-100 rounded">
+              <Calendar className="w-3 h-3" />
+            </div>
+            <span className="font-medium">{formatDateHumanReadable(testCase.created_at)}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <User className="w-3 h-3" />
-            <span className="truncate max-w-[120px]">{testCase.created_by}</span>
+          <div className="flex items-center gap-1.5 text-gray-500">
+            <div className="p-1 bg-gray-100 rounded">
+              <User className="w-3 h-3" />
+            </div>
+            <span className="truncate max-w-[120px] font-medium">{testCase.created_by}</span>
           </div>
         </div>
       </div>
