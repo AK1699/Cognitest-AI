@@ -76,6 +76,19 @@ class TestPlanBase(BaseModel):
     tags: List[str] = Field(default_factory=list, description="Tags for categorization")
     meta_data: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
+    # 9. IEEE 829 Comprehensive Sections
+    test_objectives_ieee: Optional[List[Dict[str, Any]]] = Field(None, description="IEEE 829 test objectives with success criteria")
+    scope_of_testing_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 scope including in-scope and out-of-scope items")
+    test_approach_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 testing approach and methodology")
+    assumptions_constraints_ieee: Optional[List[Dict[str, Any]]] = Field(None, description="IEEE 829 assumptions and constraints")
+    test_schedule_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 test schedule with phases and milestones")
+    resources_roles_ieee: Optional[List[Dict[str, Any]]] = Field(None, description="IEEE 829 resources and roles")
+    test_environment_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 test environment specifications")
+    entry_exit_criteria_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 entry and exit criteria")
+    risk_management_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 risk management")
+    deliverables_reporting_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 deliverables and reporting")
+    approval_signoff_ieee: Optional[Dict[str, Any]] = Field(None, description="IEEE 829 approval and sign-off")
+
 
 # ========== CREATE SCHEMA ==========
 class TestPlanCreate(TestPlanBase):
@@ -146,6 +159,19 @@ class TestPlanUpdate(BaseModel):
     tags: Optional[List[str]] = None
     meta_data: Optional[Dict[str, Any]] = None
     last_updated_by: Optional[str] = None
+
+    # 9. IEEE 829 Comprehensive Sections
+    test_objectives_ieee: Optional[List[Dict[str, Any]]] = None
+    scope_of_testing_ieee: Optional[Dict[str, Any]] = None
+    test_approach_ieee: Optional[Dict[str, Any]] = None
+    assumptions_constraints_ieee: Optional[List[Dict[str, Any]]] = None
+    test_schedule_ieee: Optional[Dict[str, Any]] = None
+    resources_roles_ieee: Optional[List[Dict[str, Any]]] = None
+    test_environment_ieee: Optional[Dict[str, Any]] = None
+    entry_exit_criteria_ieee: Optional[Dict[str, Any]] = None
+    risk_management_ieee: Optional[Dict[str, Any]] = None
+    deliverables_reporting_ieee: Optional[Dict[str, Any]] = None
+    approval_signoff_ieee: Optional[Dict[str, Any]] = None
 
 
 # ========== RESPONSE SCHEMA ==========
