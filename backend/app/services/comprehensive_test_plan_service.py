@@ -14,6 +14,7 @@ from app.models.test_plan import TestPlan, GenerationType
 from app.models.test_suite import TestSuite
 from app.models.test_case import TestCase, TestCasePriority, TestCaseStatus
 from app.services.ai_service import AIService
+from app.prompts import get_prompt_manager
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class ComprehensiveTestPlanService:
 
     def __init__(self, ai_service: AIService):
         self.ai_service = ai_service
+        self.prompt_manager = get_prompt_manager()
 
     async def generate_comprehensive_test_plan(
         self,
@@ -61,13 +63,10 @@ class ComprehensiveTestPlanService:
             logger.info(f"Prompt length: {len(prompt)} characters")
 
             # Generate using AI
+            # Note: prompt now includes role/expertise from template
             logger.info("Calling AI service to generate test plan...")
             response = await self.ai_service.generate_completion(
                 messages=[
-                    {
-                        "role": "system",
-                        "content": self._get_ieee_system_prompt(),
-                    },
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
@@ -120,407 +119,34 @@ class ComprehensiveTestPlanService:
                 "note": "Generated using fallback mechanism due to AI error",
             }
 
-    def _get_ieee_system_prompt(self) -> str:
-        """Get system prompt for IEEE 829 standard test plan generation."""
-        return """You are a senior QA manager and test strategist with 15+ years of experience creating comprehensive, industry-standard test plans.
-
-Generate a complete test plan following IEEE 829 and industry best practices.
-
-Your test plans should be:
-1. Comprehensive and detailed
-2. Following IEEE 829 standard structure
-3. Industry best practices compliant
-4. Actionable and realistic
-5. Risk-aware and quality-focused
-
-Format your response as valid JSON only, no additional text or markdown."""
-
     def _build_comprehensive_prompt(self, requirements: Dict[str, Any]) -> str:
-        """Build comprehensive prompt for test plan generation."""
-        project_type = requirements.get("project_type", "web-app")
-        description = requirements.get("description", "")
-        features = requirements.get("features", [])
-        platforms = requirements.get("platforms", ["web"])
-        priority = requirements.get("priority", "medium")
-        complexity = requirements.get("complexity", "medium")
-        timeframe = requirements.get("timeframe", "2-4 weeks")
+        """
+        Build comprehensive prompt for test plan generation using PromptManager.
 
-        prompt = f"""
-Generate a comprehensive test plan following IEEE 829 standard.
+        This method now uses template-based prompts with Chain-of-Thought reasoning
+        and few-shot examples for improved AI output quality.
+        """
+        # Prepare variables for template
+        variables = {
+            'projectType': requirements.get("project_type", "web-app"),
+            'description': requirements.get("description", ""),
+            'platforms': requirements.get("platforms", ["web"]),
+            'features': requirements.get("features", []),
+            'priority': requirements.get("priority", "medium"),
+            'complexity': requirements.get("complexity", "medium"),
+            'timeframe': requirements.get("timeframe", "2-4 weeks"),
+        }
 
-**Project Details:**
-- Type: {project_type}
-- Description: {description}
-- Target Platforms: {", ".join(platforms)}
-- Key Features: {", ".join(features)}
-- Priority Level: {priority}
-- Complexity: {complexity}
-- Timeframe: {timeframe}
+        # Optional: Validate variables (helps catch issues early)
+        is_valid, missing = self.prompt_manager.validate_prompt_variables(
+            'test_plan', variables
+        )
+        if not is_valid:
+            logger.warning(f"Missing prompt variables: {missing}. Using defaults.")
 
-**Generate a comprehensive test plan with ALL industry-standard sections:**
-
-1. **Test Objectives** (2-4 objectives):
-   - Clear, measurable objectives with success criteria
-   - Quality goals and specific outcomes
-   - Risk mitigation targets
-
-2. **Scope of Testing**:
-   - What WILL be tested (in-scope)
-   - What will NOT be tested (out-of-scope)
-   - Features, systems, environments covered
-   - Types of testing to be performed
-
-3. **Test Approach/Strategy**:
-   - Testing methodology (Agile, Waterfall, V-Model)
-   - Types of testing (functional, non-functional, exploratory)
-   - Test techniques and methods
-   - Automation vs manual approach
-   - Tools and frameworks
-
-4. **Assumptions and Constraints**:
-   - Testing assumptions
-   - Resource constraints and limitations
-   - Technology or timeline constraints
-   - Risk factors and dependencies
-
-5. **Test Schedule and Milestones**:
-   - Testing phases with dates and durations
-   - Key milestones and deliverables
-   - Dependencies and critical path
-
-6. **Resources and Roles**:
-   - Team roles and responsibilities
-   - Skills required for each role
-   - Resource allocation
-
-7. **Test Environment**:
-   - Hardware and software requirements
-   - Network configurations
-   - Test data specifications
-   - Access requirements
-
-8. **Entry and Exit Criteria**:
-   - Conditions to start testing
-   - Conditions to complete testing
-   - Quality gates and checkpoints
-
-9. **Risk Management**:
-   - Detailed risk analysis
-   - Mitigation strategies
-   - Contingency plans
-
-10. **Deliverables and Reporting**:
-    - Test artifacts and documentation
-    - Reporting structure
-    - Communication plan
-    - Quality metrics
-
-11. **Approval/Sign-off**:
-    - Approval process
-    - Key approvers
-    - Sign-off criteria
-
-12. **Test Suites with Test Cases**:
-    - At least 5-7 comprehensive test suites
-    - Each suite with 3-10 detailed test cases
-    - Cover functional, integration, security, performance, UI/UX
-
-**Response Format (JSON only):**
-{{
-  "name": "string",
-  "description": "string",
-  "priority": "{priority}",
-  "estimated_hours": number,
-  "complexity": "{complexity}",
-  "timeframe": "{timeframe}",
-  "project_type": "{project_type}",
-  "platforms": {json.dumps(platforms)},
-  "features": {json.dumps(features)},
-  "tags": ["tag1", "tag2"],
-
-  "test_objectives": [
-    {{
-      "id": "OBJ-001",
-      "objective": "Main objective",
-      "description": "Detailed description",
-      "success_criteria": ["criteria1", "criteria2"],
-      "quality_goals": ["goal1", "goal2"]
-    }}
-  ],
-
-  "scope_of_testing": {{
-    "in_scope": ["items in scope"],
-    "out_of_scope": ["items out of scope"],
-    "features": {json.dumps(features)},
-    "systems": ["systems involved"],
-    "environments": ["test environments"],
-    "test_types": ["testing types"]
-  }},
-
-  "test_approach": {{
-    "methodology": "Agile|Waterfall|V-Model",
-    "testing_types": [
-      {{
-        "type": "Functional Testing",
-        "description": "Description",
-        "coverage": "80%",
-        "priority": "High"
-      }}
-    ],
-    "test_techniques": ["technique1"],
-    "automation_approach": "Approach description",
-    "tools_and_frameworks": ["tool1", "tool2"]
-  }},
-
-  "assumptions_and_constraints": [
-    {{
-      "type": "assumption|constraint",
-      "description": "Description",
-      "impact": "Impact description",
-      "mitigation": "Mitigation strategy"
-    }}
-  ],
-
-  "test_schedule": {{
-    "phases": [
-      {{
-        "name": "Phase name",
-        "description": "Description",
-        "start_date": "YYYY-MM-DD",
-        "end_date": "YYYY-MM-DD",
-        "duration": "X weeks",
-        "deliverables": ["deliverable1"],
-        "resources": ["resource1"]
-      }}
-    ],
-    "milestones": [
-      {{
-        "name": "Milestone name",
-        "description": "Description",
-        "target_date": "YYYY-MM-DD",
-        "criteria": ["criteria1"],
-        "dependencies": ["dependency1"]
-      }}
-    ],
-    "dependencies": ["dependency1"],
-    "critical_path": ["activity1"]
-  }},
-
-  "resources_and_roles": [
-    {{
-      "role": "Test Manager",
-      "responsibilities": ["resp1"],
-      "skills_required": ["skill1"],
-      "allocation": "100%",
-      "reporting_to": "Project Manager"
-    }}
-  ],
-
-  "test_environment": {{
-    "environments": [
-      {{
-        "name": "Test Environment",
-        "purpose": "Purpose",
-        "configuration": "Config details",
-        "availability": "24/7",
-        "owner": "QA Team"
-      }}
-    ],
-    "hardware": [
-      {{
-        "component": "Server",
-        "specifications": "Specs",
-        "quantity": 1,
-        "purpose": "Purpose"
-      }}
-    ],
-    "software": [
-      {{
-        "software": "Software name",
-        "version": "1.0",
-        "purpose": "Purpose",
-        "license": "License type"
-      }}
-    ],
-    "network_requirements": ["requirement1"],
-    "test_data": [
-      {{
-        "data_type": "User data",
-        "description": "Description",
-        "source": "Source",
-        "volume": "Volume",
-        "refresh_frequency": "Daily"
-      }}
-    ],
-    "access_requirements": ["requirement1"]
-  }},
-
-  "entry_exit_criteria": {{
-    "entry": [
-      {{
-        "criterion": "Criterion name",
-        "description": "Description",
-        "measurable": true,
-        "owner": "Owner"
-      }}
-    ],
-    "exit": [
-      {{
-        "criterion": "Exit criterion",
-        "description": "Description",
-        "measurable": true,
-        "owner": "Owner"
-      }}
-    ],
-    "suspension": [],
-    "resumption": []
-  }},
-
-  "risk_management": {{
-    "risks": [
-      {{
-        "id": "RISK-001",
-        "category": "Technical",
-        "description": "Risk description",
-        "probability": "High|Medium|Low",
-        "impact": "Critical|High|Medium|Low",
-        "risk_level": "High|Medium|Low",
-        "owner": "Owner",
-        "mitigation": "Mitigation strategy",
-        "contingency": "Contingency plan",
-        "status": "Open|Mitigated|Closed"
-      }}
-    ],
-    "mitigation": [
-      {{
-        "risk_id": "RISK-001",
-        "strategy": "Strategy",
-        "actions": ["action1"],
-        "timeline": "Timeline",
-        "owner": "Owner"
-      }}
-    ],
-    "contingency_plans": [
-      {{
-        "trigger": "Trigger condition",
-        "actions": ["action1"],
-        "timeline": "Timeline",
-        "resources": ["resource1"],
-        "owner": "Owner"
-      }}
-    ],
-    "risk_matrix": {{
-      "high": 0,
-      "medium": 0,
-      "low": 0,
-      "total_risks": 0
-    }}
-  }},
-
-  "deliverables_and_reporting": {{
-    "deliverables": [
-      {{
-        "name": "Test Plan",
-        "description": "Description",
-        "format": "PDF",
-        "frequency": "One-time",
-        "audience": ["Team"],
-        "owner": "Test Manager",
-        "template": "Template name"
-      }}
-    ],
-    "reporting_structure": {{
-      "daily_reports": ["Status"],
-      "weekly_reports": ["Summary"],
-      "milestone_reports": ["Report"],
-      "escalation_path": ["Lead", "Manager"]
-    }},
-    "communication_plan": {{
-      "stakeholders": [
-        {{
-          "name": "Stakeholder",
-          "role": "Role",
-          "involvement": "High|Medium|Low",
-          "communication": ["Email"]
-        }}
-      ],
-      "meetings": [
-        {{
-          "type": "Daily standup",
-          "frequency": "Daily",
-          "participants": ["Team"],
-          "agenda": ["Status"]
-        }}
-      ],
-      "notifications": [
-        {{
-          "trigger": "Trigger",
-          "recipients": ["Team"],
-          "method": "Email",
-          "template": "Template"
-        }}
-      ]
-    }},
-    "metrics": [
-      {{
-        "metric": "Test Coverage",
-        "description": "Description",
-        "target": "95%",
-        "measurement": "Tool",
-        "frequency": "Daily"
-      }}
-    ]
-  }},
-
-  "approval_signoff": {{
-    "approvers": [
-      {{
-        "role": "QA Manager",
-        "name": "TBD",
-        "responsibility": "Test plan approval",
-        "authority": "Full authority",
-        "sign_off_level": "Level 1"
-      }}
-    ],
-    "sign_off_criteria": ["criteria1"],
-    "approval_process": ["Review", "Approve"],
-    "escalation_matrix": ["Lead", "Manager"],
-    "documents_required": ["Test plan"]
-  }},
-
-  "test_suites": [
-    {{
-      "name": "Functional Test Suite",
-      "description": "Description",
-      "category": "functional",
-      "test_cases": [
-        {{
-          "name": "Test case name",
-          "description": "Description",
-          "steps": [
-            {{
-              "step_number": 1,
-              "action": "Action",
-              "expected_result": "Result"
-            }}
-          ],
-          "expected_result": "Overall result",
-          "priority": "high|medium|low|critical",
-          "estimated_time": 15
-        }}
-      ]
-    }}
-  ]
-}}
-
-**Important:**
-- Return ONLY valid JSON, no markdown or additional text
-- Generate at least 5-7 test suites
-- Each test suite should have 3-10 test cases
-- Test cases should have 3-8 specific steps
-- Base on project type {project_type} and features {", ".join(features)}
-"""
-        return prompt
+        # Load and render template
+        logger.info("Loading test plan prompt from template...")
+        return self.prompt_manager.load_test_plan_prompt(variables)
 
     def _parse_comprehensive_response(
         self, response: str, requirements: Dict[str, Any]

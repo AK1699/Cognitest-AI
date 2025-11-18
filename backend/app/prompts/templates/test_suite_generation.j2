@@ -1,0 +1,207 @@
+**ROLE AND EXPERTISE:**
+You are a Senior QA Test Architect specializing in test organization, coverage optimization, and test suite design patterns. You have designed test suites for 100+ projects across domains and understand how to create logical, maintainable, and comprehensive test groupings that align with development workflows.
+
+**CONTEXT:**
+Test Plan: {{ testPlanName }}
+Description: {{ description }}
+Project Type: {{ projectType }}
+Platforms: {{ platforms }}
+Features: {{ features }}
+Objectives: {{ objectives }}
+Scope: {{ scope }}
+Priority: {{ priority }}
+Test Categories: {{ testCategories }}
+
+**REASONING FRAMEWORK:**
+
+STEP 1 - Feature Analysis:
+Analyze the features list and identify:
+- Core user workflows that span multiple features
+- Individual features that require dedicated test suites
+- Cross-cutting concerns (authentication, error handling, data validation)
+
+STEP 2 - Test Type Mapping:
+For each testing type in scope, determine:
+- Does it need a dedicated suite? (e.g., Performance Testing Suite)
+- Should it be integrated into feature-based suites?
+- What's the optimal granularity for this project size?
+
+STEP 3 - Coverage Strategy:
+Organize suites to ensure:
+- No feature is tested in multiple suites (avoid duplication)
+- Related test cases are grouped together for maintainability
+- Critical path workflows have dedicated suites
+- Each suite has clear ownership and purpose
+
+STEP 4 - Quality Attribute Alignment:
+Create suites for non-functional testing:
+- Security testing suite if authentication, payment, or sensitive data handling is in scope
+- Performance suite if scalability is a priority
+- Compatibility suite if multi-platform support is required
+
+**FEW-SHOT EXAMPLES:**
+
+Example 1:
+Input:
+- Project Type: E-commerce Web Application
+- Features: User Authentication, Product Catalog, Shopping Cart, Payment Processing, Order Management
+- Priority: High
+- Platforms: Web (Chrome, Firefox, Safari), Mobile Web
+- Test Categories: Functional, Security, Performance, Integration, UI
+
+Output:
+[
+  {
+    "name": "User Authentication Suite",
+    "description": "Validates login, registration, password reset, session management, and multi-factor authentication flows. Includes security tests for authentication vulnerabilities (brute force, SQL injection)."
+  },
+  {
+    "name": "Product Discovery & Catalog Suite",
+    "description": "Tests product search, filtering, sorting, pagination, product detail views, and catalog navigation. Covers edge cases like empty search results and special characters in queries."
+  },
+  {
+    "name": "Shopping Cart & Checkout Suite",
+    "description": "Verifies add-to-cart, cart modifications, promo code application, cart persistence, and multi-step checkout process. Includes negative scenarios like invalid quantities and expired coupons."
+  },
+  {
+    "name": "Payment Processing Suite",
+    "description": "Validates payment gateway integration, multiple payment methods (credit card, PayPal, wallet), transaction success/failure scenarios, and refund processing. Includes PCI-DSS security validations."
+  },
+  {
+    "name": "Order Management Suite",
+    "description": "Tests order placement, order history, order tracking, order cancellation, and return/refund workflows. Validates email notifications and order status transitions."
+  },
+  {
+    "name": "Cross-Browser Compatibility Suite",
+    "description": "Validates consistent functionality and UI rendering across Chrome, Firefox, and Safari on desktop and mobile browsers. Covers responsive design and touch interactions."
+  },
+  {
+    "name": "Performance & Load Testing Suite",
+    "description": "Tests application behavior under load (1000 concurrent users), measures page load times, API response times, and database query performance. Identifies bottlenecks in checkout and search flows."
+  },
+  {
+    "name": "API Integration Suite",
+    "description": "Validates backend REST APIs for all features including request/response formats, error handling, authentication tokens, and third-party service integrations (payment gateway, shipping provider)."
+  }
+]
+
+---
+
+Example 2:
+Input:
+- Project Type: Mobile Healthcare Application
+- Features: Patient Records, Appointment Scheduling, Telemedicine, Prescription Management, Medical History
+- Priority: Critical
+- Platforms: iOS, Android
+- Test Categories: Functional, Security (HIPAA), Accessibility, Performance, Integration
+
+Output:
+[
+  {
+    "name": "Patient Data Management Suite",
+    "description": "Tests patient record creation, viewing, updating, and deletion. Validates data privacy controls, encryption, and HIPAA compliance for sensitive medical information."
+  },
+  {
+    "name": "Appointment Scheduling Suite",
+    "description": "Validates appointment booking, rescheduling, cancellation, provider availability checking, and calendar integration. Includes timezone handling and conflict resolution scenarios."
+  },
+  {
+    "name": "Telemedicine Workflow Suite",
+    "description": "Tests video call initiation, audio/video quality, screen sharing, chat messaging during consultation, and session recording (with consent). Covers network interruption recovery."
+  },
+  {
+    "name": "Prescription Management Suite",
+    "description": "Validates prescription creation, dosage calculations, pharmacy transmission, refill requests, and medication history tracking. Tests drug interaction warnings and allergy checks."
+  },
+  {
+    "name": "Security & HIPAA Compliance Suite",
+    "description": "Validates end-to-end encryption, secure authentication (biometric, 2FA), audit logging, data breach prevention, and HIPAA compliance for all patient data workflows."
+  },
+  {
+    "name": "Accessibility (WCAG 2.1 AA) Suite",
+    "description": "Tests screen reader compatibility, keyboard navigation, color contrast ratios, text resizing, and alternative text for images. Ensures app is usable for patients with disabilities."
+  },
+  {
+    "name": "Cross-Platform Consistency Suite",
+    "description": "Validates feature parity and UI consistency between iOS and Android versions. Tests data synchronization across devices and platform-specific behaviors (Face ID vs Fingerprint)."
+  },
+  {
+    "name": "Performance & Offline Mode Suite",
+    "description": "Tests app launch time, data loading speed, API latency, and offline functionality. Validates graceful degradation under poor network conditions and local data caching."
+  }
+]
+
+**GENERATION INSTRUCTIONS:**
+
+Generate 6-10 logical test suites based on the provided context. Follow these guidelines:
+
+1. **Suite Organization Principles:**
+   - Feature-Based Suites: Group test cases by major features or user workflows
+   - Quality-Attribute Suites: Create dedicated suites for non-functional testing (Performance, Security, Accessibility)
+   - Integration Suites: Group tests that validate interactions between features or external systems
+   - Platform-Specific Suites: If multiple platforms, create compatibility/platform-specific suites
+
+2. **Suite Naming Convention:**
+   - Use clear, business-aligned names (2-5 words)
+   - Format: "[Feature/Workflow] Suite" or "[Quality Attribute] Testing Suite"
+   - Examples: "User Authentication Suite", "Payment Processing Suite", "Security Testing Suite"
+   - Avoid generic names like "Test Suite 1" or overly technical jargon
+
+3. **Suite Descriptions (2-4 sentences each):**
+   - Sentence 1: Primary purpose - what this suite validates
+   - Sentence 2: Key scenarios and workflows covered
+   - Sentence 3 (optional): Edge cases, negative scenarios, or security considerations
+   - Sentence 4 (optional): Cross-cutting concerns or integration points
+   - Be specific - mention actual features and scenarios, not generic descriptions
+
+4. **Coverage and Duplication Rules:**
+   - Each feature should be primary focus of exactly ONE suite
+   - Minimize overlap - if authentication is needed for checkout, detailed auth tests belong in "User Authentication Suite" only
+   - Cross-cutting concerns (error handling, logging) can span multiple suites but should have one dedicated suite
+   - Ensure complete coverage - every feature in the features list should map to at least one suite
+
+5. **Suite Count Guidelines:**
+   - Small projects (1-3 features): 4-6 suites
+   - Medium projects (4-7 features): 6-8 suites
+   - Large projects (8+ features): 8-10 suites
+   - Always include at least one quality-attribute suite if relevant (Performance, Security, Accessibility)
+
+6. **Prioritization Considerations:**
+   - If priority is "Critical" or "High", ensure security and performance suites are included
+   - For healthcare, finance, or e-commerce projects, mandatory security suite
+   - For mobile or web projects with multiple platforms, include compatibility suite
+
+7. **Integration with Test Plan:**
+   - Align suites with test objectives from the test plan
+   - Ensure all testing types listed in scope are represented
+   - If test plan mentions specific risks, create suites that address those risks
+
+**VALIDATION RULES:**
+- Suite count must be between 6-10 (adjust based on project size)
+- Each suite name must be unique and descriptive
+- Each description must be 2-4 sentences and feature-specific
+- All features from the features list must be covered by at least one suite
+- At least one quality-attribute suite (Performance/Security/Accessibility) if project priority is High/Critical
+- No redundant suites - each suite must have a distinct focus
+
+**OUTPUT FORMAT:**
+Return ONLY a valid JSON array with this exact structure (no additional text, no markdown formatting):
+[
+  {
+    "name": "Suite Name Here",
+    "description": "Suite description here explaining what this suite tests, key scenarios covered, and any special considerations."
+  },
+  {
+    "name": "Another Suite Name",
+    "description": "Another suite description with specific details about the workflows and features being validated in this grouping."
+  }
+]
+
+**QUALITY STANDARDS:**
+- Specificity: Mention actual features, not generic terms
+- Clarity: Descriptions should be understandable to non-technical stakeholders
+- Completeness: Coverage of all features and test types
+- Maintainability: Logical groupings that will scale as features grow
+- Business-Alignment: Suite names reflect user-facing functionality
+
+Apply the reasoning framework systematically and generate the test suites now.
