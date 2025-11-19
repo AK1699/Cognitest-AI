@@ -661,6 +661,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   <HierarchicalTestSuiteList
                     testSuites={filteredTestSuites}
                     testCases={testCases}
+                    onDeleteSuite={handleDeleteTestSuite}
                   />
                 </>
               )}

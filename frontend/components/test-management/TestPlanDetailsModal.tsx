@@ -21,7 +21,10 @@ import {
   Sparkles,
   Clock,
   Tag,
-  TrendingUp
+  TrendingUp,
+  Network,
+  Database,
+  Key
 } from 'lucide-react'
 import { TestPlan } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
@@ -48,6 +51,16 @@ export function TestPlanDetailsModal({
   readOnly = true
 }: TestPlanDetailsModalProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['basic']))
+  const [showAllAssumptions, setShowAllAssumptions] = useState(true)
+  const [showAllPhases, setShowAllPhases] = useState(true)
+  const [showAllResources, setShowAllResources] = useState(true)
+
+  // Helper function to safely ensure data is an array
+  const ensureArray = (data: any): any[] => {
+    if (!data) return []
+    if (Array.isArray(data)) return data
+    return []
+  }
 
   if (!testPlan) return null
 
@@ -196,7 +209,7 @@ export function TestPlanDetailsModal({
           {obj.description && (
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{obj.description}</p>
           )}
-          {obj.success_criteria && obj.success_criteria.length > 0 && (
+          {obj.success_criteria && Array.isArray(obj.success_criteria) && obj.success_criteria.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Success Criteria:</p>
               <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
@@ -206,7 +219,13 @@ export function TestPlanDetailsModal({
               </ul>
             </div>
           )}
-          {obj.quality_goals && obj.quality_goals.length > 0 && (
+          {obj.success_criteria && typeof obj.success_criteria === 'string' && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Success Criteria:</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{obj.success_criteria}</p>
+            </div>
+          )}
+          {obj.quality_goals && Array.isArray(obj.quality_goals) && obj.quality_goals.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Quality Goals:</p>
               <div className="flex flex-wrap gap-1">
@@ -312,139 +331,316 @@ export function TestPlanDetailsModal({
     </div>
   )
 
-  const renderAssumptionsConstraints = (data: any[]) => (
-    <div className="space-y-3">
-      {data.map((item: any, index: number) => (
-        <div key={index} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex items-start gap-2 mb-2">
-            <Badge variant={item.type === 'constraint' ? 'destructive' : 'secondary'} className="text-xs">
-              {item.type}
-            </Badge>
-            <p className="font-medium text-sm text-gray-900 dark:text-white flex-1">{item.description}</p>
-          </div>
-          {item.impact && (
-            <p className="text-xs text-gray-600 dark:text-gray-400"><strong>Impact:</strong> {item.impact}</p>
-          )}
-          {item.mitigation && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1"><strong>Mitigation:</strong> {item.mitigation}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  )
+  const renderAssumptionsConstraints = (data: any) => {
+    const items = ensureArray(data)
+    const displayItems = showAllAssumptions ? items : items.slice(0, 5)
 
-  const renderSchedule = (data: any) => (
-    <div className="space-y-4">
-      {data.phases && data.phases.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Phases</h4>
-          <div className="space-y-3">
-            {data.phases.map((phase: any, i: number) => (
-              <div key={i} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h5 className="font-semibold text-gray-900 dark:text-white">{phase.name}</h5>
-                  {phase.duration && (
+    // Group by type
+    const assumptions = displayItems.filter((item: any) => item.type === 'assumption')
+    const constraints = displayItems.filter((item: any) => item.type === 'constraint')
+    const dependencies = displayItems.filter((item: any) => item.type === 'dependency')
+
+    return (
+      <div className="space-y-4">
+        {assumptions.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-blue-600 dark:text-blue-400 mb-2">Assumptions</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {assumptions.map((item: any, index: number) => (
+                <li key={index} className="text-sm text-gray-700 dark:text-gray-300">{item.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {constraints.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-orange-600 dark:text-orange-400 mb-2">Constraints</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {constraints.map((item: any, index: number) => (
+                <li key={index} className="text-sm text-gray-700 dark:text-gray-300">{item.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {dependencies.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-purple-600 dark:text-purple-400 mb-2">Dependencies</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {dependencies.map((item: any, index: number) => (
+                <li key={index} className="text-sm text-gray-700 dark:text-gray-300">{item.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {items.length > 5 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAllAssumptions(!showAllAssumptions)}
+            className="text-xs"
+          >
+            {showAllAssumptions ? 'Show Less' : `Show ${items.length - 5} More`}
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  const renderSchedule = (data: any) => {
+    const phases = ensureArray(data.phases)
+    const displayPhases = showAllPhases ? phases : phases.slice(0, 3)
+
+    return (
+      <div className="space-y-4">
+        {phases.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+                Phases ({phases.length})
+              </h4>
+            </div>
+            <div className="space-y-3">
+              {displayPhases.map((phase: any, i: number) => (
+                <div key={i} className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="font-semibold text-sm text-gray-900 dark:text-white">{phase.name}</h5>
                     <Badge variant="outline" className="text-xs">
                       <Clock className="w-3 h-3 mr-1" />
-                      {phase.duration}
+                      Phase {i + 1}
                     </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    {phase.start_date && <div><strong>Start:</strong> {phase.start_date}</div>}
+                    {phase.end_date && <div><strong>End:</strong> {phase.end_date}</div>}
+                  </div>
+                  {phase.milestones && ensureArray(phase.milestones).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Milestones: {ensureArray(phase.milestones).length}
+                      </p>
+                      <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                        {ensureArray(phase.milestones).map((milestone: any, idx: number) => (
+                          <li key={idx}>{typeof milestone === 'string' ? milestone : milestone.name || milestone}</li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
-                {phase.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{phase.description}</p>
-                )}
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  {phase.start_date && <div><strong>Start:</strong> {new Date(phase.start_date).toLocaleDateString()}</div>}
-                  {phase.end_date && <div><strong>End:</strong> {new Date(phase.end_date).toLocaleDateString()}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {data.milestones && data.milestones.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Milestones</h4>
-          <div className="space-y-2">
-            {data.milestones.map((milestone: any, i: number) => (
-              <div key={i} className="flex items-start gap-3 text-sm">
-                <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white">{milestone.name}</p>
-                  {milestone.target_date && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Target: {new Date(milestone.target_date).toLocaleDateString()}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-
-  const renderResources = (data: any[]) => (
-    <div className="space-y-3">
-      {data.map((resource: any, index: number) => (
-        <div key={index} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex items-start justify-between mb-2">
-            <h4 className="font-semibold text-gray-900 dark:text-white">{resource.role}</h4>
-            {resource.allocation && (
-              <Badge variant="outline" className="text-xs">{resource.allocation}</Badge>
+              ))}
+            </div>
+            {phases.length > 3 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllPhases(!showAllPhases)}
+                className="text-xs mt-2"
+              >
+                {showAllPhases ? 'Show Less' : `Show ${phases.length - 3} More Phases`}
+              </Button>
             )}
           </div>
-          {resource.responsibilities && resource.responsibilities.length > 0 && (
-            <div className="mb-2">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Responsibilities:</p>
-              <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-                {resource.responsibilities.map((resp: string, i: number) => (
-                  <li key={i}>{resp}</li>
+        )}
+      </div>
+    )
+  }
+
+  const renderResources = (data: any) => {
+    console.log('Resources & Roles Data:', JSON.stringify(data, null, 2))
+
+    // Handle both array format and object with resources key
+    const resourcesArray = Array.isArray(data) ? data : (data?.resources || ensureArray(data))
+    const resources = ensureArray(resourcesArray)
+    const displayResources = showAllResources ? resources : resources.slice(0, 4)
+
+    if (resources.length === 0) {
+      return (
+        <div className="text-sm text-gray-500 dark:text-gray-400 italic py-2">
+          No resources data available
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        {displayResources.map((resource: any, index: number) => {
+          // Handle both string format and object format
+          const isString = typeof resource === 'string'
+          const roleName = isString ? resource : (resource.role || `Resource ${index + 1}`)
+          const allocation = !isString && resource.allocation
+          const responsibilities = !isString && ensureArray(resource.responsibilities || [])
+          const skills = !isString && ensureArray(resource.skills_required || [])
+
+          return (
+            <div key={index} className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <h4 className="font-semibold text-sm text-gray-900 dark:text-white">{roleName}</h4>
+                </div>
+                {allocation && (
+                  <Badge variant="outline" className="text-xs">{allocation}</Badge>
+                )}
+              </div>
+              {!isString && responsibilities.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Key Responsibilities ({responsibilities.length})
+                  </p>
+                  <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                    {responsibilities.map((resp: string, i: number) => (
+                      <li key={i}>{resp}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!isString && skills.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {skills.map((skill: string, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {resources.length > 4 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAllResources(!showAllResources)}
+            className="text-xs"
+          >
+            {showAllResources ? 'Show Less' : `Show ${resources.length - 4} More Resources`}
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  const renderEnvironment = (data: any) => {
+    console.log('Test Environment Data:', JSON.stringify(data, null, 2))
+
+    // Handle the actual structure from AI: hardware, software, network, test_data, access, setup_process, refresh_cadence
+    const hardware = ensureArray(data?.hardware || [])
+    const software = ensureArray(data?.software || [])
+    const network = ensureArray(data?.network || [])
+    const testData = ensureArray(data?.test_data || [])
+    const access = ensureArray(data?.access || [])
+    const setupProcess = data?.setup_process
+    const refreshCadence = data?.refresh_cadence
+
+    return (
+      <div className="space-y-4">
+        {/* Hardware */}
+        {hardware.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-cyan-600 dark:text-cyan-400 mb-2 flex items-center gap-2">
+              <Server className="w-4 h-4" />
+              Hardware
+            </h4>
+            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 p-3 rounded-lg border border-cyan-200 dark:border-cyan-800">
+              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                {hardware.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
                 ))}
               </ul>
             </div>
-          )}
-          {resource.skills_required && resource.skills_required.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Skills Required:</p>
-              <div className="flex flex-wrap gap-1">
-                {resource.skills_required.map((skill: string, i: number) => (
-                  <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )
+          </div>
+        )}
 
-  const renderEnvironment = (data: any) => (
-    <div className="space-y-4">
-      {data.environments && data.environments.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Environments</h4>
-          <div className="space-y-2">
-            {data.environments.map((env: any, i: number) => (
-              <div key={i} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 text-sm">
-                <p className="font-medium text-gray-900 dark:text-white">{env.name}</p>
-                {env.configuration && <p className="text-xs text-gray-600 dark:text-gray-400">{env.configuration}</p>}
-              </div>
-            ))}
+        {/* Software */}
+        {software.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Software
+            </h4>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                {software.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </div>
-      )}
-      {data.tools_and_frameworks && data.tools_and_frameworks.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Tools</h4>
-          <div className="flex flex-wrap gap-2">
-            {data.tools_and_frameworks.map((tool: string, i: number) => (
-              <Badge key={i} variant="secondary">{tool}</Badge>
-            ))}
+        )}
+
+        {/* Network */}
+        {network.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-2">
+              <Network className="w-4 h-4" />
+              Network
+            </h4>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800">
+              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                {network.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  )
+        )}
+
+        {/* Test Data */}
+        {testData.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-green-600 dark:text-green-400 mb-2 flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Test Data
+            </h4>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                {testData.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Access */}
+        {access.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Access & Credentials
+            </h4>
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
+              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                {access.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Setup Process */}
+        {setupProcess && (
+          <div>
+            <h4 className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 mb-2">Setup Process</h4>
+            <div className="bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+              <p className="text-sm text-gray-700 dark:text-gray-300">{setupProcess}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Refresh Cadence */}
+        {refreshCadence && (
+          <div>
+            <h4 className="font-semibold text-sm text-teal-600 dark:text-teal-400 mb-2">Refresh Cadence</h4>
+            <div className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-3 rounded-lg border border-teal-200 dark:border-teal-800">
+              <p className="text-sm text-gray-700 dark:text-gray-300">{refreshCadence}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const renderCriteria = (data: any) => (
     <div className="space-y-4">
@@ -533,66 +729,59 @@ export function TestPlanDetailsModal({
     </div>
   )
 
-  const renderDeliverables = (data: any) => (
-    <div className="space-y-4">
-      {data.deliverables && data.deliverables.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Deliverables</h4>
-          <div className="space-y-2">
-            {data.deliverables.map((deliverable: any, i: number) => (
-              <div key={i} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-gray-900 dark:text-white">{deliverable.name}</p>
-                    {deliverable.description && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{deliverable.description}</p>
-                    )}
-                  </div>
-                  {deliverable.frequency && (
-                    <Badge variant="outline" className="text-xs ml-2">{deliverable.frequency}</Badge>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {data.metrics && data.metrics.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Metrics</h4>
-          <div className="flex flex-wrap gap-2">
-            {data.metrics.map((metric: any, i: number) => (
-              <Badge key={i} variant="secondary" className="text-xs">
-                {typeof metric === 'string' ? metric : metric.metric}
-                {metric.target && ` (${metric.target})`}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  const renderDeliverables = (data: any) => {
+    console.log('Deliverables & Reporting Data:', JSON.stringify(data, null, 2))
 
-  const renderApproval = (data: any) => (
-    <div className="space-y-4">
-      {data.approvers && data.approvers.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Approvers</h4>
-          <div className="space-y-2">
-            {data.approvers.map((approver: any, i: number) => (
-              <div key={i} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 text-sm">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium text-gray-900 dark:text-white">{approver.role}</span>
+    const metrics = ensureArray(data?.metrics || [])
+
+    return (
+      <div className="space-y-4">
+        {/* Metrics */}
+        {metrics.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Metrics
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {metrics.map((metric: string, i: number) => (
+                <div key={i} className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{metric}</p>
                 </div>
-                {approver.responsibility && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{approver.responsibility}</p>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )
+  }
+
+  const renderApproval = (data: any) => {
+    console.log('Approval & Sign-off Data:', JSON.stringify(data, null, 2))
+
+    const approvers = ensureArray(data?.approvers || [])
+
+    return (
+      <div className="space-y-4">
+        {/* Approvers */}
+        {approvers.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-teal-600 dark:text-teal-400 mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Approvers
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {approvers.map((approver: string, i: number) => (
+                <div key={i} className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-4 rounded-lg border border-teal-200 dark:border-teal-800">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span className="font-medium text-gray-900 dark:text-white">{approver}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       {data.sign_off_criteria && data.sign_off_criteria.length > 0 && (
         <div>
           <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Sign-off Criteria</h4>
@@ -604,7 +793,8 @@ export function TestPlanDetailsModal({
         </div>
       )}
     </div>
-  )
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

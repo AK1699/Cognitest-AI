@@ -204,6 +204,56 @@ class TestPlanResponse(TestPlanBase):
             for obj in v
         ]
 
+    @field_validator('assumptions_constraints_ieee', mode='before')
+    @classmethod
+    def transform_assumptions_constraints(cls, v):
+        """Transform assumptions_constraints from dict to list format if needed."""
+        if not v:
+            return []
+
+        # If already a list, return as is
+        if isinstance(v, list):
+            return v
+
+        # If dict (legacy AI format), convert to list
+        if isinstance(v, dict):
+            result = []
+            if "assumptions" in v:
+                result.extend([
+                    {"type": "assumption", "description": item}
+                    for item in v["assumptions"]
+                ])
+            if "constraints" in v:
+                result.extend([
+                    {"type": "constraint", "description": item}
+                    for item in v["constraints"]
+                ])
+            if "dependencies" in v:
+                result.extend([
+                    {"type": "dependency", "description": item}
+                    for item in v["dependencies"]
+                ])
+            return result
+
+        return []
+
+    @field_validator('test_schedule_ieee', mode='before')
+    @classmethod
+    def transform_test_schedule(cls, v):
+        """Transform test_schedule from list to dict format if needed."""
+        if not v:
+            return {}
+
+        # If already a dict, return as is
+        if isinstance(v, dict):
+            return v
+
+        # If list (legacy AI format), wrap in dict
+        if isinstance(v, list):
+            return {"phases": v}
+
+        return {}
+
     class Config:
         from_attributes = True
 

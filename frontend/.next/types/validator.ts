@@ -90,15 +90,6 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   type __Unused = __Check
 }
 
-// Validate ../../app/automation-hub/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/automation-hub">> = Specific
-  const handler = {} as typeof import("../../app/automation-hub/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/cognitest.ai/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/cognitest.ai">> = Specific
@@ -130,6 +121,24 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
 {
   type __IsExpected<Specific extends AppPageConfig<"/organizations/[uuid]/integrations">> = Specific
   const handler = {} as typeof import("../../app/organizations/[uuid]/integrations/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/organizations/[uuid]/projects/[projectId]/automation-hub/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/organizations/[uuid]/projects/[projectId]/automation-hub">> = Specific
+  const handler = {} as typeof import("../../app/organizations/[uuid]/projects/[projectId]/automation-hub/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/organizations/[uuid]/projects/[projectId]/automation-hub/web-automation/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/organizations/[uuid]/projects/[projectId]/automation-hub/web-automation">> = Specific
+  const handler = {} as typeof import("../../app/organizations/[uuid]/projects/[projectId]/automation-hub/web-automation/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info, Upload, FileText, Image as ImageIcon } from 'lucide-react'
+import { X, Sparkles, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Info, Upload, FileText, Image as ImageIcon, Eye, ThumbsUp, Edit } from 'lucide-react'
 import { testPlansAPI } from '@/lib/api/test-management'
 import { documentsAPI } from '@/lib/api/documents'
 import { organisationMemoryAPI } from '@/lib/api/organisation-memory'
@@ -46,12 +46,13 @@ const COMPLEXITIES = [
 
 export default function AITestPlanGenerator({ projectId, organisationId, onClose, onSuccess }: AITestPlanGeneratorProps) {
   const [mode, setMode] = useState<'manual' | 'document'>('manual')
-  const [step, setStep] = useState<'form' | 'generating' | 'success'>('form')
+  const [step, setStep] = useState<'form' | 'generating' | 'review' | 'accepting' | 'success'>('form')
 
   // Manual input with images
   const [manualImages, setManualImages] = useState<File[]>([])
 
   const [formData, setFormData] = useState({
+    title: '',
     project_type: 'web-app',
     description: '',
     features: [''],
@@ -70,6 +71,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
   const [error, setError] = useState('')
   const [generatedPlan, setGeneratedPlan] = useState<any>(null)
+  const [previewData, setPreviewData] = useState<any>(null)
 
   const addFeature = () => {
     setFormData({ ...formData, features: [...formData.features, ''] })
@@ -144,23 +146,15 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
       console.log('Document uploaded:', uploadResult.document.id)
 
-      // Step 2: Analyze the document and generate test plan
+      // Step 2: Analyze the document and generate test plan preview
       // The backend will automatically analyze the PDF content and extract requirements
       setGeneratedPlan({ message: 'Analyzing document and generating comprehensive test plan...' } as any)
       const result = await documentsAPI.generateTestPlan(uploadResult.document.id)
 
       console.log('Test plan generated:', result)
 
-      setGeneratedPlan(result)
-      setStep('success')
-
-      if (onSuccess) {
-        // Reload the page to show the new test plan
-        setTimeout(() => {
-          onSuccess()
-          onClose()
-        }, 2000)
-      }
+      setPreviewData(result)
+      setStep('review')  // Show review step instead of success
     } catch (err: any) {
       console.error('Error generating test plan:', err)
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate test plan from document'
@@ -174,6 +168,11 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
     setError('')
 
     // Validation
+    if (!formData.title.trim()) {
+      setError('Please provide a test plan title')
+      return
+    }
+
     if (!formData.description.trim()) {
       setError('Please provide a project description')
       return
@@ -216,6 +215,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
       // Step 2: Generate test plan
       const request = {
         project_id: projectId,
+        title: formData.title,
         project_type: formData.project_type,
         description: formData.description,
         features: validFeatures,
@@ -225,8 +225,37 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
         timeframe: formData.timeframe || `${formData.complexity === 'low' ? '2' : formData.complexity === 'medium' ? '4' : '8'} weeks`,
       }
 
+      // Generate test plan preview (AI response without database commit)
       const result = await testPlansAPI.generateComprehensive(request)
-      setGeneratedPlan(result)
+
+      // Override the AI-generated name with user's title
+      if (formData.title) {
+        result.name = formData.title
+      }
+
+      setPreviewData(result)
+      setStep('review')  // Show review step instead of success
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to generate test plan. Please try again.')
+      setStep('form')
+    }
+  }
+
+  const handleAccept = async () => {
+    setStep('accepting')
+    setError('')
+
+    try {
+      // Add project_id to preview data before accepting
+      const dataToAccept = {
+        ...previewData,
+        project_id: projectId,
+      }
+
+      // Call the accept-preview endpoint to create the test plan in database
+      const createdTestPlan = await testPlansAPI.acceptPreview(dataToAccept)
+
+      setGeneratedPlan(createdTestPlan)
       setStep('success')
 
       // Notify parent component
@@ -234,12 +263,19 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
         setTimeout(() => {
           onSuccess()
           onClose()
-        }, 3000)
+        }, 2000)
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to generate test plan. Please try again.')
-      setStep('form')
+      console.error('Error accepting test plan:', err)
+      setError(err.response?.data?.detail || 'Failed to create test plan. Please try again.')
+      setStep('review')
     }
+  }
+
+  const handleReject = () => {
+    // Go back to form with existing data
+    setPreviewData(null)
+    setStep('form')
   }
 
   return (
@@ -257,7 +293,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
           <button
             onClick={onClose}
             className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
-            disabled={step === 'generating'}
+            disabled={step === 'generating' || step === 'accepting'}
           >
             <X className="w-5 h-5" />
           </button>
@@ -315,6 +351,21 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
             {/* Manual Input Form */}
             {mode === 'manual' && (
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Test Plan Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Test Plan Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., E-Commerce Platform Test Plan"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
               {/* Project Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -716,6 +767,268 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
           </div>
         )}
 
+        {/* Review Step */}
+        {step === 'review' && previewData && (
+          <div className="p-6">
+            <div className="max-w-3xl mx-auto">
+              {/* Review Header */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Review AI-Generated Test Plan</h3>
+                  <p className="text-gray-600 text-sm">Please review the generated content before creating the test plan</p>
+                </div>
+              </div>
+
+              {/* Preview Content */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 mb-6">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  Generated Test Plan Preview
+                </h4>
+
+                {/* Debug: Show raw data structure */}
+                {process.env.NODE_ENV === 'development' && (
+                  <details className="mb-4 bg-gray-100 p-2 rounded text-xs">
+                    <summary className="cursor-pointer font-mono">Debug: View Raw Data</summary>
+                    <pre className="mt-2 overflow-auto max-h-40">{JSON.stringify(previewData, null, 2)}</pre>
+                  </details>
+                )}
+
+                <div className="space-y-4 text-sm">
+                  {/* Test Plan Name */}
+                  {previewData.name && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-1">Test Plan Name</div>
+                      <div className="text-lg font-bold text-gray-900">{previewData.name}</div>
+                    </div>
+                  )}
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {previewData.confidence_score && (
+                      <div className="bg-white rounded-lg p-3 border border-purple-100 text-center">
+                        <div className="text-2xl font-bold text-green-600 capitalize">{previewData.confidence_score}</div>
+                        <div className="text-xs text-gray-600">Confidence</div>
+                      </div>
+                    )}
+                    {previewData.id && (
+                      <div className="bg-white rounded-lg p-3 border border-purple-100 text-center col-span-2">
+                        <div className="text-xs font-mono text-gray-900">{previewData.id}</div>
+                        <div className="text-xs text-gray-600">Plan ID</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Test Objectives */}
+                  {previewData.test_objectives && previewData.test_objectives.length > 0 && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Test Objectives</div>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        {previewData.test_objectives.slice(0, 3).map((obj: any, idx: number) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-purple-600">•</span>
+                            <span>{obj.title || obj.objective || obj}</span>
+                          </li>
+                        ))}
+                        {previewData.test_objectives.length > 3 && (
+                          <li className="text-gray-500 italic">+{previewData.test_objectives.length - 3} more objectives</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Scope */}
+                  {previewData.scope_of_testing && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Scope of Testing</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {previewData.scope_of_testing.in_scope && (
+                          <div>
+                            <div className="text-xs font-medium text-green-700 mb-1">In Scope</div>
+                            <ul className="text-xs text-gray-600 space-y-1">
+                              {previewData.scope_of_testing.in_scope.slice(0, 2).map((item: string, idx: number) => (
+                                <li key={idx}>• {item}</li>
+                              ))}
+                              {previewData.scope_of_testing.in_scope.length > 2 && (
+                                <li className="italic">+{previewData.scope_of_testing.in_scope.length - 2} more</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                        {previewData.scope_of_testing.testing_types && (
+                          <div>
+                            <div className="text-xs font-medium text-blue-700 mb-1">Testing Types</div>
+                            <ul className="text-xs text-gray-600 space-y-1">
+                              {previewData.scope_of_testing.testing_types.slice(0, 2).map((type: string, idx: number) => (
+                                <li key={idx}>• {type}</li>
+                              ))}
+                              {previewData.scope_of_testing.testing_types.length > 2 && (
+                                <li className="italic">+{previewData.scope_of_testing.testing_types.length - 2} more</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {previewData.description && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Description</div>
+                      <div className="text-sm text-gray-700 line-clamp-3">{previewData.description}</div>
+                    </div>
+                  )}
+
+                  {/* Test Suites */}
+                  {previewData.test_suites && previewData.test_suites.length > 0 && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-2">Test Suites & Cases</div>
+                      <div className="space-y-3">
+                        {previewData.test_suites.slice(0, 3).map((suite: any, idx: number) => {
+                          const totalCases = suite.test_cases?.length || 0;
+                          return (
+                            <div key={idx} className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-100">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex-1">
+                                  <div className="font-semibold text-sm text-gray-900">{suite.name}</div>
+                                  <div className="text-xs text-gray-600 mt-1">{suite.description}</div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                                    {suite.category}
+                                  </span>
+                                  <span className="text-xs text-gray-600">{totalCases} test{totalCases !== 1 ? 's' : ''}</span>
+                                </div>
+                              </div>
+                              {suite.test_cases && suite.test_cases.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {suite.test_cases.slice(0, 2).map((testCase: any, tcIdx: number) => (
+                                    <div key={tcIdx} className="text-xs text-gray-700 flex items-start gap-1">
+                                      <span className="text-purple-500">▸</span>
+                                      <span className="flex-1">{testCase.name}</span>
+                                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                        testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                        testCase.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                        testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {testCase.priority}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {suite.test_cases.length > 2 && (
+                                    <div className="text-xs text-gray-500 italic pl-3">
+                                      +{suite.test_cases.length - 2} more test case{suite.test_cases.length - 2 !== 1 ? 's' : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {previewData.test_suites.length > 3 && (
+                          <div className="text-sm text-gray-500 italic text-center pt-2">
+                            +{previewData.test_suites.length - 3} more test suite{previewData.test_suites.length - 3 !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-purple-100 flex items-center justify-between text-xs">
+                        <span className="text-gray-600">
+                          Total: <strong className="text-purple-700">{previewData.test_suites.length}</strong> test suite{previewData.test_suites.length !== 1 ? 's' : ''}
+                        </span>
+                        <span className="text-gray-600">
+                          <strong className="text-purple-700">
+                            {previewData.test_suites.reduce((sum: number, suite: any) => sum + (suite.test_cases?.length || 0), 0)}
+                          </strong> total test case{previewData.test_suites.reduce((sum: number, suite: any) => sum + (suite.test_cases?.length || 0), 0) !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback: Show minimal info if specific fields are missing */}
+                  {!previewData.name && !previewData.test_objectives && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="text-sm text-gray-700">
+                        <p className="font-medium mb-2">✅ Test Plan Generated Successfully!</p>
+                        <p className="text-gray-600">
+                          A comprehensive test plan has been created with all IEEE 829 sections.
+                          Click "Accept & Create Test Plan" to finalize.
+                        </p>
+                        {previewData.id && (
+                          <p className="text-xs text-gray-500 mt-2 font-mono">ID: {previewData.id}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                <div className="flex gap-3">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900">
+                    <strong>Review Your Test Plan</strong>
+                    <p className="mt-2 text-blue-800">
+                      AI has generated a comprehensive test plan based on your requirements. Review the details above and choose an action:
+                    </p>
+                    <ul className="mt-2 space-y-1 text-blue-800">
+                      <li>• <strong>"Accept & Create Test Plan"</strong> - Finalize and add to your project</li>
+                      <li>• <strong>"Back to Edit"</strong> - Modify requirements and regenerate</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3 mb-6">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-medium text-red-900">Error</h3>
+                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  disabled={step === 'accepting'}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Edit className="w-4 h-4" />
+                  Back to Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAccept}
+                  disabled={step === 'accepting'}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {step === 'accepting' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating Test Plan...
+                    </>
+                  ) : (
+                    <>
+                      <ThumbsUp className="w-4 h-4" />
+                      Accept & Create Test Plan
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Step */}
         {step === 'success' && generatedPlan && (
           <div className="p-12">
@@ -739,34 +1052,28 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 text-left mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Generated Content:</h4>
                 <div className="space-y-2 text-sm text-gray-700">
-                  {generatedPlan.test_plan_id && (
+                  {generatedPlan.id && (
                     <div className="flex justify-between">
                       <span>Test Plan ID:</span>
-                      <span className="font-mono font-medium">{generatedPlan.test_plan_id.slice(0, 8)}...</span>
+                      <span className="font-mono font-medium text-xs">{generatedPlan.id}</span>
                     </div>
                   )}
-                  {generatedPlan.summary?.test_plan_name && (
+                  {generatedPlan.name && (
                     <div className="flex justify-between">
                       <span>Plan Name:</span>
-                      <span className="font-medium truncate ml-2">{generatedPlan.summary.test_plan_name}</span>
+                      <span className="font-medium truncate ml-2">{generatedPlan.name}</span>
                     </div>
                   )}
-                  {generatedPlan.summary?.test_suites_count !== undefined && (
-                    <div className="flex justify-between">
-                      <span>Test Suites:</span>
-                      <span className="font-medium">{generatedPlan.summary.test_suites_count} suites created</span>
-                    </div>
-                  )}
-                  {generatedPlan.summary?.test_cases_count !== undefined && (
-                    <div className="flex justify-between">
-                      <span>Test Cases:</span>
-                      <span className="font-medium">{generatedPlan.summary.test_cases_count} cases generated</span>
-                    </div>
-                  )}
-                  {generatedPlan.summary?.confidence_score && (
+                  {generatedPlan.confidence_score && (
                     <div className="flex justify-between">
                       <span>Confidence Score:</span>
-                      <span className="font-medium capitalize">{generatedPlan.summary.confidence_score}</span>
+                      <span className="font-medium capitalize">{generatedPlan.confidence_score}</span>
+                    </div>
+                  )}
+                  {generatedPlan.test_objectives_ieee && (
+                    <div className="flex justify-between">
+                      <span>Test Objectives:</span>
+                      <span className="font-medium">{generatedPlan.test_objectives_ieee.length} objectives</span>
                     </div>
                   )}
                 </div>

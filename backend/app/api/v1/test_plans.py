@@ -517,7 +517,7 @@ async def ai_generate_test_plan(
         )
 
 
-@router.post("/generate-comprehensive", response_model=TestPlanResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/generate-comprehensive", status_code=status.HTTP_200_OK)
 async def generate_comprehensive_test_plan(
     request: Dict[str, Any],
     current_user: User = Depends(get_current_active_user),
@@ -596,63 +596,153 @@ async def generate_comprehensive_test_plan(
                 detail=f"Failed to generate test plan: {generation_result.get('error', 'Unknown error')}",
             )
 
-        # Create test plan in database with IEEE 829 sections
+        # Return preview data (don't create in database yet - that happens on "Accept")
         plan_data = generation_result["data"]
-        logger.info(f"Creating TestPlan with plan_data keys: {plan_data.keys()}")
+        logger.info(f"Returning preview data with keys: {plan_data.keys()}")
 
+        # Override AI-generated name with user's title if provided
+        if request.get("title"):
+            plan_data["name"] = request.get("title")
+
+        # Add confidence score to preview
+        plan_data["confidence_score"] = generation_result.get("confidence", "high")
+
+        # Return the preview data for user review
+        return plan_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"\n\n{'='*80}")
+        print(f"ERROR IN COMPREHENSIVE TEST PLAN GENERATION")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback:")
+        traceback.print_exc()
+        print(f"{'='*80}\n")
+        logger.error(f"Error generating comprehensive test plan: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate comprehensive test plan: {str(e)}",
+        )
+
+
+@router.post("/accept-preview", response_model=TestPlanResponse, status_code=status.HTTP_201_CREATED)
+async def accept_test_plan_preview(
+    preview_data: Dict[str, Any],
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Accept a test plan preview and create it in the database with all test suites and cases.
+    """
+    try:
+        # Extract project_id from preview data
+        project_id = preview_data.get("project_id")
+        if not project_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="project_id is required in preview data"
+            )
+
+        try:
+            from uuid import UUID
+            project_id = UUID(project_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid project_id format"
+            )
+
+        # Verify project access
+        await verify_project_access(project_id, current_user, db)
+
+        # Transform assumptions_constraints from dict to list format
+        assumptions_constraints_data = preview_data.get("assumptions_and_constraints", {})
+        if isinstance(assumptions_constraints_data, dict):
+            # AI returns dict with assumptions, constraints, dependencies keys
+            # Convert to list format by combining all items
+            assumptions_constraints_list = []
+            if "assumptions" in assumptions_constraints_data:
+                assumptions_constraints_list.extend([
+                    {"type": "assumption", "description": item}
+                    for item in assumptions_constraints_data["assumptions"]
+                ])
+            if "constraints" in assumptions_constraints_data:
+                assumptions_constraints_list.extend([
+                    {"type": "constraint", "description": item}
+                    for item in assumptions_constraints_data["constraints"]
+                ])
+            if "dependencies" in assumptions_constraints_data:
+                assumptions_constraints_list.extend([
+                    {"type": "dependency", "description": item}
+                    for item in assumptions_constraints_data["dependencies"]
+                ])
+            assumptions_constraints_ieee = assumptions_constraints_list
+        else:
+            assumptions_constraints_ieee = assumptions_constraints_data
+
+        # Transform test_schedule from list to dict format
+        test_schedule_data = preview_data.get("test_schedule", {})
+        if isinstance(test_schedule_data, list):
+            # AI returns list of phases, convert to dict
+            test_schedule_ieee = {
+                "phases": test_schedule_data
+            }
+        else:
+            test_schedule_ieee = test_schedule_data
+
+        # Create test plan from preview data
         test_plan = TestPlan(
             project_id=project_id,
-            name=plan_data.get("name", "Comprehensive Test Plan"),
-            description=plan_data.get("description"),
-            test_plan_type=TestPlanType.REGRESSION.value,  # Default type - use .value for enum
+            name=preview_data.get("name", "Comprehensive Test Plan"),
+            description=preview_data.get("description"),
+            test_plan_type=TestPlanType.REGRESSION.value,
 
             # IEEE 829 comprehensive sections
-            test_objectives_ieee=plan_data.get("test_objectives", []),
-            scope_of_testing_ieee=plan_data.get("scope_of_testing", {}),
-            test_approach_ieee=plan_data.get("test_approach", {}),
-            assumptions_constraints_ieee=plan_data.get("assumptions_and_constraints", []),
-            test_schedule_ieee=plan_data.get("test_schedule", {}),
-            resources_roles_ieee=plan_data.get("resources_and_roles", []),
-            test_environment_ieee=plan_data.get("test_environment", {}),
-            entry_exit_criteria_ieee=plan_data.get("entry_exit_criteria", {}),
-            risk_management_ieee=plan_data.get("risk_management", {}),
-            deliverables_reporting_ieee=plan_data.get("deliverables_and_reporting", {}),
-            approval_signoff_ieee=plan_data.get("approval_signoff", {}),
+            test_objectives_ieee=preview_data.get("test_objectives", []),
+            scope_of_testing_ieee=preview_data.get("scope_of_testing", {}),
+            test_approach_ieee=preview_data.get("test_approach", {}),
+            assumptions_constraints_ieee=assumptions_constraints_ieee,
+            test_schedule_ieee=test_schedule_ieee,
+            resources_roles_ieee=preview_data.get("resources_and_roles", []),
+            test_environment_ieee=preview_data.get("test_environment", {}),
+            entry_exit_criteria_ieee=preview_data.get("entry_exit_criteria", {}),
+            risk_management_ieee=preview_data.get("risk_management", {}),
+            deliverables_reporting_ieee=preview_data.get("deliverables_and_reporting", {}),
+            approval_signoff_ieee=preview_data.get("approval_signoff", {}),
 
-            # Legacy fields for backward compatibility
-            # Extract objective text from test_objectives objects
+            # Legacy fields
             objectives=[
                 obj.get("objective", "") if isinstance(obj, dict) else str(obj)
-                for obj in plan_data.get("test_objectives", [])
+                for obj in preview_data.get("test_objectives", [])
             ],
-            scope_in=plan_data.get("scope_of_testing", {}).get("in_scope", []),
-            scope_out=plan_data.get("scope_of_testing", {}).get("out_of_scope", []),
+            scope_in=preview_data.get("scope_of_testing", {}).get("in_scope", []),
+            scope_out=preview_data.get("scope_of_testing", {}).get("out_of_scope", []),
 
             # Metadata
             generated_by=GenerationType.AI.value,
-            confidence_score=str(generation_result.get("confidence", "high")),  # Convert to string
+            confidence_score=str(preview_data.get("confidence_score", "high")),
             review_status=ReviewStatus.DRAFT.value,
-            tags=plan_data.get("tags", []),
+            tags=preview_data.get("tags", []),
             meta_data={
-                "estimated_hours": plan_data.get("estimated_hours"),
-                "complexity": plan_data.get("complexity"),
-                "timeframe": plan_data.get("timeframe"),
-                "project_type": plan_data.get("project_type"),
-                "platforms": plan_data.get("platforms", []),
-                "features": plan_data.get("features", []),
+                "estimated_hours": preview_data.get("estimated_hours"),
+                "complexity": preview_data.get("complexity"),
+                "timeframe": preview_data.get("timeframe"),
+                "project_type": preview_data.get("project_type"),
+                "platforms": preview_data.get("platforms", []),
+                "features": preview_data.get("features", []),
             },
             created_by=current_user.email,
         )
 
         db.add(test_plan)
-        logger.info("Added test_plan to session, flushing...")
-        await db.flush()  # Flush to get test_plan.id
-        logger.info(f"TestPlan created with ID: {test_plan.id}")
+        await db.flush()
 
-        # Create test suites and test cases if provided
-        test_suites_data = plan_data.get("test_suites", [])
+        # Create test suites and test cases
+        test_suites_data = preview_data.get("test_suites", [])
         for suite_data in test_suites_data:
-            # Store category in meta_data if provided
             suite_meta_data = suite_data.get("meta_data", {})
             if "category" in suite_data:
                 suite_meta_data["category"] = suite_data["category"]
@@ -668,18 +758,15 @@ async def generate_comprehensive_test_plan(
                 created_by=current_user.email,
             )
             db.add(test_suite)
-            await db.flush()  # Get suite ID
+            await db.flush()
 
-            # Create test cases for this suite
+            # Create test cases
             test_cases_data = suite_data.get("test_cases", [])
             for case_data in test_cases_data:
-                # Convert steps to expected format
                 steps = case_data.get("steps", [])
                 if steps and isinstance(steps[0], dict):
-                    # Already in correct format
-                    pass
+                    pass  # Already correct format
                 else:
-                    # Convert simple list to dict format
                     steps = [
                         {
                             "step_number": idx + 1,
@@ -689,7 +776,6 @@ async def generate_comprehensive_test_plan(
                         for idx, step in enumerate(steps)
                     ]
 
-                # Store estimated_time in meta_data if provided
                 case_meta_data = case_data.get("meta_data", {})
                 if "estimated_time" in case_data:
                     case_meta_data["estimated_time"] = case_data["estimated_time"]
@@ -717,16 +803,8 @@ async def generate_comprehensive_test_plan(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"\n\n{'='*80}")
-        print(f"ERROR IN COMPREHENSIVE TEST PLAN GENERATION")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {str(e)}")
-        import traceback
-        print(f"Traceback:")
-        traceback.print_exc()
-        print(f"{'='*80}\n")
-        logger.error(f"Error generating comprehensive test plan: {e}")
+        logger.error(f"Error accepting test plan preview: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate comprehensive test plan: {str(e)}",
+            detail=f"Failed to create test plan from preview: {str(e)}",
         )

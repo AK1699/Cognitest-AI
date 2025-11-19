@@ -1,24 +1,49 @@
 'use client'
 
 import { TestSuite, TestCase } from '@/lib/api/test-management'
-import { ChevronDown, ChevronRight, FolderOpen, FileText, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, ChevronRight, FolderOpen, FileText, Clock, AlertCircle, CheckCircle2, Trash2, MoreVertical } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface HierarchicalTestSuiteListProps {
   testSuites: TestSuite[]
   testCases: TestCase[]
   onViewSuite?: (id: string) => void
   onViewCase?: (id: string) => void
+  onDeleteSuite?: (id: string) => void
+  onDeleteCase?: (id: string) => void
 }
 
 export default function HierarchicalTestSuiteList({
   testSuites,
   testCases,
   onViewSuite,
-  onViewCase
+  onViewCase,
+  onDeleteSuite,
+  onDeleteCase
 }: HierarchicalTestSuiteListProps) {
   const [expandedSuites, setExpandedSuites] = useState<Set<string>>(new Set())
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set())
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const { confirm, ConfirmDialog } = useConfirm()
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null)
+      }
+    }
+
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenuId])
 
   const toggleSuite = (suiteId: string) => {
     const newExpanded = new Set(expandedSuites)
@@ -109,9 +134,50 @@ export default function HierarchicalTestSuiteList({
                           {suite.description}
                         </p>
                       </div>
-                      <span className="ml-4 px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono font-semibold">
-                        TS-{suite.id.slice(0, 2).toUpperCase()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono font-semibold">
+                          TS-{suite.id.slice(0, 2).toUpperCase()}
+                        </span>
+
+                        {/* Delete Button */}
+                        {onDeleteSuite && (
+                          <div className="relative" ref={openMenuId === suite.id ? menuRef : null}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(openMenuId === suite.id ? null : suite.id)
+                              }}
+                              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                              title="More options"
+                            >
+                              <MoreVertical className="w-4 h-4 text-gray-500" />
+                            </button>
+
+                            {openMenuId === suite.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    const confirmed = await confirm({
+                                      message: `Are you sure you want to delete "${suite.name}"? This will also delete all ${getCasesForSuite(suite.id).length} test cases in this suite.`,
+                                      variant: 'danger',
+                                      confirmText: 'Delete'
+                                    })
+                                    if (confirmed) {
+                                      onDeleteSuite(suite.id)
+                                    }
+                                    setOpenMenuId(null)
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete Suite
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Suite Meta */}
@@ -328,6 +394,7 @@ export default function HierarchicalTestSuiteList({
           </div>
         )
       })}
+      <ConfirmDialog />
     </div>
   )
 }

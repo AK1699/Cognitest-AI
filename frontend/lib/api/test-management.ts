@@ -299,6 +299,7 @@ export const testPlansAPI = {
 
   generateComprehensive: async (request: {
     project_id: string
+    title?: string
     project_type: string
     description: string
     features: string[]
@@ -308,6 +309,11 @@ export const testPlansAPI = {
     timeframe: string
   }) => {
     const response = await api.post(`/api/v1/test-plans/generate-comprehensive`, request)
+    return response.data
+  },
+
+  acceptPreview: async (previewData: any) => {
+    const response = await api.post(`/api/v1/test-plans/accept-preview`, previewData)
     return response.data as TestPlan
   },
 }
