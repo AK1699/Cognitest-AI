@@ -16,6 +16,35 @@ interface TestPlanCardProps {
 export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: TestPlanCardProps) {
   const { confirm, ConfirmDialog } = useConfirm()
 
+  // Normalize arbitrary values into displayable text
+  const toText = (value: any): string => {
+    if (value == null) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+    if (typeof value === 'object') {
+      const candidate = (value as any).name || (value as any).title || (value as any).role || (value as any).label || (value as any).type
+      if (typeof candidate === 'string') return candidate
+    }
+    try { return JSON.stringify(value) } catch { return String(value) }
+  }
+
+  // Derive concise objectives for card display
+  const displayObjectives: string[] = (() => {
+    const tp: any = testPlan as any
+    const primary = Array.isArray(tp.objectives) ? tp.objectives : []
+    const ieee = Array.isArray(tp.test_objectives_ieee) ? tp.test_objectives_ieee : []
+    const source = primary.length ? primary : ieee
+    return source
+      .map((o: any) => {
+        if (o == null) return ''
+        if (typeof o === 'string') return o
+        const candidate = o.objective ?? o.title ?? o.description ?? o.summary
+        return candidate != null ? String(candidate) : toText(o)
+      })
+      .map((s: any) => (s ?? '').toString().trim())
+      .filter((s: string) => s.length > 0)
+  })()
+
   const getPriorityColor = (priority?: string) => {
     if (!priority) return 'bg-gray-600'
     switch (priority.toLowerCase()) {
@@ -88,21 +117,21 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
       )}
 
       {/* Objectives */}
-      {testPlan.objectives && testPlan.objectives.length > 0 && (
+      {displayObjectives.length > 0 && (
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-500 mb-2">
-            Objectives ({testPlan.objectives.length})
+            Objectives ({displayObjectives.length})
           </div>
           <div className="space-y-1">
-            {testPlan.objectives.slice(0, 3).map((objective, index) => (
+            {displayObjectives.slice(0, 3).map((objective, index) => (
               <div key={index} className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                 <span className="text-sm text-gray-700 line-clamp-1">{objective}</span>
               </div>
             ))}
-            {testPlan.objectives.length > 3 && (
+            {displayObjectives.length > 3 && (
               <div className="text-xs text-gray-500 ml-3.5">
-                +{testPlan.objectives.length - 3} more
+                +{displayObjectives.length - 3} more
               </div>
             )}
           </div>

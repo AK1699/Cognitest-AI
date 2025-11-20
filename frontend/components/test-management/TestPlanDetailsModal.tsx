@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -62,7 +62,68 @@ export function TestPlanDetailsModal({
     return []
   }
 
-  if (!testPlan) return null
+  // Normalize arbitrary values into displayable text
+  const toText = (value: any): string => {
+    if (value == null) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+    // Try common name-like properties
+    if (typeof value === 'object') {
+      const candidate = value.name || value.title || value.role || value.label || value.type
+      if (typeof candidate === 'string') return candidate
+    }
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }
+
+  const noPlan = !testPlan
+
+  const normalizedPlan = useMemo(() => {
+    if (!testPlan) return null as any
+    const tp: any = testPlan
+    const pick = (primary: any, fallback?: any) => primary ?? fallback
+    const normalizeArray = (v: any) => Array.isArray(v) ? v : (v ? [v] : [])
+
+    return {
+      ...tp,
+      // Map legacy or non-IEEE keys into IEEE display keys
+      test_objectives_ieee: pick(tp.test_objectives_ieee, pick(tp.test_objectives, tp.objectives)),
+      scope_of_testing_ieee: pick(tp.scope_of_testing_ieee, tp.scope_of_testing),
+      test_approach_ieee: pick(tp.test_approach_ieee, tp.test_approach),
+      assumptions_constraints_ieee: pick(tp.assumptions_constraints_ieee, pick(tp.assumptions_and_constraints, tp.assumptions)),
+      test_schedule_ieee: pick(tp.test_schedule_ieee, pick(tp.test_schedule, { phases: normalizeArray(tp.phases) })),
+      resources_roles_ieee: pick(tp.resources_roles_ieee, pick(tp.resources_and_roles, tp.resources)),
+      test_environment_ieee: pick(tp.test_environment_ieee, pick(tp.test_environment, tp.environment)),
+      entry_exit_criteria_ieee: pick(tp.entry_exit_criteria_ieee, tp.entry_exit_criteria),
+      risk_management_ieee: pick(tp.risk_management_ieee, tp.risk_management),
+      deliverables_reporting_ieee: pick(tp.deliverables_reporting_ieee, pick(tp.deliverables_and_reporting, tp.deliverables)),
+      approval_signoff_ieee: pick(tp.approval_signoff_ieee, pick(tp.approval_signoff, tp.approval)),
+    }
+  }, [testPlan])
+
+  // Derive a concise list of objectives for the Basic Information section
+  const basicObjectives = useMemo(() => {
+    if (!normalizedPlan) return [] as any[]
+    const direct = (normalizedPlan as any).objectives
+    if (Array.isArray(direct) && direct.length) return direct
+    const ieee = (normalizedPlan as any).test_objectives_ieee
+    if (Array.isArray(ieee)) {
+      return ieee
+        .map((o: any) => o?.objective ?? o?.title ?? o?.description)
+        .filter(Boolean)
+        .slice(0, 6)
+    }
+    return [] as any[]
+  }, [normalizedPlan])
+
+  /* removed exportJson */
+
+  /* removed toggleAll */
+
+  // moved below after sections definition to avoid reference before initialization
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections)
@@ -154,8 +215,11 @@ export function TestPlanDetailsModal({
     }
   ]
 
+  const availableSections: any[] = []
+
   const renderSectionContent = (field: keyof TestPlan) => {
-    const data = testPlan[field] as any
+    const src: any = normalizedPlan || {}
+    const data = src[field] as any
 
     if (!data || (Array.isArray(data) && data.length === 0) || (typeof data === 'object' && Object.keys(data).length === 0)) {
       return (
@@ -249,8 +313,8 @@ export function TestPlanDetailsModal({
             In Scope
           </h4>
           <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
-            {data.in_scope.map((item: string, i: number) => (
-              <li key={i}>{item}</li>
+            {data.in_scope.map((item: any, i: number) => (
+              <li key={i}>{toText(item)}</li>
             ))}
           </ul>
         </div>
@@ -262,8 +326,8 @@ export function TestPlanDetailsModal({
             Out of Scope
           </h4>
           <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
-            {data.out_of_scope.map((item: string, i: number) => (
-              <li key={i}>{item}</li>
+            {data.out_of_scope.map((item: any, i: number) => (
+              <li key={i}>{toText(item)}</li>
             ))}
           </ul>
         </div>
@@ -322,8 +386,8 @@ export function TestPlanDetailsModal({
         <div>
           <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Tools & Frameworks</h4>
           <div className="flex flex-wrap gap-2">
-            {data.tools_and_frameworks.map((tool: string, i: number) => (
-              <Badge key={i} variant="secondary">{tool}</Badge>
+            {data.tools_and_frameworks.map((tool: any, i: number) => (
+              <Badge key={i} variant="secondary">{toText(tool)}</Badge>
             ))}
           </div>
         </div>
@@ -465,8 +529,18 @@ export function TestPlanDetailsModal({
         {displayResources.map((resource: any, index: number) => {
           // Handle both string format and object format
           const isString = typeof resource === 'string'
-          const roleName = isString ? resource : (resource.role || `Resource ${index + 1}`)
-          const allocation = !isString && resource.allocation
+          const roleName = isString ? resource : (
+            toText(
+              resource.role ??
+              resource.role_name ??
+              resource.position ??
+              resource.title ??
+              resource.name
+            ) || `Resource ${index + 1}`
+          )
+          const allocation = !isString && (resource.allocation ?? resource.capacity ?? resource.utilization)
+          const authority = !isString && (resource.authority ?? resource.role?.authority ?? resource.role?.level)
+          const headcount = !isString && (resource.headcount ?? resource.count)
           const responsibilities = !isString && ensureArray(resource.responsibilities || [])
           const skills = !isString && ensureArray(resource.skills_required || [])
 
@@ -477,9 +551,17 @@ export function TestPlanDetailsModal({
                   <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                   <h4 className="font-semibold text-sm text-gray-900 dark:text-white">{roleName}</h4>
                 </div>
-                {allocation && (
-                  <Badge variant="outline" className="text-xs">{allocation}</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {authority && (
+                    <Badge variant="secondary" className="text-xs">{toText(authority)}</Badge>
+                  )}
+                  {headcount && (
+                    <Badge variant="outline" className="text-xs">{toText(headcount)} HC</Badge>
+                  )}
+                  {allocation && (
+                    <Badge variant="outline" className="text-xs">{toText(allocation)}</Badge>
+                  )}
+                </div>
               </div>
               {!isString && responsibilities.length > 0 && (
                 <div className="mb-2">
@@ -487,8 +569,8 @@ export function TestPlanDetailsModal({
                     Key Responsibilities ({responsibilities.length})
                   </p>
                   <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                    {responsibilities.map((resp: string, i: number) => (
-                      <li key={i}>{resp}</li>
+                    {responsibilities.map((resp: any, i: number) => (
+                      <li key={i}>{toText(resp)}</li>
                     ))}
                   </ul>
                 </div>
@@ -497,8 +579,8 @@ export function TestPlanDetailsModal({
                 <div>
                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</p>
                   <div className="flex flex-wrap gap-1">
-                    {skills.map((skill: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
+                    {skills.map((skill: any, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{toText(skill)}</Badge>
                     ))}
                   </div>
                 </div>
@@ -543,8 +625,8 @@ export function TestPlanDetailsModal({
             </h4>
             <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 p-3 rounded-lg border border-cyan-200 dark:border-cyan-800">
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {hardware.map((item: string, i: number) => (
-                  <li key={i}>{item}</li>
+                {hardware.map((item: any, i: number) => (
+                  <li key={i}>{toText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -560,8 +642,8 @@ export function TestPlanDetailsModal({
             </h4>
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {software.map((item: string, i: number) => (
-                  <li key={i}>{item}</li>
+                {software.map((item: any, i: number) => (
+                  <li key={i}>{toText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -577,8 +659,8 @@ export function TestPlanDetailsModal({
             </h4>
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800">
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {network.map((item: string, i: number) => (
-                  <li key={i}>{item}</li>
+                {network.map((item: any, i: number) => (
+                  <li key={i}>{toText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -594,8 +676,8 @@ export function TestPlanDetailsModal({
             </h4>
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {testData.map((item: string, i: number) => (
-                  <li key={i}>{item}</li>
+                {testData.map((item: any, i: number) => (
+                  <li key={i}>{toText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -611,8 +693,8 @@ export function TestPlanDetailsModal({
             </h4>
             <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
               <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {access.map((item: string, i: number) => (
-                  <li key={i}>{item}</li>
+                {access.map((item: any, i: number) => (
+                  <li key={i}>{toText(item)}</li>
                 ))}
               </ul>
             </div>
@@ -732,11 +814,31 @@ export function TestPlanDetailsModal({
   const renderDeliverables = (data: any) => {
     console.log('Deliverables & Reporting Data:', JSON.stringify(data, null, 2))
 
+    const artifacts = ensureArray(data?.artifacts || [])
+    const reporting = ensureArray(data?.reporting_structure || data?.reporting || [])
+    const stakeholders = ensureArray(data?.stakeholders || [])
     const metrics = ensureArray(data?.metrics || [])
+    const comms = ensureArray(data?.communication_plan || data?.communications || [])
+
+    const List = ({ title, items }: { title: string; items: any[] }) => (
+      items.length > 0 ? (
+        <div>
+          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">{title}</h4>
+          <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            {items.map((item, i) => (
+              <li key={i}>{toText(item)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null
+    )
 
     return (
       <div className="space-y-4">
-        {/* Metrics */}
+        <List title="Artifacts" items={artifacts} />
+        <List title="Reporting Structure" items={reporting} />
+        <List title="Stakeholders" items={stakeholders} />
+
         {metrics.length > 0 && (
           <div>
             <h4 className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-2">
@@ -744,14 +846,16 @@ export function TestPlanDetailsModal({
               Metrics
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {metrics.map((metric: string, i: number) => (
+              {metrics.map((metric: any, i: number) => (
                 <div key={i} className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{metric}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{toText(metric)}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        <List title="Communication Plan" items={comms} />
       </div>
     )
   }
@@ -760,10 +864,21 @@ export function TestPlanDetailsModal({
     console.log('Approval & Sign-off Data:', JSON.stringify(data, null, 2))
 
     const approvers = ensureArray(data?.approvers || [])
+    const process = ensureArray(data?.approval_process || data?.process || [])
 
     return (
       <div className="space-y-4">
-        {/* Approvers */}
+        {process.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Approval Process</h4>
+            <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              {process.map((step, i) => (
+                <li key={i}>{toText(step)}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+
         {approvers.length > 0 && (
           <div>
             <h4 className="font-semibold text-sm text-teal-600 dark:text-teal-400 mb-3 flex items-center gap-2">
@@ -771,88 +886,152 @@ export function TestPlanDetailsModal({
               Approvers
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {approvers.map((approver: string, i: number) => (
-                <div key={i} className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-4 rounded-lg border border-teal-200 dark:border-teal-800">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                    <span className="font-medium text-gray-900 dark:text-white">{approver}</span>
+              {approvers.map((approver: any, i: number) => {
+                const name = toText(approver.name ?? approver)
+                const role = approver.role ? toText(approver.role) : undefined
+                const authority = approver.authority ? toText(approver.authority) : undefined
+                const responsibility = approver.responsibility ? toText(approver.responsibility) : undefined
+                const required = approver.required === true || approver.mandatory === true
+                return (
+                  <div key={i} className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-4 rounded-lg border border-teal-200 dark:border-teal-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">{name}</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            {[role, authority].filter(Boolean).join(' • ')}
+                          </div>
+                        </div>
+                      </div>
+                      {required && <Badge variant="secondary" className="text-xs">Required</Badge>}
+                    </div>
+                    {responsibility && (
+                      <div className="mt-2 text-xs text-gray-700 dark:text-gray-300">
+                        <strong>Responsibility:</strong> {responsibility}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
-      {data.sign_off_criteria && data.sign_off_criteria.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Sign-off Criteria</h4>
-          <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
-            {data.sign_off_criteria.map((criteria: string, i: number) => (
-              <li key={i}>{criteria}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+
+        {data.sign_off_criteria && data.sign_off_criteria.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Sign-off Criteria</h4>
+            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
+              {data.sign_off_criteria.map((criteria: any, i: number) => (
+                <li key={i}>{toText(criteria)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {testPlan.name}
-            {testPlan.generated_by === 'ai' && (
-              <Badge variant="secondary" className="ml-2">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI Generated
-              </Badge>
-            )}
-            {testPlan.confidence_score && (
-              <Badge variant="outline" className="ml-2">
-                {testPlan.confidence_score}% confidence
-              </Badge>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            Created on {formatDateHumanReadable(testPlan.created_at)} by {testPlan.created_by}
-          </DialogDescription>
-        </DialogHeader>
+        {!noPlan && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {normalizedPlan?.name || testPlan?.name}
+                {normalizedPlan?.generated_by === 'ai' && (
+                  <Badge variant="secondary" className="ml-2">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    AI Generated
+                  </Badge>
+                )}
+                {normalizedPlan?.confidence_score && (
+                  <Badge variant="outline" className="ml-2">
+                    {normalizedPlan?.confidence_score}% confidence
+                  </Badge>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                Created on {formatDateHumanReadable((normalizedPlan || testPlan).created_at)} by {toText((normalizedPlan || testPlan).created_by)}
+              </DialogDescription>
+            </DialogHeader>
 
+          </>
+        )}
+
+        {noPlan ? null : (
         <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
           <div className="space-y-4 py-4">
-            {/* Basic Information */}
-            <div className="space-y-3">
+           {/* Stats */}
+           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+             {normalizedPlan?.priority && (
+               <Badge variant="outline" className="justify-center">Priority: {toText(testPlan.priority)}</Badge>
+             )}
+             {normalizedPlan?.complexity && (
+               <Badge variant="outline" className="justify-center">Complexity: {toText(testPlan.complexity)}</Badge>
+             )}
+             {normalizedPlan?.timeframe && (
+               <Badge variant="outline" className="justify-center">Timeframe: {toText(testPlan.timeframe)}</Badge>
+             )}
+             {typeof (normalizedPlan as any)?.estimated_hours !== 'undefined' && (
+               <Badge variant="outline" className="justify-center">Est. Hours: {toText((normalizedPlan as any).estimated_hours)}</Badge>
+             )}
+             {Array.isArray((normalizedPlan as any)?.platforms) && (
+               <Badge variant="outline" className="justify-center">Platforms: {(normalizedPlan as any).platforms.length}</Badge>
+             )}
+             {Array.isArray((normalizedPlan as any)?.features) && (
+               <Badge variant="outline" className="justify-center">Features: {(normalizedPlan as any).features.length}</Badge>
+             )}
+           </div>
+
+           {/* Basic Information */}
+           <div className="space-y-3">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleSection('basic')}>
                 {expandedSections.has('basic') ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 <h3 className="font-semibold text-gray-900 dark:text-white">Basic Information</h3>
               </div>
               {expandedSections.has('basic') && (
                 <div className="pl-6 space-y-3">
-                  {testPlan.description && (
+                  {normalizedPlan?.description && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{testPlan.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{normalizedPlan?.description}</p>
                     </div>
                   )}
-                  {testPlan.objectives && testPlan.objectives.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Objectives</h4>
-                      <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                        {testPlan.objectives.map((obj, i) => (
-                          <li key={i}>{obj}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {testPlan.tags && testPlan.tags.length > 0 && (
+                  {(() => {
+                    const source = (normalizedPlan?.objectives && normalizedPlan.objectives.length > 0)
+                      ? normalizedPlan.objectives
+                      : basicObjectives
+                    const items = (Array.isArray(source) ? source : [])
+                      .map((o: any) => {
+                        if (o == null) return ''
+                        if (typeof o === 'string') return o
+                        const candidate = o.objective ?? o.title ?? o.description ?? o.summary
+                        return candidate != null ? String(candidate) : toText(o)
+                      })
+                      .map((s: any) => (s ?? '').toString().trim())
+                      .filter((s: string) => s.length > 0)
+                    if (items.length === 0) return null
+                    return (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Objectives</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                          {items.map((text: string, i: number) => (
+                            <li key={i}>{text}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })()}
+                  {normalizedPlan?.tags && normalizedPlan.tags.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</h4>
                       <div className="flex flex-wrap gap-2">
-                        {testPlan.tags.map((tag, i) => (
+                        {normalizedPlan.tags.map((tag: any, i: number) => (
                           <Badge key={i} variant="secondary">
                             <Tag className="w-3 h-3 mr-1" />
-                            {tag}
+                            {toText(tag)}
                           </Badge>
                         ))}
                       </div>
@@ -886,6 +1065,9 @@ export function TestPlanDetailsModal({
           </div>
         </div>
 
+        )}
+
+        {noPlan ? null : (
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
@@ -896,6 +1078,7 @@ export function TestPlanDetailsModal({
             </Button>
           )}
         </DialogFooter>
+       )}
       </DialogContent>
     </Dialog>
   )

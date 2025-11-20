@@ -407,7 +407,16 @@ Return a valid JSON object with this structure (use snake_case for all field nam
     "dependencies": [ /* strings */ ]
   },
   "test_schedule": [ /* array of phase objects with name, start_date, end_date, milestones, deliverables */ ],
-  "resources_and_roles": [ /* array of role objects with name, responsibilities, skills, fte */ ],
+  "resources_and_roles": [
+    {
+      "role": { "role": "QA Lead", "authority": "Senior", "seniority": "L5", "reporting_to": "Test Manager" },
+      "fte": 1.0,
+      "headcount": 2,
+      "allocation": "50%",
+      "responsibilities": ["Own test strategy", "Review plans", "Coach team"],
+      "skills_required": ["Leadership", "Test design", "Automation"]
+    }
+  ],
   "test_environment": { /* object with hardware, software, network, test_data, access */ },
   "entry_exit_criteria": {
     "entry": [ /* strings */ ],
@@ -417,18 +426,22 @@ Return a valid JSON object with this structure (use snake_case for all field nam
   },
   "risk_management": {
     "risks": [ /* array of risk objects */ ],
-    "risk_matrix": "Description of risk distribution across probability/impact dimensions"
+    "risk_matrix": { "high": 0, "medium": 0, "low": 0 }
   },
   "deliverables_and_reporting": {
-    "artifacts": [ /* strings */ ],
-    "reporting_structure": [ /* strings */ ],
-    "stakeholders": [ /* strings */ ],
-    "metrics": [ /* strings */ ],
-    "communication_plan": [ /* strings */ ]
+    "artifacts": [ "Test plan", "Test cases", "Defect reports" ],
+    "reporting_structure": [ "Daily standup", "Weekly status report" ],
+    "stakeholders": [ "Product Owner", "Dev Lead", "QA Manager" ],
+    "metrics": [ "Test coverage %", "Defect density", "Execution rate" ],
+    "communication_plan": [ "Slack updates", "Email summary", "Escalation path" ]
   },
   "approval_signoff": {
-    "approval_process": [ /* strings */ ],
-    "approvers": [ /* array of approver objects */ ]
+    "approval_process": [ "Review", "Feedback", "Revision", "Final approval" ],
+    "approvers": [
+      { "name": "Alex Doe", "role": "Test Manager", "authority": "Sign-off", "responsibility": "Plan completeness", "required": true },
+      { "name": "Jamie Lee", "role": "Dev Lead", "authority": "Review", "responsibility": "Technical feasibility", "required": true }
+    ],
+    "sign_off_criteria": [ "Zero critical defects", ">90% pass rate", "PO approval" ]
   },
   "test_suites": [
     {
