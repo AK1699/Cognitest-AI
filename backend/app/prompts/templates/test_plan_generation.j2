@@ -225,12 +225,32 @@ Generate a comprehensive, industry-standard test plan following IEEE 829/ISO 291
    - Include buffer time (10-15%) for risk contingency
    - Map dependencies between phases
    - For each phase, specify: start/end dates, key activities, deliverables, resource allocation
+   - CRITICAL: Base schedule on the current date at generation time. Do not produce past dates.
+     • Start date must be today or the next business day.
+     • Compute subsequent phase dates forward according to {{ timeframe | default('the provided timeframe') }}.
+     • Use ISO format YYYY-MM-DD for all dates.
+     • Ensure end_date >= start_date for each phase and overall end_date reflects the full timeframe.
 
 6. **Resources and Roles:**
    - Define 5-8 roles: Test Manager, Test Lead, QA Engineers (manual/automation), Performance Tester, Security Tester
-   - For EACH role: responsibilities, required skills (technical and domain), reporting structure
-   - Estimate FTE (Full-Time Equivalent) requirements per role
-   - Identify skill gaps and training needs
+   - For EACH role, RETURN A STRUCTURE WITH THESE FIELDS:
+     {
+       "role": { "role": "<title>", "authority": "<authority>", "seniority": "<Lx or level>", "reporting_to": "<manager role>" },
+       "fte": <number>,
+       "headcount": <integer>,
+       "allocation": "<percent>%",
+       "responsibilities": ["3-6 concrete responsibilities"],
+       "skills_required": ["3-6 specific skills (technical and domain)"]
+     }
+   - MANDATORY RESOURCES OVERVIEW (provide these sub-sections in addition to per-role data):
+     Team Members & Roles (derived from roles array);
+     Responsibilities (summary list of team-wide responsibilities);
+     Resource Allocation (effort/availability overview by role);
+     Required Infrastructure (hardware + software specific to team needs);
+     Test Environments & Access (what environments are needed and how to access);
+     Tools & Licenses (tools to be used and licensing needs);
+     Skillset and Training Requirements (skills matrix and planned trainings).
+   - Estimate FTE (Full-Time Equivalent) requirements per role and identify any skill gaps
 
 7. **Test Environment:**
    - Hardware: List specific devices, servers, network equipment
@@ -255,12 +275,15 @@ Generate a comprehensive, industry-standard test plan following IEEE 829/ISO 291
      * Contingency plan (reactive measures if risk materializes)
    - Include risks across categories: technical, resource, schedule, environment, third-party
    - Create risk matrix showing probability vs impact
+   - CRITICAL: Provide risk_management.risk_matrix with numeric counts derived from risks: {"high": <int>, "medium": <int>, "low": <int>} (never leave zero unless no risks)
 
 10. **Deliverables and Reporting:**
     - Artifacts: Test plan, test cases, test scripts, test data sets, defect reports, test results
     - Reporting Structure: Daily standup updates, weekly status reports, sprint retrospectives
     - Stakeholders: Product Owner, Development Lead, Project Manager, QA Manager
     - Metrics: Test coverage %, defect density, test execution rate, automation coverage
+      CRITICAL: For each metric, provide an approximate baseline value when feasible (e.g., "pass_rate": {"value": 92, "unit": "%"} or "defect_density": {"value": 0.8, "unit": "per story"}). If unavailable, include numerator/denominator fields from which a percentage can be computed (e.g., {"executed": 45, "total": 60}).
+      Include: execution_rate, pass_rate, coverage (feature/requirement/automation), defect_density, defect_distribution, defect_resolution_time, automation_coverage, rtm.
     - Communication Plan: Meeting cadence, escalation path, report distribution
 
 11. **Approval/Sign-off:**
@@ -407,14 +430,46 @@ Return a valid JSON object with this structure (use snake_case for all field nam
     "dependencies": [ /* strings */ ]
   },
   "test_schedule": [ /* array of phase objects with name, start_date, end_date, milestones, deliverables */ ],
-  "resources_and_roles": [
+  "resources_and_roles": [ /* CRITICAL: 5-8 role objects */
     {
-      "role": { "role": "QA Lead", "authority": "Senior", "seniority": "L5", "reporting_to": "Test Manager" },
+      "role": { "role": "Test Manager", "authority": "Manager", "seniority": "L6", "reporting_to": "Head of QA" },
       "fte": 1.0,
+      "headcount": 1,
+      "allocation": "100%",
+      "responsibilities": ["Define QA strategy", "Resource planning", "Stakeholder reporting"],
+      "skills_required": ["Leadership", "Risk-based testing", "Metrics & reporting"]
+    },
+    {
+      "role": { "role": "Test Lead", "authority": "Lead", "seniority": "L5", "reporting_to": "Test Manager" },
+      "fte": 1.0,
+      "headcount": 1,
+      "allocation": "100%",
+      "responsibilities": ["Plan test phases", "Review test cases", "Coordinate execution"],
+      "skills_required": ["Test design", "Defect triage", "Coordination"]
+    },
+    {
+      "role": { "role": "QA Engineer (Manual)", "authority": "IC", "seniority": "L3", "reporting_to": "Test Lead" },
+      "fte": 0.5,
       "headcount": 2,
       "allocation": "50%",
-      "responsibilities": ["Own test strategy", "Review plans", "Coach team"],
-      "skills_required": ["Leadership", "Test design", "Automation"]
+      "responsibilities": ["Functional testing", "Exploratory testing", "Bug reporting"],
+      "skills_required": ["Exploratory", "Test case design", "Bug reporting"]
+    },
+    {
+      "role": { "role": "QA Engineer (Automation)", "authority": "IC", "seniority": "L4", "reporting_to": "Test Lead" },
+      "fte": 1.0,
+      "headcount": 2,
+      "allocation": "100%",
+      "responsibilities": ["Automate regression suite", "Maintain framework", "CI/CD integration"],
+      "skills_required": ["Playwright/Cypress", "CI/CD", "OOP"]
+    },
+    {
+      "role": { "role": "Security Tester", "authority": "Specialist", "seniority": "L4", "reporting_to": "Test Manager" },
+      "fte": 0.25,
+      "headcount": 1,
+      "allocation": "25%",
+      "responsibilities": ["Vulnerability assessment", "Threat modeling", "Verify fixes"],
+      "skills_required": ["OWASP", "Burp/ZAP", "Secure SDLC"]
     }
   ],
   "test_environment": { /* object with hardware, software, network, test_data, access */ },

@@ -54,6 +54,7 @@ export function TestPlanDetailsModal({
   const [showAllAssumptions, setShowAllAssumptions] = useState(true)
   const [showAllPhases, setShowAllPhases] = useState(true)
   const [showAllResources, setShowAllResources] = useState(true)
+  const [showRRHelp, setShowRRHelp] = useState(false)
 
   // Helper function to safely ensure data is an array
   const ensureArray = (data: any): any[] => {
@@ -69,7 +70,7 @@ export function TestPlanDetailsModal({
     if (typeof value === 'number' || typeof value === 'boolean') return String(value)
     // Try common name-like properties
     if (typeof value === 'object') {
-      const candidate = value.name || value.title || value.role || value.label || value.type
+      const candidate = (value as any).name || (value as any).title || (value as any).role || (value as any).label || (value as any).type
       if (typeof candidate === 'string') return candidate
     }
     try {
@@ -79,7 +80,180 @@ export function TestPlanDetailsModal({
     }
   }
 
+  // Simple color hashing for tag styling
+  const tagPalette = [
+    { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-200' },
+    { bg: 'bg-green-100', text: 'text-green-700', ring: 'ring-green-200' },
+    { bg: 'bg-purple-100', text: 'text-purple-700', ring: 'ring-purple-200' },
+    { bg: 'bg-amber-100', text: 'text-amber-800', ring: 'ring-amber-200' },
+    { bg: 'bg-pink-100', text: 'text-pink-700', ring: 'ring-pink-200' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-700', ring: 'ring-cyan-200' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-700', ring: 'ring-indigo-200' },
+    { bg: 'bg-teal-100', text: 'text-teal-700', ring: 'ring-teal-200' },
+    { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-200' },
+  ] as const
+
+  const hashString = (s: string) => {
+    let h = 0
+    for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i)
+    return Math.abs(h)
+  }
+
+  const getTagClasses = (tagRaw: any) => {
+    const t = toText(tagRaw).toLowerCase()
+    // Keyword-based mapping for common tags
+    if (t.includes('api')) return { bg: 'bg-cyan-100', text: 'text-cyan-700', ring: 'ring-cyan-200' }
+    if (t.includes('ui') || t.includes('ux') || t.includes('frontend')) return { bg: 'bg-purple-100', text: 'text-purple-700', ring: 'ring-purple-200' }
+    if (t.includes('mobile')) return { bg: 'bg-pink-100', text: 'text-pink-700', ring: 'ring-pink-200' }
+    if (t.includes('web')) return { bg: 'bg-indigo-100', text: 'text-indigo-700', ring: 'ring-indigo-200' }
+    if (t.includes('auth') || t.includes('oauth') || t.includes('sso')) return { bg: 'bg-amber-100', text: 'text-amber-800', ring: 'ring-amber-200' }
+    if (t.includes('security')) return { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-200' }
+    if (t.includes('performance')) return { bg: 'bg-green-100', text: 'text-green-700', ring: 'ring-green-200' }
+    if (t.includes('automation')) return { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-200' }
+    // Fallback: hash to palette
+    const idx = hashString(t || 'tag') % tagPalette.length
+    return tagPalette[idx]
+  }
+
+  const getConfidenceBadgeClasses = (score?: number) => {
+    if (typeof score !== 'number') return 'bg-gray-100 text-gray-700'
+    if (score >= 90) return 'bg-green-100 text-green-700 ring-1 ring-green-200'
+    if (score >= 60) return 'bg-amber-100 text-amber-800 ring-1 ring-amber-200'
+    return 'bg-red-100 text-red-700 ring-1 ring-red-200'
+  }
+
+  // Normalize metric entries into a consistent structure
+  type UiMetric = { key: string; title: string; value?: number | string; unit?: string; note?: string }
+  const normalizeMetric = (m: any): UiMetric => {
+    // If object with value/label and potential variants
+    if (m && typeof m === 'object') {
+      const rawKey = (m.key || m.name || m.id || m.metric || m.type || '').toString()
+      const rawTitle = (m.title || m.label || rawKey || '').toString()
+
+      // Try to derive value from common fields
+      const nested = (v: any) => (v && typeof v === 'object') ? v : undefined
+      let value: any = undefined
+      let unit: string | undefined = undefined
+
+      // Direct fields
+      if (typeof m.value !== 'undefined') value = m.value
+      else if (typeof m.score !== 'undefined') value = m.score
+      else if (typeof m.percent !== 'undefined') { value = m.percent; unit = '%' }
+      else if (typeof m.percentage !== 'undefined') { value = m.percentage; unit = '%' }
+      else if (typeof m.rate !== 'undefined') {
+        value = m.rate
+        // heuristics: if 0-1, treat as percent
+        if (typeof value === 'number' && value <= 1) { value = Math.round(value * 100); unit = '%' }
+      }
+
+      // Nested shapes like { value: { percent: 92 } } or { result: { percentage: 75 } }
+      const candidates = [m.value, m.result, m.data, m.stats]
+      for (const c of candidates) {
+        const n = nested(c)
+        if (!n) continue
+        if (typeof n.percent !== 'undefined') { value = n.percent; unit = '%' }
+        else if (typeof n.percentage !== 'undefined') { value = n.percentage; unit = '%' }
+        else if (typeof n.rate !== 'undefined') {
+          value = n.rate
+          if (typeof value === 'number' && value <= 1) { value = Math.round(value * 100); unit = '%' }
+        }
+      }
+
+      // Compute percent from numerator/denominator if present
+      const num = Number(m.numerator ?? m.executed ?? m.passed ?? m.automated ?? m.current)
+      const den = Number(m.denominator ?? m.total ?? m.planned ?? m.cases ?? m.scope)
+      if (!Number.isFinite(value) && Number.isFinite(num) && Number.isFinite(den) && den > 0) {
+        value = Math.round((num / den) * 100)
+        unit = '%'
+      }
+
+      // string values with %
+      if (typeof value === 'string') {
+        const mm = value.match?.(/([0-9]+(?:\.[0-9]+)?)\s*%/)
+        if (mm) { value = Number(mm[1]); unit = '%' }
+      }
+
+      // Coerce numeric strings
+      if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value)) value = Number(value)
+
+      // Unit inference from string value field
+      if (!unit && typeof m.value === 'string' && /%$/.test(m.value)) unit = '%'
+
+      return { key: rawKey || rawTitle || 'metric', title: rawTitle || rawKey || 'Metric', value, unit, note: m.note }
+    }
+
+    // If string, try to detect known metric and number
+    const s = toText(m)
+    const numMatch = s.match(/([0-9]+(?:\.[0-9]+)?)\s*%?/)
+    const val = numMatch ? Number(numMatch[1]) : undefined
+    const hasPct = /%/.test(s)
+    const unit = hasPct ? '%' : undefined
+    return { key: s.toLowerCase().replace(/\s+/g, '_'), title: s, value: val, unit }
+  }
+
+  // Fallback presets for common roles when AI output lacks details
+  const getRolePreset = (nameRaw: any) => {
+    const name = toText(nameRaw).toLowerCase()
+    const match = (s: string) => name.includes(s)
+    if (match('test manager') || match('qa manager')) return {
+      responsibilities: [
+        'Define overall QA strategy and roadmap',
+        'Plan and allocate testing resources',
+        'Report quality metrics to stakeholders'
+      ],
+      skills: ['Leadership', 'Risk-based testing', 'Reporting']
+    }
+    if (match('test lead') || match('qa lead')) return {
+      responsibilities: [
+        'Lead test planning and estimations',
+        'Review test cases and coverage',
+        'Coordinate test execution and triage defects'
+      ],
+      skills: ['Test design', 'Defect triage', 'Coordination']
+    }
+    if (match('automation')) return {
+      responsibilities: [
+        'Develop and maintain automated test suites',
+        'Integrate tests into CI/CD pipeline',
+        'Improve automation coverage and stability'
+      ],
+      skills: ['Playwright/Cypress', 'CI/CD', 'OOP']
+    }
+    if (match('manual') || match('functional') || match('qa engineer')) return {
+      responsibilities: [
+        'Execute functional and exploratory tests',
+        'Design high-quality test cases',
+        'Log defects with reproduction steps'
+      ],
+      skills: ['Exploratory testing', 'Test case design', 'Bug reporting']
+    }
+    if (match('security')) return {
+      responsibilities: [
+        'Perform vulnerability assessments',
+        'Collaborate on threat modeling',
+        'Validate security controls and fixes'
+      ],
+      skills: ['OWASP', 'Burp/ZAP', 'Secure SDLC']
+    }
+    if (match('performance') || match('load')) return {
+      responsibilities: [
+        'Design load and stress scenarios',
+        'Analyze bottlenecks and resource usage',
+        'Recommend performance optimizations'
+      ],
+      skills: ['JMeter', 'APM tools', 'Profiling']
+    }
+    return null
+  }
+
   const noPlan = !testPlan
+
+  // Derive confidence score robustly (supports number or string)
+  const confidenceVal = useMemo(() => {
+    const raw = (testPlan as any)?.confidence_score
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : undefined
+  }, [testPlan])
 
   const normalizedPlan = useMemo(() => {
     if (!testPlan) return null as any
@@ -525,7 +699,63 @@ export function TestPlanDetailsModal({
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 relative">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-600 dark:text-gray-400">Team allocation and roles</div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowRRHelp((v) => !v) }}
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:border-gray-400"
+              aria-expanded={showRRHelp}
+              aria-controls="rr-help-popover"
+              aria-label="What do L / HC / FTE mean?"
+              title="What do L / HC / FTE mean?"
+            >
+              <span className="text-xs font-semibold">i</span>
+              <span className="sr-only">What do L / HC / FTE mean?</span>
+            </button>
+            {showRRHelp && (
+              <div
+                id="rr-help-popover"
+                className="absolute right-0 z-20 mt-2 w-[320px] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-lg"
+                role="dialog"
+                aria-label="Resources & Roles help"
+              >
+                <div className="text-sm">
+                  <div className="font-semibold text-gray-900 dark:text-white mb-2">Resources & Roles: Key Terms</div>
+                  <div className="mb-2">
+                    <div className="font-medium text-gray-800 dark:text-gray-200">L (Level)</div>
+                    <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 text-xs space-y-1">
+                      <li>Seniority in org job bands</li>
+                      <li>L1/L2: Junior; L3: Mid; L4: Senior/Specialist; L5+: Lead/Architect</li>
+                    </ul>
+                  </div>
+                  <div className="mb-2">
+                    <div className="font-medium text-gray-800 dark:text-gray-200">HC (Headcount)</div>
+                    <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 text-xs space-y-1">
+                      <li>Number of people allocated (1 HC = 1 person)</li>
+                      <li>0.5 HC = half-person (part-time)</li>
+                    </ul>
+                  </div>
+                  <div className="mb-2">
+                    <div className="font-medium text-gray-800 dark:text-gray-200">FTE (Full-Time Equivalent)</div>
+                    <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 text-xs space-y-1">
+                      <li>1.0 = 100%, 0.5 = 50%, 0.25 = 25%</li>
+                      <li>FTE 0.25 ≈ 2h/day (if 8h workday)</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-800 dark:text-gray-200">Allocation vs FTE</div>
+                    <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 text-xs space-y-1">
+                      <li>Allocation often shown as %; 50% ≈ 0.5 FTE</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         {displayResources.map((resource: any, index: number) => {
           // Handle both string format and object format
           const isString = typeof resource === 'string'
@@ -544,6 +774,17 @@ export function TestPlanDetailsModal({
           const responsibilities = !isString && ensureArray(resource.responsibilities || [])
           const skills = !isString && ensureArray(resource.skills_required || [])
 
+          // Additional derived details
+          const roleObj = !isString && typeof resource.role === 'object' ? resource.role : undefined
+          const reportingTo = !isString && (resource.reporting_to ?? roleObj?.reporting_to)
+          const seniority = !isString && (resource.seniority ?? roleObj?.seniority ?? roleObj?.level)
+          const fte = !isString && (resource.fte ?? resource.full_time_equivalent)
+
+          // Normalize allocation to a percentage number when possible
+          const allocText = toText(allocation || '')
+          const allocMatch = /([0-9]{1,3})\s*%/.exec(allocText)
+          const allocPct = allocMatch ? Math.min(100, Math.max(0, Number(allocMatch[1]))) : undefined
+
           return (
             <div key={index} className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
               <div className="flex items-start justify-between mb-2">
@@ -555,36 +796,73 @@ export function TestPlanDetailsModal({
                   {authority && (
                     <Badge variant="secondary" className="text-xs">{toText(authority)}</Badge>
                   )}
+                  {seniority && (
+                    <Badge variant="secondary" className="text-xs">{toText(seniority)}</Badge>
+                  )}
                   {headcount && (
                     <Badge variant="outline" className="text-xs">{toText(headcount)} HC</Badge>
+                  )}
+                  {fte && (
+                    <Badge variant="outline" className="text-xs">FTE {toText(fte)}</Badge>
                   )}
                   {allocation && (
                     <Badge variant="outline" className="text-xs">{toText(allocation)}</Badge>
                   )}
                 </div>
               </div>
-              {!isString && responsibilities.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Key Responsibilities ({responsibilities.length})
-                  </p>
-                  <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                    {responsibilities.map((resp: any, i: number) => (
-                      <li key={i}>{toText(resp)}</li>
-                    ))}
-                  </ul>
+
+              {/* Sub-details row */}
+              {!isString && (reportingTo || allocPct !== undefined) && (
+                <div className="mb-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {reportingTo && (
+                    <div className="text-xs text-gray-600 dark:text-gray-400"><strong>Reporting to:</strong> {toText(reportingTo)}</div>
+                  )}
+                  {allocPct !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 min-w-[3.5rem]">{allocPct}%</div>
+                      <div className="flex-1 h-2 bg-purple-100 dark:bg-purple-900/30 rounded">
+                        <div className="h-2 bg-purple-500 rounded" style={{ width: `${allocPct}%` }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-              {!isString && skills.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {skills.map((skill: any, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{toText(skill)}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+
+              {/* Responsibilities & Skills with presets when missing */}
+              {(() => {
+                const preset = isString ? getRolePreset(roleName) : null
+                const respList = responsibilities && responsibilities.length > 0 ? responsibilities : preset?.responsibilities || []
+                const skillList = skills && skills.length > 0 ? skills : preset?.skills || []
+                return (
+                  <>
+                    {respList.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Key Responsibilities ({respList.length})
+                        </p>
+                        <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                          {respList.map((resp: any, i: number) => (
+                            <li key={i}>{toText(resp)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {skillList.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {skillList.map((skill: any, i: number) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{toText(skill)}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {isString && respList.length === 0 && skillList.length === 0 && (
+                      <div className="mt-1 text-xs text-gray-500 italic">No details provided for this role.</div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )
         })}
@@ -839,21 +1117,61 @@ export function TestPlanDetailsModal({
         <List title="Reporting Structure" items={reporting} />
         <List title="Stakeholders" items={stakeholders} />
 
-        {metrics.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Metrics
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {metrics.map((metric: any, i: number) => (
-                <div key={i} className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{toText(metric)}</p>
-                </div>
-              ))}
+        {metrics.length > 0 && (() => {
+          const known: Record<string, { title: string; note?: string }> = {
+            'execution_rate': { title: 'Test Case Execution Rate (%)', note: 'Executed cases vs total planned.' },
+            'pass_rate': { title: 'Test Case Pass Rate (%)', note: 'Passed cases vs executed.' },
+            'coverage': { title: 'Test Coverage (%)', note: 'Feature/Requirement/Automation coverage.' },
+            'defect_density': { title: 'Defect Density', note: 'Defects per test case or story.' },
+            'defect_distribution': { title: 'Defect Severity/Priority Distribution', note: 'By severity and priority.' },
+            'defect_resolution_time': { title: 'Defect Resolution Time', note: 'Average time to resolve.' },
+            'automation_coverage': { title: 'Automation Coverage (%)', note: 'Automated vs total regression scope.' },
+            'rtm': { title: 'Requirements Traceability Matrix (RTM)', note: 'Mapping of requirements → test cases.' },
+          }
+          const toKey = (s: string) => s.toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim()
+            .replace(/\s+/g, '_')
+          const enhanced = metrics.map((m: any) => {
+            const raw = toText(m)
+            const k = toKey(raw)
+            // Try to match fuzzy keys
+            if (k.includes('execution') && k.includes('rate')) return { key: 'execution_rate', ...known['execution_rate'], ...normalizeMetric(m) }
+            if (k.includes('pass') && k.includes('rate')) return { key: 'pass_rate', ...known['pass_rate'], ...normalizeMetric(m) }
+            if (k.includes('coverage') && (k.includes('test') || k.includes('automated') || k.includes('requirement') || k.includes('feature'))) return { key: 'coverage', ...known['coverage'], ...normalizeMetric(m) }
+            if (k.includes('defect') && k.includes('density')) return { key: 'defect_density', ...known['defect_density'], ...normalizeMetric(m) }
+            if (k.includes('defect') && (k.includes('severity') || k.includes('priority') || k.includes('distribution'))) return { key: 'defect_distribution', ...known['defect_distribution'], ...normalizeMetric(m) }
+            if (k.includes('defect') && (k.includes('resolution') || k.includes('time'))) return { key: 'defect_resolution_time', ...known['defect_resolution_time'], ...normalizeMetric(m) }
+            if (k.includes('automation') && k.includes('coverage')) return { key: 'automation_coverage', ...known['automation_coverage'], ...normalizeMetric(m) }
+            if (k.includes('rtm') || (k.includes('requirements') && k.includes('traceability'))) return { key: 'rtm', ...known['rtm'], ...normalizeMetric(m) }
+            return { key: k, title: raw, ...normalizeMetric(m) }
+          })
+          return (
+            <div>
+              <h4 className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Metrics
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {enhanced.map((m, i) => (
+                  <div key={i} className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{m.title}</p>
+                      {typeof m.value !== 'undefined' && (
+                        <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                          {m.value}{m.unit ? ` ${m.unit}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    {m.note && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{m.note}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         <List title="Communication Plan" items={comms} />
       </div>
@@ -941,15 +1259,15 @@ export function TestPlanDetailsModal({
               <DialogTitle className="flex items-center gap-2">
                 {normalizedPlan?.name || testPlan?.name}
                 {normalizedPlan?.generated_by === 'ai' && (
-                  <Badge variant="secondary" className="ml-2">
-                    <Sparkles className="w-3 h-3 mr-1" />
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ring-1 ring-purple-200 ml-2">
+                    <Sparkles className="w-3 h-3" />
                     AI Generated
-                  </Badge>
+                  </span>
                 )}
-                {normalizedPlan?.confidence_score && (
-                  <Badge variant="outline" className="ml-2">
-                    {normalizedPlan?.confidence_score}% confidence
-                  </Badge>
+                {typeof confidenceVal === 'number' && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ml-2 ${getConfidenceBadgeClasses(confidenceVal)}`}>
+                    {confidenceVal}% confidence
+                  </span>
                 )}
               </DialogTitle>
               <DialogDescription>
@@ -1028,12 +1346,16 @@ export function TestPlanDetailsModal({
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</h4>
                       <div className="flex flex-wrap gap-2">
-                        {normalizedPlan.tags.map((tag: any, i: number) => (
-                          <Badge key={i} variant="secondary">
-                            <Tag className="w-3 h-3 mr-1" />
-                            {toText(tag)}
-                          </Badge>
-                        ))}
+                        {normalizedPlan.tags.map((tag: any, i: number) => {
+                          const label = toText(tag)
+                          const cls = getTagClasses(label)
+                          return (
+                            <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cls.bg} ${cls.text} ring-1 ${cls.ring}`}>
+                              <Tag className="w-3 h-3" />
+                              {label}
+                            </span>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
