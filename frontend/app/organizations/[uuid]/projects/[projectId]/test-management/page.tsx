@@ -16,6 +16,8 @@ import AITestPlanGenerator from '@/components/test-management/AITestPlanGenerato
 import { TestPlanDetailsModal } from '@/components/test-management/TestPlanDetailsModal'
 import HierarchicalTestSuiteList from '@/components/test-management/HierarchicalTestSuiteList'
 import CreateTestSuiteModal from '@/components/test-management/CreateTestSuiteModal'
+import EditTestPlanModal from '@/components/test-management/EditTestPlanModal'
+import EditTestSuiteModal from '@/components/test-management/EditTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
 import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModal'
 import IntegrationsManager from '@/components/integrations/IntegrationsManager'
@@ -68,6 +70,8 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [selectedTestPlan, setSelectedTestPlan] = useState<TestPlan | null>(null)
   const [showManualForm, setShowManualForm] = useState(false)
   const [showAIGenerator, setShowAIGenerator] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<TestPlan | null>(null)
+  const [editingSuite, setEditingSuite] = useState<TestSuite | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'plans' | 'suites' | 'cases'>('plans')
 
