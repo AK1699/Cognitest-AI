@@ -24,6 +24,17 @@ from app.schemas.test_case import (
 router = APIRouter()
 
 
+def _parse_case_hid(hid: str) -> tuple[int, int, int] | None:
+    # Expect TP-XXX-TS-YYY-TC-ZZZ
+    try:
+        parts = hid.split("-")
+        if len(parts) != 6 or parts[0] != "TP" or parts[2] != "TS" or parts[4] != "TC":
+            return None
+        return int(parts[1]), int(parts[3]), int(parts[5])
+    except Exception:
+        return None
+
+
 async def verify_project_access(
     project_id: UUID,
     current_user: User,
@@ -79,6 +90,8 @@ async def create_test_case(
     await verify_project_access(test_case_data.project_id, current_user, db)
 
     # If test_suite_id is provided, verify it exists and belongs to the same project
+    parent_suite = None
+    parent_plan = None
     if test_case_data.test_suite_id:
         result = await db.execute(
             select(TestSuite).where(
@@ -86,16 +99,50 @@ async def create_test_case(
                 TestSuite.project_id == test_case_data.project_id
             )
         )
-        test_suite = result.scalar_one_or_none()
-        if not test_suite:
+        parent_suite = result.scalar_one_or_none()
+        if not parent_suite:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Test suite not found or does not belong to this project"
             )
+        # Load parent plan
+        if parent_suite.test_plan_id:
+            res_plan = await db.execute(select(TestPlan).where(TestPlan.id == parent_suite.test_plan_id))
+            parent_plan = res_plan.scalar_one_or_none()
 
     # Create test case
     test_case = TestCase(**test_case_data.model_dump())
     db.add(test_case)
+
+    # Allocate human-friendly IDs for case
+    try:
+        from app.services.human_id_service import HumanIdAllocator, format_case, format_plan, format_suite
+        allocator = HumanIdAllocator(db)
+
+        # Ensure parent suite and plan numeric_ids
+        plan_numeric = 0
+        suite_numeric = 0
+        if parent_plan:
+            if not parent_plan.numeric_id:
+                plan_n = await db.run_sync(lambda sync: allocator.allocate_plan())
+                parent_plan.numeric_id = plan_n
+                parent_plan.human_id = format_plan(plan_n)
+            plan_numeric = parent_plan.numeric_id
+        if parent_suite:
+            if not parent_suite.numeric_id:
+                # Need a suite number for this suite under its plan
+                suite_n = await db.run_sync(lambda sync: allocator.allocate_suite(str(parent_suite.test_plan_id)))
+                parent_suite.numeric_id = suite_n
+                parent_suite.human_id = format_suite(plan_numeric, suite_n)
+            suite_numeric = parent_suite.numeric_id
+
+        case_n = await db.run_sync(lambda sync: allocator.allocate_case(str(test_case.test_suite_id) if test_case.test_suite_id else "global"))
+        test_case.numeric_id = case_n
+        test_case.human_id = format_case(plan_numeric, suite_numeric, case_n)
+    except Exception as e:
+        import logging as _logging
+        _logging.getLogger(__name__).error(f"Failed to allocate human_id for test case: {e}")
+
     await db.commit()
     await db.refresh(test_case)
     return test_case
@@ -122,6 +169,43 @@ async def list_test_cases(
     result = await db.execute(query)
     test_cases = result.scalars().all()
     return test_cases
+
+
+@router.get("/by-id/{plan_numeric_id}/{suite_numeric_id}/{human_id}", response_model=TestCaseResponse)
+async def get_test_case_by_human_id(
+    plan_numeric_id: int,
+    suite_numeric_id: int,
+    human_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lookup a test case by human-friendly ID (TP-XXX-TS-YYY-TC-ZZZ) and validate hierarchy."""
+    parsed = _parse_case_hid(human_id)
+    if not parsed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid human_id format")
+    plan_num, suite_num, case_num = parsed
+    if plan_num != plan_numeric_id or suite_num != suite_numeric_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Plan/Suite mismatch")
+
+    # Find plan and suite first
+    res_plan = await db.execute(select(TestPlan).where(TestPlan.numeric_id == plan_num))
+    plan = res_plan.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test plan not found")
+
+    res_suite = await db.execute(select(TestSuite).where(TestSuite.test_plan_id == plan.id, TestSuite.numeric_id == suite_num))
+    suite = res_suite.scalar_one_or_none()
+    if not suite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test suite not found")
+
+    # Now test case by (suite_id, numeric_id)
+    res_case = await db.execute(select(TestCase).where(TestCase.test_suite_id == suite.id, TestCase.numeric_id == case_num))
+    case = res_case.scalar_one_or_none()
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test case not found")
+
+    await verify_project_access(plan.project_id, current_user, db)
+    return case
 
 
 @router.get("/{test_case_id}", response_model=TestCaseResponse)

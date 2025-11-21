@@ -1257,7 +1257,22 @@ export function TestPlanDetailsModal({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
+                {((normalizedPlan as any)?.human_id) || ((testPlan as any)?.numeric_id !== undefined ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 text-xs mr-1">
+                    {((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+                  </span>
+                ) : null) }
                 {normalizedPlan?.name || testPlan?.name}
+                {/* Copy button */}
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                  onClick={() => navigator.clipboard?.writeText((((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`) as string)}
+                  title="Copy ID"
+                >
+                  Copy
+                </button>
+
                 {normalizedPlan?.generated_by === 'ai' && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ring-1 ring-purple-200 ml-2">
                     <Sparkles className="w-3 h-3" />

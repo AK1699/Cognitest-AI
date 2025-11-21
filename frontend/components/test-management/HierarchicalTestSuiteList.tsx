@@ -135,9 +135,24 @@ export default function HierarchicalTestSuiteList({
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono font-semibold">
-                          TS-{suite.id.slice(0, 2).toUpperCase()}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono font-semibold">
+                            {((suite as any).human_id) || (() => {
+                              const planNum = (suite as any).plan_numeric_id || (suite as any).planNumber
+                              const suiteNum = (suite as any).numeric_id
+                              const pad = (n: any) => String(n || '').padStart(3,'0')
+                              return `TP-${pad(planNum)}-TS-${pad(suiteNum)}`
+                            })()}
+                          </span>
+                          <button
+                            type="button"
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((suite as any).human_id) || (() => { const planNum = (suite as any).plan_numeric_id || (suite as any).planNumber; const suiteNum = (suite as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3,'0'); return `TP-${pad(planNum)}-TS-${pad(suiteNum)}` })() as string) }}
+                            title="Copy ID"
+                          >
+                            Copy
+                          </button>
+                        </div>
 
                         {/* Delete Button */}
                         {onDeleteSuite && (
@@ -252,9 +267,25 @@ export default function HierarchicalTestSuiteList({
                                   {testCase.description}
                                 </p>
                               </div>
-                              <span className="ml-4 px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-mono">
-                                TC-{testCase.id.slice(0, 2).toUpperCase()}
-                              </span>
+                              <div className="ml-4 flex items-center gap-1">
+                                <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-mono">
+                                  {((testCase as any).human_id) || (() => {
+                                    const plan = (testCase as any).plan_numeric_id || (testCase as any).planNumber
+                                    const suite = (testCase as any).suite_numeric_id || (testCase as any).suiteNumber
+                                    const num = (testCase as any).numeric_id
+                                    const pad = (n: any) => String(n || '').padStart(3,'0')
+                                    return `TP-${pad(plan)}-TS-${pad(suite)}-TC-${pad(num)}`
+                                  })()}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="text-xs text-gray-500 hover:text-gray-700"
+                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((testCase as any).human_id) || (() => { const plan = (testCase as any).plan_numeric_id || (testCase as any).planNumber; const suite = (testCase as any).suite_numeric_id || (testCase as any).suiteNumber; const num = (testCase as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3,'0'); return `TP-${pad(plan)}-TS-${pad(suite)}-TC-${pad(num)}` })() as string) }}
+                                  title="Copy ID"
+                                >
+                                  Copy
+                                </button>
+                              </div>
                             </div>
 
                             {/* Test Case Meta */}

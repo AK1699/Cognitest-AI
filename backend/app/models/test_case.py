@@ -67,6 +67,10 @@ class TestCase(Base):
     attachments = Column(JSON, default=list)
     meta_data = Column(JSON, default=dict)
 
+    # Human-friendly IDs
+    numeric_id = Column(Integer, nullable=True, index=True)
+    human_id = Column(String(96), nullable=True, index=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

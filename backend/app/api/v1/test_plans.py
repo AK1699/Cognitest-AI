@@ -27,6 +27,17 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _parse_plan_numeric_from_hid(hid: str) -> int | None:
+    # Expect TP-XXX
+    try:
+        if not hid or not hid.startswith("TP-"):
+            return None
+        seg = hid.split("-", 1)[1]
+        return int(seg)
+    except Exception:
+        return None
+
+
 async def verify_project_access(
     project_id: UUID,
     current_user: User,
@@ -94,8 +105,25 @@ async def create_test_plan(
     # Create test plan
     test_plan = TestPlan(**plan_data)
     db.add(test_plan)
+
+    # Allocate human-friendly IDs (numeric_id, human_id) before commit
+    from sqlalchemy import text as _text
+    try:
+        from app.services.human_id_service import HumanIdAllocator, format_plan
+        allocator = HumanIdAllocator(db)
+        # Lock/allocate plan number
+        n = await db.run_sync(lambda sync_sess: allocator.allocate_plan())
+        test_plan.numeric_id = n
+        test_plan.human_id = format_plan(n)
+    except Exception as e:
+        # Fallback: allow creation but without human IDs (should not happen in production)
+        import logging as _logging
+        _logging.getLogger(__name__).error(f"Failed to allocate human_id for test plan: {e}")
+
     await db.commit()
     await db.refresh(test_plan)
+
+    # Include numeric_id in response via schema
     return test_plan
 
 
@@ -117,6 +145,27 @@ async def list_test_plans(
     )
     test_plans = result.scalars().all()
     return test_plans
+
+
+@router.get("/by-id/{human_id}", response_model=TestPlanResponse)
+async def get_test_plan_by_human_id(
+    human_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lookup a test plan by human-friendly ID (TP-XXX)."""
+    plan_num = _parse_plan_numeric_from_hid(human_id)
+    if plan_num is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid human_id format")
+
+    result = await db.execute(select(TestPlan).where(TestPlan.numeric_id == plan_num))
+    test_plan = result.scalar_one_or_none()
+    if not test_plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test plan not found")
+
+    # Verify access
+    await verify_project_access(test_plan.project_id, current_user, db)
+    return test_plan
 
 
 @router.get("/{test_plan_id}", response_model=TestPlanResponse)

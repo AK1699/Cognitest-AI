@@ -22,6 +22,17 @@ from app.schemas.test_suite import (
 router = APIRouter()
 
 
+def _parse_suite_hid(hid: str) -> tuple[int, int] | None:
+    # Expect TP-XXX-TS-YYY
+    try:
+        parts = hid.split("-")
+        if len(parts) != 4 or parts[0] != "TP" or parts[2] != "TS":
+            return None
+        return int(parts[1]), int(parts[3])
+    except Exception:
+        return None
+
+
 async def verify_project_access(
     project_id: UUID,
     current_user: User,
@@ -94,6 +105,38 @@ async def create_test_suite(
     # Create test suite
     test_suite = TestSuite(**test_suite_data.model_dump())
     db.add(test_suite)
+
+    # Allocate human-friendly IDs for suite (and ensure parent plan has numeric_id)
+    try:
+        from app.services.human_id_service import HumanIdAllocator, format_suite
+        allocator = HumanIdAllocator(db)
+
+        # Ensure parent plan numeric_id if linked
+        plan_numeric = None
+        if test_suite.test_plan_id:
+            result = await db.execute(select(TestPlan).where(TestPlan.id == test_suite.test_plan_id))
+            parent_plan = result.scalar_one_or_none()
+            if parent_plan:
+                if not parent_plan.numeric_id:
+                    # allocate a plan id if missing (legacy)
+                    plan_n = await db.run_sync(lambda sync_sess: allocator.allocate_plan())
+                    parent_plan.numeric_id = plan_n
+                    parent_plan.human_id = __import__('app.services.human_id_service', fromlist=['format_plan']).format_plan(plan_n)
+                plan_numeric = parent_plan.numeric_id
+
+        # Allocate suite number using per-plan counter (uses plan_id for locking)
+        suite_n = await db.run_sync(lambda sync_sess: allocator.allocate_suite(str(test_suite.test_plan_id) if test_suite.test_plan_id else "global"))
+        test_suite.numeric_id = suite_n
+
+        # Format human id; if no plan, use 000 as plan segment
+        from app.services.human_id_service import pad3
+        if plan_numeric is None:
+            plan_numeric = 0
+        test_suite.human_id = format_suite(plan_numeric, suite_n)
+    except Exception as e:
+        import logging as _logging
+        _logging.getLogger(__name__).error(f"Failed to allocate human_id for test suite: {e}")
+
     await db.commit()
     await db.refresh(test_suite)
     return test_suite
@@ -120,6 +163,37 @@ async def list_test_suites(
     result = await db.execute(query)
     test_suites = result.scalars().all()
     return test_suites
+
+
+@router.get("/by-id/{plan_numeric_id}/{human_id}", response_model=TestSuiteResponse)
+async def get_test_suite_by_human_id(
+    plan_numeric_id: int,
+    human_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lookup a test suite by human-friendly ID (TP-XXX-TS-YYY) and validate plan."""
+    parsed = _parse_suite_hid(human_id)
+    if not parsed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid human_id format")
+    plan_num, suite_num = parsed
+    if plan_num != plan_numeric_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Plan mismatch")
+
+    # Find plan by numeric_id to ensure we reference the right project
+    res_plan = await db.execute(select(TestPlan).where(TestPlan.numeric_id == plan_num))
+    plan = res_plan.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test plan not found")
+
+    # Now find suite by (plan_id, numeric_id)
+    res_suite = await db.execute(select(TestSuite).where(TestSuite.project_id == plan.project_id, TestSuite.test_plan_id == plan.id, TestSuite.numeric_id == suite_num))
+    suite = res_suite.scalar_one_or_none()
+    if not suite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test suite not found")
+
+    await verify_project_access(plan.project_id, current_user, db)
+    return suite
 
 
 @router.get("/{test_suite_id}", response_model=TestSuiteResponse)

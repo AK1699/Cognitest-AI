@@ -64,6 +64,9 @@ class TestCaseResponse(TestCaseBase):
     confidence_score: Optional[str]
     execution_logs: List[Dict[str, Any]]
     attachments: List[str]
+    # Human-friendly IDs
+    numeric_id: Optional[int] = None
+    human_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: str

@@ -73,6 +73,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [editingPlan, setEditingPlan] = useState<TestPlan | null>(null)
   const [editingSuite, setEditingSuite] = useState<TestSuite | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchHint, setSearchHint] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'plans' | 'suites' | 'cases'>('plans')
 
   // Test Suites State
@@ -105,16 +106,40 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }, [projectId])
 
   useEffect(() => {
-    // Filter test plans based on search query
-    if (searchQuery.trim()) {
-      const filtered = testPlans.filter(plan =>
-        plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.objectives.some(obj => obj.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-      setFilteredTestPlans(filtered)
+    // Client-side filtering with human_id patterns
+    const q = searchQuery.trim()
+    if (q) {
+      const isPlanId = /^TP-\d{3}$/i.test(q)
+      const isSuitePrefix = /^TP-\d{3}-TS-/i.test(q)
+      const isCasePrefix = /^TP-\d{3}-TS-\d{3}-TC-/i.test(q)
+
+      if (isPlanId) {
+        const filtered = testPlans.filter((p: any) => (p.human_id || `TP-${String(p.numeric_id || '').padStart(3,'0')}`).toLowerCase() === q.toLowerCase())
+        setFilteredTestPlans(filtered)
+        setSearchHint(`Filtered by plan ID ${q.toUpperCase()}`)
+      } else if (isSuitePrefix) {
+        // Show plans that match plan segment
+        const planSeg = q.split('-')[1]
+        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3,'0') === planSeg)
+        setFilteredTestPlans(filtered)
+        setSearchHint(`Filtered by plan ID TP-${planSeg}`)
+      } else if (isCasePrefix) {
+        const planSeg = q.split('-')[1]
+        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3,'0') === planSeg)
+        setFilteredTestPlans(filtered)
+        setSearchHint(`Filtered by plan ID TP-${planSeg}`)
+      } else {
+        const filtered = testPlans.filter(plan =>
+          plan.name.toLowerCase().includes(q.toLowerCase()) ||
+          plan.description?.toLowerCase().includes(q.toLowerCase()) ||
+          plan.objectives.some(obj => obj.toLowerCase().includes(q.toLowerCase())) ||
+          (plan as any).human_id?.toLowerCase().includes(q.toLowerCase())
+        )
+        setFilteredTestPlans(filtered)
+      }
     } else {
       setFilteredTestPlans(testPlans)
+      setSearchHint(null)
     }
   }, [searchQuery, testPlans])
 

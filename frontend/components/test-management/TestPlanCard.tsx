@@ -77,9 +77,24 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
             {testPlan.name}
           </h3>
+          {(testPlan as any)?.numeric_id !== undefined || (testPlan as any)?.human_id ? (
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 text-xs">
+                {((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => navigator.clipboard?.writeText((((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`) as string)}
+                title="Copy ID"
+              >
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Generation Type Badge */}
             {testPlan.generated_by === 'ai' ? (

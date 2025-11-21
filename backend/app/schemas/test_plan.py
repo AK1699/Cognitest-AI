@@ -187,6 +187,10 @@ class TestPlanResponse(TestPlanBase):
     # Review & Approval
     approval_date: Optional[datetime]
 
+    # Human-friendly IDs
+    numeric_id: Optional[int] = None
+    human_id: Optional[str] = None
+
     # Timestamps
     created_at: datetime
     updated_at: Optional[datetime]

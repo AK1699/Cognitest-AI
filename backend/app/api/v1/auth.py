@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from typing import Optional
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -405,12 +406,32 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
 
     return {"message": "Password has been reset successfully."}
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+@router.get("/me")
+async def get_current_user_info_optional(current_user: Optional[User] = Depends(get_current_user)):
+    """Get current authenticated user info with defensive handling.
+    Returns 401 if not authenticated instead of 500 on any unexpected error.
     """
-    Get current authenticated user information.
-    """
-    return current_user
+    try:
+        if not current_user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        # Ensure active
+        if not getattr(current_user, "is_active", True):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+        return {
+            "id": str(current_user.id),
+            "email": current_user.email,
+            "username": current_user.username,
+            "full_name": getattr(current_user, "full_name", None),
+            "avatar_url": getattr(current_user, "avatar_url", None),
+            "is_active": bool(getattr(current_user, "is_active", True)),
+            "is_superuser": bool(getattr(current_user, "is_superuser", False)),
+            "created_at": getattr(current_user, "created_at", None),
+            "updated_at": getattr(current_user, "updated_at", None),
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user")
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(

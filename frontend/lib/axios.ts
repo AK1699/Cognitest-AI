@@ -1,18 +1,22 @@
 import axios from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-// Create axios instance
+// Use relative URLs so Next.js rewrites can proxy to the backend and avoid CORS issues
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '',
   withCredentials: true,
 })
 
 // Request interceptor - cookies are automatically sent via withCredentials: true
 api.interceptors.request.use(
   (config) => {
-    // With httpOnly cookies, authorization is handled automatically
-    // No need to manually add Bearer token
+    // Prefer httpOnly cookies, but attach Bearer token if available as fallback
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access_token')
+      if (token && !config.headers?.Authorization) {
+        config.headers = config.headers || {}
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
     return config
   },
   (error) => Promise.reject(error)
@@ -30,7 +34,7 @@ api.interceptors.response.use(
       try {
         // Try to refresh the token using httpOnly cookies
         // The refresh endpoint will use the httpOnly refresh_token cookie automatically
-        const response = await axios.post(`${API_URL}/api/v1/auth/refresh`, {}, {
+        const response = await axios.post(`/api/v1/auth/refresh`, {}, {
           withCredentials: true,
         })
 

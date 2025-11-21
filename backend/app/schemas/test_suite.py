@@ -38,6 +38,9 @@ class TestSuiteResponse(TestSuiteBase):
     test_plan_id: Optional[UUID]
     generated_by: GenerationType
     execution_history: List[Dict[str, Any]]
+    # Human-friendly IDs
+    numeric_id: Optional[int] = None
+    human_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: str
