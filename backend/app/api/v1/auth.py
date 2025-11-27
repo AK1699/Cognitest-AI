@@ -407,31 +407,85 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     return {"message": "Password has been reset successfully."}
 
 @router.get("/me")
-async def get_current_user_info_optional(current_user: Optional[User] = Depends(get_current_user)):
-    """Get current authenticated user info with defensive handling.
-    Returns 401 if not authenticated instead of 500 on any unexpected error.
+async def get_current_user_info(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current authenticated user info.
+    Returns 401 if not authenticated. Does not throw 500 errors.
     """
     try:
-        if not current_user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-        # Ensure active
-        if not getattr(current_user, "is_active", True):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+        # Try to get token from cookie first
+        token = request.cookies.get("access_token")
+        
+        # Fall back to Authorization header
+        if not token:
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.replace("Bearer ", "")
+        
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        
+        # Decode token
+        from app.core.security import decode_token
+        payload = decode_token(token)
+        
+        if not payload:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+            )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload"
+            )
+        
+        # Get user from database
+        from uuid import UUID
+        result = await db.execute(select(User).where(User.id == UUID(user_id)))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Inactive user"
+            )
+        
         return {
-            "id": str(current_user.id),
-            "email": current_user.email,
-            "username": current_user.username,
-            "full_name": getattr(current_user, "full_name", None),
-            "avatar_url": getattr(current_user, "avatar_url", None),
-            "is_active": bool(getattr(current_user, "is_active", True)),
-            "is_superuser": bool(getattr(current_user, "is_superuser", False)),
-            "created_at": getattr(current_user, "created_at", None),
-            "updated_at": getattr(current_user, "updated_at", None),
+            "id": str(user.id),
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "avatar_url": user.avatar_url if hasattr(user, "avatar_url") else None,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
+    
     except HTTPException:
+        # Re-raise HTTP exceptions as-is
         raise
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate user")
+    except Exception as e:
+        # Log unexpected errors but return 401 instead of 500
+        print(f"Error in /me endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(

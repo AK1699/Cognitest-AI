@@ -27,7 +27,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _parse_plan_numeric_from_hid(hid: str) -> int | None:
+def _parse_plan_numeric_from_hid(hid: str) -> Optional[int]:
     # Expect TP-XXX
     try:
         if not hid or not hid.startswith("TP-"):

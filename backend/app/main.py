@@ -119,13 +119,16 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-# CORS Middleware
+# CORS Middleware - Configured to handle all cross-origin requests
+print(f"🌐 CORS Origins configured: {settings.CORS_ORIGINS}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # GZip Middleware

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 import logging
 
@@ -24,7 +24,7 @@ from app.schemas.test_case import (
 router = APIRouter()
 
 
-def _parse_case_hid(hid: str) -> tuple[int, int, int] | None:
+def _parse_case_hid(hid: str) -> Optional[tuple[int, int, int]]:
     # Expect TP-XXX-TS-YYY-TC-ZZZ
     try:
         parts = hid.split("-")
