@@ -1,7 +1,7 @@
 'use client'
 
 import { TestSuite } from '@/lib/api/test-plans'
-import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon } from 'lucide-react'
+import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, Copy } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'
 import { useConfirm } from '@/lib/hooks/use-confirm'
@@ -45,10 +45,28 @@ export default function TestSuiteCard({
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
               {testSuite.name}
             </h3>
+            {((testSuite as any)?.human_id || (testSuite as any)?.numeric_id) && (
+              <div className="flex items-center gap-1">
+                <span className="inline-flex items-center px-2 py-0.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded text-xs font-mono font-semibold shadow-sm">
+                  {(testSuite as any)?.human_id || `TS-${String((testSuite as any)?.numeric_id || '').padStart(3, '0')}`}
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard?.writeText((testSuite as any)?.human_id || `TS-${String((testSuite as any)?.numeric_id || '').padStart(3, '0')}`)
+                  }}
+                  title="Copy ID"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             {testSuite.test_plan_id && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                 <LinkIcon className="w-3 h-3" />

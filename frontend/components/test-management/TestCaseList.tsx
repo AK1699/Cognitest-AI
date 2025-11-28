@@ -1,6 +1,6 @@
 'use client'
 
-import { TestCase } from '@/lib/api/test-plans'
+import { TestCase } from '@/lib/api/test-management'
 import TestCaseCard from './TestCaseCard'
 import { Grid3X3, List } from 'lucide-react'
 import { useState } from 'react'
@@ -22,7 +22,10 @@ export default function TestCaseList({
 }: TestCaseListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  if (testCases.length === 0) {
+  // Safety check to ensure testCases is an array
+  const safeTestCases = Array.isArray(testCases) ? testCases : []
+
+  if (safeTestCases.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="w-24 h-24 mx-auto mb-4 opacity-50">
@@ -45,27 +48,25 @@ export default function TestCaseList({
       {/* View Mode Toggle */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-gray-600">
-          {testCases.length} {testCases.length === 1 ? 'test case' : 'test cases'}
+          {safeTestCases.length} {safeTestCases.length === 1 ? 'test case' : 'test cases'}
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 rounded transition-colors ${
-              viewMode === 'grid'
-                ? 'bg-white text-primary shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`p-2 rounded transition-colors ${viewMode === 'grid'
+              ? 'bg-white text-primary shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+              }`}
             title="Grid view"
           >
             <Grid3X3 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 rounded transition-colors ${
-              viewMode === 'list'
-                ? 'bg-white text-primary shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`p-2 rounded transition-colors ${viewMode === 'list'
+              ? 'bg-white text-primary shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+              }`}
             title="List view"
           >
             <List className="w-4 h-4" />
@@ -75,7 +76,7 @@ export default function TestCaseList({
 
       {/* Test Cases Grid/List */}
       <div className={viewMode === 'grid' ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-3' : 'space-y-4'}>
-        {testCases.map((testCase) => (
+        {safeTestCases.map((testCase) => (
           <TestCaseCard
             key={testCase.id}
             testCase={testCase}

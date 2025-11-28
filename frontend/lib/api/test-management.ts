@@ -17,7 +17,7 @@ export interface TestCase {
   title: string
   description: string
   project_id: string
-  test_suite_id: string
+  test_suite_id?: string
   steps: TestStep[]
   expected_result: string
   actual_result?: string
@@ -26,6 +26,11 @@ export interface TestCase {
   status?: 'draft' | 'ready' | 'in_progress' | 'passed' | 'failed' | 'blocked' | 'skipped'
   ai_generated?: boolean
   generated_by?: 'ai' | 'manual' | 'hybrid'
+  execution_logs?: any[]
+  attachments?: any[]
+  meta_data?: Record<string, any>
+  human_id?: string
+  numeric_id?: number
   created_by: string
   created_at: string
   updated_at?: string
@@ -38,6 +43,8 @@ export interface TestSuite {
   project_id: string
   test_plan_id: string
   tags: string[]
+  human_id?: string
+  numeric_id?: number
   created_by: string
   created_at: string
   updated_at?: string
@@ -133,6 +140,10 @@ export interface TestPlan {
   deliverables_reporting_ieee?: any
   approval_signoff_ieee?: any
 
+  // Human-friendly IDs
+  human_id?: string
+  numeric_id?: number
+
   // Audit
   created_by: string
   created_at: string
@@ -140,9 +151,17 @@ export interface TestPlan {
   last_updated_by?: string
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
 // API functions
 export const testCasesAPI = {
-  list: async (projectId: string, suiteId?: string) => {
+  list: async (projectId: string, suiteId?: string): Promise<PaginatedResponse<TestCase> | TestCase[]> => {
     const params = new URLSearchParams({ project_id: projectId })
     if (suiteId) params.append('test_suite_id', suiteId)
 

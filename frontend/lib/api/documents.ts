@@ -116,11 +116,6 @@ export const documentsAPI = {
 
   generateTestPlan: async (id: string) => {
     const response = await axiosInstance.post(`/api/v1/documents/${id}/generate-test-plan`)
-    return response.data as {
-      success: boolean
-      message: string
-      document_id: string
-      status: string
-    }
+    return response.data as any
   },
 }

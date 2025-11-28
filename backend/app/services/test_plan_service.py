@@ -9,7 +9,7 @@ from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func, desc
 
 from app.models.test_plan import TestPlan, GenerationType
 from app.models.test_suite import TestSuite
@@ -640,6 +640,55 @@ class TestCaseService:
             )
         )
         return result.scalars().all()
+
+    async def get_test_cases_paginated(
+        self,
+        project_id: UUID,
+        page: int,
+        size: int,
+        db: AsyncSession,
+        search: Optional[str] = None,
+        status: Optional[TestCaseStatus] = None,
+        priority: Optional[TestCasePriority] = None,
+        suite_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        """Get paginated test cases."""
+        query = select(TestCase).where(TestCase.project_id == project_id)
+
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    TestCase.title.ilike(search_pattern),
+                    TestCase.description.ilike(search_pattern)
+                )
+            )
+        
+        if status:
+            query = query.where(TestCase.status == status)
+            
+        if priority:
+            query = query.where(TestCase.priority == priority)
+            
+        if suite_id:
+            query = query.where(TestCase.test_suite_id == suite_id)
+
+        # Get total count
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar_one()
+
+        # Get paginated items
+        query = query.order_by(desc(TestCase.created_at)).offset((page - 1) * size).limit(size)
+        result = await db.execute(query)
+        items = result.scalars().all()
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "size": size
+        }
 
 
 def get_test_plan_service() -> TestPlanService:

@@ -120,8 +120,9 @@ async def create_test_case(
         allocator = HumanIdAllocator(db)
 
         # Ensure parent suite and plan numeric_ids
-        plan_numeric = 0
-        suite_numeric = 0
+        # Default to 1 instead of 0 to avoid TP-000-TS-000-TC-XXX format
+        plan_numeric = 1
+        suite_numeric = 1
         if parent_plan:
             if not parent_plan.numeric_id:
                 plan_n = await db.run_sync(lambda sync: allocator.allocate_plan())
@@ -148,27 +149,49 @@ async def create_test_case(
     return test_case
 
 
-@router.get("/", response_model=List[TestCaseResponse])
+from app.schemas.common import PaginatedResponse
+from app.models.test_case import TestCase, TestCaseStatus, TestCasePriority
+from fastapi import Query
+
+@router.get("/", response_model=PaginatedResponse[TestCaseResponse])
 async def list_test_cases(
     project_id: UUID,
-    test_suite_id: UUID = None,
+    test_suite_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(50, ge=1, le=100, description="Page size"),
+    search: Optional[str] = Query(None, description="Search term"),
+    status: Optional[TestCaseStatus] = Query(None, description="Filter by status"),
+    priority: Optional[TestCasePriority] = Query(None, description="Filter by priority"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List all test cases for a project, optionally filtered by test suite.
+    List all test cases for a project with pagination and filtering.
     """
     # Verify project access
     await verify_project_access(project_id, current_user, db)
 
-    # Build query
-    query = select(TestCase).where(TestCase.project_id == project_id)
-    if test_suite_id:
-        query = query.where(TestCase.test_suite_id == test_suite_id)
+    from app.services.test_plan_service import get_test_case_service
+    service = get_test_case_service()
 
-    result = await db.execute(query)
-    test_cases = result.scalars().all()
-    return test_cases
+    result = await service.get_test_cases_paginated(
+        project_id=project_id,
+        page=page,
+        size=size,
+        db=db,
+        search=search,
+        status=status,
+        priority=priority,
+        suite_id=test_suite_id
+    )
+
+    return PaginatedResponse[TestCaseResponse](
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=0  # Calculated in schema
+    )
 
 
 @router.get("/by-id/{plan_numeric_id}/{suite_numeric_id}/{human_id}", response_model=TestCaseResponse)
@@ -421,6 +444,39 @@ async def ai_generate_test_cases(
                 detail=f"Failed to generate test cases: {generation_result.get('error', 'Unknown error')}",
             )
 
+        # Load parent suite and plan for human_id allocation
+        parent_suite = None
+        parent_plan = None
+        if request.test_suite_id:
+            result = await db.execute(
+                select(TestSuite).where(TestSuite.id == request.test_suite_id)
+            )
+            parent_suite = result.scalar_one_or_none()
+            if parent_suite and parent_suite.test_plan_id:
+                from app.models.test_plan import TestPlan
+                res_plan = await db.execute(select(TestPlan).where(TestPlan.id == parent_suite.test_plan_id))
+                parent_plan = res_plan.scalar_one_or_none()
+
+        # Initialize human_id allocator
+        from app.services.human_id_service import HumanIdAllocator, format_case, format_plan, format_suite
+        allocator = HumanIdAllocator(db)
+
+        # Ensure parent plan and suite have numeric_ids
+        plan_numeric = 1
+        suite_numeric = 1
+        if parent_plan:
+            if not parent_plan.numeric_id:
+                plan_n = await db.run_sync(lambda sync: allocator.allocate_plan())
+                parent_plan.numeric_id = plan_n
+                parent_plan.human_id = format_plan(plan_n)
+            plan_numeric = parent_plan.numeric_id
+        if parent_suite:
+            if not parent_suite.numeric_id:
+                suite_n = await db.run_sync(lambda sync: allocator.allocate_suite(str(parent_suite.test_plan_id) if parent_suite.test_plan_id else "global"))
+                parent_suite.numeric_id = suite_n
+                parent_suite.human_id = format_suite(plan_numeric, suite_n)
+            suite_numeric = parent_suite.numeric_id
+
         # Create test cases in database
         created_test_cases = []
         for case_data in generation_result["data"]:
@@ -462,6 +518,15 @@ async def ai_generate_test_cases(
                 meta_data=case_data.get("meta_data", {}),
                 created_by=current_user.email,
             )
+
+            # Allocate human_id for this test case
+            try:
+                case_n = await db.run_sync(lambda sync: allocator.allocate_case(str(request.test_suite_id) if request.test_suite_id else "global"))
+                test_case.numeric_id = case_n
+                test_case.human_id = format_case(plan_numeric, suite_numeric, case_n)
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to allocate human_id for AI-generated test case: {e}")
 
             db.add(test_case)
             created_test_cases.append(test_case)

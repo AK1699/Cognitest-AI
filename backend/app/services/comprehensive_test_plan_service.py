@@ -102,7 +102,7 @@ class ComprehensiveTestPlanService:
 
             # Fallback to rule-based generation
             logger.warning("⚠️  Falling back to rule-based generation")
-            fallback_data = self._generate_fallback_test_plan(requirements)
+            fallback_data = self._generate_fallback_test_plan(requirements, error_message=str(e))
 
             # Calculate confidence for fallback (will be lower)
             confidence_score = self._calculate_confidence_score(
@@ -237,20 +237,24 @@ class ComprehensiveTestPlanService:
             logger.error(f"JSON parsing error: {e}")
             logger.error(f"JSON string attempted (first 500 chars): {cleaned_text[:500] if 'cleaned_text' in locals() else 'N/A'}")
             logger.error(f"JSON string attempted (last 500 chars): {cleaned_text[-500:] if 'cleaned_text' in locals() else 'N/A'}")
-            return self._generate_fallback_test_plan(requirements)
+            return self._generate_fallback_test_plan(requirements, error_message=f"JSON Parse Error: {e}")
         except Exception as e:
             logger.error(f"Error parsing AI response: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return self._generate_fallback_test_plan(requirements)
+            return self._generate_fallback_test_plan(requirements, error_message=f"Response Parsing Error: {e}")
 
-    def _generate_fallback_test_plan(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_fallback_test_plan(self, requirements: Dict[str, Any], error_message: str = None) -> Dict[str, Any]:
         """Generate fallback test plan using rule-based approach."""
         logger.info("Using fallback test plan generation")
 
+        description = requirements.get("description", "Comprehensive test plan")
+        if error_message:
+            description = f"⚠️ [AI GENERATION FAILED]\nError: {error_message}\n\nUsing rule-based fallback generation.\n\n{description}"
+
         return {
             "name": f"{requirements.get('project_type', 'Test').title()} Plan",
-            "description": requirements.get("description", "Comprehensive test plan"),
+            "description": description,
             "priority": requirements.get("priority", "medium"),
             "estimated_hours": self._estimate_hours(requirements),
             "complexity": requirements.get("complexity", "medium"),

@@ -579,138 +579,26 @@ async def generate_test_plan_from_document(
                 detail=f"Failed to generate test plan: {generation_result.get('error', 'Unknown error')}",
             )
 
-        # Create test plan in database
-        from app.models.test_plan import TestPlan, GenerationType, TestPlanType, ReviewStatus
-        from app.models.test_suite import TestSuite
-        from app.models.test_case import TestCase, TestCasePriority, TestCaseStatus
-
+        # Return preview data (don't create in database yet - that happens on "Accept")
         plan_data = generation_result["data"]
-
-        test_plan = TestPlan(
-            project_id=document.project_id,
-            name=plan_data.get("name", f"Test Plan - {document.document_name}"),
-            description=plan_data.get("description"),
-            test_plan_type=TestPlanType.REGRESSION.value,
-
-            # IEEE 829 comprehensive sections
-            test_objectives_ieee=plan_data.get("test_objectives", []),
-            scope_of_testing_ieee=plan_data.get("scope_of_testing", {}),
-            test_approach_ieee=plan_data.get("test_approach", {}),
-            assumptions_constraints_ieee=plan_data.get("assumptions_and_constraints", []),
-            test_schedule_ieee=plan_data.get("test_schedule", {}),
-            resources_roles_ieee=plan_data.get("resources_and_roles", []),
-            test_environment_ieee=plan_data.get("test_environment", {}),
-            entry_exit_criteria_ieee=plan_data.get("entry_exit_criteria", {}),
-            risk_management_ieee=plan_data.get("risk_management", {}),
-            deliverables_reporting_ieee=plan_data.get("deliverables_and_reporting", {}),
-            approval_signoff_ieee=plan_data.get("approval_signoff", {}),
-
-            # Legacy fields
-            objectives=[
-                obj.get("objective", "") if isinstance(obj, dict) else str(obj)
-                for obj in plan_data.get("test_objectives", [])
-            ],
-            scope_in=plan_data.get("scope_of_testing", {}).get("in_scope", []),
-            scope_out=plan_data.get("scope_of_testing", {}).get("out_of_scope", []),
-
-            # Metadata
-            generated_by=GenerationType.AI.value,
-            source_documents=[str(document_id)],
-            confidence_score=str(generation_result.get("confidence", "high")),  # Convert to string
-            review_status=ReviewStatus.DRAFT.value,
-            tags=plan_data.get("tags", []),
-            meta_data={
-                "source_document_id": str(document_id),
-                "source_document_name": document.document_name,
-                "generated_from_analysis": True,
-                "estimated_hours": plan_data.get("estimated_hours"),
-                "complexity": plan_data.get("complexity"),
-                "timeframe": plan_data.get("timeframe"),
-            },
-            created_by=current_user.email,
-        )
-
-        db.add(test_plan)
-        await db.flush()
-
-        # Create test suites and test cases
-        test_suites_data = plan_data.get("test_suites", [])
-        suites_created = 0
-        cases_created = 0
-
-        for suite_data in test_suites_data:
-            suite_meta_data = suite_data.get("meta_data", {})
-            if "category" in suite_data:
-                suite_meta_data["category"] = suite_data["category"]
-
-            test_suite = TestSuite(
-                project_id=document.project_id,
-                test_plan_id=test_plan.id,
-                name=suite_data.get("name", "Test Suite"),
-                description=suite_data.get("description", ""),
-                tags=suite_data.get("tags", []),
-                meta_data=suite_meta_data,
-                generated_by=GenerationType.AI.value,
-                created_by=current_user.email,
-            )
-            db.add(test_suite)
-            await db.flush()
-            suites_created += 1
-
-            # Create test cases
-            test_cases_data = suite_data.get("test_cases", [])
-            for case_data in test_cases_data:
-                steps = case_data.get("steps", [])
-                if steps and isinstance(steps[0], dict):
-                    pass
-                else:
-                    steps = [
-                        {
-                            "step_number": idx + 1,
-                            "action": step if isinstance(step, str) else step.get("action", ""),
-                            "expected_result": step.get("expected_result", "") if isinstance(step, dict) else ""
-                        }
-                        for idx, step in enumerate(steps)
-                    ]
-
-                case_meta_data = case_data.get("meta_data", {})
-                if "estimated_time" in case_data:
-                    case_meta_data["estimated_time"] = case_data["estimated_time"]
-
-                test_case = TestCase(
-                    project_id=document.project_id,
-                    test_suite_id=test_suite.id,
-                    title=case_data.get("name", "Test Case"),
-                    description=case_data.get("description", ""),
-                    steps=steps,
-                    expected_result=case_data.get("expected_result", ""),
-                    priority=TestCasePriority[case_data.get("priority", "medium").upper()].value,
-                    status=TestCaseStatus.DRAFT.value,
-                    generated_by=GenerationType.AI.value,
-                    meta_data=case_meta_data,
-                    created_by=current_user.email,
-                )
-                db.add(test_case)
-                cases_created += 1
-
-        await db.commit()
-        await db.refresh(test_plan)
-
-        logger.info(f"Test plan generated from document {document_id}: {test_plan.id} with {suites_created} suites and {cases_created} cases")
-
-        return {
-            "success": True,
-            "message": "Test plan generated successfully from document",
-            "test_plan_id": str(test_plan.id),
-            "document_id": str(document_id),
-            "status": "completed",
-            "summary": {
-                "test_plan_name": test_plan.name,
-                "test_suites_count": suites_created,
-                "test_cases_count": cases_created,
-                "confidence_score": test_plan.confidence_score,
-            }
-        }
+        
+        # Add confidence score to plan data
+        plan_data["confidence_score"] = generation_result.get("confidence", "high")
+        
+        # Add source document info to meta_data
+        if "meta_data" not in plan_data:
+            plan_data["meta_data"] = {}
+            
+        plan_data["meta_data"]["source_document_id"] = str(document_id)
+        plan_data["meta_data"]["source_document_name"] = document.document_name
+        plan_data["meta_data"]["generated_from_analysis"] = True
+        
+        # Add source_documents list
+        plan_data["source_documents"] = [str(document_id)]
+        
+        logger.info(f"Returning test plan preview from document {document_id}")
+        
+        return plan_data
 
     except HTTPException:
         raise

@@ -772,6 +772,7 @@ async def accept_test_plan_preview(
 
             # Metadata
             generated_by=GenerationType.AI.value,
+            source_documents=preview_data.get("source_documents", []),
             confidence_score=str(preview_data.get("confidence_score", "high")),
             review_status=ReviewStatus.DRAFT.value,
             tags=preview_data.get("tags", []),
@@ -782,6 +783,7 @@ async def accept_test_plan_preview(
                 "project_type": preview_data.get("project_type"),
                 "platforms": preview_data.get("platforms", []),
                 "features": preview_data.get("features", []),
+                **preview_data.get("meta_data", {}),  # Merge existing metadata
             },
             created_by=current_user.email,
         )

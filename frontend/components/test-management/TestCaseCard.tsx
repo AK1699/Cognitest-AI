@@ -1,7 +1,7 @@
 'use client'
 
-import { TestCase } from '@/lib/api/test-plans'
-import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { TestCase } from '@/lib/api/test-management'
+import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, AlertCircle, ChevronDown, ChevronRight, Copy } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'
 import { useConfirm } from '@/lib/hooks/use-confirm'
@@ -87,6 +87,33 @@ export default function TestCaseCard({
                 <ChevronRight className="w-5 h-5" />
               )}
             </button>
+            {testCase.human_id && (
+              <div className="flex items-center gap-1">
+                <span
+                  className="inline-flex items-center px-2 py-0.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded text-xs font-mono font-semibold cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onView) {
+                      onView(testCase.id)
+                    }
+                  }}
+                  title="Click to view test case details"
+                >
+                  {testCase.human_id}
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard?.writeText(testCase.human_id)
+                  }}
+                  title="Copy ID"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <h3 className="text-base font-bold text-gray-900 line-clamp-1 flex-1">
               {testCase.title}
             </h3>
@@ -98,19 +125,17 @@ export default function TestCaseCard({
                 Linked
               </span>
             )}
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border ${
-              testCase.priority === 'critical' ? 'bg-red-50 text-red-600 border-red-200' :
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border ${testCase.priority === 'critical' ? 'bg-red-50 text-red-600 border-red-200' :
               testCase.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-              testCase.priority === 'medium' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
-              'bg-green-50 text-green-600 border-green-200'
-            }`}>
+                testCase.priority === 'medium' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                  'bg-green-50 text-green-600 border-green-200'
+              }`}>
               <AlertCircle className="w-3 h-3" />
               {testCase.priority}
             </span>
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
-              testCase.status === 'draft' ? 'bg-gray-50 text-gray-600 border-gray-200' :
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${testCase.status === 'draft' ? 'bg-gray-50 text-gray-600 border-gray-200' :
               'bg-green-50 text-green-600 border-green-200'
-            }`}>
+              }`}>
               {testCase.status ? testCase.status.replace('_', ' ') : 'draft'}
             </span>
           </div>

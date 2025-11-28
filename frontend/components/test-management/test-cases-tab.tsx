@@ -9,10 +9,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, CheckSquare, Calendar, Trash2, Play, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Plus, CheckSquare, Calendar, Trash2, Play, CheckCircle, XCircle, AlertCircle, Copy } from 'lucide-react'
 import { testCasesAPI, testSuitesAPI, type TestCase, type TestSuite, type TestStep } from '@/lib/api/test-management'
 import { formatDateHumanReadable } from '@/lib/date-utils'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { useConfirm } from '@/lib/hooks/use-confirm'
 import { TestCaseDetailsModal } from './TestCaseDetailsModal'
 
@@ -44,7 +44,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedCase, setSelectedCase] = useState<TestCase | null>(null)
   const [showExecuteDialog, setShowExecuteDialog] = useState(false)
-  const { toast } = useToast()
+  // const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirm()
 
   const [formData, setFormData] = useState({
@@ -70,18 +70,22 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [cases, suites] = await Promise.all([
+      const [casesResponse, suites] = await Promise.all([
         testCasesAPI.list(projectId),
         testSuitesAPI.list(projectId),
       ])
+
+      let cases: TestCase[] = []
+      if ('items' in casesResponse) {
+        cases = casesResponse.items
+      } else if (Array.isArray(casesResponse)) {
+        cases = casesResponse
+      }
+
       setTestCases(cases)
       setTestSuites(suites)
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load test cases',
-        variant: 'destructive',
-      })
+      toast.error('Failed to load test cases')
     } finally {
       setLoading(false)
     }
@@ -93,7 +97,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
 
       const newCase = await testCasesAPI.create({
         project_id: projectId,
-        test_suite_id: formData.test_suite_id || undefined,
+        test_suite_id: formData.test_suite_id ? formData.test_suite_id : undefined,
         title: formData.title,
         description: formData.description,
         steps: formData.steps.filter(s => s.action.trim()),
@@ -101,7 +105,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
         priority: formData.priority,
         tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
         status: 'draft',
-        created_by: currentUser,
+        created_by: currentUser || 'user@cognitest.ai',
         ai_generated: false,
         generated_by: 'manual',
         execution_logs: [],
@@ -113,16 +117,9 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
       setShowCreateDialog(false)
       resetForm()
 
-      toast({
-        title: 'Success',
-        description: 'Test case created successfully',
-      })
+      toast.success('Test case created successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create test case',
-        variant: 'destructive',
-      })
+      toast.error('Failed to create test case')
     }
   }
 
@@ -130,9 +127,8 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
     if (!selectedCase) return
 
     try {
-      const result = await testCasesAPI.execute({
-        test_case_id: selectedCase.id,
-        status: executeData.status,
+      const result = await testCasesAPI.execute(selectedCase.id, {
+        status: executeData.status || 'passed',
         actual_result: executeData.actual_result,
         execution_notes: executeData.execution_notes,
       })
@@ -142,16 +138,9 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
       setSelectedCase(null)
       resetExecuteForm()
 
-      toast({
-        title: 'Success',
-        description: 'Test case executed successfully',
-      })
+      toast.success('Test case executed successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to execute test case',
-        variant: 'destructive',
-      })
+      toast.error('Failed to execute test case')
     }
   }
 
@@ -168,16 +157,9 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
       setTestCases(testCases.filter(tc => tc.id !== id))
       if (selectedCase?.id === id) setSelectedCase(null)
 
-      toast({
-        title: 'Success',
-        description: 'Test case deleted successfully',
-      })
+      toast.success('Test case deleted successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete test case',
-        variant: 'destructive',
-      })
+      toast.error('Failed to delete test case')
     }
   }
 
@@ -285,16 +267,40 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge className={`${STATUS_COLORS[testCase.status]} text-white text-xs`}>
-                        {testCase.status.replace('_', ' ')}
-                      </Badge>
+                      {testCase.status && (
+                        <Badge className={`${STATUS_COLORS[testCase.status] || 'bg-gray-500'} text-white text-xs`}>
+                          {testCase.status.replace('_', ' ')}
+                        </Badge>
+                      )}
                       <Badge className={`${PRIORITY_COLORS[testCase.priority]} text-white text-xs`}>
                         {testCase.priority}
                       </Badge>
                     </div>
-                    <CardTitle className="text-lg cursor-pointer hover:text-primary" onClick={() => setSelectedCase(testCase)}>
-                      {testCase.title}
-                    </CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-lg cursor-pointer hover:text-primary flex-1" onClick={() => setSelectedCase(testCase)}>
+                        {testCase.title}
+                      </CardTitle>
+                      {(testCase as any).human_id && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg text-sm font-mono font-semibold shadow-sm">
+                            {(testCase as any).human_id}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard?.writeText((testCase as any).human_id)
+                              toast.success('ID copied to clipboard')
+                            }}
+                            title="Copy ID"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <CardDescription className="mt-2">
                       {testCase.description || 'No description provided'}
                     </CardDescription>

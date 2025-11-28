@@ -128,10 +128,11 @@ async def create_test_suite(
         suite_n = await db.run_sync(lambda sync_sess: allocator.allocate_suite(str(test_suite.test_plan_id) if test_suite.test_plan_id else "global"))
         test_suite.numeric_id = suite_n
 
-        # Format human id; if no plan, use 000 as plan segment
-        from app.services.human_id_service import pad3
+        # Format human id
+        # If no plan linked, we still need a numeric plan prefix for the human_id format.
+        # Instead of 000, use 001 as the default/unlinked plan segment
         if plan_numeric is None:
-            plan_numeric = 0
+            plan_numeric = 1  # Changed from 0 to 1 so format becomes TP-001-TS-XXX instead of TP-000-TS-XXX
         test_suite.human_id = format_suite(plan_numeric, suite_n)
     except Exception as e:
         import logging as _logging

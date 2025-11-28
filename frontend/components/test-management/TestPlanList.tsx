@@ -1,6 +1,6 @@
 'use client'
 
-import { TestPlan } from '@/lib/api/test-plans'
+import { TestPlan } from '@/lib/api/test-management'
 import TestPlanCard from './TestPlanCard'
 import { Grid3X3, List } from 'lucide-react'
 import { useState } from 'react'
@@ -47,22 +47,20 @@ export default function TestPlanList({
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 rounded transition-colors ${
-              viewMode === 'grid'
+            className={`p-2 rounded transition-colors ${viewMode === 'grid'
                 ? 'bg-white text-primary shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
             title="Grid view"
           >
             <Grid3X3 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 rounded transition-colors ${
-              viewMode === 'list'
+            className={`p-2 rounded transition-colors ${viewMode === 'list'
                 ? 'bg-white text-primary shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
             title="List view"
           >
             <List className="w-4 h-4" />

@@ -1256,25 +1256,32 @@ export function TestPlanDetailsModal({
         {!noPlan && (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {((normalizedPlan as any)?.human_id) || ((testPlan as any)?.numeric_id !== undefined ? (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 text-xs mr-1">
-                    {((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+              <DialogTitle className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {((normalizedPlan as any)?.human_id) || ((testPlan as any)?.numeric_id !== undefined ? (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 border border-blue-200 text-sm font-mono font-semibold">
+                      {((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+                    </span>
+                  ) : null) }
+                  <span className="text-lg font-semibold text-gray-900">
+                    {normalizedPlan?.name || testPlan?.name}
                   </span>
-                ) : null) }
-                {normalizedPlan?.name || testPlan?.name}
+                </div>
                 {/* Copy button */}
                 <button
                   type="button"
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
                   onClick={() => navigator.clipboard?.writeText((((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`) as string)}
                   title="Copy ID"
                 >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
                   Copy
                 </button>
 
                 {normalizedPlan?.generated_by === 'ai' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ring-1 ring-purple-200 ml-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ring-1 ring-purple-200">
                     <Sparkles className="w-3 h-3" />
                     AI Generated
                   </span>

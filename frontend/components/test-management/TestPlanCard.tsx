@@ -1,6 +1,6 @@
 'use client'
 
-import { TestPlan } from '@/lib/api/test-plans'
+import { TestPlan } from '@/lib/api/test-management'
 import { Sparkles, User, Clock, Eye, Edit, Copy, FileCheck, Trash2, AlertCircle } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState } from 'react'
@@ -82,16 +82,29 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
           </h3>
           {(testPlan as any)?.numeric_id !== undefined || (testPlan as any)?.human_id ? (
             <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 text-xs">
-                {((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white border border-blue-600 text-xs font-mono font-semibold cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (onView) {
+                    onView(testPlan.id)
+                  }
+                }}
+                title="Click to view test plan details"
+              >
+                {((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3, '0')}`}
               </span>
               <button
                 type="button"
-                className="text-xs text-gray-500 hover:text-gray-700"
-                onClick={() => navigator.clipboard?.writeText((((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`) as string)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigator.clipboard?.writeText((((testPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3, '0')}`) as string)
+                }}
                 title="Copy ID"
               >
                 <Copy className="w-3 h-3" />
+                Copy
               </button>
             </div>
           ) : null}
@@ -111,12 +124,11 @@ export default function TestPlanCard({ testPlan, onView, onEdit, onDelete }: Tes
 
             {/* Priority Badge */}
             {testPlan.priority && (
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                testPlan.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                testPlan.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                testPlan.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
-              }`}>
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${testPlan.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                  testPlan.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                    testPlan.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-green-100 text-green-700'
+                }`}>
                 {testPlan.priority.toUpperCase()}
               </span>
             )}

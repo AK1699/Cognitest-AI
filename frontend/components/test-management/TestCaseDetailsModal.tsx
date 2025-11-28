@@ -150,9 +150,11 @@ export function TestCaseDetailsModal({
                 {testCase.title}
               </h2>
             </div>
-            <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-mono font-semibold border border-blue-300 ml-4">
-              {testCase.id.slice(0, 13).toUpperCase()}
-            </span>
+            {testCase.human_id && (
+              <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-mono font-semibold border border-blue-300 ml-4">
+                {testCase.human_id}
+              </span>
+            )}
           </div>
 
           {/* Badges */}

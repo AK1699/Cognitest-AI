@@ -114,18 +114,18 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       const isCasePrefix = /^TP-\d{3}-TS-\d{3}-TC-/i.test(q)
 
       if (isPlanId) {
-        const filtered = testPlans.filter((p: any) => (p.human_id || `TP-${String(p.numeric_id || '').padStart(3,'0')}`).toLowerCase() === q.toLowerCase())
+        const filtered = testPlans.filter((p: any) => (p.human_id || `TP-${String(p.numeric_id || '').padStart(3, '0')}`).toLowerCase() === q.toLowerCase())
         setFilteredTestPlans(filtered)
         setSearchHint(`Filtered by plan ID ${q.toUpperCase()}`)
       } else if (isSuitePrefix) {
         // Show plans that match plan segment
         const planSeg = q.split('-')[1]
-        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3,'0') === planSeg)
+        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3, '0') === planSeg)
         setFilteredTestPlans(filtered)
         setSearchHint(`Filtered by plan ID TP-${planSeg}`)
       } else if (isCasePrefix) {
         const planSeg = q.split('-')[1]
-        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3,'0') === planSeg)
+        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3, '0') === planSeg)
         setFilteredTestPlans(filtered)
         setSearchHint(`Filtered by plan ID TP-${planSeg}`)
       } else {
@@ -341,8 +341,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestCases = async () => {
     try {
-      const data = await testCasesAPI.list(projectId)
-      setTestCases(data || [])
+      const response = await testCasesAPI.list(projectId)
+      // Handle both paginated response (new) and array response (old/fallback)
+      let cases: TestCase[] = []
+      if ('items' in response) {
+        cases = response.items
+      } else if (Array.isArray(response)) {
+        cases = response
+      }
+      setTestCases(cases)
     } catch (error: any) {
       // Set empty array on error to avoid blocking the UI
       setTestCases([])
@@ -445,33 +452,30 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
               <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Test Management</div>
               <button
                 onClick={() => setActiveTab('plans')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === 'plans'
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'plans'
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <FileText className="w-4 h-4" />
                 Test Plans
               </button>
               <button
                 onClick={() => setActiveTab('suites')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === 'suites'
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'suites'
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <FileText className="w-4 h-4" />
                 Test Suites
               </button>
               <button
                 onClick={() => setActiveTab('cases')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === 'cases'
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'cases'
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <FileText className="w-4 h-4" />
                 Test Cases
@@ -537,51 +541,51 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
         {((activeTab === 'plans' && testPlans.length > 0) ||
           (activeTab === 'suites' && testSuites.length > 0) ||
           (activeTab === 'cases' && testCases.length > 0)) && (
-          <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
-            {activeTab === 'plans' && testPlans.length > 0 && (
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowManualForm(true)}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 text-primary border border-primary rounded-lg font-medium transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Manually
-                </button>
-                <button
-                  onClick={() => setShowAIGenerator(true)}
-                  className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generate with AI
-                </button>
-              </div>
-            )}
+            <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
+              {activeTab === 'plans' && testPlans.length > 0 && (
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowManualForm(true)}
+                    className="px-4 py-2 bg-white hover:bg-gray-50 text-primary border border-primary rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Manually
+                  </button>
+                  <button
+                    onClick={() => setShowAIGenerator(true)}
+                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generate with AI
+                  </button>
+                </div>
+              )}
 
-            {activeTab === 'suites' && testSuites.length > 0 && (
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowSuiteForm(true)}
-                  className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Test Suite
-                </button>
-              </div>
-            )}
+              {activeTab === 'suites' && testSuites.length > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowSuiteForm(true)}
+                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Test Suite
+                  </button>
+                </div>
+              )}
 
-            {activeTab === 'cases' && testCases.length > 0 && (
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowCaseForm(true)}
-                  className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Test Case
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              {activeTab === 'cases' && testCases.length > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowCaseForm(true)}
+                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Test Case
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Content Area */}
         <div className="px-8 py-6">

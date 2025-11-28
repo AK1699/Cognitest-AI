@@ -136,20 +136,32 @@ export default function HierarchicalTestSuiteList({
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono font-semibold">
+                          <span
+                            className="px-2.5 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded text-xs font-mono font-semibold cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (onViewSuite) {
+                                onViewSuite(suite.id)
+                              }
+                            }}
+                            title="Click to view suite details"
+                          >
                             {((suite as any).human_id) || (() => {
                               const planNum = (suite as any).plan_numeric_id || (suite as any).planNumber
                               const suiteNum = (suite as any).numeric_id
-                              const pad = (n: any) => String(n || '').padStart(3,'0')
+                              const pad = (n: any) => String(n || '').padStart(3, '0')
                               return `TP-${pad(planNum)}-TS-${pad(suiteNum)}`
                             })()}
                           </span>
                           <button
                             type="button"
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                            onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((suite as any).human_id) || (() => { const planNum = (suite as any).plan_numeric_id || (suite as any).planNumber; const suiteNum = (suite as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3,'0'); return `TP-${pad(planNum)}-TS-${pad(suiteNum)}` })() as string) }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((suite as any).human_id) || (() => { const planNum = (suite as any).plan_numeric_id || (suite as any).planNumber; const suiteNum = (suite as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3, '0'); return `TP-${pad(planNum)}-TS-${pad(suiteNum)}` })() as string) }}
                             title="Copy ID"
                           >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
                             Copy
                           </button>
                         </div>
@@ -228,9 +240,8 @@ export default function HierarchicalTestSuiteList({
                   return (
                     <div
                       key={testCase.id}
-                      className={`${
-                        index !== 0 ? 'border-t border-gray-200' : ''
-                      } bg-white relative`}
+                      className={`${index !== 0 ? 'border-t border-gray-200' : ''
+                        } bg-white relative`}
                     >
                       {/* Hierarchy Line */}
                       <div className="absolute left-8 top-0 bottom-0 w-px bg-gray-300" />
@@ -268,22 +279,33 @@ export default function HierarchicalTestSuiteList({
                                 </p>
                               </div>
                               <div className="ml-4 flex items-center gap-1">
-                                <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-mono">
+                                <span
+                                  className="px-2 py-0.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded text-xs font-mono font-semibold cursor-pointer hover:from-green-600 hover:to-green-700 transition-all shadow-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (onViewCase) {
+                                      onViewCase(testCase.id)
+                                    }
+                                  }}
+                                  title="Click to view test case details"
+                                >
                                   {((testCase as any).human_id) || (() => {
                                     const plan = (testCase as any).plan_numeric_id || (testCase as any).planNumber
                                     const suite = (testCase as any).suite_numeric_id || (testCase as any).suiteNumber
                                     const num = (testCase as any).numeric_id
-                                    const pad = (n: any) => String(n || '').padStart(3,'0')
+                                    const pad = (n: any) => String(n || '').padStart(3, '0')
                                     return `TP-${pad(plan)}-TS-${pad(suite)}-TC-${pad(num)}`
                                   })()}
                                 </span>
                                 <button
                                   type="button"
-                                  className="text-xs text-gray-500 hover:text-gray-700"
-                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((testCase as any).human_id) || (() => { const plan = (testCase as any).plan_numeric_id || (testCase as any).planNumber; const suite = (testCase as any).suite_numeric_id || (testCase as any).suiteNumber; const num = (testCase as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3,'0'); return `TP-${pad(plan)}-TS-${pad(suite)}-TC-${pad(num)}` })() as string) }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(((testCase as any).human_id) || (() => { const plan = (testCase as any).plan_numeric_id || (testCase as any).planNumber; const suite = (testCase as any).suite_numeric_id || (testCase as any).suiteNumber; const num = (testCase as any).numeric_id; const pad = (n: any) => String(n || '').padStart(3, '0'); return `TP-${pad(plan)}-TS-${pad(suite)}-TC-${pad(num)}` })() as string) }}
                                   title="Copy ID"
                                 >
-                                  Copy
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
                                 </button>
                               </div>
                             </div>
@@ -378,12 +400,11 @@ export default function HierarchicalTestSuiteList({
                             <div className="grid grid-cols-4 gap-6 text-sm">
                               <div>
                                 <span className="text-gray-500 block mb-1">Priority:</span>
-                                <span className={`inline-block px-2 py-0.5 rounded font-semibold ${
-                                  testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                <span className={`inline-block px-2 py-0.5 rounded font-semibold ${testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
                                   testCase.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                                  testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-green-100 text-green-700'
-                                }`}>
+                                    testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-green-100 text-green-700'
+                                  }`}>
                                   {testCase.priority.toUpperCase()}
                                 </span>
                               </div>
