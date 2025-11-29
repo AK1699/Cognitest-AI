@@ -742,6 +742,18 @@ async def accept_test_plan_preview(
         else:
             test_schedule_ieee = test_schedule_data
 
+        # Transform resources_and_roles to proper format
+        resources_roles_data = preview_data.get("resources_and_roles", [])
+        if isinstance(resources_roles_data, dict):
+            # AI returns dict with team_members_roles key, extract the list
+            if "team_members_roles" in resources_roles_data:
+                resources_roles_ieee = resources_roles_data["team_members_roles"]
+            else:
+                # If it's a dict without team_members_roles, wrap it in a list
+                resources_roles_ieee = [resources_roles_data]
+        else:
+            resources_roles_ieee = resources_roles_data
+
         # Create test plan from preview data
         test_plan = TestPlan(
             project_id=project_id,
@@ -755,7 +767,7 @@ async def accept_test_plan_preview(
             test_approach_ieee=preview_data.get("test_approach", {}),
             assumptions_constraints_ieee=assumptions_constraints_ieee,
             test_schedule_ieee=test_schedule_ieee,
-            resources_roles_ieee=preview_data.get("resources_and_roles", []),
+            resources_roles_ieee=resources_roles_ieee,
             test_environment_ieee=preview_data.get("test_environment", {}),
             entry_exit_criteria_ieee=preview_data.get("entry_exit_criteria", {}),
             risk_management_ieee=preview_data.get("risk_management", {}),
@@ -791,6 +803,27 @@ async def accept_test_plan_preview(
         db.add(test_plan)
         await db.flush()
 
+        # Allocate human ID for test plan
+        from app.services.human_id_service import HumanIdAllocator, format_plan, format_suite, format_case
+        
+        def allocate_plan_id(sync_session):
+            allocator = HumanIdAllocator(sync_session)
+            return allocator.allocate_plan()
+        
+        try:
+            plan_num = await db.run_sync(allocate_plan_id)
+            test_plan.numeric_id = plan_num
+            test_plan.human_id = format_plan(plan_num)
+            logger.info(f"Allocated human_id for test plan: {test_plan.human_id}")
+        except Exception as e:
+            logger.error(f"Failed to allocate human_id for test plan: {e}")
+            # Rollback and re-raise to prevent partial commit
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to allocate test plan ID: {str(e)}"
+            )
+
         # Create test suites and test cases
         test_suites_data = preview_data.get("test_suites", [])
         for suite_data in test_suites_data:
@@ -810,6 +843,24 @@ async def accept_test_plan_preview(
             )
             db.add(test_suite)
             await db.flush()
+
+            # Allocate human ID for test suite
+            def allocate_suite_id(sync_session):
+                allocator = HumanIdAllocator(sync_session)
+                return allocator.allocate_suite(str(test_plan.id))
+            
+            try:
+                suite_num = await db.run_sync(allocate_suite_id)
+                test_suite.numeric_id = suite_num
+                test_suite.human_id = format_suite(test_plan.numeric_id, suite_num)
+                logger.info(f"Allocated human_id for test suite: {test_suite.human_id}")
+            except Exception as e:
+                logger.error(f"Failed to allocate human_id for test suite: {e}")
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to allocate test suite ID: {str(e)}"
+                )
 
             # Create test cases
             test_cases_data = suite_data.get("test_cases", [])
@@ -845,6 +896,25 @@ async def accept_test_plan_preview(
                     created_by=current_user.email,
                 )
                 db.add(test_case)
+                await db.flush()
+
+                # Allocate human ID for test case
+                def allocate_case_id(sync_session):
+                    allocator = HumanIdAllocator(sync_session)
+                    return allocator.allocate_case(str(test_suite.id))
+                
+                try:
+                    case_num = await db.run_sync(allocate_case_id)
+                    test_case.numeric_id = case_num
+                    test_case.human_id = format_case(test_plan.numeric_id, test_suite.numeric_id, case_num)
+                    logger.info(f"Allocated human_id for test case: {test_case.human_id}")
+                except Exception as e:
+                    logger.error(f"Failed to allocate human_id for test case: {e}")
+                    await db.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to allocate test case ID: {str(e)}"
+                    )
 
         await db.commit()
         await db.refresh(test_plan)

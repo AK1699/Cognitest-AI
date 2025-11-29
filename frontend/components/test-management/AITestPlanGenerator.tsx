@@ -153,6 +153,11 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
       console.log('Test plan generated:', result)
 
+      // Override the AI-generated name with user's title
+      if (documentTitle.trim()) {
+        result.name = documentTitle.trim()
+      }
+
       setPreviewData(result)
       setStep('review')  // Show review step instead of success
     } catch (err: any) {
@@ -563,13 +568,13 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 {/* Title Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Title <span className="text-red-500">*</span>
+                    Test Plan Title <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={documentTitle}
                     onChange={(e) => setDocumentTitle(e.target.value)}
-                    placeholder="e.g., User Authentication Module Requirements"
+                    placeholder="e.g., E-Commerce Platform Test Plan"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
@@ -577,7 +582,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 {/* File Upload Area */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Requirements Document <span className="text-red-500">*</span>
+                    Upload Requirements Document <span className="text-red-500">*</span>
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors">
                     <input

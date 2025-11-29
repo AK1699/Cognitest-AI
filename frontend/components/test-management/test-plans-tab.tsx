@@ -42,10 +42,16 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
   const loadTestPlans = async () => {
     try {
       setLoading(true)
+      console.log('[TestPlansTab] Loading test plans for project:', projectId)
       const plans = await testPlansAPI.list(projectId)
+      console.log('[TestPlansTab] API returned:', plans?.length || 0, 'plans')
+      console.log('[TestPlansTab] Plans data:', plans)
       setTestPlans(plans || [])
     } catch (error: any) {
       // Set empty array on error to avoid blocking the UI
+      console.error('[TestPlansTab] Error loading test plans:', error)
+      console.error('[TestPlansTab] Error status:', error.response?.status)
+      console.error('[TestPlansTab] Error data:', error.response?.data)
       setTestPlans([])
 
       // Only show error if it's not a 403 or 404 (expected for new projects)

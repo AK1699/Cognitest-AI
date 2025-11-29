@@ -42,7 +42,7 @@ class Project(Base):
     test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")
     approval_workflows = relationship("ApprovalWorkflow", back_populates="project", cascade="all, delete-orphan")
     user_roles = relationship("UserProjectRole", back_populates="project", cascade="all, delete-orphan")
-    issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")
+    # issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")  # Commented out: Issue model has metadata column conflict
     integrations = relationship("Integration", back_populates="project", cascade="all, delete-orphan")
     # api_collections = relationship("ApiCollection", back_populates="project", cascade="all, delete-orphan")
 

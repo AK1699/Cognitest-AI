@@ -115,7 +115,7 @@ class Issue(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    project = relationship("Project", back_populates="issues")
+    project = relationship("Project")  # Removed back_populates since Project.issues is commented out
     test_plan = relationship("TestPlan", foreign_keys=[test_plan_id])
 
     def __repr__(self):
