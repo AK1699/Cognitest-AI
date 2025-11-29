@@ -19,6 +19,14 @@ const nextConfig = {
       },
     ]
   },
+  // Increase timeout for long-running AI operations
+  experimental: {
+    proxyTimeout: 180000, // 3 minutes (180 seconds)
+  },
+  // Also configure for API routes
+  serverRuntimeConfig: {
+    apiTimeout: 180000, // 3 minutes
+  },
   images: {
     remotePatterns: [
       {

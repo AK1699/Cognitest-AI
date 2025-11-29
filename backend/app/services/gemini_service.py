@@ -109,8 +109,8 @@ class GeminiService:
             # Gemini uses a simpler prompt format
             prompt = self._convert_messages_to_prompt(messages)
 
-            # Generate response
-            response = model.generate_content(prompt)
+            # Generate response asynchronously
+            response = await model.generate_content_async(prompt)
 
             # Handle multi-part responses properly
             try:
@@ -222,7 +222,7 @@ class GeminiService:
             prompt = template.format(**variables)
 
             model = self.get_model(temperature=temperature, max_tokens=max_tokens)
-            response = model.generate_content(prompt)
+            response = await model.generate_content_async(prompt)
 
             return response.text
 
