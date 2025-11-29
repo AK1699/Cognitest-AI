@@ -36,7 +36,7 @@ export async function createGroup(data: {
 
 export async function updateGroup(
   groupId: string,
-  data: { name: string; description?: string }
+  data: { name: string; description?: string; is_active?: boolean }
 ): Promise<Group> {
   const response = await api.put(`/api/v1/groups/${groupId}`, data)
   return response.data

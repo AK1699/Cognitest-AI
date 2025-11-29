@@ -1,11 +1,12 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users
 from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
 
 api_router = APIRouter()
 
 # Include all sub-routers
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(test_plans.router, prefix="/test-plans", tags=["test-plans"])

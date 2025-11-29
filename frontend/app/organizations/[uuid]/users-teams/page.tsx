@@ -28,8 +28,12 @@ import { PermissionMatrix } from '@/components/settings/permission-matrix'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
 import { useConfirm } from '@/lib/hooks/use-confirm'
+import { listGroups, deleteGroup, type Group } from '@/lib/api/groups'
+import { EditUserModal } from '@/components/users-teams/edit-user-modal'
+import { EditGroupModal } from '@/components/users-teams/edit-group-modal'
+import { CreateGroupWithTypeModal } from '@/components/users-teams/create-group-with-type-modal'
 
-type Tab = 'users' | 'roles'
+type Tab = 'users' | 'teams' | 'roles'
 
 interface Project {
   id: string
@@ -51,6 +55,7 @@ export default function UsersTeamsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('users')
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
   const [users, setUsers] = useState<UserType[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [roles, setRoles] = useState<ProjectRole[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [userRoles, setUserRoles] = useState<UserProjectRoleWithDetails[]>([])
@@ -65,6 +70,9 @@ export default function UsersTeamsPage() {
   const [showProjectAssignModal, setShowProjectAssignModal] = useState(false)
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false)
   const [showCreateRoleModal, setShowCreateRoleModal] = useState(false)
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
+  const [showEditUserModal, setShowEditUserModal] = useState(false)
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false)
   const [rolesView, setRolesView] = useState<'list' | 'matrix'>('list')
   const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<ProjectRole | null>(null)
@@ -73,6 +81,7 @@ export default function UsersTeamsPage() {
   // Selected items
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [selectedUserForProjects, setSelectedUserForProjects] = useState<UserType | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [roleModalEntity, setRoleModalEntity] = useState<{
     type: 'user'
     id: string
@@ -141,6 +150,10 @@ export default function UsersTeamsPage() {
       // Fetch users
       const usersData = await listOrganisationUsers(organisationId)
       setUsers(usersData)
+
+      // Fetch groups
+      const groupsData = await listGroups(organisationId)
+      setGroups(groupsData.groups)
 
       // Fetch roles
       const rolesData = await listRoles(organisationId)
@@ -404,10 +417,53 @@ export default function UsersTeamsPage() {
     }
   }
 
+  const handleDeleteUser = async (user: UserType) => {
+    const confirmed = await confirm({
+      message: `Are you sure you want to delete ${user.username}? This action cannot be undone.`,
+      variant: 'danger',
+      confirmText: 'Delete User'
+    })
+
+    if (!confirmed) return
+
+    try {
+      await api.delete(`/api/v1/users/${user.id}`)
+      toast.success('User deleted successfully')
+      fetchData()
+    } catch (error: any) {
+      console.error('Failed to delete user:', error)
+      toast.error(error.response?.data?.detail || 'Failed to delete user')
+    }
+  }
+
+  const handleDeleteGroup = async (group: Group) => {
+    const confirmed = await confirm({
+      message: `Are you sure you want to delete the group "${group.name}"? This will remove all user associations.`,
+      variant: 'danger',
+      confirmText: 'Delete Group'
+    })
+
+    if (!confirmed) return
+
+    try {
+      await deleteGroup(group.id)
+      toast.success('Group deleted successfully')
+      fetchData()
+    } catch (error: any) {
+      console.error('Failed to delete group:', error)
+      toast.error(error.response?.data?.detail || 'Failed to delete group')
+    }
+  }
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
+
+  const filteredGroups = groups.filter(group =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (group.description && group.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const filteredRoles = roles
@@ -461,6 +517,12 @@ export default function UsersTeamsPage() {
               Invite User
             </Button>
           )}
+          {activeTab === 'teams' && (
+            <Button onClick={() => setShowCreateGroupModal(true)}>
+              <Users className="mr-2 h-4 w-4" />
+              Create Team
+            </Button>
+          )}
           {activeTab === 'roles' && (
             <Button onClick={() => setShowCreateRoleModal(true)}>
               <Shield className="mr-2 h-4 w-4" />
@@ -483,6 +545,17 @@ export default function UsersTeamsPage() {
           >
             <User className="w-4 h-4" />
             Users ({users.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('teams')}
+            className={`${
+              activeTab === 'teams'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+          >
+            <Users className="w-4 h-4" />
+            Teams ({groups.length})
           </button>
           <button
             onClick={() => setActiveTab('roles')}
@@ -659,26 +732,117 @@ export default function UsersTeamsPage() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {formatDateHumanReadable(user.created_at)}
                       </td>
-                      <td className="px-6 py-4 flex justify-center items-center">
-                        <button
-                          onClick={() => {
-                            // Get the first role ID if the user has roles
-                            const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
-                            const firstRoleId = userRolesList.length > 0 ? userRolesList[0].id : undefined
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user)
+                              setShowEditUserModal(true)
+                            }}
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Get the first role ID if the user has roles
+                              const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
+                              const firstRoleId = userRolesList.length > 0 ? userRolesList[0].id : undefined
 
-                            setRoleModalEntity({
-                              type: 'user',
-                              id: user.id,
-                              name: user.full_name || user.username,
-                              initialRoleId: firstRoleId
-                            })
-                            setShowAssignRoleModal(true)
-                          }}
-                          className="flex items-center gap-1 px-3 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
-                        >
-                          <Pencil className="w-4 h-4" />
-                          Edit Roles
-                        </button>
+                              setRoleModalEntity({
+                                type: 'user',
+                                id: user.id,
+                                name: user.full_name || user.username,
+                                initialRoleId: firstRoleId
+                              })
+                              setShowAssignRoleModal(true)
+                            }}
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg text-green-600 bg-green-50 hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/30 transition-colors"
+                          >
+                            <Shield className="w-4 h-4" />
+                            Roles
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Teams Tab Content */}
+      {activeTab === 'teams' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                  <th scope="col" className="px-6 py-3">Team Name</th>
+                  <th scope="col" className="px-6 py-3">Description</th>
+                  <th scope="col" className="px-6 py-3">Status</th>
+                  <th scope="col" className="px-6 py-3">Created</th>
+                  <th scope="col" className="px-6 py-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGroups.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      No teams found. Create a team to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredGroups.map((group) => (
+                    <tr key={group.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900 dark:text-white">{group.name}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+                          {group.description || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          group.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {group.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatDateHumanReadable(group.created_at)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedGroup(group)
+                              setShowEditGroupModal(true)
+                            }}
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGroup(group)}
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -870,7 +1034,7 @@ export default function UsersTeamsPage() {
                 variant="outline"
                 onClick={() => {
                   setShowInviteModal(false)
-                  setUserFormData({ email: '', username: '', password: '', full_name: '' })
+                  setUserFormData({ email: '', username: '', password: '', full_name: '', roleType: '' })
                 }}
               >
                 Cancel
@@ -1130,11 +1294,6 @@ export default function UsersTeamsPage() {
                             </span>
                           )}
                         </div>
-                        {project.description && (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            {project.description}
-                          </div>
-                        )}
                       </div>
 
                       <div className="ml-4">
@@ -1177,6 +1336,38 @@ export default function UsersTeamsPage() {
           </div>
         </div>
       )}
+
+      {/* Edit User Modal */}
+      {showEditUserModal && selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          onClose={() => {
+            setShowEditUserModal(false)
+            setSelectedUser(null)
+          }}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {/* Edit Group Modal */}
+      {showEditGroupModal && selectedGroup && (
+        <EditGroupModal
+          group={selectedGroup}
+          onClose={() => {
+            setShowEditGroupModal(false)
+            setSelectedGroup(null)
+          }}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {/* Create Group Modal */}
+      <CreateGroupWithTypeModal
+        isOpen={showCreateGroupModal}
+        organisationId={organisationId}
+        onClose={() => setShowCreateGroupModal(false)}
+        onSuccess={fetchData}
+      />
 
       {/* Role Assignment Modal */}
       {showAssignRoleModal && roleModalEntity && (

@@ -94,11 +94,7 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
       setScripts([])
     } catch (error) {
       console.error('Failed to fetch scripts:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load automation scripts',
-        variant: 'destructive'
-      })
+      toast.error('Failed to load automation scripts')
     } finally {
       setLoading(false)
     }
@@ -460,10 +456,7 @@ function CreateScriptDialog({ open, onOpenChange, onSuccess }: CreateScriptDialo
       //   body: JSON.stringify(formData)
       // })
 
-      toast({
-        title: 'Script Created',
-        description: 'Automation script has been created successfully'
-      })
+      toast.success('Automation script has been created successfully')
 
       onSuccess()
       onOpenChange(false)
@@ -476,11 +469,7 @@ function CreateScriptDialog({ open, onOpenChange, onSuccess }: CreateScriptDialo
       })
     } catch (error) {
       console.error('Failed to create script:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to create automation script',
-        variant: 'destructive'
-      })
+      toast.error('Failed to create automation script')
     } finally {
       setLoading(false)
     }
