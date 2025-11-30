@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from typing import List, Optional
 from uuid import UUID
 import logging
@@ -146,23 +146,48 @@ async def create_test_suite(
 @router.get("/", response_model=List[TestSuiteResponse])
 async def list_test_suites(
     project_id: UUID,
-    test_plan_id: UUID = None,
+    test_plan_id: Optional[UUID] = Query(None, description="Filter by test plan"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(50, ge=1, le=100, description="Page size"),
+    search: Optional[str] = Query(None, description="Search in name or description"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List all test suites for a project, optionally filtered by test plan.
+    List all test suites for a project with pagination, sorted by human_id in ascending order.
     """
     # Verify project access
     await verify_project_access(project_id, current_user, db)
 
-    # Build query
+    # Build query with filters
+    from sqlalchemy import func
     query = select(TestSuite).where(TestSuite.project_id == project_id)
+    
     if test_plan_id:
         query = query.where(TestSuite.test_plan_id == test_plan_id)
-
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                TestSuite.name.ilike(search_term),
+                TestSuite.description.ilike(search_term)
+            )
+        )
+    
+    # Order by numeric_id (ascending) for proper human_id ordering
+    query = query.order_by(TestSuite.numeric_id.asc())
+    
+    # Calculate offset
+    offset = (page - 1) * size
+    
+    # Apply pagination
+    query = query.offset(offset).limit(size)
+    
+    # Execute query
     result = await db.execute(query)
     test_suites = result.scalars().all()
+    
     return test_suites
 
 

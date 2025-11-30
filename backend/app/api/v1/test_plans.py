@@ -130,20 +130,44 @@ async def create_test_plan(
 @router.get("/", response_model=List[TestPlanResponse])
 async def list_test_plans(
     project_id: UUID,
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(50, ge=1, le=100, description="Page size"),
+    search: Optional[str] = Query(None, description="Search in name or description"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List all test plans for a project.
+    List all test plans for a project with pagination, sorted by human_id in ascending order.
     """
     # Verify project access
     await verify_project_access(project_id, current_user, db)
 
-    # Get test plans
-    result = await db.execute(
-        select(TestPlan).where(TestPlan.project_id == project_id)
-    )
+    # Build query with search
+    from sqlalchemy import func
+    query = select(TestPlan).where(TestPlan.project_id == project_id)
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                TestPlan.name.ilike(search_term),
+                TestPlan.description.ilike(search_term)
+            )
+        )
+    
+    # Order by numeric_id (ascending) for proper human_id ordering
+    query = query.order_by(TestPlan.numeric_id.asc())
+    
+    # Calculate offset
+    offset = (page - 1) * size
+    
+    # Apply pagination
+    query = query.offset(offset).limit(size)
+    
+    # Execute query
+    result = await db.execute(query)
     test_plans = result.scalars().all()
+    
     return test_plans
 
 

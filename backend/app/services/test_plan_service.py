@@ -678,8 +678,8 @@ class TestCaseService:
         total_result = await db.execute(count_query)
         total = total_result.scalar_one()
 
-        # Get paginated items
-        query = query.order_by(desc(TestCase.created_at)).offset((page - 1) * size).limit(size)
+        # Get paginated items - order by numeric_id ascending for proper human_id ordering
+        query = query.order_by(TestCase.numeric_id.asc()).offset((page - 1) * size).limit(size)
         result = await db.execute(query)
         items = result.scalars().all()
 
