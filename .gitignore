@@ -15,7 +15,7 @@ ENV/
 .eggs/
 .pytest_cache/
 .coverage/
-
+.frontend/tsconfig.tsbuildinfo
 # Environment variables (SENSITIVE!)
 .env
 .env.local
