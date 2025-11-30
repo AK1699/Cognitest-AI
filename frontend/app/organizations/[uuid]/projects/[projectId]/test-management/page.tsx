@@ -23,6 +23,7 @@ import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModa
 import IntegrationsManager from '@/components/integrations/IntegrationsManager'
 import IssuesManager from '@/components/issues/IssuesManager'
 import DefectDashboard from '@/components/issues/DefectDashboard'
+import { Pagination } from '@/components/ui/pagination'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -76,6 +77,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [searchHint, setSearchHint] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'plans' | 'suites' | 'cases'>('plans')
 
+  // Pagination State
+  const [plansPage, setPlansPage] = useState(1)
+  const [plansPageSize] = useState(10)
+  const [suitesPage, setSuitesPage] = useState(1)
+  const [suitesPageSize] = useState(10)
+  const [casesPage, setCasesPage] = useState(1)
+  const [casesPageSize] = useState(10)
+  const [casesTotal, setCasesTotal] = useState(0)
+
   // Test Suites State
   const [testSuites, setTestSuites] = useState<TestSuite[]>([])
   const [filteredTestSuites, setFilteredTestSuites] = useState<TestSuite[]>([])
@@ -103,77 +113,16 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       fetchTestSuites()
       fetchTestCases()
     }
-  }, [projectId])
+  }, [projectId, plansPage, suitesPage, casesPage, searchQuery])
 
+  // Reset to page 1 when search query changes
   useEffect(() => {
-    // Client-side filtering with human_id patterns
-    const q = searchQuery.trim()
-    if (q) {
-      const isPlanId = /^TP-\d{3}$/i.test(q)
-      const isSuitePrefix = /^TP-\d{3}-TS-/i.test(q)
-      const isCasePrefix = /^TP-\d{3}-TS-\d{3}-TC-/i.test(q)
-
-      if (isPlanId) {
-        const filtered = testPlans.filter((p: any) => (p.human_id || `TP-${String(p.numeric_id || '').padStart(3, '0')}`).toLowerCase() === q.toLowerCase())
-        setFilteredTestPlans(filtered)
-        setSearchHint(`Filtered by plan ID ${q.toUpperCase()}`)
-      } else if (isSuitePrefix) {
-        // Show plans that match plan segment
-        const planSeg = q.split('-')[1]
-        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3, '0') === planSeg)
-        setFilteredTestPlans(filtered)
-        setSearchHint(`Filtered by plan ID TP-${planSeg}`)
-      } else if (isCasePrefix) {
-        const planSeg = q.split('-')[1]
-        const filtered = testPlans.filter((p: any) => String(p.numeric_id || '').padStart(3, '0') === planSeg)
-        setFilteredTestPlans(filtered)
-        setSearchHint(`Filtered by plan ID TP-${planSeg}`)
-      } else {
-        const filtered = testPlans.filter(plan =>
-          plan.name.toLowerCase().includes(q.toLowerCase()) ||
-          plan.description?.toLowerCase().includes(q.toLowerCase()) ||
-          plan.objectives.some(obj => obj.toLowerCase().includes(q.toLowerCase())) ||
-          (plan as any).human_id?.toLowerCase().includes(q.toLowerCase())
-        )
-        setFilteredTestPlans(filtered)
-      }
-    } else {
-      setFilteredTestPlans(testPlans)
-      setSearchHint(null)
+    if (searchQuery) {
+      setPlansPage(1)
+      setSuitesPage(1)
+      setCasesPage(1)
     }
-  }, [searchQuery, testPlans])
-
-  useEffect(() => {
-    // Filter test suites based on search query
-    if (searchQuery.trim()) {
-      const filtered = testSuites.filter(suite =>
-        suite.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        suite.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        suite.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-      setFilteredTestSuites(filtered)
-    } else {
-      setFilteredTestSuites(testSuites)
-    }
-  }, [searchQuery, testSuites])
-
-  useEffect(() => {
-    // Filter test cases based on search query
-    if (searchQuery.trim()) {
-      const filtered = testCases.filter(testCase =>
-        testCase.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        testCase.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        testCase.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        testCase.steps?.some(step =>
-          step.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          step.expected_result.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      )
-      setFilteredTestCases(filtered)
-    } else {
-      setFilteredTestCases(testCases)
-    }
-  }, [searchQuery, testCases])
+  }, [searchQuery])
 
   const fetchProject = async () => {
     try {
@@ -208,11 +157,17 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestPlans = async () => {
     try {
-      const data = await testPlansAPI.list(projectId)
+      const data = await testPlansAPI.list(projectId, {
+        page: plansPage,
+        size: plansPageSize,
+        search: searchQuery || undefined
+      })
       setTestPlans(data || [])
+      setFilteredTestPlans(data || [])
     } catch (error: any) {
       // Set empty array on error to avoid blocking the UI
       setTestPlans([])
+      setFilteredTestPlans([])
 
       // Handle different error types with detailed classification
       const status = error.response?.status
@@ -293,11 +248,17 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestSuites = async () => {
     try {
-      const data = await testSuitesAPI.list(projectId)
+      const data = await testSuitesAPI.list(projectId, {
+        page: suitesPage,
+        size: suitesPageSize,
+        search: searchQuery || undefined
+      })
       setTestSuites(data || [])
+      setFilteredTestSuites(data || [])
     } catch (error: any) {
       // Set empty array on error to avoid blocking the UI
       setTestSuites([])
+      setFilteredTestSuites([])
 
       // Only log and show errors that are not expected (403/404 are normal for new projects)
       const status = error.response?.status
@@ -341,18 +302,29 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const fetchTestCases = async () => {
     try {
-      const response = await testCasesAPI.list(projectId)
+      const response = await testCasesAPI.list(projectId, {
+        page: casesPage,
+        size: casesPageSize,
+        search: searchQuery || undefined
+      })
       // Handle both paginated response (new) and array response (old/fallback)
       let cases: TestCase[] = []
+      let total = 0
       if ('items' in response) {
         cases = response.items
+        total = response.total
       } else if (Array.isArray(response)) {
         cases = response
+        total = response.length
       }
       setTestCases(cases)
+      setFilteredTestCases(cases)
+      setCasesTotal(total)
     } catch (error: any) {
       // Set empty array on error to avoid blocking the UI
       setTestCases([])
+      setFilteredTestCases([])
+      setCasesTotal(0)
 
       // Only log and show errors that are not expected (403/404 are normal for new projects)
       const status = error.response?.status
@@ -645,6 +617,17 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     onDelete={handleDeleteTestPlan}
                     onRefresh={fetchTestPlans}
                   />
+                  
+                  {/* Pagination for Test Plans */}
+                  {filteredTestPlans.length > 0 && (
+                    <Pagination
+                      currentPage={plansPage}
+                      pageSize={plansPageSize}
+                      currentItemsCount={filteredTestPlans.length}
+                      onPageChange={setPlansPage}
+                      itemsName="test plans"
+                    />
+                  )}
                 </>
               )}
             </>
@@ -696,6 +679,17 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     testCases={testCases}
                     onDeleteSuite={handleDeleteTestSuite}
                   />
+                  
+                  {/* Pagination for Test Suites */}
+                  {filteredTestSuites.length > 0 && (
+                    <Pagination
+                      currentPage={suitesPage}
+                      pageSize={suitesPageSize}
+                      currentItemsCount={filteredTestSuites.length}
+                      onPageChange={setSuitesPage}
+                      itemsName="test suites"
+                    />
+                  )}
                 </>
               )}
             </>
@@ -747,6 +741,18 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     onDelete={handleDeleteTestCase}
                     onRefresh={fetchTestCases}
                   />
+                  
+                  {/* Pagination for Test Cases */}
+                  {filteredTestCases.length > 0 && (
+                    <Pagination
+                      currentPage={casesPage}
+                      pageSize={casesPageSize}
+                      totalItems={casesTotal}
+                      currentItemsCount={filteredTestCases.length}
+                      onPageChange={setCasesPage}
+                      itemsName="test cases"
+                    />
+                  )}
                 </>
               )}
             </>

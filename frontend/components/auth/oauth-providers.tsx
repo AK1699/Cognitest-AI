@@ -28,20 +28,14 @@ export function OAuthProviders({
       )}
       <div className="grid grid-cols-3 gap-3">
         <GoogleSignInButton
-          variant={variant}
-          size={size}
           onSuccess={(data) => onSuccess?.('google', data)}
           onError={onError}
         />
         <MicrosoftSignInButton
-          variant={variant}
-          size={size}
           onSuccess={(data) => onSuccess?.('microsoft', data)}
           onError={onError}
         />
         <AppleSignInButton
-          variant={variant}
-          size={size}
           onSuccess={(data) => onSuccess?.('apple', data)}
           onError={onError}
         />
@@ -60,20 +54,14 @@ export function OAuthProvidersFullWidth({
   return (
     <div className="space-y-3">
       <GoogleSignInButton
-        variant={variant}
-        size={size}
         onSuccess={(data) => onSuccess?.('google', data)}
         onError={onError}
       />
       <MicrosoftSignInButton
-        variant={variant}
-        size={size}
         onSuccess={(data) => onSuccess?.('microsoft', data)}
         onError={onError}
       />
       <AppleSignInButton
-        variant={variant}
-        size={size}
         onSuccess={(data) => onSuccess?.('apple', data)}
         onError={onError}
       />

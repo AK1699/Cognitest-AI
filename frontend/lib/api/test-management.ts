@@ -161,9 +161,24 @@ export interface PaginatedResponse<T> {
 
 // API functions
 export const testCasesAPI = {
-  list: async (projectId: string, suiteId?: string): Promise<PaginatedResponse<TestCase> | TestCase[]> => {
+  list: async (
+    projectId: string, 
+    options?: {
+      suiteId?: string
+      page?: number
+      size?: number
+      search?: string
+      status?: string
+      priority?: string
+    }
+  ): Promise<PaginatedResponse<TestCase> | TestCase[]> => {
     const params = new URLSearchParams({ project_id: projectId })
-    if (suiteId) params.append('test_suite_id', suiteId)
+    if (options?.suiteId) params.append('test_suite_id', options.suiteId)
+    if (options?.page) params.append('page', options.page.toString())
+    if (options?.size) params.append('size', options.size.toString())
+    if (options?.search) params.append('search', options.search)
+    if (options?.status) params.append('status', options.status)
+    if (options?.priority) params.append('priority', options.priority)
 
     console.log('[testCasesAPI.list] Fetching from:', `/api/v1/test-cases/?${params}`)
 
@@ -218,9 +233,20 @@ export const testCasesAPI = {
 }
 
 export const testSuitesAPI = {
-  list: async (projectId: string, planId?: string) => {
+  list: async (
+    projectId: string, 
+    options?: {
+      planId?: string
+      page?: number
+      size?: number
+      search?: string
+    }
+  ) => {
     const params = new URLSearchParams({ project_id: projectId })
-    if (planId) params.append('test_plan_id', planId)
+    if (options?.planId) params.append('test_plan_id', options.planId)
+    if (options?.page) params.append('page', options.page.toString())
+    if (options?.size) params.append('size', options.size.toString())
+    if (options?.search) params.append('search', options.search)
 
     const response = await api.get(`/api/v1/test-suites/?${params}`)
     return response.data
@@ -258,8 +284,20 @@ export const testSuitesAPI = {
 }
 
 export const testPlansAPI = {
-  list: async (projectId: string) => {
-    const response = await api.get(`/api/v1/test-plans/?project_id=${projectId}`)
+  list: async (
+    projectId: string, 
+    options?: {
+      page?: number
+      size?: number
+      search?: string
+    }
+  ) => {
+    const params = new URLSearchParams({ project_id: projectId })
+    if (options?.page) params.append('page', options.page.toString())
+    if (options?.size) params.append('size', options.size.toString())
+    if (options?.search) params.append('search', options.search)
+
+    const response = await api.get(`/api/v1/test-plans/?${params}`)
     return response.data
   },
 
