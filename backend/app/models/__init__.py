@@ -45,6 +45,20 @@ from app.models.integration import (
     IntegrationStatus,
     SyncDirection,
 )
+from app.models.web_automation import (
+    TestFlow,
+    ExecutionRun,
+    StepResult,
+    HealingEvent,
+    LocatorAlternative,
+    BrowserType,
+    ExecutionMode,
+    TestFlowStatus,
+    ExecutionRunStatus,
+    StepStatus,
+    HealingType,
+    HealingStrategy
+)
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -89,6 +103,18 @@ __all__ = [
     "IntegrationType",
     "IntegrationStatus",
     "SyncDirection",
+    "TestFlow",
+    "ExecutionRun",
+    "StepResult",
+    "HealingEvent",
+    "LocatorAlternative",
+    "BrowserType",
+    "ExecutionMode",
+    "TestFlowStatus",
+    "ExecutionRunStatus",
+    "StepStatus",
+    "HealingType",
+    "HealingStrategy",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",

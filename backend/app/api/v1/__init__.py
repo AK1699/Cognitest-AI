@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation
 from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
 
 api_router = APIRouter()
@@ -26,3 +26,6 @@ api_router.include_router(group_types.router, prefix="/group-types", tags=["grou
 api_router.include_router(organisation_memory.router, tags=["organisation-memory"])
 api_router.include_router(test_plans_multimodal.router, tags=["test-plans-multimodal"])
 api_router.include_router(search_by_id.router)
+
+# Web Automation Module
+api_router.include_router(web_automation.router, prefix="/web-automation", tags=["web-automation"])

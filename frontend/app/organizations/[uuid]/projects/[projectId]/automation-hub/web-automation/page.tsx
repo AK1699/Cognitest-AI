@@ -2,32 +2,31 @@
 
 import React, { useState, useEffect } from 'react'
 import { UserNav } from '@/components/layout/user-nav'
-import { Globe, Plus, Play, Edit, Trash2, FileCode, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Search, Filter, BarChart3, Settings, Workflow, FolderOpen } from 'lucide-react'
+import { Globe, Plus, Play, Edit, Trash2, FileCode, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Search, Filter, BarChart3, Settings, Workflow, FolderOpen, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import CognitestBot3D from '@/components/ui/CognitestBot3D'
 
-interface AutomationScript {
+interface TestFlow {
   id: string
   name: string
   description: string
-  script_type: string
   status: 'draft' | 'active' | 'inactive' | 'archived'
+  base_url: string
+  default_browser: string
+  default_mode: string
   total_executions: number
   successful_executions: number
   failed_executions: number
+  healed_steps: number
   average_duration: number
+  healing_success_rate: number
   created_at: string
   updated_at: string
-  created_by: string
+  last_executed_at: string
 }
 
 interface WebAutomationPageProps {
@@ -42,14 +41,12 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
   const { toast } = useToast()
   const [orgId, setOrgId] = useState<string>('')
   const [projectId, setProjectId] = useState<string>('')
-  const [projectName, setProjectName] = useState<string>('Project')
-  const [scripts, setScripts] = useState<AutomationScript[]>([])
-  const [filteredScripts, setFilteredScripts] = useState<AutomationScript[]>([])
+  const [testFlows, setTestFlows] = useState<TestFlow[]>([])
+  const [filteredFlows, setFilteredFlows] = useState<TestFlow[]>([])
   const [loading, setLoading] = useState(true)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [activeTab, setActiveTab] = useState<'scripts' | 'executions' | 'settings'>('scripts')
+  const [activeTab, setActiveTab] = useState<'flows' | 'executions' | 'analytics'>('flows')
 
   // Get params
   useEffect(() => {
@@ -59,42 +56,52 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
     })
   }, [params])
 
-  // Fetch scripts
+  // Fetch test flows
   useEffect(() => {
-    fetchScripts()
-  }, [])
+    if (projectId) {
+      fetchTestFlows()
+    }
+  }, [projectId])
 
-  // Filter scripts
+  // Filter flows
   useEffect(() => {
-    let filtered = scripts
+    let filtered = testFlows
 
     if (searchQuery) {
-      filtered = filtered.filter(script =>
-        script.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        script.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(flow =>
+        flow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        flow.description?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(script => script.status === statusFilter)
+      filtered = filtered.filter(flow => flow.status === statusFilter)
     }
 
-    setFilteredScripts(filtered)
-  }, [scripts, searchQuery, statusFilter])
+    setFilteredFlows(filtered)
+  }, [testFlows, searchQuery, statusFilter])
 
-  const fetchScripts = async () => {
+  const fetchTestFlows = async () => {
     try {
       setLoading(true)
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/v1/automation/scripts?script_type=web_automation')
-      // const data = await response.json()
-      // setScripts(data)
-
-      // Mock data for now
-      setScripts([])
+      const token = localStorage.getItem('token')
+      const response = await fetch(
+        `http://localhost:8000/api/v1/web-automation/projects/${projectId}/test-flows`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        setTestFlows(data)
+      } else {
+        console.error('Failed to fetch test flows')
+      }
     } catch (error) {
-      console.error('Failed to fetch scripts:', error)
-      toast.error('Failed to load automation scripts')
+      console.error('Failed to fetch test flows:', error)
     } finally {
       setLoading(false)
     }
@@ -115,9 +122,48 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
     )
   }
 
-  const calculateSuccessRate = (script: AutomationScript) => {
-    if (script.total_executions === 0) return 0
-    return Math.round((script.successful_executions / script.total_executions) * 100)
+  const calculateSuccessRate = (flow: TestFlow) => {
+    if (flow.total_executions === 0) return 0
+    return Math.round((flow.successful_executions / flow.total_executions) * 100)
+  }
+
+  const handleCreateNew = () => {
+    if (orgId && projectId) {
+      router.push(`/organizations/${orgId}/projects/${projectId}/automation-hub/web-automation/new`)
+    }
+  }
+
+  const handleEditFlow = (flowId: string) => {
+    if (orgId && projectId) {
+      router.push(`/organizations/${orgId}/projects/${projectId}/automation-hub/web-automation/${flowId}`)
+    }
+  }
+
+  const handleRunFlow = async (flowId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(
+        `http://localhost:8000/api/v1/web-automation/test-flows/${flowId}/execute`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      )
+      
+      if (response.ok) {
+        toast.success('Test flow execution started!')
+        fetchTestFlows()
+      } else {
+        toast.error('Failed to execute test flow')
+      }
+    } catch (error) {
+      console.error('Failed to execute test flow:', error)
+      toast.error('Failed to execute test flow')
+    }
   }
 
   return (
@@ -161,15 +207,15 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
             <div className="space-y-1">
               <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Web Automation</div>
               <button
-                onClick={() => setActiveTab('scripts')}
+                onClick={() => setActiveTab('flows')}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === 'scripts'
+                  activeTab === 'flows'
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <FileCode className="w-4 h-4" />
-                All Scripts
+                <Workflow className="w-4 h-4" />
+                Test Flows
               </button>
               <button
                 onClick={() => setActiveTab('executions')}
@@ -183,15 +229,15 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
                 Executions
               </button>
               <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => setActiveTab('analytics')}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === 'settings'
+                  activeTab === 'analytics'
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <Settings className="w-4 h-4" />
-                Settings
+                <Zap className="w-4 h-4" />
+                Self-Healing Analytics
               </button>
             </div>
 
@@ -218,30 +264,40 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
           <div className="h-[80px] px-8 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-900">
-                {activeTab === 'scripts' && 'Web Automation Scripts'}
+                {activeTab === 'flows' && 'Web Automation Test Flows'}
                 {activeTab === 'executions' && 'Execution History'}
-                {activeTab === 'settings' && 'Automation Settings'}
+                {activeTab === 'analytics' && 'Self-Healing Analytics'}
               </h1>
               <p className="text-xs text-gray-500">
-                {activeTab === 'scripts' && 'Create and manage web automation scripts'}
-                {activeTab === 'executions' && 'View automation execution history and results'}
-                {activeTab === 'settings' && 'Configure automation settings and preferences'}
+                {activeTab === 'flows' && 'Create and manage visual test flows with AI-powered self-healing'}
+                {activeTab === 'executions' && 'View test execution history and detailed results'}
+                {activeTab === 'analytics' && 'Monitor healing events and test reliability'}
               </p>
             </div>
             <UserNav />
           </div>
         </div>
 
-        {/* Action Buttons - Only for scripts tab */}
-        {activeTab === 'scripts' && scripts.length > 0 && (
+        {/* Action Buttons - Only for flows tab */}
+        {activeTab === 'flows' && (
           <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
-            <div className="flex justify-end">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search test flows..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 w-full max-w-md"
+                />
+              </div>
               <Button
-                onClick={() => setCreateDialogOpen(true)}
+                onClick={handleCreateNew}
                 className="bg-primary hover:bg-primary/90"
+                disabled={!orgId || !projectId}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                New Script
+                New Test Flow
               </Button>
             </div>
           </div>
@@ -276,58 +332,83 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
                 </Select>
               </div>
 
-              {/* Scripts List */}
+              {/* Test Flows List */}
               {loading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
-              ) : filteredScripts.length === 0 ? (
+              ) : filteredFlows.length === 0 ? (
                 <Card className="p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
-                    <FileCode className="w-8 h-8 text-blue-500" />
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center mx-auto mb-6">
+                    <Workflow className="w-10 h-10 text-blue-500" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {scripts.length === 0 ? 'No automation scripts yet' : 'No scripts found'}
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    {testFlows.length === 0 ? 'Welcome to Web Automation! 🚀' : 'No test flows found'}
                   </h3>
-                  <p className="text-gray-500 mb-6">
-                    {scripts.length === 0
-                      ? 'Create your first web automation script to get started'
-                      : 'Try adjusting your search or filters'
-                    }
+                  <p className="text-gray-600 mb-2 max-w-md mx-auto">
+                    {testFlows.length === 0
+                      ? 'Create visual test flows with drag-and-drop actions'
+                      : 'Try adjusting your search or filters'}
                   </p>
-                  {scripts.length === 0 && (
-                    <Button onClick={() => setCreateDialogOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Script
+                  <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
+                    ✨ AI-powered self-healing • 🌐 Multi-browser testing • 📊 Real-time analytics
+                  </p>
+                  {testFlows.length === 0 && (
+                    <Button
+                      onClick={handleCreateNew}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg"
+                      disabled={!orgId || !projectId}
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      Create Your First Test Flow
                     </Button>
                   )}
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
-                  {filteredScripts.map((script) => {
-                    const successRate = calculateSuccessRate(script)
+                  {filteredFlows.map((flow) => {
+                    const successRate = calculateSuccessRate(flow)
 
                     return (
-                      <Card key={script.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+                      <Card key={flow.id} className="p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="text-lg font-semibold text-gray-900">
-                                {script.name}
+                                {flow.name}
                               </h3>
-                              {getStatusBadge(script.status)}
+                              {getStatusBadge(flow.status)}
+                              {flow.healed_steps > 0 && (
+                                <Badge className="bg-yellow-100 text-yellow-800 border-0">
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  {flow.healed_steps} healed
+                                </Badge>
+                              )}
                             </div>
-                            <p className="text-sm text-gray-500">
-                              {script.description || 'No description provided'}
+                            <p className="text-sm text-gray-500 mb-2">
+                              {flow.description || 'No description provided'}
                             </p>
+                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                              <span>🌐 {flow.default_browser}</span>
+                              <span>Base URL: {flow.base_url}</span>
+                            </div>
                           </div>
 
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleRunFlow(flow.id)}
+                            >
                               <Play className="w-4 h-4 mr-2" />
                               Run
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditFlow(flow.id)}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="sm">
@@ -337,21 +418,21 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
                         </div>
 
                         {/* Stats */}
-                        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+                        <div className="grid grid-cols-5 gap-4 pt-4 border-t border-gray-100">
                           <div>
                             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                               <Clock className="w-4 h-4" />
-                              Executions
+                              Runs
                             </div>
                             <div className="text-lg font-semibold text-gray-900">
-                              {script.total_executions}
+                              {flow.total_executions}
                             </div>
                           </div>
 
                           <div>
                             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                               <CheckCircle2 className="w-4 h-4" />
-                              Success Rate
+                              Success
                             </div>
                             <div className="text-lg font-semibold text-green-600">
                               {successRate}%
@@ -364,17 +445,27 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
                               Failed
                             </div>
                             <div className="text-lg font-semibold text-red-600">
-                              {script.failed_executions}
+                              {flow.failed_executions}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                              <Zap className="w-4 h-4" />
+                              Healed
+                            </div>
+                            <div className="text-lg font-semibold text-yellow-600">
+                              {flow.healed_steps}
                             </div>
                           </div>
 
                           <div>
                             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                               <Clock className="w-4 h-4" />
-                              Avg Duration
+                              Duration
                             </div>
                             <div className="text-lg font-semibold text-gray-900">
-                              {script.average_duration}s
+                              {(flow.average_duration / 1000).toFixed(1)}s
                             </div>
                           </div>
                         </div>
@@ -401,153 +492,25 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
             </Card>
           )}
 
-          {/* Settings Tab Content */}
-          {activeTab === 'settings' && (
+          {/* Analytics Tab Content */}
+          {activeTab === 'analytics' && (
             <Card className="p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
-                <Settings className="w-8 h-8 text-gray-500" />
+              <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-yellow-500" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Automation Settings
+                Self-Healing Analytics
               </h3>
-              <p className="text-gray-500">
-                Configure automation preferences and default settings
+              <p className="text-gray-500 mb-4">
+                Monitor AI-powered self-healing events and test reliability metrics
+              </p>
+              <p className="text-sm text-gray-400">
+                Coming soon: Healing success rates, confidence scores, and optimization insights
               </p>
             </Card>
           )}
         </div>
       </main>
-
-      {/* Create Script Dialog */}
-      <CreateScriptDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onSuccess={fetchScripts}
-      />
     </div>
-  )
-}
-
-interface CreateScriptDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess: () => void
-}
-
-function CreateScriptDialog({ open, onOpenChange, onSuccess }: CreateScriptDialogProps) {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    script_type: 'web_automation',
-    script_content: '',
-    execution_timeout: 300,
-  })
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/v1/automation/scripts', {
-      //   method: 'POST',
-      //   body: JSON.stringify(formData)
-      // })
-
-      toast.success('Automation script has been created successfully')
-
-      onSuccess()
-      onOpenChange(false)
-      setFormData({
-        name: '',
-        description: '',
-        script_type: 'web_automation',
-        script_content: '',
-        execution_timeout: 300,
-      })
-    } catch (error) {
-      console.error('Failed to create script:', error)
-      toast.error('Failed to create automation script')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Create Web Automation Script</DialogTitle>
-          <DialogDescription>
-            Create a new web automation script for automated testing
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Script Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Login Flow Test"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe what this script does..."
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="script_content">Script Content</Label>
-            <Textarea
-              id="script_content"
-              value={formData.script_content}
-              onChange={(e) => setFormData({ ...formData, script_content: e.target.value })}
-              placeholder="// Playwright script code"
-              rows={10}
-              className="font-mono text-sm"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="timeout">Execution Timeout (seconds)</Label>
-            <Input
-              id="timeout"
-              type="number"
-              value={formData.execution_timeout}
-              onChange={(e) => setFormData({ ...formData, execution_timeout: parseInt(e.target.value) })}
-              min={1}
-              max={3600}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create Script
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
