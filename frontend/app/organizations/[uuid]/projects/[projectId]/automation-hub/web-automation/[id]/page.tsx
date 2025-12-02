@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import TestFlowBuilder from '@/components/automation/TestFlowBuilder'
+import WebAutomationWorkspace from '@/components/automation/WebAutomationWorkspace'
 
 export default function EditWebAutomationPage() {
   const params = useParams()
@@ -10,7 +10,7 @@ export default function EditWebAutomationPage() {
 
   return (
     <div className="h-screen bg-gray-50">
-      <TestFlowBuilder projectId={projectId} flowId={flowId} />
+      <WebAutomationWorkspace projectId={projectId} flowId={flowId} />
     </div>
   )
 }

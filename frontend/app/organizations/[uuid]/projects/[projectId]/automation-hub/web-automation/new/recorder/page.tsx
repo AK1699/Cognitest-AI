@@ -1,9 +1,9 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import UnifiedTestBuilder from '@/components/automation/UnifiedTestBuilder'
+import WebAutomationRecorder from '@/components/automation/WebAutomationRecorder'
 
-export default function NewWebAutomationPage() {
+export default function RecorderPage() {
   const params = useParams()
   const projectId = params.projectId as string
 
@@ -37,5 +37,9 @@ export default function NewWebAutomationPage() {
     }
   }
 
-  return <UnifiedTestBuilder projectId={projectId} onSave={handleSave} />
+  return (
+    <div className="h-screen">
+      <WebAutomationRecorder projectId={projectId} onSave={handleSave} />
+    </div>
+  )
 }

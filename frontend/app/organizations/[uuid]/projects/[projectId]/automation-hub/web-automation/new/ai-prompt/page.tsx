@@ -1,9 +1,9 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import UnifiedTestBuilder from '@/components/automation/UnifiedTestBuilder'
+import AIPromptBuilder from '@/components/automation/AIPromptBuilder'
 
-export default function NewWebAutomationPage() {
+export default function AIPromptPage() {
   const params = useParams()
   const projectId = params.projectId as string
 
@@ -23,7 +23,10 @@ export default function NewWebAutomationPage() {
             base_url: testData.baseUrl,
             nodes: testData.steps,
             edges: [],
-            flow_json: testData,
+            flow_json: {
+              prompt: testData.prompt,
+              generated_steps: testData.steps,
+            },
           }),
         }
       )
@@ -37,5 +40,9 @@ export default function NewWebAutomationPage() {
     }
   }
 
-  return <UnifiedTestBuilder projectId={projectId} onSave={handleSave} />
+  return (
+    <div className="h-screen">
+      <AIPromptBuilder projectId={projectId} onSave={handleSave} />
+    </div>
+  )
 }
