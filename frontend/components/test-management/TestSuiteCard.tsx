@@ -1,6 +1,6 @@
 'use client'
 
-import { TestSuite } from '@/lib/api/test-plans'
+import { TestSuite } from '@/lib/api/test-management'
 import { Calendar, MoreVertical, User, Tag, FileText, Link as LinkIcon, Copy } from 'lucide-react'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useState, useRef, useEffect } from 'react'

@@ -13,7 +13,7 @@ export default function CreateTestPlanModal({ onClose, onCreate }: CreateTestPla
     name: '',
     description: '',
     objectives: [''],
-    tags: [],
+    tags: [] as string[],
   })
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)

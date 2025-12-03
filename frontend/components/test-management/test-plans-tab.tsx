@@ -57,11 +57,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
       // Only show error if it's not a 403 or 404 (expected for new projects)
       const status = error.response?.status
       if (status && ![403, 404].includes(status)) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load test plans',
-          variant: 'destructive',
-        })
+        toast.error('Failed to load test plans')
       }
       // For 403/404, silently handle - these are expected for new projects
     } finally {
@@ -83,22 +79,32 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
         generated_by: 'manual',
         source_documents: [],
         meta_data: {},
-      })
+        modules: [],
+        test_plan_type: 'other',
+        scope_in: [],
+        scope_out: [],
+        test_levels: [],
+        test_types: [],
+        test_environments: [],
+        environment_urls: {},
+        tools_used: [],
+        qa_lead_ids: [],
+        qa_engineer_ids: [],
+        stakeholder_ids: [],
+        milestones: [],
+        reporting_frequency: 'on_demand',
+        dashboard_links: [],
+        review_status: 'draft',
+        reviewed_by_ids: [],
+      } as any)
 
       setTestPlans([newPlan, ...testPlans])
       setShowCreateDialog(false)
       resetForm()
 
-      toast({
-        title: 'Success',
-        description: 'Test plan created successfully',
-      })
+      toast.success('Test plan created successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create test plan',
-        variant: 'destructive',
-      })
+      toast.error('Failed to create test plan')
     }
   }
 
@@ -115,16 +121,9 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
       setTestPlans(testPlans.filter(p => p.id !== id))
       if (selectedPlan?.id === id) setSelectedPlan(null)
 
-      toast({
-        title: 'Success',
-        description: 'Test plan deleted successfully',
-      })
+      toast.success('Test plan deleted successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete test plan',
-        variant: 'destructive',
-      })
+      toast.error('Failed to delete test plan')
     }
   }
 

@@ -38,12 +38,13 @@ export function TestCaseDetailsModal({
   const projectId = projectIndex >= 0 ? pathParts[projectIndex + 1] : ''
 
   useEffect(() => {
-    if (testCase?.automation_enabled && testCase?.automation_script_id) {
+    const testCaseAny = testCase as any
+    if (testCaseAny?.automation_enabled && testCaseAny?.automation_script_id) {
       fetchAutomationScript()
     } else {
       setAutomationScript(null)
     }
-  }, [testCase?.id, testCase?.automation_script_id])
+  }, [testCase?.id])
 
   const fetchAutomationScript = async () => {
     if (!testCase?.id) return
@@ -76,17 +77,10 @@ export function TestCaseDetailsModal({
       // })
       // const data = await response.json()
 
-      toast({
-        title: 'Test Execution Started',
-        description: 'The automated test is now running. You will be notified when it completes.'
-      })
+      toast.success('Test execution started. You will be notified when it completes.')
     } catch (error) {
       console.error('Failed to execute test:', error)
-      toast({
-        title: 'Execution Failed',
-        description: 'Failed to start automated test execution',
-        variant: 'destructive'
-      })
+      toast.error('Failed to start automated test execution')
     } finally {
       setExecutingTest(false)
     }
@@ -282,7 +276,7 @@ export function TestCaseDetailsModal({
             </div>
 
             {/* Automation Section */}
-            {testCase.automation_enabled && (
+            {(testCase as any).automation_enabled && (
               <div className="bg-blue-500/10 p-5 rounded-lg border border-blue-500/30 mt-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -292,14 +286,14 @@ export function TestCaseDetailsModal({
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                       Automation
-                      {testCase.automation_enabled && (
+                      {(testCase as any).automation_enabled && (
                         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
                           Enabled
                         </Badge>
                       )}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      {testCase.automation_enabled
+                      {(testCase as any).automation_enabled
                         ? 'This test case is linked to an automation script'
                         : 'Link this test case to an automation script for automated execution'
                       }
@@ -308,7 +302,7 @@ export function TestCaseDetailsModal({
                 </div>
               </div>
 
-              {testCase.automation_enabled && automationScript ? (
+              {(testCase as any).automation_enabled && automationScript ? (
                 <div className="space-y-3">
                   {/* Linked Script Info */}
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
@@ -393,7 +387,7 @@ export function TestCaseDetailsModal({
                     View Execution History
                   </Button>
                 </div>
-              ) : testCase.automation_enabled ? (
+              ) : (testCase as any).automation_enabled ? (
                 <div className="text-center py-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                     Loading automation script...

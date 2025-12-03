@@ -151,7 +151,7 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
         params: { organisation_id: organisationId }
       })
       const rolesList = rolesResponse.data.roles || []
-      console.log('🎯 Roles from API:', rolesList.map(r => ({
+      console.log('🎯 Roles from API:', rolesList.map((r: Role) => ({
         id: r.id,
         name: r.name,
         role_type: r.role_type,
@@ -221,9 +221,9 @@ export function PermissionMatrix({ organisationId, isAdmin = false }: Permission
       // Log detailed mapping for debugging
       console.log('📝 Detailed permission mapping:')
       Object.entries(permMap).forEach(([roleId, permIds]) => {
-        const role = rolesList.find(r => r.id === roleId)
-        console.log(`  ${role?.name}: [${permIds.map(id => {
-          const perm = permsList.find(p => p.id === id)
+        const role = rolesList.find((r: Role) => r.id === roleId)
+        console.log(`  ${role?.name}: [${permIds.map((id: string) => {
+          const perm = permsList.find((p: Permission) => p.id === id)
           return perm?.name || id
         }).join(', ')}]`)
       })

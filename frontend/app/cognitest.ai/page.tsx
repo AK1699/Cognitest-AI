@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { ArrowRight, Zap, Brain, FlaskConical, ShieldAlert, Code, Workflow, Bot } from 'lucide-react'
 
@@ -9,7 +11,7 @@ export default function LandingPage() {
         <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/cognitest.ai" className="flex items-center space-x-3">
+            <Link href="/cognitest.ai" className="flex items-center space-x-3" suppressHydrationWarning>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md bg-primary">
                 <FlaskConical className="w-6 h-6 text-white" />
               </div>

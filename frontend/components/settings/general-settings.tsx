@@ -42,7 +42,7 @@ export function GeneralSettings({ organisation, onUpdate, isSaving }: GeneralSet
     try {
       await onUpdate({
         name: formData.name,
-        website: formData.website || null,
+        website: formData.website || undefined,
       })
     } catch (error) {
       console.error('Failed to update organisation:', error)

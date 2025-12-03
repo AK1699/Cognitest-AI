@@ -21,7 +21,7 @@ export default function WebAutomationPage({ params }: WebAutomationPageProps) {
   }, [params])
 
   return (
-    <div className="h-screen bg-white">
+    <div className="h-screen bg-white w-full">
       <WebAutomationWorkspace projectId={projectId} />
     </div>
   )

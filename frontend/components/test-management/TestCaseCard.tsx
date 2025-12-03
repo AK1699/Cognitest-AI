@@ -106,7 +106,9 @@ export default function TestCaseCard({
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
-                    navigator.clipboard?.writeText(testCase.human_id)
+                    if (testCase.human_id) {
+                      navigator.clipboard?.writeText(testCase.human_id)
+                    }
                   }}
                   title="Copy ID"
                 >

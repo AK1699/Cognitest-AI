@@ -41,7 +41,7 @@ export function TestSuiteDetailsModal({
       setLoading(true)
       setError(null)
       console.log('[TestSuiteDetailsModal] Loading test cases for suite:', testSuite.id, 'project:', testSuite.project_id)
-      const response = await testCasesAPI.list(testSuite.project_id, testSuite.id)
+      const response = await testCasesAPI.list(testSuite.project_id, { suiteId: testSuite.id })
       let cases: TestCase[] = []
       if ('items' in response) {
         cases = response.items

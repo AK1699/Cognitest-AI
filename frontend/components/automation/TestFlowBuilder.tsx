@@ -292,7 +292,7 @@ export default function TestFlowBuilder({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen w-full">
       {/* Action Library Sidebar */}
       <div className="w-64 border-r bg-gray-50 p-4 overflow-y-auto">
         <h3 className="font-bold text-lg mb-4">Test Actions</h3>
@@ -356,8 +356,8 @@ export default function TestFlowBuilder({
         </div>
       </div>
 
-      {/* Flow Canvas */}
-      <div className="flex-1 relative">
+      {/* Flow Canvas - Extended */}
+      <div className="flex-1 relative min-w-0">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -405,108 +405,221 @@ export default function TestFlowBuilder({
         )}
       </div>
 
-      {/* Node Properties Panel */}
-      {selectedNode && (
-        <div className="w-80 border-l bg-gray-50 p-4 overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg">Step Properties</h3>
-            <Button
-              onClick={() => deleteNode(selectedNode.id)}
-              variant="destructive"
-              size="sm"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label>Action Type</Label>
-              <p className="text-sm text-gray-600">
-                {selectedNode.data.actionType}
-              </p>
+      {/* Right Panel - Always Visible & Extended */}
+      <div className="w-96 border-l bg-gray-50 p-4 overflow-y-auto">
+        {selectedNode ? (
+          <>
+            {/* Node Properties Panel */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Step Properties</h3>
+              <Button
+                onClick={() => deleteNode(selectedNode.id)}
+                variant="destructive"
+                size="sm"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* Selector Configuration */}
-            {['click', 'type', 'select', 'assert'].includes(
-              selectedNode.data.actionType
-            ) && (
+            <div className="space-y-4">
               <div>
-                <Label>Selector</Label>
+                <Label>Action Type</Label>
+                <p className="text-sm text-gray-600">
+                  {selectedNode.data.actionType}
+                </p>
+              </div>
+
+              {/* Selector Configuration */}
+              {['click', 'type', 'select', 'assert'].includes(
+                selectedNode.data.actionType
+              ) && (
+                <div>
+                  <Label>Selector</Label>
+                  <Input
+                    value={selectedNode.data.selector?.primary || ''}
+                    onChange={(e) =>
+                      updateNodeData(selectedNode.id, {
+                        selector: {
+                          ...selectedNode.data.selector,
+                          primary: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="CSS selector or XPath"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    e.g., #submit-button or button[data-testid="login"]
+                  </p>
+                </div>
+              )}
+
+              {/* Value Input */}
+              {['type', 'navigate'].includes(selectedNode.data.actionType) && (
+                <div>
+                  <Label>Value</Label>
+                  <Input
+                    value={selectedNode.data.value || ''}
+                    onChange={(e) =>
+                      updateNodeData(selectedNode.id, {
+                        value: e.target.value,
+                      })
+                    }
+                    placeholder={
+                      selectedNode.data.actionType === 'navigate'
+                        ? 'URL'
+                        : 'Text to type'
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Timeout */}
+              <div>
+                <Label>Timeout (ms)</Label>
                 <Input
-                  value={selectedNode.data.selector?.primary || ''}
+                  type="number"
+                  value={selectedNode.data.options?.timeout || 5000}
                   onChange={(e) =>
                     updateNodeData(selectedNode.id, {
-                      selector: {
-                        ...selectedNode.data.selector,
-                        primary: e.target.value,
+                      options: {
+                        ...selectedNode.data.options,
+                        timeout: parseInt(e.target.value),
                       },
                     })
                   }
-                  placeholder="CSS selector or XPath"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  e.g., #submit-button or button[data-testid="login"]
-                </p>
               </div>
-            )}
 
-            {/* Value Input */}
-            {['type', 'navigate'].includes(selectedNode.data.actionType) && (
+              {/* Retry Count */}
               <div>
-                <Label>Value</Label>
+                <Label>Retry Count</Label>
                 <Input
-                  value={selectedNode.data.value || ''}
+                  type="number"
+                  value={selectedNode.data.options?.retryCount || 3}
                   onChange={(e) =>
                     updateNodeData(selectedNode.id, {
-                      value: e.target.value,
+                      options: {
+                        ...selectedNode.data.options,
+                        retryCount: parseInt(e.target.value),
+                      },
                     })
-                  }
-                  placeholder={
-                    selectedNode.data.actionType === 'navigate'
-                      ? 'URL'
-                      : 'Text to type'
                   }
                 />
               </div>
-            )}
-
-            {/* Timeout */}
-            <div>
-              <Label>Timeout (ms)</Label>
-              <Input
-                type="number"
-                value={selectedNode.data.options?.timeout || 5000}
-                onChange={(e) =>
-                  updateNodeData(selectedNode.id, {
-                    options: {
-                      ...selectedNode.data.options,
-                      timeout: parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Flow Overview - When no node is selected */}
+            <div className="mb-6">
+              <h3 className="font-bold text-lg mb-4">Flow Overview</h3>
+              <Card className="p-4">
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-gray-500">Total Steps</Label>
+                    <p className="text-2xl font-bold">{nodes.length}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Connections</Label>
+                    <p className="text-2xl font-bold">{edges.length}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Flow Status</Label>
+                    <p className="text-sm font-medium">
+                      {nodes.length > 0 ? 'Ready to Execute' : 'Add steps to begin'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
 
-            {/* Retry Count */}
-            <div>
-              <Label>Retry Count</Label>
-              <Input
-                type="number"
-                value={selectedNode.data.options?.retryCount || 3}
-                onChange={(e) =>
-                  updateNodeData(selectedNode.id, {
-                    options: {
-                      ...selectedNode.data.options,
-                      retryCount: parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
+            {/* Quick Actions */}
+            <div className="mb-6">
+              <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
+              <div className="space-y-2">
+                <Button 
+                  onClick={saveTestFlow} 
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Flow
+                </Button>
+                <Button 
+                  onClick={executeTestFlow} 
+                  disabled={isExecuting || !flowId}
+                  variant="outline" 
+                  className="w-full justify-start"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Execute Flow
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const data = JSON.stringify({ nodes, edges }, null, 2)
+                    const blob = new Blob([data], { type: 'application/json' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${flowName}.json`
+                    a.click()
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Flow
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+
+            {/* Recent Activity */}
+            <div className="mb-6">
+              <h3 className="font-bold text-lg mb-4">Recent Activity</h3>
+              <Card className="p-4">
+                {executionStatus ? (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
+                      <div>
+                        <p className="text-sm font-medium">Latest Execution</p>
+                        <p className="text-xs text-gray-500">{executionStatus}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No recent activity</p>
+                )}
+              </Card>
+            </div>
+
+            {/* Flow Details */}
+            <div>
+              <h3 className="font-bold text-lg mb-4">Flow Details</h3>
+              <Card className="p-4">
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <Label className="text-xs text-gray-500">Name</Label>
+                    <p className="font-medium">{flowName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Base URL</Label>
+                    <p className="font-medium truncate">{baseUrl}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Browser</Label>
+                    <p className="font-medium capitalize">{defaultBrowser}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Mode</Label>
+                    <p className="font-medium capitalize">{defaultMode}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

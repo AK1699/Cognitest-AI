@@ -1005,7 +1005,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 <button
                   type="button"
                   onClick={handleReject}
-                  disabled={step === 'accepting'}
+                  disabled={false}
                   className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Edit className="w-4 h-4" />
@@ -1014,10 +1014,10 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 <button
                   type="button"
                   onClick={handleAccept}
-                  disabled={step === 'accepting'}
+                  disabled={false}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {step === 'accepting' ? (
+                  {false ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Creating Test Plan...

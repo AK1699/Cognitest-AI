@@ -1,6 +1,6 @@
 'use client'
 
-import { TestSuite } from '@/lib/api/test-plans'
+import { TestSuite } from '@/lib/api/test-management'
 import TestSuiteCard from './TestSuiteCard'
 import { Grid3X3, List } from 'lucide-react'
 import { useState } from 'react'

@@ -59,11 +59,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
       // Only show error if it's not a 403 or 404 (expected for new projects)
       const status = error.response?.status
       if (status && ![403, 404].includes(status)) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load test suites',
-          variant: 'destructive',
-        })
+        toast.error('Failed to load test suites')
       }
       // For 403/404, silently handle - these are expected for new projects
     } finally {
@@ -75,31 +71,29 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
     try {
       const currentUser = localStorage.getItem('user_email') || 'user@cognitest.ai'
 
-      const newSuite = await testSuitesAPI.create({
+      const payload: any = {
         project_id: projectId,
-        test_plan_id: formData.test_plan_id || undefined,
         name: formData.name,
         description: formData.description,
         tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
         created_by: currentUser,
         generated_by: 'manual',
         meta_data: {},
-      })
+      }
+      
+      if (formData.test_plan_id) {
+        payload.test_plan_id = formData.test_plan_id
+      }
+
+      const newSuite = await testSuitesAPI.create(payload)
 
       setTestSuites([newSuite, ...testSuites])
       setShowCreateDialog(false)
       resetForm()
 
-      toast({
-        title: 'Success',
-        description: 'Test suite created successfully',
-      })
+      toast.success('Test suite created successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create test suite',
-        variant: 'destructive',
-      })
+      toast.error('Failed to create test suite')
     }
   }
 
@@ -116,16 +110,9 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
       setTestSuites(testSuites.filter(s => s.id !== id))
       if (selectedSuite?.id === id) setSelectedSuite(null)
 
-      toast({
-        title: 'Success',
-        description: 'Test suite deleted successfully',
-      })
+      toast.success('Test suite deleted successfully')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete test suite',
-        variant: 'destructive',
-      })
+      toast.error('Failed to delete test suite')
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, Plus, Trash2, Loader2, Link as LinkIcon } from 'lucide-react'
-import { TestSuite } from '@/lib/api/test-plans'
+import { TestSuite } from '@/lib/api/test-management'
 
 interface CreateTestCaseModalProps {
   onClose: () => void
@@ -25,7 +25,7 @@ export default function CreateTestCaseModal({ onClose, onCreate, testSuites = []
     expected_result: '',
     priority: 'medium',
     status: 'draft',
-    tags: [],
+    tags: [] as string[],
   })
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)

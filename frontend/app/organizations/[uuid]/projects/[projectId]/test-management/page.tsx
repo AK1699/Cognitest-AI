@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3 } from 'lucide-react'
+import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -399,21 +399,15 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
         {/* Project Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center flex-shrink-0">
-              <FolderOpen className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold truncate text-gray-900">{project.name}</h3>
+              <h3 className="text-base font-semibold truncate text-gray-900">Test Management</h3>
+              <p className="text-xs text-gray-500">{project.name}</p>
             </div>
           </div>
-          <button
-            onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            Back to project
-          </button>
         </div>
 
         {/* Navigation */}
@@ -490,74 +484,94 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {/* Top Bar with Title and Profile */}
+        {/* Top Bar with Profile */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-between">
+          <div className="px-8 py-4 flex items-center justify-end">
+            {/* Profile and Notifications */}
+            <div className="flex items-center gap-3">
+              <UserNav />
+            </div>
+          </div>
+        </div>
+
+        {/* Breadcrumbs Bar */}
+        <div className="px-8 py-3 bg-white border-b border-gray-200">
+          <div className="flex items-center gap-2 text-sm">
+            <button
+              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
+              className="text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <button
+              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {project.name}
+            </button>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-900 font-semibold">Test Management</span>
+          </div>
+        </div>
+
+        {/* Action Buttons Bar */}
+        <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900">
                 {activeTab === 'plans' && 'Test Plans'}
                 {activeTab === 'suites' && 'Test Suites'}
                 {activeTab === 'cases' && 'Test Cases'}
-              </h1>
-              <p className="text-xs text-gray-500">
+              </h2>
+              <p className="text-sm text-gray-600">
                 {activeTab === 'plans' && 'Manage and create test plans'}
                 {activeTab === 'suites' && 'Organize test cases into suites'}
                 {activeTab === 'cases' && 'Define and manage test cases'}
               </p>
             </div>
-            <UserNav />
-          </div>
-        </div>
-
-        {/* Action Buttons Section - Only show when there's data */}
-        {((activeTab === 'plans' && testPlans.length > 0) ||
-          (activeTab === 'suites' && testSuites.length > 0) ||
-          (activeTab === 'cases' && testCases.length > 0)) && (
-            <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
-              {activeTab === 'plans' && testPlans.length > 0 && (
-                <div className="flex gap-3 justify-end">
+            <div className="flex items-center gap-3">
+              {activeTab === 'plans' && (
+                <>
                   <button
                     onClick={() => setShowManualForm(true)}
-                    className="px-4 py-2 bg-white hover:bg-gray-50 text-primary border border-primary rounded-lg font-medium transition-all flex items-center gap-2"
+                    className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     Create Manually
                   </button>
                   <button
                     onClick={() => setShowAIGenerator(true)}
-                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
                   >
                     <Sparkles className="w-4 h-4" />
                     Generate with AI
                   </button>
-                </div>
+                </>
               )}
 
-              {activeTab === 'suites' && testSuites.length > 0 && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setShowSuiteForm(true)}
-                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Test Suite
-                  </button>
-                </div>
+              {activeTab === 'suites' && (
+                <button
+                  onClick={() => setShowSuiteForm(true)}
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Test Suite
+                </button>
               )}
 
-              {activeTab === 'cases' && testCases.length > 0 && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setShowCaseForm(true)}
-                    className="px-4 py-2 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Test Case
-                  </button>
-                </div>
+              {activeTab === 'cases' && (
+                <button
+                  onClick={() => setShowCaseForm(true)}
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Test Case
+                </button>
               )}
             </div>
-          )}
+          </div>
+        </div>
 
         {/* Content Area */}
         <div className="px-8 py-6">

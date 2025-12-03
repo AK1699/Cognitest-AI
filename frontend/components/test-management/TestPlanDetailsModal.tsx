@@ -136,7 +136,7 @@ export function TestPlanDetailsModal({
       let unit: string | undefined = undefined
 
       // Direct fields
-      if (typeof m.value !== 'undefined') value = m.value
+      if (typeof m.value !== 'undefined' && typeof m.value !== 'object') value = m.value
       else if (typeof m.score !== 'undefined') value = m.score
       else if (typeof m.percent !== 'undefined') { value = m.percent; unit = '%' }
       else if (typeof m.percentage !== 'undefined') { value = m.percentage; unit = '%' }
@@ -147,24 +147,36 @@ export function TestPlanDetailsModal({
       }
 
       // Nested shapes like { value: { percent: 92 } } or { result: { percentage: 75 } }
+      // OR { value: { executed: 10, total: 20 } }
       const candidates = [m.value, m.result, m.data, m.stats]
       for (const c of candidates) {
         const n = nested(c)
         if (!n) continue
+
         if (typeof n.percent !== 'undefined') { value = n.percent; unit = '%' }
         else if (typeof n.percentage !== 'undefined') { value = n.percentage; unit = '%' }
         else if (typeof n.rate !== 'undefined') {
           value = n.rate
           if (typeof value === 'number' && value <= 1) { value = Math.round(value * 100); unit = '%' }
+        } else {
+          // Try to extract from executed/total in the nested object
+          const num = Number(n.numerator ?? n.executed ?? n.passed ?? n.automated ?? n.current)
+          const den = Number(n.denominator ?? n.total ?? n.planned ?? n.cases ?? n.scope)
+          if (Number.isFinite(num) && Number.isFinite(den) && den > 0) {
+            value = Math.round((num / den) * 100)
+            unit = '%'
+          }
         }
       }
 
-      // Compute percent from numerator/denominator if present
-      const num = Number(m.numerator ?? m.executed ?? m.passed ?? m.automated ?? m.current)
-      const den = Number(m.denominator ?? m.total ?? m.planned ?? m.cases ?? m.scope)
-      if (!Number.isFinite(value) && Number.isFinite(num) && Number.isFinite(den) && den > 0) {
-        value = Math.round((num / den) * 100)
-        unit = '%'
+      // Compute percent from numerator/denominator if present on the main object
+      if (typeof value === 'undefined') {
+        const num = Number(m.numerator ?? m.executed ?? m.passed ?? m.automated ?? m.current)
+        const den = Number(m.denominator ?? m.total ?? m.planned ?? m.cases ?? m.scope)
+        if (Number.isFinite(num) && Number.isFinite(den) && den > 0) {
+          value = Math.round((num / den) * 100)
+          unit = '%'
+        }
       }
 
       // string values with %
@@ -178,6 +190,9 @@ export function TestPlanDetailsModal({
 
       // Unit inference from string value field
       if (!unit && typeof m.value === 'string' && /%$/.test(m.value)) unit = '%'
+
+      // Final safety check: if value is still an object, discard it
+      if (typeof value === 'object') value = undefined
 
       return { key: rawKey || rawTitle || 'metric', title: rawTitle || rawKey || 'Metric', value, unit, note: m.note }
     }
@@ -1046,8 +1061,8 @@ export function TestPlanDetailsModal({
                     risk.risk_level === 'high' || risk.risk_level === 'High'
                       ? 'destructive'
                       : risk.risk_level === 'medium' || risk.risk_level === 'Medium'
-                      ? 'default'
-                      : 'secondary'
+                        ? 'default'
+                        : 'secondary'
                   }
                   className="text-xs ml-2"
                 >
@@ -1135,16 +1150,17 @@ export function TestPlanDetailsModal({
           const enhanced = metrics.map((m: any) => {
             const raw = toText(m)
             const k = toKey(raw)
+            const normalized = normalizeMetric(m)
             // Try to match fuzzy keys
-            if (k.includes('execution') && k.includes('rate')) return { key: 'execution_rate', ...known['execution_rate'], ...normalizeMetric(m) }
-            if (k.includes('pass') && k.includes('rate')) return { key: 'pass_rate', ...known['pass_rate'], ...normalizeMetric(m) }
-            if (k.includes('coverage') && (k.includes('test') || k.includes('automated') || k.includes('requirement') || k.includes('feature'))) return { key: 'coverage', ...known['coverage'], ...normalizeMetric(m) }
-            if (k.includes('defect') && k.includes('density')) return { key: 'defect_density', ...known['defect_density'], ...normalizeMetric(m) }
-            if (k.includes('defect') && (k.includes('severity') || k.includes('priority') || k.includes('distribution'))) return { key: 'defect_distribution', ...known['defect_distribution'], ...normalizeMetric(m) }
-            if (k.includes('defect') && (k.includes('resolution') || k.includes('time'))) return { key: 'defect_resolution_time', ...known['defect_resolution_time'], ...normalizeMetric(m) }
-            if (k.includes('automation') && k.includes('coverage')) return { key: 'automation_coverage', ...known['automation_coverage'], ...normalizeMetric(m) }
-            if (k.includes('rtm') || (k.includes('requirements') && k.includes('traceability'))) return { key: 'rtm', ...known['rtm'], ...normalizeMetric(m) }
-            return { key: k, title: raw, ...normalizeMetric(m) }
+            if (k.includes('execution') && k.includes('rate')) return { ...known['execution_rate'], ...normalized, key: 'execution_rate' }
+            if (k.includes('pass') && k.includes('rate')) return { ...known['pass_rate'], ...normalized, key: 'pass_rate' }
+            if (k.includes('coverage') && (k.includes('test') || k.includes('automated') || k.includes('requirement') || k.includes('feature'))) return { ...known['coverage'], ...normalized, key: 'coverage' }
+            if (k.includes('defect') && k.includes('density')) return { ...known['defect_density'], ...normalized, key: 'defect_density' }
+            if (k.includes('defect') && (k.includes('severity') || k.includes('priority') || k.includes('distribution'))) return { ...known['defect_distribution'], ...normalized, key: 'defect_distribution' }
+            if (k.includes('defect') && (k.includes('resolution') || k.includes('time'))) return { ...known['defect_resolution_time'], ...normalized, key: 'defect_resolution_time' }
+            if (k.includes('automation') && k.includes('coverage')) return { ...known['automation_coverage'], ...normalized, key: 'automation_coverage' }
+            if (k.includes('rtm') || (k.includes('requirements') && k.includes('traceability'))) return { ...known['rtm'], ...normalized, key: 'rtm' }
+            return { ...normalized, key: k, title: raw }
           })
           return (
             <div>
@@ -1260,9 +1276,9 @@ export function TestPlanDetailsModal({
                 <div className="flex items-center gap-2">
                   {((normalizedPlan as any)?.human_id) || ((testPlan as any)?.numeric_id !== undefined ? (
                     <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 border border-blue-200 text-sm font-mono font-semibold">
-                      {((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`}
+                      {((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3, '0')}`}
                     </span>
-                  ) : null) }
+                  ) : null)}
                   <span className="text-lg font-semibold text-gray-900">
                     {normalizedPlan?.name || testPlan?.name}
                   </span>
@@ -1271,7 +1287,7 @@ export function TestPlanDetailsModal({
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                  onClick={() => navigator.clipboard?.writeText((((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3,'0')}`) as string)}
+                  onClick={() => navigator.clipboard?.writeText((((normalizedPlan as any)?.human_id) || `TP-${String((testPlan as any)?.numeric_id || '').padStart(3, '0')}`) as string)}
                   title="Copy ID"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1301,128 +1317,128 @@ export function TestPlanDetailsModal({
         )}
 
         {noPlan ? null : (
-        <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
-          <div className="space-y-4 py-4">
-           {/* Stats */}
-           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-             {normalizedPlan?.priority && (
-               <Badge variant="outline" className="justify-center">Priority: {toText(testPlan.priority)}</Badge>
-             )}
-             {normalizedPlan?.complexity && (
-               <Badge variant="outline" className="justify-center">Complexity: {toText(testPlan.complexity)}</Badge>
-             )}
-             {normalizedPlan?.timeframe && (
-               <Badge variant="outline" className="justify-center">Timeframe: {toText(testPlan.timeframe)}</Badge>
-             )}
-             {typeof (normalizedPlan as any)?.estimated_hours !== 'undefined' && (
-               <Badge variant="outline" className="justify-center">Est. Hours: {toText((normalizedPlan as any).estimated_hours)}</Badge>
-             )}
-             {Array.isArray((normalizedPlan as any)?.platforms) && (
-               <Badge variant="outline" className="justify-center">Platforms: {(normalizedPlan as any).platforms.length}</Badge>
-             )}
-             {Array.isArray((normalizedPlan as any)?.features) && (
-               <Badge variant="outline" className="justify-center">Features: {(normalizedPlan as any).features.length}</Badge>
-             )}
-           </div>
-
-           {/* Basic Information */}
-           <div className="space-y-3">
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleSection('basic')}>
-                {expandedSections.has('basic') ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                <h3 className="font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+          <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
+            <div className="space-y-4 py-4">
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                {normalizedPlan?.priority && (
+                  <Badge variant="outline" className="justify-center">Priority: {toText(testPlan.priority)}</Badge>
+                )}
+                {normalizedPlan?.complexity && (
+                  <Badge variant="outline" className="justify-center">Complexity: {toText((testPlan as any).complexity)}</Badge>
+                )}
+                {normalizedPlan?.timeframe && (
+                  <Badge variant="outline" className="justify-center">Timeframe: {toText((testPlan as any).timeframe)}</Badge>
+                )}
+                {typeof (normalizedPlan as any)?.estimated_hours !== 'undefined' && (
+                  <Badge variant="outline" className="justify-center">Est. Hours: {toText((normalizedPlan as any).estimated_hours)}</Badge>
+                )}
+                {Array.isArray((normalizedPlan as any)?.platforms) && (
+                  <Badge variant="outline" className="justify-center">Platforms: {(normalizedPlan as any).platforms.length}</Badge>
+                )}
+                {Array.isArray((normalizedPlan as any)?.features) && (
+                  <Badge variant="outline" className="justify-center">Features: {(normalizedPlan as any).features.length}</Badge>
+                )}
               </div>
-              {expandedSections.has('basic') && (
-                <div className="pl-6 space-y-3">
-                  {normalizedPlan?.description && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{normalizedPlan?.description}</p>
-                    </div>
-                  )}
-                  {(() => {
-                    const source = (normalizedPlan?.objectives && normalizedPlan.objectives.length > 0)
-                      ? normalizedPlan.objectives
-                      : basicObjectives
-                    const items = (Array.isArray(source) ? source : [])
-                      .map((o: any) => {
-                        if (o == null) return ''
-                        if (typeof o === 'string') return o
-                        const candidate = o.objective ?? o.title ?? o.description ?? o.summary
-                        return candidate != null ? String(candidate) : toText(o)
-                      })
-                      .map((s: any) => (s ?? '').toString().trim())
-                      .filter((s: string) => s.length > 0)
-                    if (items.length === 0) return null
-                    return (
+
+              {/* Basic Information */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleSection('basic')}>
+                  {expandedSections.has('basic') ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Basic Information</h3>
+                </div>
+                {expandedSections.has('basic') && (
+                  <div className="pl-6 space-y-3">
+                    {normalizedPlan?.description && (
                       <div>
-                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Objectives</h4>
-                        <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                          {items.map((text: string, i: number) => (
-                            <li key={i}>{text}</li>
-                          ))}
-                        </ul>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{normalizedPlan?.description}</p>
                       </div>
-                    )
-                  })()}
-                  {normalizedPlan?.tags && normalizedPlan.tags.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {normalizedPlan.tags.map((tag: any, i: number) => {
-                          const label = toText(tag)
-                          const cls = getTagClasses(label)
-                          return (
-                            <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cls.bg} ${cls.text} ring-1 ${cls.ring}`}>
-                              <Tag className="w-3 h-3" />
-                              {label}
-                            </span>
-                          )
-                        })}
+                    )}
+                    {(() => {
+                      const source = (normalizedPlan?.objectives && normalizedPlan.objectives.length > 0)
+                        ? normalizedPlan.objectives
+                        : basicObjectives
+                      const items = (Array.isArray(source) ? source : [])
+                        .map((o: any) => {
+                          if (o == null) return ''
+                          if (typeof o === 'string') return o
+                          const candidate = o.objective ?? o.title ?? o.description ?? o.summary
+                          return candidate != null ? String(candidate) : toText(o)
+                        })
+                        .map((s: any) => (s ?? '').toString().trim())
+                        .filter((s: string) => s.length > 0)
+                      if (items.length === 0) return null
+                      return (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Objectives</h4>
+                          <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                            {items.map((text: string, i: number) => (
+                              <li key={i}>{text}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })()}
+                    {normalizedPlan?.tags && normalizedPlan.tags.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {normalizedPlan.tags.map((tag: any, i: number) => {
+                            const label = toText(tag)
+                            const cls = getTagClasses(label)
+                            return (
+                              <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cls.bg} ${cls.text} ring-1 ${cls.ring}`}>
+                                <Tag className="w-3 h-3" />
+                                {label}
+                              </span>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-
-            {/* IEEE 829 Sections */}
-            {sections.map((section) => (
-              <div key={section.id} className="space-y-3">
-                <div
-                  className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
-                  onClick={() => toggleSection(section.id)}
-                >
-                  {expandedSections.has(section.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  <div className={section.color}>{section.icon}</div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{section.title}</h3>
-                </div>
-                {expandedSections.has(section.id) && (
-                  <div className="pl-6">
-                    {renderSectionContent(section.field)}
+                    )}
                   </div>
                 )}
-                <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
               </div>
-            ))}
+
+              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+
+              {/* IEEE 829 Sections */}
+              {sections.map((section) => (
+                <div key={section.id} className="space-y-3">
+                  <div
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors"
+                    onClick={() => toggleSection(section.id)}
+                  >
+                    {expandedSections.has(section.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    <div className={section.color}>{section.icon}</div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{section.title}</h3>
+                  </div>
+                  {expandedSections.has(section.id) && (
+                    <div className="pl-6">
+                      {renderSectionContent(section.field)}
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
         )}
 
         {noPlan ? null : (
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          {!readOnly && (
-            <Button className="bg-primary hover:bg-primary/90">
-              Edit Test Plan
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
             </Button>
-          )}
-        </DialogFooter>
-       )}
+            {!readOnly && (
+              <Button className="bg-primary hover:bg-primary/90">
+                Edit Test Plan
+              </Button>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

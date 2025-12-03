@@ -60,7 +60,7 @@ const TableWithControls = ({ node, editor, getPos, deleteNode }: any) => {
   return (
     <NodeViewWrapper className="relative my-4 group">
       {/* Render the actual editable table content */}
-      <NodeViewContent as="table" className="border-collapse w-full border border-gray-300" />
+      <NodeViewContent className="border-collapse w-full border border-gray-300" />
 
       {/* Table Controls Below (JIRA-style - always visible) */}
       <div className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white text-xs border-t border-gray-700">
@@ -453,7 +453,7 @@ export default function JiraLikeEditor({
 
                 editor?.chain().focus().setImage({
                   src: base64,
-                  'data-filename': file.name,
+                  alt: file.name,
                 }).run()
               }
               reader.readAsDataURL(blob)
@@ -487,7 +487,7 @@ export default function JiraLikeEditor({
 
               editor?.chain().focus().setImage({
                 src: base64,
-                'data-filename': file.name,
+                alt: file.name,
               }).run()
             }
             reader.readAsDataURL(file)
@@ -522,7 +522,7 @@ export default function JiraLikeEditor({
 
           editor?.chain().focus().setImage({
             src: base64,
-            'data-filename': file.name,
+            alt: file.name,
           }).run()
         }
         reader.readAsDataURL(file)

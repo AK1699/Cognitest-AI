@@ -123,9 +123,6 @@ export default function IntegrationsManager({ organisationId, projectId, onClose
         sync_interval_minutes: formData.sync_interval_minutes,
         sync_filters: {},
         field_mappings: {},
-        last_sync_details: {},
-        total_synced_items: '0',
-        total_sync_errors: '0',
         tags: [],
         meta_data: {},
         created_by: 'current-user', // Replace with actual user ID

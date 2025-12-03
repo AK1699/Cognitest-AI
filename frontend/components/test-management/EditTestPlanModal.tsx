@@ -45,9 +45,12 @@ export default function EditTestPlanModal({ open, testPlan, onOpenChange, onUpda
         description,
         objectives: objectives.split("\n").map(s => s.trim()).filter(Boolean),
         tags: tags.split(",").map(s => s.trim()).filter(Boolean),
-        priority: priority as any,
-        complexity: complexity as any,
-        timeframe,
+        priority: priority as 'low' | 'medium' | 'high' | 'critical' | undefined,
+        meta_data: {
+          ...(testPlan.meta_data || {}),
+          complexity,
+          timeframe,
+        },
       })
       onUpdated?.(updated)
       onOpenChange(false)

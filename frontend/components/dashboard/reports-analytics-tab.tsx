@@ -29,6 +29,9 @@ export function ReportsAnalyticsTab() {
           icon={Activity}
           iconBgColor="bg-blue-100"
           iconColor="text-blue-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-blue-200"
         />
         <StatsCard
           title="Pass Rate"
@@ -38,6 +41,9 @@ export function ReportsAnalyticsTab() {
           icon={CheckCircle}
           iconBgColor="bg-green-100"
           iconColor="text-green-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-green-200"
         />
         <StatsCard
           title="Average Duration"
@@ -47,6 +53,9 @@ export function ReportsAnalyticsTab() {
           icon={Clock}
           iconBgColor="bg-yellow-100"
           iconColor="text-yellow-600"
+          textLabelColor="text-gray-600"
+          textNumberColor="text-gray-900"
+          borderColor="border-yellow-200"
         />
       </div>
 
