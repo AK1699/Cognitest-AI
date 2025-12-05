@@ -164,13 +164,17 @@ async def delete_test_flow(
     """
     Delete test flow
     """
+    from sqlalchemy import text
+    
+    # Check if test flow exists
     result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
     test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
     
-    await db.delete(test_flow)
+    # Use raw SQL delete to avoid ORM relationship issues with missing tables
+    await db.execute(text("DELETE FROM test_flows WHERE id = :flow_id"), {"flow_id": str(flow_id)})
     await db.commit()
     
     return None

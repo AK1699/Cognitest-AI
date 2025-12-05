@@ -16,7 +16,7 @@ from app.models.web_automation import (
 class TestFlowCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=500)
     description: Optional[str] = None
-    base_url: str = Field(..., min_length=1)
+    base_url: str = Field(default="")
     flow_json: Dict[str, Any] = Field(default_factory=dict)
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
     edges: List[Dict[str, Any]] = Field(default_factory=list)

@@ -74,6 +74,9 @@ export default function TestExplorerTab() {
     // Modal States
     const [isCreateTestOpen, setIsCreateTestOpen] = useState(false)
     const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+    const [isRenameOpen, setIsRenameOpen] = useState(false)
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+    const [itemToActOn, setItemToActOn] = useState<ExplorerItem | null>(null)
     const [newItemName, setNewItemName] = useState('')
     const [newItemUrl, setNewItemUrl] = useState('') // For test creation
     const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
@@ -231,8 +234,7 @@ export default function TestExplorerTab() {
         try {
             setIsSaving(true)
             const newTest = await webAutomationApi.createTestFlow(projectId, {
-                name: newItemName,
-                base_url: newItemUrl || 'https://example.com'
+                name: newItemName
             })
 
             // Add to tree
@@ -333,6 +335,119 @@ export default function TestExplorerTab() {
         setNewItemName('')
     }
 
+    // Rename Item (Folder or Test)
+    const handleRename = async () => {
+        if (!itemToActOn || !newItemName.trim()) return
+
+        try {
+            setIsSaving(true)
+
+            if (itemToActOn.type === 'test') {
+                // Rename test via API
+                await webAutomationApi.updateTestFlow(itemToActOn.id, { name: newItemName })
+
+                // Update rawTests
+                setRawTests(prev => prev.map(t =>
+                    t.id === itemToActOn.id ? { ...t, name: newItemName } : t
+                ))
+            }
+
+            // Update explorer tree (both folders and tests)
+            const renameInTree = (items: ExplorerItem[]): ExplorerItem[] => {
+                return items.map(item => {
+                    if (item.id === itemToActOn.id) {
+                        return { ...item, name: newItemName }
+                    }
+                    if (item.children) {
+                        return { ...item, children: renameInTree(item.children) }
+                    }
+                    return item
+                })
+            }
+
+            const newTree = renameInTree(explorerData)
+            setExplorerData(newTree)
+
+            // Update selected item if it was renamed
+            if (selectedItem?.id === itemToActOn.id) {
+                setSelectedItem({ ...selectedItem, name: newItemName })
+            }
+
+            // Save folder structure if it was a folder rename
+            if (itemToActOn.type === 'folder') {
+                await saveFolderStructure(newTree)
+            }
+
+            setIsRenameOpen(false)
+            setNewItemName('')
+            setItemToActOn(null)
+        } catch (error) {
+            console.error('Failed to rename:', error)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    // Delete Item (Folder or Test)
+    const handleDelete = async () => {
+        if (!itemToActOn) return
+
+        try {
+            setIsSaving(true)
+
+            if (itemToActOn.type === 'test') {
+                // Delete test via API
+                await webAutomationApi.deleteTestFlow(itemToActOn.id)
+
+                // Remove from rawTests
+                setRawTests(prev => prev.filter(t => t.id !== itemToActOn.id))
+            }
+
+            // Remove from explorer tree
+            const removeFromTree = (items: ExplorerItem[]): ExplorerItem[] => {
+                return items
+                    .filter(item => item.id !== itemToActOn.id)
+                    .map(item => {
+                        if (item.children) {
+                            return { ...item, children: removeFromTree(item.children) }
+                        }
+                        return item
+                    })
+            }
+
+            const newTree = removeFromTree(explorerData)
+            setExplorerData(newTree)
+
+            // Clear selection if deleted item was selected
+            if (selectedItem?.id === itemToActOn.id) {
+                setSelectedItem(null)
+            }
+
+            // Save folder structure
+            await saveFolderStructure(newTree)
+
+            setIsDeleteOpen(false)
+            setItemToActOn(null)
+        } catch (error) {
+            console.error('Failed to delete:', error)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    // Open Rename Dialog
+    const openRenameDialog = (item: ExplorerItem) => {
+        setItemToActOn(item)
+        setNewItemName(item.name)
+        setIsRenameOpen(true)
+    }
+
+    // Open Delete Dialog
+    const openDeleteDialog = (item: ExplorerItem) => {
+        setItemToActOn(item)
+        setIsDeleteOpen(true)
+    }
+
     // Render Tree Recursively
     const renderNode = (item: ExplorerItem, level = 0) => {
         // Filter by search
@@ -386,13 +501,13 @@ export default function TestExplorerTab() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation()
-                                        // TODO: Implement Rename
+                                        openRenameDialog(item)
                                     }}>
                                         Rename
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation()
-                                        // TODO: Implement Delete
+                                        openDeleteDialog(item)
                                     }}>
                                         <Trash2 className="w-3.5 h-3.5 mr-2" />
                                         Delete
@@ -432,13 +547,13 @@ export default function TestExplorerTab() {
                         <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation()
-                                // TODO: Rename
+                                openRenameDialog(item)
                             }}>
                                 Rename
                             </DropdownMenuItem>
                             <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation()
-                                // TODO: Delete
+                                openDeleteDialog(item)
                             }}>
                                 <Trash2 className="w-3.5 h-3.5 mr-2" />
                                 Delete
@@ -576,7 +691,7 @@ export default function TestExplorerTab() {
                             Create a new test flow to start automating.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
+                    <div className="py-4">
                         <div className="space-y-2">
                             <Label>Test Name</Label>
                             <Input
@@ -584,14 +699,6 @@ export default function TestExplorerTab() {
                                 onChange={(e) => setNewItemName(e.target.value)}
                                 placeholder="e.g. Login Flow"
                                 autoFocus
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Base URL</Label>
-                            <Input
-                                value={newItemUrl}
-                                onChange={(e) => setNewItemUrl(e.target.value)}
-                                placeholder="https://example.com"
                             />
                         </div>
                     </div>
@@ -623,6 +730,67 @@ export default function TestExplorerTab() {
                         <Button variant="outline" onClick={() => setIsCreateFolderOpen(false)}>Cancel</Button>
                         <Button onClick={handleCreateFolder} disabled={!newItemName.trim() || isSaving}>
                             {isSaving ? 'Creating...' : 'Create Folder'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Rename Dialog */}
+            <Dialog open={isRenameOpen} onOpenChange={(open) => {
+                setIsRenameOpen(open)
+                if (!open) {
+                    setItemToActOn(null)
+                    setNewItemName('')
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rename {itemToActOn?.type === 'folder' ? 'Folder' : 'Test'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>New Name</Label>
+                        <Input
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            placeholder="Enter new name"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newItemName.trim()) {
+                                    handleRename()
+                                }
+                            }}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRenameOpen(false)}>Cancel</Button>
+                        <Button onClick={handleRename} disabled={!newItemName.trim() || isSaving}>
+                            {isSaving ? 'Renaming...' : 'Rename'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteOpen} onOpenChange={(open) => {
+                setIsDeleteOpen(open)
+                if (!open) setItemToActOn(null)
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete {itemToActOn?.type === 'folder' ? 'Folder' : 'Test'}</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete "{itemToActOn?.name}"?
+                            {itemToActOn?.type === 'folder' && (
+                                <span className="block mt-2 text-amber-600">
+                                    Warning: This will remove the folder and all its contents.
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={isSaving}>
+                            {isSaving ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

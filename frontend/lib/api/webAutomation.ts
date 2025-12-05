@@ -37,7 +37,7 @@ export interface TestFlow {
 export interface TestFlowCreate {
     name: string
     description?: string
-    base_url: string
+    base_url?: string
     flow_json?: any
     nodes?: any[]
     edges?: any[]
