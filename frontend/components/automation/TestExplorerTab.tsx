@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
     Search,
     ChevronRight,
@@ -13,180 +13,442 @@ import {
     FlaskConical,
     MoreVertical,
     Filter,
-    SortAsc
+    SortAsc,
+    Loader2
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import { webAutomationApi, TestFlow, TestFlowCreate } from '@/lib/api/webAutomation'
+import { projectsApi, ProjectSettings } from '@/lib/api/projects'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
 
-interface TestItem {
+// Internal UI Structure
+interface ExplorerItem {
     id: string
-    name: string
-    status: 'pending' | 'running' | 'passed' | 'failed' | 'draft' | 'scheduled'
-    folderId: string | null
-    lastRun?: string
-    tags?: string[]
-}
-
-interface TestFolder {
-    id: string
+    type: 'folder' | 'test'
     name: string
     parentId: string | null
-    tests: TestItem[]
-    subfolders: TestFolder[]
+    children?: ExplorerItem[]
+    expanded?: boolean
+    data?: TestFlow // Only for tests
+}
+
+// Persisted Folder Structure (in Project Settings)
+interface FolderNode {
+    id: string
+    name: string
+    children: FolderNode[]
+    testIds: string[]
     expanded: boolean
 }
 
 export default function TestExplorerTab() {
     const params = useParams()
     const projectId = params.projectId as string
+    const router = useRouter()
 
-    const [testFolders, setTestFolders] = useState<TestFolder[]>([])
-    const [ungroupedTests, setUngroupedTests] = useState<TestItem[]>([])
-    const [selectedTest, setSelectedTest] = useState<TestItem | null>(null)
+    const [explorerData, setExplorerData] = useState<ExplorerItem[]>([])
+    const [rawTests, setRawTests] = useState<TestFlow[]>([])
+    const [selectedItem, setSelectedItem] = useState<ExplorerItem | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [isLoaded, setIsLoaded] = useState(false)
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'folder' | 'test' | 'root'; id?: string } | null>(null)
-    const [showCreateFolder, setShowCreateFolder] = useState(false)
-    const [newFolderName, setNewFolderName] = useState('')
-    const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isSaving, setIsSaving] = useState(false)
 
-    // Load from localStorage
-    useEffect(() => {
-        if (projectId && typeof window !== 'undefined' && !isLoaded) {
-            const savedFolders = localStorage.getItem(`webautomation-folders-${projectId}`)
-            const savedTests = localStorage.getItem(`webautomation-tests-${projectId}`)
+    // Modal States
+    const [isCreateTestOpen, setIsCreateTestOpen] = useState(false)
+    const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+    const [newItemName, setNewItemName] = useState('')
+    const [newItemUrl, setNewItemUrl] = useState('') // For test creation
+    const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
 
-            if (savedFolders) {
-                setTestFolders(JSON.parse(savedFolders))
-            } else {
-                // Initial demo data if empty
-                setTestFolders([
-                    {
-                        id: 'folder-1',
-                        name: 'E-Commerce Module',
-                        parentId: null,
-                        expanded: true,
-                        subfolders: [
-                            {
-                                id: 'folder-2',
-                                name: 'Authentication',
-                                parentId: 'folder-1',
-                                expanded: true,
-                                subfolders: [],
-                                tests: [
-                                    { id: 'test-1', name: 'Login Flow', status: 'passed', folderId: 'folder-2', lastRun: '2 mins ago' },
-                                    { id: 'test-2', name: 'Social Login', status: 'failed', folderId: 'folder-2', lastRun: '1 hour ago' }
-                                ]
-                            }
-                        ],
-                        tests: []
-                    }
-                ])
-            }
+    // Load Data
+    const loadData = useCallback(async () => {
+        if (!projectId) return
+        setIsLoading(true)
+        try {
+            const [project, tests] = await Promise.all([
+                projectsApi.getProject(projectId),
+                webAutomationApi.listTestFlows(projectId)
+            ])
 
-            if (savedTests) {
-                setUngroupedTests(JSON.parse(savedTests))
-            }
+            setRawTests(tests)
 
-            setIsLoaded(true)
+            // Reconstruct Tree
+            const savedFolders: FolderNode[] = project.settings?.testFolders || []
+            const tree = buildExplorerTree(savedFolders, tests)
+            setExplorerData(tree)
+
+        } catch (error) {
+            console.error('Failed to load explorer data:', error)
+        } finally {
+            setIsLoading(false)
         }
     }, [projectId])
 
-    // Save to localStorage
     useEffect(() => {
-        if (typeof window !== 'undefined' && projectId && isLoaded) {
-            localStorage.setItem(`webautomation-folders-${projectId}`, JSON.stringify(testFolders))
-            localStorage.setItem(`webautomation-tests-${projectId}`, JSON.stringify(ungroupedTests))
-        }
-    }, [testFolders, ungroupedTests, projectId, isLoaded])
+        loadData()
+    }, [loadData])
 
-    const toggleFolder = (folderId: string, folders: TestFolder[] = testFolders): TestFolder[] => {
-        return folders.map(f => {
-            if (f.id === folderId) {
-                return { ...f, expanded: !f.expanded }
+    // Helper: Build Tree for UI from Saved Folders + Test List
+    const buildExplorerTree = (folders: FolderNode[], tests: TestFlow[]): ExplorerItem[] => {
+        const usedTestIds = new Set<string>()
+
+        // Recursive function to build folder nodes
+        const mapFolder = (node: FolderNode, parentId: string | null): ExplorerItem => {
+            const children: ExplorerItem[] = []
+
+            // Subfolders
+            if (node.children) {
+                children.push(...node.children.map(child => mapFolder(child, node.id)))
             }
-            if (f.subfolders.length > 0) {
-                return { ...f, subfolders: toggleFolder(folderId, f.subfolders) }
+
+            // Tests in this folder
+            if (node.testIds) {
+                node.testIds.forEach(testId => {
+                    const test = tests.find(t => t.id === testId)
+                    if (test) {
+                        usedTestIds.add(testId)
+                        children.push({
+                            id: test.id,
+                            type: 'test',
+                            name: test.name,
+                            parentId: node.id,
+                            data: test
+                        })
+                    }
+                })
             }
-            return f
+
+            return {
+                id: node.id,
+                type: 'folder',
+                name: node.name,
+                parentId: parentId,
+                expanded: node.expanded,
+                children: children
+            }
+        }
+
+        const tree = folders.map(f => mapFolder(f, null))
+
+        // Handle Orphan Tests (not in any folder)
+        const orphanTests = tests.filter(t => !usedTestIds.has(t.id))
+        orphanTests.forEach(test => {
+            tree.push({
+                id: test.id,
+                type: 'test',
+                name: test.name,
+                parentId: null,
+                data: test
+            })
         })
+
+        return tree
     }
 
-    const handleToggleFolder = (folderId: string) => {
-        setTestFolders(toggleFolder(folderId))
+    // Helper: Convert UI Tree back to FolderNode for persistence
+    const serializeTree = (items: ExplorerItem[]): FolderNode[] => {
+        return items
+            .filter(item => item.type === 'folder')
+            .map(folder => ({
+                id: folder.id,
+                name: folder.name,
+                expanded: folder.expanded || false,
+                children: serializeTree(folder.children || []),
+                testIds: folder.children?.filter(c => c.type === 'test').map(c => c.id) || []
+            }))
     }
 
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'passed':
-                return <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-200" />
-            case 'failed':
-                return <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-200" />
-            case 'running':
-                return <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-            case 'draft':
-                return <div className="w-2.5 h-2.5 rounded-full bg-gray-300 border border-gray-400" />
-            default:
-                return <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+    const saveFolderStructure = async (newTree: ExplorerItem[]) => {
+        try {
+            setIsSaving(true)
+            const project = await projectsApi.getProject(projectId)
+            const serialized = serializeTree(newTree)
+
+            await projectsApi.updateProject(projectId, {
+                settings: {
+                    ...project.settings,
+                    testFolders: serialized
+                }
+            })
+        } catch (error) {
+            console.error('Failed to save structure:', error)
+        } finally {
+            setIsSaving(false)
         }
     }
 
-    const renderFolder = (folder: TestFolder, level: number = 0) => {
-        const indent = level * 16
+    // Toggle Folder Expansion
+    const handleToggleFolder = (folderId: string) => {
+        const toggleRecursive = (items: ExplorerItem[]): ExplorerItem[] => {
+            return items.map(item => {
+                if (item.id === folderId) {
+                    return { ...item, expanded: !item.expanded }
+                }
+                if (item.children) {
+                    return { ...item, children: toggleRecursive(item.children) }
+                }
+                return item
+            })
+        }
 
-        return (
-            <div key={folder.id}>
-                <div
-                    className="flex items-center group px-2 py-1.5 hover:bg-gray-100 rounded-md cursor-pointer transition-colors"
-                    style={{ paddingLeft: `${indent + 8}px` }}
-                    onClick={() => handleToggleFolder(folder.id)}
-                    onContextMenu={(e) => {
-                        e.preventDefault()
-                        setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', id: folder.id })
-                    }}
-                >
-                    <span className="mr-1.5 text-gray-400">
-                        {folder.expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </span>
-                    <Folder className="w-4 h-4 text-blue-600 mr-2" fill="currentColor" fillOpacity="0.1" />
-                    <span className="text-sm text-gray-700 font-medium flex-1 truncate">{folder.name}</span>
-                    <span className="text-xs text-gray-400 ml-2">{folder.tests.length + folder.subfolders.length}</span>
-                </div>
+        const newTree = toggleRecursive(explorerData)
+        setExplorerData(newTree)
+        // Optionally debounce save expansion state
+        saveFolderStructure(newTree)
+    }
 
-                {folder.expanded && (
-                    <div>
-                        {folder.subfolders.map(sub => renderFolder(sub, level + 1))}
-                        {folder.tests.map(test => (
-                            <div
-                                key={test.id}
-                                className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-colors ${selectedTest?.id === test.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'
-                                    }`}
-                                style={{ paddingLeft: `${indent + 28}px` }}
-                                onClick={() => setSelectedTest(test)}
-                                onContextMenu={(e) => {
-                                    e.preventDefault()
-                                    setContextMenu({ x: e.clientX, y: e.clientY, type: 'test', id: test.id })
-                                }}
-                            >
-                                <div className="mr-2 flex-shrink-0">
-                                    {getStatusIcon(test.status)}
-                                </div>
-                                <span className="text-sm flex-1 truncate">{test.name}</span>
-                            </div>
-                        ))}
+    // Create New Test Flow
+    const handleCreateTest = async () => {
+        if (!newItemName.trim()) return
+
+        try {
+            setIsSaving(true)
+            const newTest = await webAutomationApi.createTestFlow(projectId, {
+                name: newItemName,
+                base_url: newItemUrl || 'https://example.com'
+            })
+
+            // Add to tree
+            const addTestToTree = (items: ExplorerItem[]): ExplorerItem[] => {
+                // If creating in root
+                if (!targetFolderId) {
+                    return [...items, {
+                        id: newTest.id,
+                        type: 'test',
+                        name: newTest.name,
+                        parentId: null,
+                        data: newTest
+                    }]
+                }
+
+                // If creating in a folder
+                return items.map(item => {
+                    if (item.id === targetFolderId && item.type === 'folder') {
+                        return {
+                            ...item,
+                            children: [...(item.children || []), {
+                                id: newTest.id,
+                                type: 'test',
+                                name: newTest.name,
+                                parentId: item.id,
+                                data: newTest
+                            }],
+                            expanded: true
+                        }
+                    }
+                    if (item.children) {
+                        return { ...item, children: addTestToTree(item.children) }
+                    }
+                    return item
+                })
+            }
+
+            const newTree = addTestToTree(explorerData)
+            setExplorerData(newTree)
+            setRawTests([...rawTests, newTest])
+            setSelectedItem({
+                id: newTest.id,
+                type: 'test',
+                name: newTest.name,
+                parentId: targetFolderId,
+                data: newTest
+            })
+
+            await saveFolderStructure(newTree)
+            setIsCreateTestOpen(false)
+            setNewItemName('')
+            setNewItemUrl('')
+
+        } catch (error) {
+            console.error("Failed to create test:", error)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    // Create New Folder
+    const handleCreateFolder = async () => {
+        if (!newItemName.trim()) return
+
+        const newFolder: ExplorerItem = {
+            id: `folder-${Date.now()}`,
+            type: 'folder',
+            name: newItemName,
+            parentId: targetFolderId,
+            expanded: true,
+            children: []
+        }
+
+        const addFolderToTree = (items: ExplorerItem[]): ExplorerItem[] => {
+            if (!targetFolderId) {
+                return [...items, newFolder]
+            }
+            return items.map(item => {
+                if (item.id === targetFolderId && item.type === 'folder') {
+                    return {
+                        ...item,
+                        children: [...(item.children || []), newFolder],
+                        expanded: true
+                    }
+                }
+                if (item.children) {
+                    return { ...item, children: addFolderToTree(item.children) }
+                }
+                return item
+            })
+        }
+
+        const newTree = addFolderToTree(explorerData)
+        setExplorerData(newTree)
+        await saveFolderStructure(newTree)
+
+        setIsCreateFolderOpen(false)
+        setNewItemName('')
+    }
+
+    // Render Tree Recursively
+    const renderNode = (item: ExplorerItem, level = 0) => {
+        // Filter by search
+        if (searchQuery && item.type === 'test' && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return null
+        }
+
+        const paddingLeft = level * 16 + 12
+
+        if (item.type === 'folder') {
+            return (
+                <div key={item.id}>
+                    <div
+                        className={`flex items-center group px-2 py-1.5 hover:bg-gray-100 rounded-md cursor-pointer transition-colors text-sm
+                            ${selectedItem?.id === item.id ? 'bg-gray-100' : ''}`}
+                        style={{ paddingLeft: `${paddingLeft}px` }}
+                        onClick={() => handleToggleFolder(item.id)}
+                    >
+                        <span className="mr-1 text-gray-400">
+                            {item.expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        </span>
+                        <Folder className="w-4 h-4 text-blue-500 mr-2" />
+                        <span className="text-gray-700 font-medium truncate flex-1">{item.name}</span>
+
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreVertical className="w-3.5 h-3.5 text-gray-500" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuItem onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation()
+                                        setTargetFolderId(item.id)
+                                        setNewItemName('')
+                                        setIsCreateTestOpen(true)
+                                    }}>
+                                        <Plus className="w-3.5 h-3.5 mr-2" />
+                                        New Test
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation()
+                                        setTargetFolderId(item.id)
+                                        setNewItemName('')
+                                        setIsCreateFolderOpen(true)
+                                    }}>
+                                        <FolderPlus className="w-3.5 h-3.5 mr-2" />
+                                        New Folder
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation()
+                                        // TODO: Implement Rename
+                                    }}>
+                                        Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation()
+                                        // TODO: Implement Delete
+                                    }}>
+                                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
-                )}
+                    {item.expanded && item.children && (
+                        <div>
+                            {item.children.map(child => renderNode(child, level + 1))}
+                        </div>
+                    )}
+                </div>
+            )
+        }
+
+        // Render Test Item
+        return (
+            <div
+                key={item.id}
+                className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-colors text-sm
+                    ${selectedItem?.id === item.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'}`}
+                style={{ paddingLeft: `${paddingLeft + 16}px` }} // Indent test more
+                onClick={() => setSelectedItem(item)}
+            >
+                <FlaskConical className="w-3.5 h-3.5 mr-2 opacity-70" />
+                <span className="truncate flex-1">{item.name}</span>
+
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-gray-200">
+                                <MoreVertical className="w-3.5 h-3.5 text-gray-500" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation()
+                                // TODO: Rename
+                            }}>
+                                Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation()
+                                // TODO: Delete
+                            }}>
+                                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
         )
     }
 
+    if (isLoading) {
+        return <div className="flex h-full items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+    }
+
     return (
         <div className="flex w-full h-full">
-            {/* Left Sidebar - Tree View */}
+            {/* Left Sidebar */}
             <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col h-full">
-                {/* Toolbar */}
                 <div className="p-3 border-b border-gray-200 bg-white flex items-center gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -197,86 +459,78 @@ export default function TestExplorerTab() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900">
-                        <Filter className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900">
-                        <Plus className="w-4 h-4" />
-                    </Button>
-                </div>
-
-                {/* Tree Content */}
-                <div className="flex-1 overflow-y-auto p-2" onClick={() => setContextMenu(null)}>
-                    {testFolders.map(folder => renderFolder(folder))}
-                    {ungroupedTests.map(test => (
-                        <div
-                            key={test.id}
-                            className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-colors ${selectedTest?.id === test.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'
-                                }`}
-                            style={{ paddingLeft: '8px' }}
-                            onClick={() => setSelectedTest(test)}
+                    {/* Toolbar Actions */}
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-gray-900"
+                            onClick={() => {
+                                setTargetFolderId(null)
+                                setNewItemName('')
+                                setIsCreateFolderOpen(true)
+                            }}
+                            title="New Folder"
                         >
-                            <div className="mr-2 flex-shrink-0">
-                                {getStatusIcon(test.status)}
-                            </div>
-                            <span className="text-sm flex-1 truncate">{test.name}</span>
-                        </div>
-                    ))}
+                            <FolderPlus className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-gray-900"
+                            onClick={() => {
+                                setTargetFolderId(null)
+                                setNewItemName('')
+                                setIsCreateTestOpen(true)
+                            }}
+                            title="New Test"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Bottom Status Bar */}
-                <div className="p-2 border-t border-gray-200 bg-white text-xs text-gray-500 flex justify-between items-center">
-                    <span>{testFolders.length} folders, {ungroupedTests.length} tests</span>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span>12</span>
+                <div className="flex-1 overflow-y-auto p-2">
+
+                    {explorerData.map(node => renderNode(node))}
+                    {explorerData.length === 0 && (
+                        <div className="text-center py-8 text-xs text-gray-400">
+                            No tests found. Create one to get started.
                         </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 rounded-full bg-red-500" />
-                            <span>2</span>
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Right Panel - Content Area */}
+            {/* Right Content Area */}
             <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
-                {selectedTest ? (
+                {selectedItem && selectedItem.type === 'test' ? (
                     <div className="flex flex-col h-full">
-                        {/* Header */}
                         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-start bg-white">
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
-                                    <h1 className="text-2xl font-bold text-gray-900">{selectedTest.name}</h1>
-                                    <Badge variant={selectedTest.status === 'passed' ? 'default' : 'destructive'} className="uppercase text-[10px]">
-                                        {selectedTest.status}
+                                    <h1 className="text-2xl font-bold text-gray-900">{selectedItem.name}</h1>
+                                    <Badge variant={(selectedItem.data?.status === 'active' || !selectedItem.data?.status) ? 'default' : 'secondary'} className="uppercase text-[10px]">
+                                        {selectedItem.data?.status || 'Draft'}
                                     </Badge>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-500">
                                     <span className="flex items-center gap-1">
-                                        <Folder className="w-3.5 h-3.5" />
-                                        {testFolders.find(f => f.id === selectedTest.folderId)?.name || 'Root'}
-                                    </span>
-                                    <span className="flex items-center gap-1">
                                         <FileText className="w-3.5 h-3.5" />
-                                        Last run: {selectedTest.lastRun || 'Never'}
+                                        Base URL: {selectedItem.data?.base_url}
                                     </span>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline">Edit Properties</Button>
+                                <Button variant="outline">Properties</Button>
                                 <Button>Run Test</Button>
                             </div>
                         </div>
-
-                        {/* Content Placeholder */}
                         <div className="flex-1 p-8 flex items-center justify-center bg-gray-50">
                             <div className="text-center max-w-md">
                                 <FlaskConical className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">Test Details View</h3>
                                 <p className="text-gray-500">
-                                    Select "Test Builder" tab to edit steps or "Live Browser" to run this test interactively.
+                                    Select "Test Builder" tab to edit this test.
                                 </p>
                             </div>
                         </div>
@@ -289,7 +543,11 @@ export default function TestExplorerTab() {
                             </div>
                             <h3 className="text-lg font-medium text-gray-900 mb-1">No Test Selected</h3>
                             <p className="max-w-sm mx-auto mb-6">Select a test from the explorer or create a new one to get started.</p>
-                            <Button>
+                            <Button onClick={() => {
+                                setTargetFolderId(null)
+                                setNewItemName('')
+                                setIsCreateTestOpen(true)
+                            }}>
                                 <Plus className="w-4 h-4 mr-2" />
                                 Create New Test
                             </Button>
@@ -297,6 +555,67 @@ export default function TestExplorerTab() {
                     </div>
                 )}
             </div>
+
+            {/* Create Test Dialog */}
+            <Dialog open={isCreateTestOpen} onOpenChange={setIsCreateTestOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Test</DialogTitle>
+                        <DialogDescription>
+                            Create a new test flow to start automating.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Test Name</Label>
+                            <Input
+                                value={newItemName}
+                                onChange={(e) => setNewItemName(e.target.value)}
+                                placeholder="e.g. Login Flow"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Base URL</Label>
+                            <Input
+                                value={newItemUrl}
+                                onChange={(e) => setNewItemUrl(e.target.value)}
+                                placeholder="https://example.com"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCreateTestOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateTest} disabled={!newItemName.trim() || isSaving}>
+                            {isSaving ? 'Creating...' : 'Create Test'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Folder Dialog */}
+            <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Folder</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Folder Name</Label>
+                        <Input
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            placeholder="e.g. Authentication"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCreateFolderOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateFolder} disabled={!newItemName.trim() || isSaving}>
+                            {isSaving ? 'Creating...' : 'Create Folder'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

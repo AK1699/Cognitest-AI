@@ -162,14 +162,6 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
-    const currentOrg = localStorage.getItem('current_organization')
-    if (currentOrg) {
-      try {
-        setCurrentOrganisation(JSON.parse(currentOrg))
-      } catch (error) {
-        console.error('Failed to parse organization from localStorage', error)
-      }
-    }
     if (user) {
       fetchOrganisations()
     }
@@ -187,6 +179,19 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
     try {
       const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
+
+      // Set current org from ID in localStorage
+      const currentOrgId = localStorage.getItem('current_organization_id')
+      if (currentOrgId && response.data.length > 0) {
+        const org = response.data.find((o: Organisation) => o.id === currentOrgId)
+        if (org) {
+          setCurrentOrganisation(org)
+        } else {
+          setCurrentOrganisation(response.data[0])
+        }
+      } else if (response.data.length > 0) {
+        setCurrentOrganisation(response.data[0])
+      }
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
     }
@@ -257,10 +262,9 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                     onClick={() => setIsMobileOpen(false)}
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
-                      ${
-                        isActive
-                          ? `${item.bgColor} text-gray-900 shadow-lg border-2 border-gray-400`
-                          : 'text-gray-700 hover:bg-white/30 border-2 border-transparent'
+                      ${isActive
+                        ? `${item.bgColor} text-gray-900 shadow-lg border-2 border-gray-400`
+                        : 'text-gray-700 hover:bg-white/30 border-2 border-transparent'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
                     `}

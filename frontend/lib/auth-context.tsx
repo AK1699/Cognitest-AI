@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/organizations/new')
         } else if (organisations.length === 1) {
           // One organization - auto-select and go to projects
-          localStorage.setItem('current_organization', JSON.stringify(organisations[0]))
+          localStorage.setItem('current_organization_id', organisations[0].id)
           router.push(`/organizations/${organisations[0].id}/projects`)
         } else {
           // Multiple organizations - show selection page
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/organizations/new')
         } else if (organisations.length === 1) {
           // One organization - auto-select and go to projects
-          localStorage.setItem('current_organization', JSON.stringify(organisations[0]))
+          localStorage.setItem('current_organization_id', organisations[0].id)
           router.push(`/organizations/${organisations[0].id}/projects`)
         } else {
           // Multiple organizations - show selection page
@@ -135,7 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     // Clear organization and project preferences
-    localStorage.removeItem('current_organization')
+    localStorage.removeItem('current_organization_id')
+    localStorage.removeItem('current_organization') // Clean up legacy key
     localStorage.removeItem('current_project')
     setUser(null)
     // Note: httpOnly cookies are cleared by the server on logout

@@ -2,7 +2,7 @@
 Web Automation API Endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
 from uuid import UUID
@@ -13,8 +13,9 @@ from app.core.deps import get_db, get_current_user
 from app.models.user import User
 from app.models.web_automation import (
     TestFlow, ExecutionRun, StepResult, HealingEvent, LocatorAlternative,
-    BrowserType, ExecutionMode, TestFlowStatus
+    BrowserType, ExecutionMode, TestFlowStatus, HealingStrategy
 )
+from app.models.project import Project
 from app.schemas.web_automation import (
     TestFlowCreate, TestFlowUpdate, TestFlowResponse, TestFlowAnalytics,
     ExecutionRunCreate, ExecutionRunResponse, ExecutionRunDetailResponse,
@@ -59,25 +60,28 @@ manager = ConnectionManager()
 async def create_test_flow(
     project_id: UUID,
     flow_data: TestFlowCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Create a new test flow
     """
-    # Verify project access
-    # TODO: Add RBAC check
+    # Verify project exists
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     
     test_flow = TestFlow(
         project_id=project_id,
-        organisation_id=current_user.organisation_id,
+        organisation_id=project.organisation_id,
         created_by=current_user.id,
         **flow_data.model_dump()
     )
     
     db.add(test_flow)
-    db.commit()
-    db.refresh(test_flow)
+    await db.commit()
+    await db.refresh(test_flow)
     
     return test_flow
 
@@ -85,16 +89,14 @@ async def create_test_flow(
 @router.get("/test-flows/{flow_id}", response_model=TestFlowResponse)
 async def get_test_flow(
     flow_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get test flow by ID
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
@@ -108,21 +110,20 @@ async def list_test_flows(
     status_filter: Optional[TestFlowStatus] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     List test flows for a project
     """
-    query = db.query(TestFlow).filter(
-        TestFlow.project_id == project_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    )
+    query = select(TestFlow).where(TestFlow.project_id == project_id)
     
     if status_filter:
-        query = query.filter(TestFlow.status == status_filter)
+        query = query.where(TestFlow.status == status_filter)
     
-    test_flows = query.order_by(desc(TestFlow.created_at)).offset(skip).limit(limit).all()
+    query = query.order_by(desc(TestFlow.created_at)).offset(skip).limit(limit)
+    result = await db.execute(query)
+    test_flows = result.scalars().all()
     
     return test_flows
 
@@ -131,16 +132,14 @@ async def list_test_flows(
 async def update_test_flow(
     flow_id: UUID,
     flow_update: TestFlowUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Update test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
@@ -150,8 +149,8 @@ async def update_test_flow(
     for field, value in update_data.items():
         setattr(test_flow, field, value)
     
-    db.commit()
-    db.refresh(test_flow)
+    await db.commit()
+    await db.refresh(test_flow)
     
     return test_flow
 
@@ -159,22 +158,20 @@ async def update_test_flow(
 @router.delete("/test-flows/{flow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_test_flow(
     flow_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Delete test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
     
-    db.delete(test_flow)
-    db.commit()
+    await db.delete(test_flow)
+    await db.commit()
     
     return None
 
@@ -184,16 +181,14 @@ async def delete_test_flow(
 async def execute_test_flow(
     flow_id: UUID,
     execution_config: ExecutionRunCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Execute a test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
@@ -224,16 +219,14 @@ async def execute_test_flow(
 async def execute_multi_browser(
     flow_id: UUID,
     execution_config: MultiBrowserExecutionRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Execute test flow across multiple browsers
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
@@ -279,34 +272,37 @@ async def execute_multi_browser(
 @router.get("/executions/{run_id}", response_model=ExecutionRunDetailResponse)
 async def get_execution_run(
     run_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get execution run with detailed results
     """
-    execution_run = db.query(ExecutionRun).filter(ExecutionRun.id == run_id).first()
+    result = await db.execute(select(ExecutionRun).where(ExecutionRun.id == run_id))
+    execution_run = result.scalar_one_or_none()
     
     if not execution_run:
         raise HTTPException(status_code=404, detail="Execution run not found")
     
     # Verify access
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == execution_run.test_flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == execution_run.test_flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Access denied")
     
     # Load step results and healing events
-    step_results = db.query(StepResult).filter(
-        StepResult.execution_run_id == run_id
-    ).order_by(StepResult.step_order).all()
+    step_result = await db.execute(
+        select(StepResult)
+        .where(StepResult.execution_run_id == run_id)
+        .order_by(StepResult.step_order)
+    )
+    step_results = step_result.scalars().all()
     
-    healing_events = db.query(HealingEvent).filter(
-        HealingEvent.execution_run_id == run_id
-    ).all()
+    healing_result = await db.execute(
+        select(HealingEvent).where(HealingEvent.execution_run_id == run_id)
+    )
+    healing_events = healing_result.scalars().all()
     
     response = ExecutionRunDetailResponse.model_validate(execution_run)
     response.step_results = [StepResultResponse.model_validate(sr) for sr in step_results]
@@ -320,23 +316,26 @@ async def list_executions(
     flow_id: UUID,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     List execution runs for a test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
     
-    executions = db.query(ExecutionRun).filter(
-        ExecutionRun.test_flow_id == flow_id
-    ).order_by(desc(ExecutionRun.created_at)).offset(skip).limit(limit).all()
+    exec_result = await db.execute(
+        select(ExecutionRun)
+        .where(ExecutionRun.test_flow_id == flow_id)
+        .order_by(desc(ExecutionRun.created_at))
+        .offset(skip)
+        .limit(limit)
+    )
+    executions = exec_result.scalars().all()
     
     return executions
 
@@ -345,13 +344,14 @@ async def list_executions(
 async def stop_execution(
     run_id: UUID,
     stop_request: StopExecutionRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Stop a running execution
     """
-    execution_run = db.query(ExecutionRun).filter(ExecutionRun.id == run_id).first()
+    result = await db.execute(select(ExecutionRun).where(ExecutionRun.id == run_id))
+    execution_run = result.scalar_one_or_none()
     
     if not execution_run:
         raise HTTPException(status_code=404, detail="Execution run not found")
@@ -360,7 +360,7 @@ async def stop_execution(
     # For now, just update status
     execution_run.status = "stopped"
     execution_run.notes = stop_request.reason
-    db.commit()
+    await db.commit()
     
     return {"success": True, "message": "Execution stopped"}
 
@@ -369,15 +369,16 @@ async def stop_execution(
 @router.get("/executions/{run_id}/healings", response_model=HealingReportResponse)
 async def get_healing_report(
     run_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get healing report for an execution run
     """
-    healing_events = db.query(HealingEvent).filter(
-        HealingEvent.execution_run_id == run_id
-    ).all()
+    result = await db.execute(
+        select(HealingEvent).where(HealingEvent.execution_run_id == run_id)
+    )
+    healing_events = result.scalars().all()
     
     if not healing_events:
         return HealingReportResponse(
@@ -441,24 +442,25 @@ async def get_healing_report(
 @router.get("/test-flows/{flow_id}/analytics", response_model=TestFlowAnalytics)
 async def get_test_flow_analytics(
     flow_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get analytics for a test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
     
     # Get execution history
-    executions = db.query(ExecutionRun).filter(
-        ExecutionRun.test_flow_id == flow_id
-    ).order_by(ExecutionRun.created_at).all()
+    exec_result = await db.execute(
+        select(ExecutionRun)
+        .where(ExecutionRun.test_flow_id == flow_id)
+        .order_by(ExecutionRun.created_at)
+    )
+    executions = exec_result.scalars().all()
     
     # Calculate statistics
     total_executions = len(executions)
@@ -624,16 +626,14 @@ async def websocket_live_preview(
 async def create_locator_alternative(
     flow_id: UUID,
     alternative_data: LocatorAlternativeCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Store alternative locators for an element
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
@@ -644,8 +644,8 @@ async def create_locator_alternative(
     )
     
     db.add(locator_alt)
-    db.commit()
-    db.refresh(locator_alt)
+    await db.commit()
+    await db.refresh(locator_alt)
     
     return locator_alt
 
@@ -653,22 +653,21 @@ async def create_locator_alternative(
 @router.get("/test-flows/{flow_id}/locator-alternatives", response_model=List[LocatorAlternativeResponse])
 async def list_locator_alternatives(
     flow_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     List stored locator alternatives for a test flow
     """
-    test_flow = db.query(TestFlow).filter(
-        TestFlow.id == flow_id,
-        TestFlow.organisation_id == current_user.organisation_id
-    ).first()
+    result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+    test_flow = result.scalar_one_or_none()
     
     if not test_flow:
         raise HTTPException(status_code=404, detail="Test flow not found")
     
-    alternatives = db.query(LocatorAlternative).filter(
-        LocatorAlternative.test_flow_id == flow_id
-    ).all()
+    alt_result = await db.execute(
+        select(LocatorAlternative).where(LocatorAlternative.test_flow_id == flow_id)
+    )
+    alternatives = alt_result.scalars().all()
     
     return alternatives

@@ -39,15 +39,6 @@ export function UserNav() {
     if (user) {
       fetchOrganisations()
     }
-
-    const currentOrg = localStorage.getItem('current_organization')
-    if (currentOrg) {
-      try {
-        setCurrentOrganisation(JSON.parse(currentOrg))
-      } catch (error) {
-        console.error('Failed to parse organization from localStorage', error)
-      }
-    }
   }, [user])
 
   // Check if current user is the owner of the organization
@@ -64,27 +55,22 @@ export function UserNav() {
       const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
 
-      // Check if there's a current org in localStorage
-      const currentOrg = localStorage.getItem('current_organization')
-      if (currentOrg) {
-        try {
-          const parsedOrg = JSON.parse(currentOrg)
-          // Verify this org still exists in the fetched list
-          const orgExists = response.data.find((org: Organisation) => org.id === parsedOrg.id)
-          if (orgExists) {
-            setCurrentOrganisation(orgExists)
-          } else if (response.data.length > 0) {
-            // Set first org as current if the stored one doesn't exist
-            setCurrentOrganisation(response.data[0])
-            localStorage.setItem('current_organization', JSON.stringify(response.data[0]))
-          }
-        } catch (error) {
-          console.error('Failed to parse organization from localStorage', error)
+      // Check if there's a current org ID in localStorage
+      const currentOrgId = localStorage.getItem('current_organization_id')
+      if (currentOrgId) {
+        // Find the org in the fetched list
+        const orgExists = response.data.find((org: Organisation) => org.id === currentOrgId)
+        if (orgExists) {
+          setCurrentOrganisation(orgExists)
+        } else if (response.data.length > 0) {
+          // Set first org as current if the stored one doesn't exist
+          setCurrentOrganisation(response.data[0])
+          localStorage.setItem('current_organization_id', response.data[0].id)
         }
       } else if (response.data.length > 0) {
         // Set first org as current if none is set
         setCurrentOrganisation(response.data[0])
-        localStorage.setItem('current_organization', JSON.stringify(response.data[0]))
+        localStorage.setItem('current_organization_id', response.data[0].id)
       }
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
@@ -93,7 +79,7 @@ export function UserNav() {
 
   const switchOrganisation = (org: Organisation) => {
     setCurrentOrganisation(org)
-    localStorage.setItem('current_organization', JSON.stringify(org))
+    localStorage.setItem('current_organization_id', org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsOpen(false)
     router.push(`/organizations/${org.id}/projects`)
@@ -114,9 +100,8 @@ export function UserNav() {
               </span>
             </div>
             {/* Role Badge */}
-            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm border-2 border-white ${
-              isOwner ? 'bg-amber-500' : 'bg-blue-500'
-            }`}>
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm border-2 border-white ${isOwner ? 'bg-amber-500' : 'bg-blue-500'
+              }`}>
               <User className="w-2.5 h-2.5 text-white" />
             </div>
           </div>
@@ -125,18 +110,16 @@ export function UserNav() {
               {currentOrganisation.name}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                isOwner
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isOwner
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-blue-100 text-blue-700'
-              }`}>
+                }`}>
                 {isOwner ? 'Owner' : 'Member'}
               </span>
             </div>
           </div>
-          <ChevronDown className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${
-            isOpen ? 'rotate-180' : ''
-          }`} />
+          <ChevronDown className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''
+            }`} />
         </button>
       </DropdownMenuTrigger>
 

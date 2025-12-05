@@ -56,7 +56,7 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
     try {
       const response = await api.put(`/api/v1/organisations/${uuid}`, data)
       setOrganisation(response.data)
-      localStorage.setItem('current_organization', JSON.stringify(response.data))
+      localStorage.setItem('current_organization_id', response.data.id)
       toast.success('Organisation updated successfully!')
       return response.data
     } catch (error: any) {
@@ -71,7 +71,7 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
   const deleteOrganisation = async () => {
     try {
       await api.delete(`/api/v1/organisations/${uuid}`)
-      localStorage.removeItem('current_organization')
+      localStorage.removeItem('current_organization_id')
       toast.success('Organisation deleted successfully')
       router.push('/organizations')
     } catch (error: any) {

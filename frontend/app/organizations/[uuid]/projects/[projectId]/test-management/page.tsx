@@ -366,7 +366,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
 
   const switchOrganisation = (org: Organisation) => {
     setOrganisation(org)
-    localStorage.setItem('current_organization', JSON.stringify(org))
+    localStorage.setItem('current_organization_id', org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     router.push(`/organizations/${org.id}/projects`)
@@ -419,8 +419,8 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
               <button
                 onClick={() => setActiveTab('plans')}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'plans'
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 <FileText className="w-4 h-4" />
@@ -429,8 +429,8 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
               <button
                 onClick={() => setActiveTab('suites')}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'suites'
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 <FileText className="w-4 h-4" />
@@ -439,8 +439,8 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
               <button
                 onClick={() => setActiveTab('cases')}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'cases'
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 <FileText className="w-4 h-4" />
@@ -631,7 +631,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     onDelete={handleDeleteTestPlan}
                     onRefresh={fetchTestPlans}
                   />
-                  
+
                   {/* Pagination for Test Plans */}
                   {filteredTestPlans.length > 0 && (
                     <Pagination
@@ -693,7 +693,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     testCases={testCases}
                     onDeleteSuite={handleDeleteTestSuite}
                   />
-                  
+
                   {/* Pagination for Test Suites */}
                   {filteredTestSuites.length > 0 && (
                     <Pagination
@@ -755,7 +755,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     onDelete={handleDeleteTestCase}
                     onRefresh={fetchTestCases}
                   />
-                  
+
                   {/* Pagination for Test Cases */}
                   {filteredTestCases.length > 0 && (
                     <Pagination

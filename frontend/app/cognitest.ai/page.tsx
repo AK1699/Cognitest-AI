@@ -22,13 +22,13 @@ export default function LandingPage() {
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="#features" className="text-gray-900 transition-colors font-normal hover:opacity-80">
+              <Link href="#features" className="text-gray-900 transition-colors font-normal hover:opacity-80" suppressHydrationWarning>
                 Features
               </Link>
-              <Link href="#pricing" className="text-gray-900 transition-colors font-normal hover:opacity-80">
+              <Link href="#pricing" className="text-gray-900 transition-colors font-normal hover:opacity-80" suppressHydrationWarning>
                 Pricing
               </Link>
-              <Link href="#docs" className="text-gray-900 transition-colors font-normal hover:opacity-80">
+              <Link href="#docs" className="text-gray-900 transition-colors font-normal hover:opacity-80" suppressHydrationWarning>
                 Docs
               </Link>
             </div>
@@ -89,7 +89,7 @@ export default function LandingPage() {
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </Link>
-            <Link href="#docs">
+            <Link href="#docs" suppressHydrationWarning>
               <button className="inline-flex items-center px-10 py-4 bg-white hover:bg-gray-50 text-gray-900 text-lg font-medium rounded-full border-2 border-gray-300 transition-all">
                 View Documentation
               </button>

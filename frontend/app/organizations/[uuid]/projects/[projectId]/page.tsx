@@ -261,7 +261,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
 
   const switchOrganisation = (org: Organisation) => {
     setOrganisation(org)
-    localStorage.setItem('current_organization', JSON.stringify(org))
+    localStorage.setItem('current_organization_id', org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     router.push(`/organizations/${org.id}/projects`)
@@ -350,11 +350,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             {/* Home */}
             <button
               onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
-                activeTab === 'overview'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'overview'
                   ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
                   : 'text-gray-700 hover:bg-gray-100 border-transparent'
-              }`}
+                }`}
             >
               <Home className="w-4 h-4 text-blue-500" />
               Home
@@ -384,11 +383,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 <button
                   key={item.id}
                   onClick={handleClick}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
-                    isActive
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${isActive
                       ? `${bgColor} ${textColor} font-medium border-gray-400 shadow-lg`
                       : 'text-gray-700 hover:bg-gray-100 border-transparent'
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${item.iconColor}`} />
                   {item.label}
@@ -401,11 +399,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
           <div className="mt-1 space-y-1">
             <button
               onClick={() => setActiveTab('reports')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
-                activeTab === 'reports'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'reports'
                   ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
                   : 'text-gray-700 hover:bg-gray-100 border-transparent'
-              }`}
+                }`}
             >
               <TrendingUp className="w-4 h-4 text-cyan-600" />
               Reports & Analytics
@@ -420,11 +417,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${
-                activeTab === 'settings'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'settings'
                   ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
                   : 'text-gray-700 hover:bg-gray-100 border-transparent'
-              }`}
+                }`}
             >
               <Settings className="w-4 h-4 text-purple-600" />
               Settings
@@ -443,10 +439,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 {activeTab === 'overview'
                   ? 'Overview'
                   : activeTab === 'reports'
-                  ? 'Reports & Analytics'
-                  : activeTab === 'settings'
-                  ? 'Settings'
-                  : getModuleNavItems().find((item: any) => item.id === activeTab)?.label || 'Dashboard'}
+                    ? 'Reports & Analytics'
+                    : activeTab === 'settings'
+                      ? 'Settings'
+                      : getModuleNavItems().find((item: any) => item.id === activeTab)?.label || 'Dashboard'}
               </h1>
               <p className="text-xs text-gray-500">
                 {activeTab === 'overview' && 'Project dashboard and metrics'}
@@ -488,12 +484,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                           title={module.name}
                           value={0} // Replace with actual data
                           icon={module.icon}
-                                                                                                                                        iconColor={module.iconColor}
-                                                                                                                                        iconBgColor={`bg-${module.color}-100`}
-                                                                                                                                        borderColor={module.borderColor}
-                                                                                                                                        textLabelColor={`${module.textLabelColor} ${module.darkTextLabelColor}`}
-                                                                                                                                        textNumberColor={`${module.textNumberColor} ${module.darkTextNumberColor}`}
-                                                                                                                                      />                      )
+                          iconColor={module.iconColor}
+                          iconBgColor={`bg-${module.color}-100`}
+                          borderColor={module.borderColor}
+                          textLabelColor={`${module.textLabelColor} ${module.darkTextLabelColor}`}
+                          textNumberColor={`${module.textNumberColor} ${module.darkTextNumberColor}`}
+                        />)
                   }
                 })}
               </div>
@@ -518,41 +514,37 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSettingsTab('general')}
-                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${
-                      settingsTab === 'general'
+                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'general'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     General
                   </button>
                   <button
                     onClick={() => setSettingsTab('modules')}
-                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${
-                      settingsTab === 'modules'
+                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'modules'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     Modules
                   </button>
                   <button
                     onClick={() => setSettingsTab('members')}
-                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${
-                      settingsTab === 'members'
+                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'members'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     Members
                   </button>
                   <button
                     onClick={() => setSettingsTab('danger')}
-                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${
-                      settingsTab === 'danger'
+                    className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'danger'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
                     Danger
                   </button>
