@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -37,6 +37,7 @@ import {
     Sparkles
 } from 'lucide-react'
 import { Environment } from './EnvironmentManager'
+import { webAutomationApi } from '@/lib/api/webAutomation'
 
 interface TestStep {
     id: string
@@ -49,9 +50,32 @@ interface TestStep {
 
 interface TestBuilderTabProps {
     selectedEnvironment?: Environment
+    flowId?: string | null
 }
 
-export default function TestBuilderTab({ selectedEnvironment }: TestBuilderTabProps) {
+export default function TestBuilderTab({ selectedEnvironment, flowId }: TestBuilderTabProps) {
+    const [testName, setTestName] = useState<string>('Test Flow')
+    const [isFlowLoading, setIsFlowLoading] = useState(false)
+
+    useEffect(() => {
+        const fetchTestDetails = async () => {
+            if (flowId) {
+                try {
+                    setIsFlowLoading(true)
+                    const flow = await webAutomationApi.getTestFlow(flowId)
+                    setTestName(flow.name)
+                } catch (error) {
+                    console.error('Failed to fetch test flow:', error)
+                } finally {
+                    setIsFlowLoading(false)
+                }
+            } else {
+                setTestName('Test Flow')
+            }
+        }
+        fetchTestDetails()
+    }, [flowId])
+
     const [steps, setSteps] = useState<TestStep[]>([])
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const [builderMethod, setBuilderMethod] = useState<'visual' | 'recorder' | 'ai'>('visual')
@@ -285,14 +309,16 @@ export default function TestBuilderTab({ selectedEnvironment }: TestBuilderTabPr
             <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50/50">
                 <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 flex justify-between items-center">
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900">Test Flow</h2>
+                        <h2 className="text-lg font-bold text-gray-900">
+                            {isFlowLoading ? 'Loading...' : testName}
+                        </h2>
                         <p className="text-xs text-gray-500">Sequence of steps executed in order</p>
                     </div>
                     <div className="flex gap-2 items-center">
                         {selectedEnvironment && (
                             <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded border border-green-200">
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                Active Environment: {selectedEnvironment.name}
+                                Active Environment: <b>{selectedEnvironment.name}</b>
                             </div>
                         )}
 

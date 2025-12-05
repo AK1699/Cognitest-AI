@@ -43,6 +43,7 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
   const router = useRouter()
   const params = useParams()
   const [activeTab, setActiveTab] = useState<TabView>('explorer')
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(flowId || null)
 
   // Environment State
   const [environments, setEnvironments] = useState<Environment[]>([])
@@ -106,13 +107,19 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
     }
   }
 
+  // Handler for editing a test - switch to builder tab with selected flow
+  const handleEditTest = (flowId: string) => {
+    setSelectedFlowId(flowId)
+    setActiveTab('builder')
+  }
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'explorer':
-        return <TestExplorerTab />
+        return <TestExplorerTab onEditTest={handleEditTest} />
       case 'builder':
         // @ts-ignore - We'll update TestBuilderTab types in the next step
-        return <TestBuilderTab selectedEnvironment={selectedEnvironment} />
+        return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} />
       case 'browser':
         return <LiveBrowserTab />
       case 'logs':
@@ -120,7 +127,7 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
       case 'heal':
         return <AISelfHealTab />
       default:
-        return <TestExplorerTab />
+        return <TestExplorerTab onEditTest={handleEditTest} />
     }
   }
 

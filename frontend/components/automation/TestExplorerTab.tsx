@@ -59,7 +59,11 @@ interface FolderNode {
     expanded: boolean
 }
 
-export default function TestExplorerTab() {
+interface TestExplorerTabProps {
+    onEditTest?: (flowId: string) => void
+}
+
+export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
     const params = useParams()
     const projectId = params.projectId as string
     const router = useRouter()
@@ -639,14 +643,15 @@ export default function TestExplorerTab() {
                                         {selectedItem.data?.status || 'Draft'}
                                     </Badge>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                        <FileText className="w-3.5 h-3.5" />
-                                        Base URL: {selectedItem.data?.base_url}
-                                    </span>
-                                </div>
+
                             </div>
                             <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => onEditTest?.(selectedItem.id)}
+                                >
+                                    Edit
+                                </Button>
                                 <Button variant="outline">Properties</Button>
                                 <Button>Run Test</Button>
                             </div>
