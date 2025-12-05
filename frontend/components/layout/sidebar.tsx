@@ -180,8 +180,11 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
 
-      // Set current org from ID in localStorage
-      const currentOrgId = localStorage.getItem('current_organization_id')
+      // Get current org from Redis session
+      const { getSession } = await import('@/lib/api/session')
+      const session = await getSession()
+      const currentOrgId = session.current_organization_id
+
       if (currentOrgId && response.data.length > 0) {
         const org = response.data.find((o: Organisation) => o.id === currentOrgId)
         if (org) {

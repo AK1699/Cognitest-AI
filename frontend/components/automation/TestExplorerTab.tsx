@@ -83,10 +83,17 @@ export default function TestExplorerTab() {
         if (!projectId) return
         setIsLoading(true)
         try {
-            const [project, tests] = await Promise.all([
-                projectsApi.getProject(projectId),
-                webAutomationApi.listTestFlows(projectId)
-            ])
+            // Fetch project settings first
+            const project = await projectsApi.getProject(projectId)
+
+            // Try to fetch test flows, but gracefully handle errors
+            let tests: TestFlow[] = []
+            try {
+                tests = await webAutomationApi.listTestFlows(projectId)
+            } catch (flowError) {
+                console.warn('No test flows found or API error:', flowError)
+                // Continue with empty array - will show "No records"
+            }
 
             setRawTests(tests)
 
@@ -97,6 +104,8 @@ export default function TestExplorerTab() {
 
         } catch (error) {
             console.error('Failed to load explorer data:', error)
+            setRawTests([])
+            setExplorerData([])
         } finally {
             setIsLoading(false)
         }
@@ -494,8 +503,10 @@ export default function TestExplorerTab() {
 
                     {explorerData.map(node => renderNode(node))}
                     {explorerData.length === 0 && (
-                        <div className="text-center py-8 text-xs text-gray-400">
-                            No tests found. Create one to get started.
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <FlaskConical className="w-12 h-12 mb-3 opacity-30" />
+                            <p className="text-sm font-medium">No records found</p>
+                            <p className="text-xs mt-1">Create a new test to get started</p>
                         </div>
                     )}
                 </div>

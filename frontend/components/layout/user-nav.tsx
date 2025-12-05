@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut, Check, User, Settings, HelpCircle, ChevronDown } from 'lucide-react'
 import api from '@/lib/api'
+import { getSession, setCurrentOrganization } from '@/lib/api/session'
 import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -55,8 +56,10 @@ export function UserNav() {
       const response = await api.get('/api/v1/organisations/')
       setOrganisations(response.data)
 
-      // Check if there's a current org ID in localStorage
-      const currentOrgId = localStorage.getItem('current_organization_id')
+      // Get current org ID from Redis session
+      const session = await getSession()
+      const currentOrgId = session.current_organization_id
+
       if (currentOrgId) {
         // Find the org in the fetched list
         const orgExists = response.data.find((org: Organisation) => org.id === currentOrgId)
@@ -65,21 +68,21 @@ export function UserNav() {
         } else if (response.data.length > 0) {
           // Set first org as current if the stored one doesn't exist
           setCurrentOrganisation(response.data[0])
-          localStorage.setItem('current_organization_id', response.data[0].id)
+          await setCurrentOrganization(response.data[0].id)
         }
       } else if (response.data.length > 0) {
         // Set first org as current if none is set
         setCurrentOrganisation(response.data[0])
-        localStorage.setItem('current_organization_id', response.data[0].id)
+        await setCurrentOrganization(response.data[0].id)
       }
     } catch (error) {
       console.error('Failed to fetch organisations:', error)
     }
   }
 
-  const switchOrganisation = (org: Organisation) => {
+  const switchOrganisation = async (org: Organisation) => {
     setCurrentOrganisation(org)
-    localStorage.setItem('current_organization_id', org.id)
+    await setCurrentOrganization(org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsOpen(false)
     router.push(`/organizations/${org.id}/projects`)
@@ -111,8 +114,8 @@ export function UserNav() {
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isOwner
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-blue-100 text-blue-700'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-blue-100 text-blue-700'
                 }`}>
                 {isOwner ? 'Owner' : 'Member'}
               </span>

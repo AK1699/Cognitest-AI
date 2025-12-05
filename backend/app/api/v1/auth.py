@@ -533,10 +533,75 @@ async def update_current_user(
 @router.post("/logout")
 async def logout(response: Response, current_user: User = Depends(get_current_active_user)):
     """
-    Logout current user by clearing HttpOnly cookies.
+    Logout current user by clearing HttpOnly cookies and Redis session.
     """
+    # Clear Redis session
+    from app.core.session import SessionService
+    await SessionService.delete_session(str(current_user.id))
+    
     clear_auth_cookies(response)
     return {"message": "Successfully logged out"}
+
+
+# Session Management Endpoints
+
+@router.get("/session")
+async def get_session(current_user: User = Depends(get_current_active_user)):
+    """
+    Get current user's session data (current org, project, preferences).
+    """
+    from app.core.session import SessionService
+    
+    session = await SessionService.get_session(str(current_user.id))
+    
+    # Extend session TTL on activity
+    await SessionService.extend_session(str(current_user.id))
+    
+    return session or {}
+
+
+@router.put("/session")
+async def update_session(
+    session_data: dict,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update user's session data.
+    
+    Request body can contain:
+    - current_organization_id: str
+    - current_project_id: str
+    - preferences: dict
+    """
+    from app.core.session import SessionService
+    
+    # Filter allowed fields
+    allowed_fields = {"current_organization_id", "current_project_id", "preferences"}
+    filtered_data = {k: v for k, v in session_data.items() if k in allowed_fields}
+    
+    if not filtered_data:
+        return {"message": "No valid fields to update"}
+    
+    success = await SessionService.update_session(str(current_user.id), filtered_data)
+    
+    if success:
+        return {"message": "Session updated", "data": filtered_data}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update session"
+        )
+
+
+@router.delete("/session")
+async def clear_session(current_user: User = Depends(get_current_active_user)):
+    """
+    Clear user's session data (but keep them logged in).
+    """
+    from app.core.session import SessionService
+    
+    await SessionService.delete_session(str(current_user.id))
+    return {"message": "Session cleared"}
 
 # Google OAuth Endpoints
 

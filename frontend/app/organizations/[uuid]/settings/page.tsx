@@ -56,7 +56,8 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
     try {
       const response = await api.put(`/api/v1/organisations/${uuid}`, data)
       setOrganisation(response.data)
-      localStorage.setItem('current_organization_id', response.data.id)
+      const { setCurrentOrganization } = await import('@/lib/api/session')
+      await setCurrentOrganization(response.data.id)
       toast.success('Organisation updated successfully!')
       return response.data
     } catch (error: any) {
@@ -71,7 +72,8 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
   const deleteOrganisation = async () => {
     try {
       await api.delete(`/api/v1/organisations/${uuid}`)
-      localStorage.removeItem('current_organization_id')
+      const { clearSession } = await import('@/lib/api/session')
+      await clearSession()
       toast.success('Organisation deleted successfully')
       router.push('/organizations')
     } catch (error: any) {

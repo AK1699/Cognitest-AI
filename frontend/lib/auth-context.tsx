@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { setCurrentOrganization } from '@/lib/api/session'
 
 interface User {
   id: string
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/organizations/new')
         } else if (organisations.length === 1) {
           // One organization - auto-select and go to projects
-          localStorage.setItem('current_organization_id', organisations[0].id)
+          await setCurrentOrganization(organisations[0].id)
           router.push(`/organizations/${organisations[0].id}/projects`)
         } else {
           // Multiple organizations - show selection page
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/organizations/new')
         } else if (organisations.length === 1) {
           // One organization - auto-select and go to projects
-          localStorage.setItem('current_organization_id', organisations[0].id)
+          await setCurrentOrganization(organisations[0].id)
           router.push(`/organizations/${organisations[0].id}/projects`)
         } else {
           // Multiple organizations - show selection page
@@ -133,13 +134,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    // Clear organization and project preferences
+  const logout = async () => {
+    // Call logout API which clears Redis session and httpOnly cookies
+    try {
+      await api.post('/api/v1/auth/logout')
+    } catch (error) {
+      // Continue with logout even if API fails
+      console.warn('Logout API call failed:', error)
+    }
+
+    // Clean up any legacy localStorage keys
     localStorage.removeItem('current_organization_id')
-    localStorage.removeItem('current_organization') // Clean up legacy key
+    localStorage.removeItem('current_organization')
     localStorage.removeItem('current_project')
+
     setUser(null)
-    // Note: httpOnly cookies are cleared by the server on logout
     router.push('/auth/signin')
   }
 

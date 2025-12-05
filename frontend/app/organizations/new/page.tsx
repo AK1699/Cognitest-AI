@@ -43,8 +43,9 @@ export default function CreateOrganizationPage() {
         }
       )
 
-      // Store current organization
-      localStorage.setItem('current_organization_id', response.data.id)
+      // Store current organization in Redis session
+      const { setCurrentOrganization } = await import('@/lib/api/session')
+      await setCurrentOrganization(response.data.id)
 
       toast.success('Organization created successfully!')
 
@@ -121,8 +122,8 @@ export default function CreateOrganizationPage() {
                   }}
                   placeholder="Enter your organization name"
                   className={`w-full px-4 py-3 rounded-lg border ${nameError
-                      ? 'border-red-500 focus:ring-red-500'
-                      : 'border-gray-300 dark:border-gray-600 focus:ring-teal-500'
+                    ? 'border-red-500 focus:ring-red-500'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-teal-500'
                     } dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 transition-colors placeholder-gray-400 dark:placeholder-gray-500`}
                 />
                 {nameError && (

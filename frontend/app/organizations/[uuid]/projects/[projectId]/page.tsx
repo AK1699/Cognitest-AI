@@ -259,9 +259,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
     }
   };
 
-  const switchOrganisation = (org: Organisation) => {
+  const switchOrganisation = async (org: Organisation) => {
     setOrganisation(org)
-    localStorage.setItem('current_organization_id', org.id)
+    const { setCurrentOrganization } = await import('@/lib/api/session')
+    await setCurrentOrganization(org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     router.push(`/organizations/${org.id}/projects`)
@@ -351,8 +352,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             <button
               onClick={() => setActiveTab('overview')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'overview'
-                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
+                ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                : 'text-gray-700 hover:bg-gray-100 border-transparent'
                 }`}
             >
               <Home className="w-4 h-4 text-blue-500" />
@@ -384,8 +385,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   key={item.id}
                   onClick={handleClick}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${isActive
-                      ? `${bgColor} ${textColor} font-medium border-gray-400 shadow-lg`
-                      : 'text-gray-700 hover:bg-gray-100 border-transparent'
+                    ? `${bgColor} ${textColor} font-medium border-gray-400 shadow-lg`
+                    : 'text-gray-700 hover:bg-gray-100 border-transparent'
                     }`}
                 >
                   <Icon className={`w-4 h-4 ${item.iconColor}`} />
@@ -400,8 +401,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             <button
               onClick={() => setActiveTab('reports')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'reports'
-                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
+                ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                : 'text-gray-700 hover:bg-gray-100 border-transparent'
                 }`}
             >
               <TrendingUp className="w-4 h-4 text-cyan-600" />
@@ -418,8 +419,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             <button
               onClick={() => setActiveTab('settings')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'settings'
-                  ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                  : 'text-gray-700 hover:bg-gray-100 border-transparent'
+                ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
+                : 'text-gray-700 hover:bg-gray-100 border-transparent'
                 }`}
             >
               <Settings className="w-4 h-4 text-purple-600" />
@@ -515,8 +516,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   <button
                     onClick={() => setSettingsTab('general')}
                     className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'general'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     General
@@ -524,8 +525,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   <button
                     onClick={() => setSettingsTab('modules')}
                     className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'modules'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     Modules
@@ -533,8 +534,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   <button
                     onClick={() => setSettingsTab('members')}
                     className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'members'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     Members
@@ -542,8 +543,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   <button
                     onClick={() => setSettingsTab('danger')}
                     className={`flex-1 px-4 py-2 text-base font-bold rounded-md transition-colors ${settingsTab === 'danger'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     Danger

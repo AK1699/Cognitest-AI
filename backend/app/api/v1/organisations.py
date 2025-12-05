@@ -6,12 +6,24 @@ from uuid import UUID
 import uuid
 
 from app.core.deps import get_db, get_current_active_user
+from app.core.cache import CacheService, invalidate_cache_pattern
 from app.models.organisation import Organisation
 from app.models.user import User
 from app.models.role import ProjectRole, Permission, role_permissions
 from app.schemas.organisation import OrganisationCreate, OrganisationUpdate, OrganisationResponse
 
 router = APIRouter()
+
+# Cache TTL settings
+ORG_CACHE_TTL = 300  # 5 minutes
+ORG_DETAIL_CACHE_TTL = 600  # 10 minutes
+
+
+async def invalidate_org_caches(org_id: str, user_id: str = None):
+    """Invalidate cache entries for an organization."""
+    await invalidate_cache_pattern(f"org:{org_id}:*")
+    if user_id:
+        await invalidate_cache_pattern(f"orgs:user:{user_id}")
 
 # Default roles configuration
 DEFAULT_ROLES = {
@@ -282,6 +294,9 @@ async def create_organisation(
     await db.commit()
     await db.refresh(new_organisation)
 
+    # Invalidate user's org list cache
+    await invalidate_cache_pattern(f"orgs:user:{current_user.id}")
+
     return new_organisation
 
 @router.get("/", response_model=List[OrganisationResponse])
@@ -420,6 +435,9 @@ async def update_organisation(
 
     await db.commit()
     await db.refresh(organisation)
+
+    # Invalidate caches for this organization
+    await invalidate_org_caches(str(organisation_id), str(current_user.id))
 
     return organisation
 

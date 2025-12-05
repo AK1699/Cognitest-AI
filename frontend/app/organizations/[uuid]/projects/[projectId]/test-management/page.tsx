@@ -364,9 +364,10 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
     }
   }
 
-  const switchOrganisation = (org: Organisation) => {
+  const switchOrganisation = async (org: Organisation) => {
     setOrganisation(org)
-    localStorage.setItem('current_organization_id', org.id)
+    const { setCurrentOrganization } = await import('@/lib/api/session')
+    await setCurrentOrganization(org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     setIsProfileOpen(false)
     router.push(`/organizations/${org.id}/projects`)

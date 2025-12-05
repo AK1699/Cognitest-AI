@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
+import { setCurrentOrganization } from '@/lib/api/session'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 
@@ -37,17 +38,9 @@ export default function OrganizationsPage() {
       return
     }
 
-    // Clear any potentially bloated localStorage
-    try {
-      const currentOrg = localStorage.getItem('current_organization')
-      if (currentOrg && currentOrg.length > 100) {
-        // If stored value is too large (full object), clear it
-        localStorage.removeItem('current_organization')
-      }
-    } catch (e) {
-      // Clear if any error
-      localStorage.removeItem('current_organization')
-    }
+    // Clean up legacy localStorage keys
+    localStorage.removeItem('current_organization')
+    localStorage.removeItem('current_organization_id')
 
     fetchOrganisations()
   }, [user, loading])
@@ -59,7 +52,7 @@ export default function OrganizationsPage() {
       // If user has exactly one organization, redirect directly to it
       if (response.data.length === 1) {
         const org = response.data[0]
-        localStorage.setItem('current_organization_id', org.id)
+        await setCurrentOrganization(org.id)
         window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
         router.push(`/organizations/${org.id}/projects`)
         return
@@ -98,8 +91,8 @@ export default function OrganizationsPage() {
     }
   }
 
-  const handleSelectOrganisation = (org: Organisation) => {
-    localStorage.setItem('current_organization_id', org.id)
+  const handleSelectOrganisation = async (org: Organisation) => {
+    await setCurrentOrganization(org.id)
     window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
     router.push(`/organizations/${org.id}/projects`)
   }
