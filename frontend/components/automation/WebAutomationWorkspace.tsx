@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { UserNav } from '@/components/layout/user-nav'
 import {
   Home,
@@ -9,14 +9,28 @@ import {
   FlaskConical,
   MonitorPlay,
   FileText,
-  Activity
+  Activity,
+  Settings,
+  Plus,
+  Check
 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { projectsApi, ProjectSettings } from '@/lib/api/projects'
 import TestExplorerTab from './TestExplorerTab'
 import TestBuilderTab from './TestBuilderTab'
 import LiveBrowserTab from './LiveBrowserTab'
 import LogsTab from './LogsTab'
 import AISelfHealTab from './AISelfHealTab'
+import { Environment, EnvironmentManager } from './EnvironmentManager'
 
 interface WebAutomationWorkspaceProps {
   projectId: string
@@ -30,12 +44,75 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
   const params = useParams()
   const [activeTab, setActiveTab] = useState<TabView>('explorer')
 
+  // Environment State
+  const [environments, setEnvironments] = useState<Environment[]>([])
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<string>('')
+  const [showEnvManager, setShowEnvManager] = useState(false)
+  const [loadingVars, setLoadingVars] = useState(false)
+
+  const selectedEnvironment = environments.find(e => e.id === selectedEnvironmentId)
+
+  // Fetch Environments
+  useEffect(() => {
+    const fetchProjectSettings = async () => {
+      if (!projectId) return
+      try {
+        setLoadingVars(true)
+        const project = await projectsApi.getProject(projectId)
+        if (project.settings?.environments && project.settings.environments.length > 0) {
+          setEnvironments(project.settings.environments)
+          // Restore selected env from local storage or default to first
+          const savedEnvId = localStorage.getItem(`selectedEnv_${projectId}`)
+          if (savedEnvId && project.settings.environments.some(e => e.id === savedEnvId)) {
+            setSelectedEnvironmentId(savedEnvId)
+          } else {
+            setSelectedEnvironmentId(project.settings.environments[0].id)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch project settings:', error)
+      } finally {
+        setLoadingVars(false)
+      }
+    }
+    fetchProjectSettings()
+  }, [projectId])
+
+  // Save selected env to local storage
+  useEffect(() => {
+    if (selectedEnvironmentId && projectId) {
+      localStorage.setItem(`selectedEnv_${projectId}`, selectedEnvironmentId)
+    }
+  }, [selectedEnvironmentId, projectId])
+
+  const handleSaveEnvironments = async (newEnvironments: Environment[]) => {
+    setEnvironments(newEnvironments)
+    if (!projectId) return
+
+    try {
+      const project = await projectsApi.getProject(projectId)
+      const updatedSettings: ProjectSettings = {
+        ...project.settings,
+        environments: newEnvironments
+      }
+      await projectsApi.updateProject(projectId, { settings: updatedSettings })
+
+      // If currently selected env was deleted, select another one
+      if (selectedEnvironmentId && !newEnvironments.find(e => e.id === selectedEnvironmentId)) {
+        setSelectedEnvironmentId(newEnvironments[0]?.id || '')
+      }
+    } catch (error) {
+      console.error('Failed to save environments:', error)
+    }
+  }
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'explorer':
         return <TestExplorerTab />
       case 'builder':
-        return <TestBuilderTab />
+        // @ts-ignore - We'll update TestBuilderTab types in the next step
+        return <TestBuilderTab selectedEnvironment={selectedEnvironment} />
       case 'browser':
         return <LiveBrowserTab />
       case 'logs':
@@ -81,7 +158,7 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
 
       {/* Tab Navigation Bar */}
       <div className="border-b border-gray-300 bg-gradient-to-r from-slate-50 via-gray-50 to-stone-50">
-        <div className="px-6 py-3">
+        <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setActiveTab('explorer')}
@@ -134,6 +211,52 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
               AI Self Heal
             </button>
           </div>
+
+          {/* Environment Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Environment:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-8 border-dashed ${!selectedEnvironment ? 'text-gray-500' : 'text-blue-600 border-blue-200 bg-blue-50'}`}
+                >
+                  {selectedEnvironment ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      {selectedEnvironment.name}
+                    </span>
+                  ) : (
+                    "No Environment"
+                  )}
+                  <ChevronRight className="w-3 h-3 ml-2 rotate-90 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Select Environment</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {environments.map(env => (
+                  <DropdownMenuItem
+                    key={env.id}
+                    onClick={() => setSelectedEnvironmentId(env.id)}
+                    className="flex items-center justify-between cursor-pointer"
+                  >
+                    <span>{env.name}</span>
+                    {selectedEnvironmentId === env.id && <Check className="w-4 h-4 text-blue-600" />}
+                  </DropdownMenuItem>
+                ))}
+                {environments.length === 0 && (
+                  <div className="p-2 text-xs text-gray-500 text-center italic">No environments created</div>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowEnvManager(true)} className="cursor-pointer text-blue-600 focus:text-blue-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Manage Environments
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -141,6 +264,13 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
       <div className="flex flex-1 overflow-hidden">
         {renderActiveTab()}
       </div>
+
+      <EnvironmentManager
+        open={showEnvManager}
+        onOpenChange={setShowEnvManager}
+        environments={environments}
+        onSave={handleSaveEnvironments}
+      />
     </div>
   )
 }

@@ -36,6 +36,7 @@ import {
     Mic,
     Sparkles
 } from 'lucide-react'
+import { Environment } from './EnvironmentManager'
 
 interface TestStep {
     id: string
@@ -46,7 +47,11 @@ interface TestStep {
     description?: string
 }
 
-export default function TestBuilderTab() {
+interface TestBuilderTabProps {
+    selectedEnvironment?: Environment
+}
+
+export default function TestBuilderTab({ selectedEnvironment }: TestBuilderTabProps) {
     const [steps, setSteps] = useState<TestStep[]>([])
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const [builderMethod, setBuilderMethod] = useState<'visual' | 'recorder' | 'ai'>('visual')
@@ -283,7 +288,14 @@ export default function TestBuilderTab() {
                         <h2 className="text-lg font-bold text-gray-900">Test Flow</h2>
                         <p className="text-xs text-gray-500">Sequence of steps executed in order</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                        {selectedEnvironment && (
+                            <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded border border-green-200">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                Active Environment: {selectedEnvironment.name}
+                            </div>
+                        )}
+
                         <Button variant="outline" size="sm">
                             <Save className="w-4 h-4 mr-2" />
                             Save

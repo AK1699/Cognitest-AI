@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { projectsApi, ProjectSettings } from '@/lib/api/projects'
 import {
   Plus,
   Trash2,
@@ -34,6 +36,8 @@ import {
   Zap,
 } from 'lucide-react'
 
+import { Environment, EnvironmentManager } from './EnvironmentManager'
+
 interface TestStep {
   id: string
   action: string
@@ -43,29 +47,44 @@ interface TestStep {
   description?: string
 }
 
-interface Environment {
-  id: string
-  name: string
-  baseUrl: string
-  variables: Record<string, string>
-}
-
 interface ProductionTestBuilderProps {
   testId?: string
   onSave?: (steps: TestStep[]) => void
 }
 
 export default function ProductionTestBuilder({ testId, onSave }: ProductionTestBuilderProps) {
+  const params = useParams()
+  const projectId = params?.projectId as string
+
   const [testName, setTestName] = useState('Untitled Test')
   const [baseUrl, setBaseUrl] = useState('https://')
   const [steps, setSteps] = useState<TestStep[]>([])
   const [showActionMenu, setShowActionMenu] = useState(false)
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>('dev')
-  const [environments, setEnvironments] = useState<Environment[]>([
-    { id: 'dev', name: 'Development', baseUrl: 'https://dev.example.com', variables: { API_KEY: 'dev-key-123' } },
-    { id: 'staging', name: 'Staging', baseUrl: 'https://staging.example.com', variables: { API_KEY: 'staging-key-456' } },
-    { id: 'production', name: 'Production', baseUrl: 'https://example.com', variables: { API_KEY: 'prod-key-789' } },
-  ])
+  const [showEnvManager, setShowEnvManager] = useState(false)
+
+  const [environments, setEnvironments] = useState<Environment[]>([])
+  const [loadingVars, setLoadingVars] = useState(false)
+
+  useEffect(() => {
+    const fetchProjectSettings = async () => {
+      if (!projectId) return
+      try {
+        setLoadingVars(true)
+        const project = await projectsApi.getProject(projectId)
+        if (project.settings?.environments) {
+          setEnvironments(project.settings.environments)
+        }
+      } catch (error) {
+        console.error('Failed to fetch project settings:', error)
+      } finally {
+        setLoadingVars(false)
+      }
+    }
+    fetchProjectSettings()
+  }, [projectId])
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<string>('dev')
+
+  const selectedEnvironment = environments.find(e => e.id === selectedEnvironmentId) || environments[0]
   const [collapsedSteps, setCollapsedSteps] = useState<Record<string, boolean>>({})
 
   const toggleStepCollapse = (stepId: string) => {
@@ -157,19 +176,45 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
     return [...actionTypes, ...testActions, ...variableActions, ...utilityActions].find(a => a.id === actionType)
   }
 
+  React.useEffect(() => {
+    if (selectedEnvironment?.baseUrl) {
+      setBaseUrl(selectedEnvironment.baseUrl)
+    }
+  }, [selectedEnvironment])
+
   const handleSave = () => {
     if (onSave) {
       onSave(steps)
     }
     // TODO: Save to backend
-    console.log('Saving test:', { testName, baseUrl, steps })
+    console.log('Saving test:', { testName, baseUrl, steps, environment: selectedEnvironment })
   }
 
   const handleRun = () => {
     // TODO: Execute test
-    console.log('Running test:', { testName, baseUrl, steps })
+    console.log('Running test:', { testName, baseUrl, steps, environment: selectedEnvironment })
   }
 
+
+  const handleSaveEnvironments = async (newEnvironments: Environment[]) => {
+    setEnvironments(newEnvironments)
+    if (!projectId) return
+
+    try {
+      // Get existing project settings first to preserve other settings
+      const project = await projectsApi.getProject(projectId)
+      const updatedSettings: ProjectSettings = {
+        ...project.settings,
+        environments: newEnvironments
+      }
+
+      await projectsApi.updateProject(projectId, { settings: updatedSettings })
+      // Optional: Show success toast
+    } catch (error) {
+      console.error('Failed to save environments:', error)
+      // Optional: Show error toast
+    }
+  }
 
   return (
     <div className="flex h-full bg-gray-50 overflow-hidden">
@@ -277,10 +322,33 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
               <h2 className="text-xl font-bold text-gray-900">Dynamic Test Builder</h2>
               <p className="text-sm text-gray-500 mt-0.5">Drag or click actions from the left panel to build your test flow</p>
             </div>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Play className="w-4 h-4 mr-2" />
-              Run All Steps
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                <span className="text-xs font-medium text-gray-500 ml-2">Env:</span>
+                <select
+                  value={selectedEnvironmentId}
+                  onChange={(e) => setSelectedEnvironmentId(e.target.value)}
+                  className="bg-transparent border-none text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                >
+                  {environments.map(env => (
+                    <option key={env.id} value={env.id}>{env.name}</option>
+                  ))}
+                </select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setShowEnvManager(true)}
+                  title="Manage Environments"
+                >
+                  <Settings className="w-4 h-4 text-gray-500" />
+                </Button>
+              </div>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Play className="w-4 h-4 mr-2" />
+                Run All Steps
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -546,6 +614,12 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
           )}
         </div>
       </div>
+      <EnvironmentManager
+        open={showEnvManager}
+        onOpenChange={setShowEnvManager}
+        environments={environments}
+        onSave={handleSaveEnvironments}
+      />
     </div>
   )
 }
