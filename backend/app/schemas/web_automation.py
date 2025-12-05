@@ -103,6 +103,7 @@ class ExecutionRunCreate(BaseModel):
     tags: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
     trigger_source: str = Field(default="manual")
+    variables: Optional[Dict[str, str]] = None
 
 
 class ExecutionRunResponse(BaseModel):

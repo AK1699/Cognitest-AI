@@ -160,6 +160,24 @@ export default function TestBuilderTab({ selectedEnvironment, flowId }: TestBuil
 
     const selectedStep = steps.find(s => s.id === selectedStepId)
 
+    const handleRunFlow = async () => {
+        if (!flowId) return
+
+        try {
+            const variables = selectedEnvironment?.variables || {}
+
+            // TODO: Add toast notification
+            console.log('Running flow with variables:', variables)
+
+            await webAutomationApi.executeTestFlow(flowId, {
+                execution_mode: 'headed',
+                variables: variables
+            })
+        } catch (error) {
+            console.error('Failed to execute flow:', error)
+        }
+    }
+
     return (
         <div className="flex h-full bg-gray-50 overflow-hidden w-full">
             {/* Left Panel - Actions Library */}
@@ -326,7 +344,7 @@ export default function TestBuilderTab({ selectedEnvironment, flowId }: TestBuil
                             <Save className="w-4 h-4 mr-2" />
                             Save
                         </Button>
-                        <Button size="sm">
+                        <Button size="sm" onClick={handleRunFlow}>
                             <Play className="w-4 h-4 mr-2" />
                             Run Flow
                         </Button>

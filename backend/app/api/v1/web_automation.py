@@ -210,7 +210,8 @@ async def execute_test_flow(
             test_flow_id=flow_id,
             browser_type=browser_type,
             execution_mode=execution_mode,
-            triggered_by=current_user.id
+            triggered_by=current_user.id,
+            variables=execution_config.variables
         )
         
         return execution_run

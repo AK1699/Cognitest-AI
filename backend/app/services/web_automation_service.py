@@ -340,12 +340,34 @@ class WebAutomationExecutor:
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
         self.execution_run: Optional[ExecutionRun] = None
+        self.variables: Dict[str, str] = {}
         self.ws_callbacks = []  # WebSocket callbacks for live updates
     
     def register_ws_callback(self, callback):
         """Register callback for live updates"""
         self.ws_callbacks.append(callback)
     
+    async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
+        """Emit live update to all registered callbacks"""
+
+    def substitute_variables(self, text: str) -> str:
+        """
+        Substitute environment variables in text using ${VAR_NAME} format
+        """
+        if not text or not isinstance(text, str):
+            return text
+            
+        if not self.variables:
+            return text
+            
+        import re
+        
+        def replace(match):
+            var_name = match.group(1)
+            return self.variables.get(var_name, match.group(0))
+            
+        return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace, text)
+
     async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
         """Emit live update to all registered callbacks"""
         message = {
@@ -366,7 +388,8 @@ class WebAutomationExecutor:
         test_flow_id: UUID,
         browser_type: BrowserType = BrowserType.CHROME,
         execution_mode: ExecutionMode = ExecutionMode.HEADED,
-        triggered_by: Optional[UUID] = None
+        triggered_by: Optional[UUID] = None,
+        variables: Optional[Dict[str, str]] = None
     ) -> ExecutionRun:
         """
         Execute a complete test flow
@@ -375,6 +398,9 @@ class WebAutomationExecutor:
         test_flow = self.db.query(TestFlow).filter(TestFlow.id == test_flow_id).first()
         if not test_flow:
             raise ValueError(f"Test flow not found: {test_flow_id}")
+            
+        # Set variables
+        self.variables = variables or {}
         
         # Create execution run record
         self.execution_run = ExecutionRun(
@@ -388,7 +414,8 @@ class WebAutomationExecutor:
             execution_environment={
                 "browser": browser_type.value,
                 "mode": execution_mode.value,
-                "platform": "linux"  # TODO: detect actual platform
+                "platform": "linux",  # TODO: detect actual platform
+                "variables": self.variables
             }
         )
         self.db.add(self.execution_run)
@@ -411,8 +438,9 @@ class WebAutomationExecutor:
             })
             
             # Navigate to base URL
-            await self.page.goto(test_flow.base_url, wait_until="networkidle")
-            await self.emit_live_update("navigation", {"url": test_flow.base_url})
+            base_url = self.substitute_variables(test_flow.base_url)
+            await self.page.goto(base_url, wait_until="networkidle")
+            await self.emit_live_update("navigation", {"url": base_url})
             
             # Execute each step
             for idx, node in enumerate(test_flow.nodes):
@@ -604,7 +632,7 @@ class WebAutomationExecutor:
         healing_info = None
         
         if action_type == "navigate":
-            url = action_data.get("url")
+            url = self.substitute_variables(action_data.get("url"))
             await self.page.goto(url, wait_until="networkidle")
         
         elif action_type == "click":
@@ -616,7 +644,7 @@ class WebAutomationExecutor:
         
         elif action_type == "type":
             selector_data = action_data.get("selector", {})
-            value = action_data.get("value", "")
+            value = self.substitute_variables(action_data.get("value", ""))
             locator, healing_info = await self.get_locator_with_healing(
                 selector_data, action_type, test_flow
             )
