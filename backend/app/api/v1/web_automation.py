@@ -408,6 +408,41 @@ async def get_execution_run(
     
     return response
 
+@router.get("/projects/{project_id}/executions", response_model=List[ExecutionRunResponse])
+async def list_project_executions(
+    project_id: UUID,
+    status: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all execution runs for a project
+    """
+    # Build query with optional status filter
+    query = select(ExecutionRun).where(ExecutionRun.project_id == project_id)
+    
+    if status:
+        query = query.where(ExecutionRun.status == status)
+    
+    query = query.order_by(desc(ExecutionRun.created_at)).offset(skip).limit(limit)
+    
+    exec_result = await db.execute(query)
+    executions = exec_result.scalars().all()
+    
+    # Build response with test flow names
+    result = []
+    for execution in executions:
+        flow_result = await db.execute(select(TestFlow).where(TestFlow.id == execution.test_flow_id))
+        test_flow = flow_result.scalar_one_or_none()
+        
+        response = ExecutionRunResponse.model_validate(execution)
+        response.test_flow_name = test_flow.name if test_flow else None
+        result.append(response)
+    
+    return result
+
 
 @router.get("/test-flows/{flow_id}/executions", response_model=List[ExecutionRunResponse])
 async def list_executions(

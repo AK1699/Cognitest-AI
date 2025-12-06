@@ -656,14 +656,90 @@ export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
                                 <Button>Run Test</Button>
                             </div>
                         </div>
-                        <div className="flex-1 p-8 flex items-center justify-center bg-gray-50">
-                            <div className="text-center max-w-md">
-                                <FlaskConical className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">Test Details View</h3>
-                                <p className="text-gray-500">
-                                    Select "Test Builder" tab to edit this test.
-                                </p>
-                            </div>
+                        <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+                            {selectedItem.data?.nodes && selectedItem.data.nodes.length > 0 ? (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                                        Test Steps ({selectedItem.data.nodes.length})
+                                    </h3>
+                                    {selectedItem.data.nodes.map((step: any, index: number) => (
+                                        <div
+                                            key={step.id || index}
+                                            className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-sm font-semibold text-gray-900 capitalize">
+                                                        {step.action?.replace(/_/g, ' ') || 'Unknown Action'}
+                                                    </span>
+                                                </div>
+
+                                                {/* Navigate Action - Enhanced Display */}
+                                                {step.action === 'navigate' && step.url && (
+                                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium text-blue-700">URL:</span>
+                                                            <a
+                                                                href={step.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs text-blue-600 hover:underline truncate flex-1"
+                                                                title={step.url}
+                                                            >
+                                                                {step.url}
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Description */}
+                                                {step.description && (
+                                                    <p className="text-xs text-gray-600 mt-2">{step.description}</p>
+                                                )}
+
+                                                {/* Selector */}
+                                                {step.selector && (
+                                                    <div className="mt-2 p-2 bg-gray-50 border border-gray-100 rounded-md">
+                                                        <span className="text-[10px] font-medium text-gray-500 uppercase">Selector</span>
+                                                        <code className="text-xs text-gray-700 font-mono block mt-0.5 truncate">
+                                                            {step.selector}
+                                                        </code>
+                                                    </div>
+                                                )}
+
+                                                {/* Value (for type, assertions, etc.) */}
+                                                {step.value && step.action !== 'navigate' && (
+                                                    <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
+                                                        <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
+                                                        <p className="text-xs text-green-800 mt-0.5">{step.value}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Timeout */}
+                                                {step.timeout && step.timeout !== 5000 && (
+                                                    <Badge variant="outline" className="mt-2 text-[10px]">
+                                                        Timeout: {step.timeout}ms
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FlaskConical className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Steps Yet</h3>
+                                    <p className="text-gray-500 mb-4">
+                                        This test has no steps. Click "Edit" to add steps in the Test Builder.
+                                    </p>
+                                    <Button variant="outline" onClick={() => onEditTest?.(selectedItem.id)}>
+                                        Open in Test Builder
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (

@@ -61,6 +61,7 @@ export interface TestFlowUpdate {
     healing_enabled?: boolean
     tags?: string[]
     category?: string
+    steps?: any[]  // Test steps array
 }
 
 export const webAutomationApi = {
@@ -181,5 +182,100 @@ export const webAutomationApi = {
             context
         })
         return response.data
+    },
+
+    // Execution Logs
+    listProjectExecutions: async (projectId: string, options?: {
+        status?: 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'error',
+        limit?: number,
+        skip?: number
+    }): Promise<ExecutionRun[]> => {
+        const params = new URLSearchParams()
+        if (options?.status) params.append('status', options.status)
+        if (options?.limit) params.append('limit', String(options.limit))
+        if (options?.skip) params.append('skip', String(options.skip))
+        const query = params.toString() ? `?${params.toString()}` : ''
+        const response = await api.get<ExecutionRun[]>(`/api/v1/web-automation/projects/${projectId}/executions${query}`)
+        return response.data
+    },
+
+    listTestFlowExecutions: async (flowId: string, options?: {
+        limit?: number,
+        skip?: number
+    }): Promise<ExecutionRun[]> => {
+        const params = new URLSearchParams()
+        if (options?.limit) params.append('limit', String(options.limit))
+        if (options?.skip) params.append('skip', String(options.skip))
+        const query = params.toString() ? `?${params.toString()}` : ''
+        const response = await api.get<ExecutionRun[]>(`/api/v1/web-automation/test-flows/${flowId}/executions${query}`)
+        return response.data
+    },
+
+    getExecutionRun: async (runId: string): Promise<ExecutionRunDetail> => {
+        const response = await api.get<ExecutionRunDetail>(`/api/v1/web-automation/executions/${runId}`)
+        return response.data
     }
+}
+
+// Execution Types
+export interface ExecutionRun {
+    id: string
+    test_flow_id: string
+    project_id: string
+    browser_type: 'chrome' | 'firefox' | 'safari' | 'edge' | 'chromium'
+    execution_mode: 'headed' | 'headless'
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'error'
+    total_steps: number
+    passed_steps: number
+    failed_steps: number
+    skipped_steps: number
+    healed_steps: number
+    duration_ms?: number
+    started_at?: string
+    ended_at?: string
+    execution_environment: any
+    video_url?: string
+    trace_url?: string
+    screenshots_dir?: string
+    error_message?: string
+    error_stack?: string
+    triggered_by?: string
+    trigger_source?: string
+    tags: string[]
+    notes?: string
+    created_at: string
+    test_flow_name?: string
+}
+
+export interface StepResult {
+    id: string
+    execution_run_id: string
+    step_id: string
+    step_name?: string
+    step_type: string
+    step_order: number
+    status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'healed'
+    selector_used?: any
+    action_details: any
+    actual_result?: string
+    expected_result?: string
+    error_message?: string
+    error_stack?: string
+    duration_ms?: number
+    retry_count: number
+    screenshot_url?: string
+    screenshot_before_url?: string
+    screenshot_after_url?: string
+    was_healed: boolean
+    healing_applied?: any
+    console_logs: any[]
+    network_logs: any[]
+    started_at?: string
+    ended_at?: string
+    created_at: string
+}
+
+export interface ExecutionRunDetail extends ExecutionRun {
+    step_results: StepResult[]
+    healing_events: any[]
 }

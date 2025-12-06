@@ -132,6 +132,7 @@ class ExecutionRunResponse(BaseModel):
     tags: List[str]
     notes: Optional[str]
     created_at: datetime
+    test_flow_name: Optional[str] = None
 
     class Config:
         from_attributes = True

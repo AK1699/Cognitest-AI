@@ -123,7 +123,7 @@ export default function WebAutomationWorkspace({ projectId }: WebAutomationWorks
       case 'browser':
         return <LiveBrowserTab projectId={projectId} />
       case 'logs':
-        return <LogsTab />
+        return <LogsTab projectId={projectId} />
       case 'heal':
         return <AISelfHealTab />
       default:

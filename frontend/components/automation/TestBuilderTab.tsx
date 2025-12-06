@@ -85,6 +85,7 @@ import {
 } from 'lucide-react'
 import { Environment } from './EnvironmentManager'
 import { webAutomationApi } from '@/lib/api/webAutomation'
+import { useToast } from '@/hooks/use-toast'
 
 interface TestStep {
     id: string
@@ -182,6 +183,7 @@ interface TestBuilderTabProps {
 }
 
 export default function TestBuilderTab({ selectedEnvironment, flowId, projectId }: TestBuilderTabProps) {
+    const { toast } = useToast()
     const [testName, setTestName] = useState<string>('Test Flow')
     const [isFlowLoading, setIsFlowLoading] = useState(false)
     // const [projectId, setProjectId] = useState<string | null>(null) // No longer needed as state if passed as prop, but let's keep it if we want to support flow-based project id override? No, simpler is better.
@@ -194,7 +196,10 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                     setIsFlowLoading(true)
                     const flow = await webAutomationApi.getTestFlow(flowId)
                     setTestName(flow.name)
-                    // setProjectId(flow.project_id) // We use prop now
+                    // Load steps from nodes field
+                    if (flow.nodes && Array.isArray(flow.nodes) && flow.nodes.length > 0) {
+                        setSteps(flow.nodes)
+                    }
                 } catch (error) {
                     console.error('Failed to fetch test flow:', error)
                 } finally {
@@ -259,6 +264,32 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
         setSteps(prev => [...prev, ...newSteps])
         setGeneratedSteps([])
         setAiPrompt('')
+    }
+
+    // State for Save
+    const [isSaving, setIsSaving] = useState(false)
+
+    const handleSaveFlow = async () => {
+        if (!flowId) {
+            // TODO: Handle creating new flow
+            console.error('No flowId - cannot save')
+            toast.error('Cannot save: No test flow selected. Please create a new test flow first.')
+            return
+        }
+
+        setIsSaving(true)
+        try {
+            await webAutomationApi.updateTestFlow(flowId, {
+                name: testName,
+                nodes: steps  // Backend stores test steps in 'nodes' field
+            })
+            toast.success('Test flow saved successfully!')
+        } catch (error: any) {
+            console.error('Failed to save test flow:', error)
+            toast.error(`Failed to save: ${error.message || 'Unknown error'}`)
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const handleStartRecording = async () => {
@@ -951,9 +982,9 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                             </div>
                         )}
 
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={handleSaveFlow} disabled={isSaving}>
                             <Save className="w-4 h-4 mr-2" />
-                            Save
+                            {isSaving ? 'Saving...' : 'Save'}
                         </Button>
                         <Button size="sm" onClick={handleRunFlow}>
                             <Play className="w-4 h-4 mr-2" />
@@ -1127,10 +1158,10 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                 </div>
                             )}
 
-                            {(selectedStep.action === 'type' || selectedStep.action === 'navigate' || selectedStep.action === 'assert') && (
+                            {(selectedStep.action === 'type' || selectedStep.action === 'assert') && (
                                 <div>
                                     <label className="text-xs font-medium text-gray-700 mb-1.5 block">
-                                        {selectedStep.action === 'navigate' ? 'URL' : 'Value'}
+                                        Value
                                     </label>
                                     <Input
                                         value={selectedStep.value || ''}

@@ -402,32 +402,83 @@ export default function LiveBrowserTab({
             <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10 w-full">
                 <div className="flex items-center gap-4">
                     {/* Browser & Device Selection */}
-                    <div className="flex items-center gap-2">
-                        <select
-                            className="text-sm border rounded-md px-2 py-1.5 bg-white"
-                            value={selectedBrowser}
-                            onChange={(e) => setSelectedBrowser(e.target.value)}
-                            disabled={sessionStatus === 'running'}
-                        >
-                            <option value="chromium">Chrome</option>
-                            <option value="firefox">Firefox</option>
-                            <option value="webkit">Safari</option>
-                        </select>
+                    <div className="flex items-center gap-3">
+                        {/* Browser Selector */}
+                        <div className="relative">
+                            <select
+                                className="text-sm border border-gray-200 rounded-lg pl-9 pr-8 py-2 bg-white hover:bg-gray-50 cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors font-medium"
+                                value={selectedBrowser}
+                                onChange={(e) => setSelectedBrowser(e.target.value)}
+                                disabled={sessionStatus === 'running'}
+                            >
+                                <option value="chromium">Chrome</option>
+                                <option value="firefox">Firefox</option>
+                                <option value="webkit">Safari</option>
+                            </select>
+                            {/* Browser Icon */}
+                            <div className="pointer-events-none absolute left-2.5 top-1/2 transform -translate-y-1/2">
+                                {selectedBrowser === 'chromium' && (
+                                    <svg className="w-4 h-4" viewBox="0 0 48 48">
+                                        <circle cx="24" cy="24" r="22" fill="#fff" />
+                                        <path d="M24 4C12.954 4 4 12.954 4 24h20V4z" fill="#EA4335" />
+                                        <path d="M4 24c0 11.046 8.954 20 20 20V24H4z" fill="#FBBC05" />
+                                        <path d="M24 44c11.046 0 20-8.954 20-20H24v20z" fill="#34A853" />
+                                        <path d="M44 24c0-11.046-8.954-20-20-20v20h20z" fill="#4285F4" />
+                                        <circle cx="24" cy="24" r="10" fill="#fff" />
+                                        <circle cx="24" cy="24" r="8" fill="#4285F4" />
+                                    </svg>
+                                )}
+                                {selectedBrowser === 'firefox' && (
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="#FF7139">
+                                        <path d="M20.452 3.445a11.002 11.002 0 00-2.482-1.908C16.944.997 15.098.093 12.477.032c-.734-.017-1.457.03-2.174.144-.72.114-1.398.292-2.118.56-1.017.377-1.996.975-2.574 1.554.583-.349 1.476-.733 2.55-.992a10.083 10.083 0 013.729-.167c2.341.34 4.178 1.381 5.48 2.625a8.066 8.066 0 011.298 1.587c1.468 2.382 1.33 5.376.184 7.142-.85 1.312-2.67 2.544-4.37 2.53-.583-.023-1.438-.152-2.25-.566-2.629-1.343-3.021-4.688-1.118-6.306-.632-.136-1.82.13-2.646 1.363-.742 1.107-.7 2.816-.242 4.028a6.473 6.473 0 01-.59-1.895 7.695 7.695 0 01.416-3.845A8.212 8.212 0 019.45 5.399c.896-1.069 1.908-1.72 2.75-2.005-.54-.471-1.411-.738-2.421-.767C8.31 2.583 6.327 3.061 4.7 4.41a8.148 8.148 0 00-1.976 2.414c-.455.836-.691 1.659-.697 1.678.122-1.445.704-2.994 1.248-4.055-.79.413-1.827 1.668-2.41 3.042C.095 9.37-.2 11.608.14 13.989c.966 5.668 5.9 9.982 11.843 9.982C18.62 23.971 24 18.591 24 11.956a11.93 11.93 0 00-3.548-8.511z" />
+                                    </svg>
+                                )}
+                                {selectedBrowser === 'webkit' && (
+                                    <svg className="w-4 h-4" viewBox="0 0 48 48">
+                                        <circle cx="24" cy="24" r="22" fill="#fff" stroke="#5AC8FA" strokeWidth="3" />
+                                        <circle cx="24" cy="24" r="18" fill="#fff" />
+                                        {/* Compass tick marks */}
+                                        <line x1="24" y1="8" x2="24" y2="12" stroke="#5AC8FA" strokeWidth="2" />
+                                        <line x1="24" y1="36" x2="24" y2="40" stroke="#5AC8FA" strokeWidth="2" />
+                                        <line x1="8" y1="24" x2="12" y2="24" stroke="#5AC8FA" strokeWidth="2" />
+                                        <line x1="36" y1="24" x2="40" y2="24" stroke="#5AC8FA" strokeWidth="2" />
+                                        {/* Compass needle */}
+                                        <polygon points="24,10 28,24 24,28 20,24" fill="#FF3B30" />
+                                        <polygon points="24,38 20,24 24,20 28,24" fill="#4A4A4A" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
 
-                        <select
-                            className="text-sm border rounded-md px-2 py-1.5 bg-white"
-                            value={selectedDevice}
-                            onChange={(e) => setSelectedDevice(e.target.value)}
-                            disabled={sessionStatus === 'running'}
-                        >
-                            {devices.map(device => (
-                                <option key={device.id} value={device.id}>
-                                    {device.name}
-                                </option>
-                            ))}
-                        </select>
+                        {/* Device Selector */}
+                        <div className="relative">
+                            <select
+                                className="text-sm border border-gray-200 rounded-lg pl-9 pr-8 py-2 bg-white hover:bg-gray-50 cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors font-medium min-w-[160px]"
+                                value={selectedDevice}
+                                onChange={(e) => setSelectedDevice(e.target.value)}
+                                disabled={sessionStatus === 'running'}
+                            >
+                                {devices.map(device => (
+                                    <option key={device.id} value={device.id}>
+                                        {device.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {/* Device Icon */}
+                            <div className="pointer-events-none absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                {selectedDevice.toLowerCase().includes('mobile') || selectedDevice.toLowerCase().includes('iphone') || selectedDevice.toLowerCase().includes('pixel') ? (
+                                    <Smartphone className="w-4 h-4" />
+                                ) : selectedDevice.toLowerCase().includes('tablet') || selectedDevice.toLowerCase().includes('ipad') ? (
+                                    <Tablet className="w-4 h-4" />
+                                ) : (
+                                    <Monitor className="w-4 h-4" />
+                                )}
+                            </div>
+                        </div>
 
-                        <Badge variant="outline" className="bg-gray-50">
+                        {/* Viewport Badge */}
+                        <Badge variant="outline" className="bg-gray-50 border-gray-200 text-gray-600 font-mono text-xs px-2.5 py-1.5">
+                            <Layout className="w-3 h-3 mr-1.5 text-gray-400" />
                             {getViewportDisplay()}
                         </Badge>
                     </div>
