@@ -14,7 +14,10 @@ import {
     MoreVertical,
     Filter,
     SortAsc,
-    Loader2
+    Loader2,
+    Play,
+    Monitor,
+    MonitorOff
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -38,6 +41,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
+import { toast } from 'sonner'
 
 // Internal UI Structure
 interface ExplorerItem {
@@ -61,9 +65,10 @@ interface FolderNode {
 
 interface TestExplorerTabProps {
     onEditTest?: (flowId: string) => void
+    onRunInBrowser?: (flowId: string, testName: string) => void
 }
 
-export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
+export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExplorerTabProps) {
     const params = useParams()
     const projectId = params.projectId as string
     const router = useRouter()
@@ -74,6 +79,7 @@ export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
     const [searchQuery, setSearchQuery] = useState('')
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
+    const [isRunning, setIsRunning] = useState(false)
 
     // Modal States
     const [isCreateTestOpen, setIsCreateTestOpen] = useState(false)
@@ -296,6 +302,39 @@ export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
             console.error("Failed to create test:", error)
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    // Run Test
+    const handleRunTest = async (mode: 'headed' | 'headless') => {
+        if (!selectedItem?.data?.id) return
+
+        if (mode === 'headed') {
+            // Switch to Live Browser tab to run visually
+            if (onRunInBrowser) {
+                onRunInBrowser(selectedItem.data.id, selectedItem.name)
+                toast.info('Switching to Live Browser for headed execution...')
+            } else {
+                toast.error('Live Browser not available')
+            }
+            return
+        }
+
+        // Headless mode - run in background and show progress here
+        setIsRunning(true)
+        toast.info('Starting headless test execution...')
+
+        try {
+            const result = await webAutomationApi.executeTestFlow(selectedItem.data.id, {
+                execution_mode: mode,
+                browser_type: 'chromium'
+            })
+            toast.success(`Test completed! Run ID: ${result.id?.substring(0, 8) || 'unknown'}`)
+        } catch (error: any) {
+            console.error("Failed to run test:", error)
+            toast.error(`Failed to run test: ${error.message || 'Unknown error'}`)
+        } finally {
+            setIsRunning(false)
         }
     }
 
@@ -653,7 +692,35 @@ export default function TestExplorerTab({ onEditTest }: TestExplorerTabProps) {
                                     Edit
                                 </Button>
                                 <Button variant="outline">Properties</Button>
-                                <Button>Run Test</Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button disabled={isRunning} className="min-w-[110px]">
+                                            {isRunning ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    Running...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Play className="w-4 h-4 mr-2" />
+                                                    Run Test
+                                                </>
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem onClick={() => handleRunTest('headed')} className="cursor-pointer">
+                                            <Monitor className="w-4 h-4 mr-2" />
+                                            <span>Run Headed</span>
+                                            <span className="ml-auto text-xs text-gray-400">Visible</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleRunTest('headless')} className="cursor-pointer">
+                                            <MonitorOff className="w-4 h-4 mr-2" />
+                                            <span>Run Headless</span>
+                                            <span className="ml-auto text-xs text-gray-400">Fast</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                         <div className="flex-1 p-6 overflow-y-auto bg-gray-50">

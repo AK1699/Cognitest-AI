@@ -1062,9 +1062,19 @@ async def websocket_browser_session(
     # Define update callback for this session
     async def on_update(data: dict):
         try:
+            # Check if this websocket is still the active one for this session
+            current_ws = browser_session_connections.get(session_id)
+            if current_ws is not websocket:
+                return  # A newer connection replaced this one
+            
+            # Check if websocket is still connected
+            if websocket.client_state.name != "CONNECTED":
+                return
+            
             await websocket.send_json(data)
         except Exception as e:
-            print(f"Failed to send browser session update: {e}")
+            # Silently ignore send failures (connection may have closed)
+            pass
     
     try:
         # Send initial connected message
@@ -1197,6 +1207,106 @@ async def websocket_browser_session(
                         await websocket.send_json({
                             "type": "scrolled",
                             **result
+                        })
+                
+                elif action == "execute_test":
+                    # Execute test steps on the existing browser session
+                    flow_id = message.get("flowId")
+                    session = browser_session_manager.get_session(session_id)
+                    
+                    if not session:
+                        await websocket.send_json({"type": "error", "error": "No active browser session"})
+                        continue
+                    
+                    if not flow_id:
+                        await websocket.send_json({"type": "error", "error": "No flowId provided"})
+                        continue
+                    
+                    try:
+                        # Get test flow
+                        from app.core.database import get_db as get_db_session
+                        async for db in get_db_session():
+                            result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
+                            test_flow = result.scalar_one_or_none()
+                            
+                            if not test_flow:
+                                await websocket.send_json({"type": "error", "error": "Test flow not found"})
+                                break
+                            
+                            # Notify test execution started
+                            await websocket.send_json({
+                                "type": "test_execution_started",
+                                "flowId": str(flow_id),
+                                "totalSteps": len(test_flow.nodes or [])
+                            })
+                            
+                            # Execute each step
+                            steps = test_flow.nodes or []
+                            for i, step in enumerate(steps):
+                                # Step data can be at root level or nested in 'data'
+                                step_data = step.get("data", step)  # Use step itself if no 'data' nested object
+                                
+                                # Step type can be 'action' or 'type' field
+                                step_type = step_data.get("action") or step_data.get("type") or step.get("action") or step.get("type") or "unknown"
+                                step_name = step_data.get("label") or step_data.get("description") or step.get("description") or f"Step {i+1}"
+                                
+                                await websocket.send_json({
+                                    "type": "step_started",
+                                    "stepIndex": i,
+                                    "stepType": step_type,
+                                    "stepName": step_name
+                                })
+                                
+                                try:
+                                    # Execute step based on type
+                                    if step_type == "navigate":
+                                        url = step_data.get("url") or step.get("url") or ""
+                                        if url:
+                                            await session.navigate(url)
+                                    elif step_type == "click":
+                                        selector = step_data.get("selector") or step.get("selector") or ""
+                                        if selector:
+                                            await session.click_element(selector)
+                                    elif step_type == "type" or step_type == "fill":
+                                        selector = step_data.get("selector") or step.get("selector") or ""
+                                        value = step_data.get("value") or step.get("value") or ""
+                                        if selector:
+                                            await session.type_into_element(selector, value)
+                                    elif step_type == "wait":
+                                        timeout = step_data.get("timeout") or step.get("timeout") or 1000
+                                        import asyncio
+                                        await asyncio.sleep(timeout / 1000)
+                                    elif step_type == "assert":
+                                        # Basic assertion - just check element exists
+                                        selector = step_data.get("selector") or step.get("selector") or ""
+                                        if selector:
+                                            element_info = await session.get_element_info(selector)
+                                            if not element_info:
+                                                raise Exception(f"Assertion failed: Element not found: {selector}")
+                                    
+                                    await websocket.send_json({
+                                        "type": "step_completed",
+                                        "stepIndex": i,
+                                        "status": "passed"
+                                    })
+                                    
+                                except Exception as step_error:
+                                    await websocket.send_json({
+                                        "type": "step_completed",
+                                        "stepIndex": i,
+                                        "status": "failed",
+                                        "error": str(step_error)
+                                    })
+                            
+                            await websocket.send_json({
+                                "type": "test_execution_completed",
+                                "flowId": str(flow_id)
+                            })
+                            break
+                    except Exception as e:
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": f"Test execution failed: {str(e)}"
                         })
                 
                 elif action == "ping":

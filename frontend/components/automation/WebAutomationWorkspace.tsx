@@ -113,21 +113,29 @@ export default function WebAutomationWorkspace({ projectId }: WebAutomationWorks
     setActiveTab('builder')
   }
 
+  // Handler for running test in Live Browser (headed mode)
+  const [testToRun, setTestToRun] = useState<{ flowId: string, testName: string } | null>(null)
+
+  const handleRunInBrowser = (flowId: string, testName: string) => {
+    setTestToRun({ flowId, testName })
+    setActiveTab('browser')
+  }
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'explorer':
-        return <TestExplorerTab onEditTest={handleEditTest} />
+        return <TestExplorerTab onEditTest={handleEditTest} onRunInBrowser={handleRunInBrowser} />
       case 'builder':
         // @ts-ignore - We'll update TestBuilderTab types in the next step
         return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} projectId={projectId} />
       case 'browser':
-        return <LiveBrowserTab projectId={projectId} />
+        return <LiveBrowserTab projectId={projectId} testToRun={testToRun} onTestComplete={() => setTestToRun(null)} />
       case 'logs':
         return <LogsTab projectId={projectId} />
       case 'heal':
         return <AISelfHealTab projectId={projectId} />
       default:
-        return <TestExplorerTab onEditTest={handleEditTest} />
+        return <TestExplorerTab onEditTest={handleEditTest} onRunInBrowser={handleRunInBrowser} />
     }
   }
 

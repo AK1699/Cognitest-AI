@@ -75,6 +75,8 @@ interface LiveBrowserTabProps {
     testName?: string
     steps?: TestStep[]
     onStepClick?: (stepId: string) => void
+    testToRun?: { flowId: string; testName: string } | null
+    onTestComplete?: () => void
 }
 
 export default function LiveBrowserTab({
@@ -82,7 +84,9 @@ export default function LiveBrowserTab({
     testFlowId,
     testName = 'Untitled Test',
     steps = [],
-    onStepClick
+    onStepClick,
+    testToRun,
+    onTestComplete
 }: LiveBrowserTabProps) {
     // Session state
     const [sessionId, setSessionId] = useState<string | null>(null)
@@ -157,6 +161,50 @@ export default function LiveBrowserTab({
         }
     }, [])
 
+    // Store pending test to run after browser launches
+    const [pendingTestFlowId, setPendingTestFlowId] = useState<string | null>(null)
+    const testRunInitiatedRef = useRef(false)
+
+    // When testToRun prop is passed, prepare for test execution
+    useEffect(() => {
+        if (!testToRun || testRunInitiatedRef.current) {
+            return
+        }
+
+        testRunInitiatedRef.current = true
+
+        // Store the test to run after browser is launched
+        setPendingTestFlowId(testToRun.flowId)
+
+        // Get test flow to find starting URL
+        webAutomationApi.getTestFlow(testToRun.flowId).then(testFlow => {
+            const firstStep = testFlow.nodes?.[0]
+            const startUrl = firstStep?.data?.url || ''
+
+            // Pre-fill the URL input
+            if (startUrl) {
+                setUrlInput(startUrl)
+            }
+
+            // Auto-trigger the existing handleLaunch function after a short delay
+            setTimeout(() => {
+                const launchBtn = document.querySelector('[data-launch-btn]') as HTMLButtonElement
+                if (launchBtn) {
+                    launchBtn.click()
+                }
+            }, 100)
+        }).catch(error => {
+            console.error('Failed to get test flow:', error)
+            testRunInitiatedRef.current = false
+            onTestComplete?.()
+        })
+
+        return () => {
+            testRunInitiatedRef.current = false
+        }
+    }, [testToRun])
+
+
     // Connect WebSocket
     const connectWebSocket = useCallback((sid: string) => {
         const wsUrl = `ws://localhost:8000/api/v1/web-automation/ws/browser-session/${sid}`
@@ -219,6 +267,15 @@ export default function LiveBrowserTab({
             case 'session_started':
                 setSessionStatus('running')
                 startTimer()
+                // If there's a pending test to execute, run it now
+                if (pendingTestFlowId && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    console.log('Session started, executing pending test:', pendingTestFlowId)
+                    wsRef.current.send(JSON.stringify({
+                        action: 'execute_test',
+                        flowId: pendingTestFlowId
+                    }))
+                    setPendingTestFlowId(null)
+                }
                 break
 
             case 'session_stopped':
@@ -234,8 +291,41 @@ export default function LiveBrowserTab({
                 }
                 break
 
+            // Test execution messages
+            case 'test_execution_started':
+                console.log('Test execution started:', data.flowId, 'Total steps:', data.totalSteps)
+                break
+
+            case 'step_started':
+                console.log(`Step ${data.stepIndex + 1}: ${data.stepName} (${data.stepType})`)
+                break
+
+            case 'step_completed':
+                console.log(`Step ${data.stepIndex + 1} ${data.status}`, data.error || '')
+                break
+
+            case 'test_execution_completed':
+                console.log('Test execution completed:', data.flowId)
+                testRunInitiatedRef.current = false
+                // Stop the browser session after test completes
+                setTimeout(() => {
+                    console.log('Stopping browser session...')
+                    // Send stop action via WebSocket
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({ action: 'stop' }))
+                        wsRef.current.close()
+                    }
+                    setSessionId(null)
+                    setSessionStatus('stopped')
+                    setScreenshot(null)
+                    stopTimer()
+                }, 1500) // Wait 1.5 seconds so user can see final result
+                onTestComplete?.()
+                break
+
             case 'error':
                 console.error('Browser session error:', data.error)
+                testRunInitiatedRef.current = false
                 break
         }
     }
@@ -493,6 +583,7 @@ export default function LiveBrowserTab({
                                 className="bg-green-600 hover:bg-green-700"
                                 onClick={handleLaunch}
                                 disabled={isLaunching}
+                                data-launch-btn
                             >
                                 {isLaunching ? (
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
