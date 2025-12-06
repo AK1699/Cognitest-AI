@@ -79,7 +79,9 @@ import {
     FileSpreadsheet,
     ClipboardCopy,
     ClipboardPaste,
-    IterationCw
+    IterationCw,
+    Pointer,
+    Menu
 } from 'lucide-react'
 import { Environment } from './EnvironmentManager'
 import { webAutomationApi } from '@/lib/api/webAutomation'
@@ -302,9 +304,9 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
         { id: 'go_forward', name: 'Go Forward', icon: ArrowRight, color: 'bg-blue-400', description: 'Browser forward button' },
         { id: 'reload', name: 'Reload', icon: RefreshCw, color: 'bg-blue-400', description: 'Reload page' },
         // Click Actions
-        { id: 'click', name: 'Click', icon: Crosshair, color: 'bg-green-500', description: 'Click element' },
-        { id: 'double_click', name: 'Double Click', icon: Crosshair, color: 'bg-green-600', description: 'Double click element' },
-        { id: 'right_click', name: 'Right Click', icon: Crosshair, color: 'bg-green-700', description: 'Right click (context menu)' },
+        { id: 'click', name: 'Click', icon: MousePointerClick, color: 'bg-green-500', description: 'Click element' },
+        { id: 'double_click', name: 'Double Click', icon: Pointer, color: 'bg-green-600', description: 'Double click element' },
+        { id: 'right_click', name: 'Right Click', icon: Menu, color: 'bg-green-700', description: 'Right click (context menu)' },
         // Input Actions
         { id: 'type', name: 'Type', icon: FormInput, color: 'bg-purple-500', description: 'Type text into input' },
         { id: 'clear', name: 'Clear', icon: Eraser, color: 'bg-purple-400', description: 'Clear input field' },

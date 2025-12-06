@@ -121,7 +121,7 @@ export default function WebAutomationWorkspace({ projectId }: WebAutomationWorks
         // @ts-ignore - We'll update TestBuilderTab types in the next step
         return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} projectId={projectId} />
       case 'browser':
-        return <LiveBrowserTab />
+        return <LiveBrowserTab projectId={projectId} />
       case 'logs':
         return <LogsTab />
       case 'heal':

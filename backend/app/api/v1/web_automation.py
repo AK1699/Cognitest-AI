@@ -28,6 +28,7 @@ from app.schemas.web_automation import (
 )
 from app.services.web_automation_service import WebAutomationExecutor
 from app.services.gemini_service import GeminiService
+from app.services.browser_session_service import browser_session_manager, DevicePreset
 
 router = APIRouter()
 
@@ -768,3 +769,258 @@ async def list_locator_alternatives(
     alternatives = alt_result.scalars().all()
     
     return alternatives
+
+
+# ============================================================================
+# BROWSER SESSION MANAGEMENT - Live Browser Feature
+# ============================================================================
+
+# Store WebSocket connections for browser sessions
+browser_session_connections: dict[str, WebSocket] = {}
+
+
+@router.get("/device-presets")
+async def get_device_presets():
+    """
+    Get available device presets for browser emulation.
+    """
+    return {
+        "devices": [
+            {"id": "desktop_chrome", "name": "Desktop Chrome", "viewport": "1920x1080", "type": "desktop"},
+            {"id": "desktop_1280", "name": "Desktop 1280", "viewport": "1280x720", "type": "desktop"},
+            {"id": "iphone_14", "name": "iPhone 14", "viewport": "390x844", "type": "mobile"},
+            {"id": "iphone_14_pro_max", "name": "iPhone 14 Pro Max", "viewport": "430x932", "type": "mobile"},
+            {"id": "pixel_7", "name": "Pixel 7", "viewport": "412x915", "type": "mobile"},
+            {"id": "ipad_pro", "name": "iPad Pro", "viewport": "1024x1366", "type": "tablet"},
+            {"id": "galaxy_s21", "name": "Galaxy S21", "viewport": "360x800", "type": "mobile"},
+        ]
+    }
+
+
+@router.get("/browser-sessions")
+async def list_browser_sessions(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all active browser sessions.
+    """
+    return {
+        "sessions": browser_session_manager.get_all_sessions()
+    }
+
+
+@router.get("/browser-sessions/{session_id}")
+async def get_browser_session_state(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get current state of a browser session.
+    """
+    session = browser_session_manager.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Browser session not found")
+    
+    return session.get_state()
+
+
+@router.delete("/browser-sessions/{session_id}")
+async def stop_browser_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Stop and cleanup a browser session.
+    """
+    success = await browser_session_manager.stop_session(session_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Browser session not found")
+    
+    # Clean up WebSocket connection
+    if session_id in browser_session_connections:
+        del browser_session_connections[session_id]
+    
+    return {"message": "Browser session stopped", "session_id": session_id}
+
+
+@router.websocket("/ws/browser-session/{session_id}")
+async def websocket_browser_session(
+    websocket: WebSocket,
+    session_id: str
+):
+    """
+    WebSocket endpoint for browser session live updates.
+    
+    Flow:
+    1. Client connects to WebSocket
+    2. Client sends {"action": "launch", "browserType": "...", "device": "...", "url": "..."}
+    3. Server launches browser and streams screenshots
+    
+    Client can send control messages:
+    - {"action": "launch", "browserType": "chromium", "device": "desktop_chrome", "url": "https://..."}
+    - {"action": "navigate", "url": "https://..."}
+    - {"action": "highlight", "selector": "#element"}
+    - {"action": "stop"}
+    """
+    await websocket.accept()
+    browser_session_connections[session_id] = websocket
+    
+    # Define update callback for this session
+    async def on_update(data: dict):
+        try:
+            await websocket.send_json(data)
+        except Exception as e:
+            print(f"Failed to send browser session update: {e}")
+    
+    try:
+        # Send initial connected message
+        await websocket.send_json({
+            "type": "connected",
+            "session_id": session_id,
+            "message": "WebSocket connected. Send launch command to start browser."
+        })
+        
+        while True:
+            # Receive messages from client
+            data = await websocket.receive_text()
+            
+            try:
+                message = json.loads(data)
+                action = message.get("action")
+                
+                if action == "launch":
+                    # Launch browser session
+                    browser_type = message.get("browserType", "chromium")
+                    device = message.get("device", "desktop_chrome")
+                    url = message.get("url", "about:blank")
+                    
+                    await websocket.send_json({
+                        "type": "launching",
+                        "message": "Launching browser..."
+                    })
+                    
+                    try:
+                        # Check if headed mode is requested
+                        headless = message.get("headless", True)
+                        
+                        session = await browser_session_manager.create_session(
+                            session_id=session_id,
+                            on_update=on_update,
+                            browser_type=browser_type,
+                            device=device,
+                            initial_url=url,
+                            headless=headless
+                        )
+                        
+                        if not session:
+                            await websocket.send_json({
+                                "type": "error",
+                                "error": "Failed to launch browser. Make sure Playwright browsers are installed (run: playwright install)"
+                            })
+                    except Exception as e:
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": f"Browser launch failed: {str(e)}"
+                        })
+                
+                elif action == "navigate":
+                    url = message.get("url")
+                    session = browser_session_manager.get_session(session_id)
+                    if session and url:
+                        await session.navigate(url)
+                    elif not session:
+                        await websocket.send_json({"type": "error", "error": "No active session"})
+                
+                elif action == "highlight":
+                    selector = message.get("selector")
+                    session = browser_session_manager.get_session(session_id)
+                    if session and selector:
+                        await session.highlight_element(selector)
+                
+                elif action == "stop":
+                    await browser_session_manager.stop_session(session_id)
+                    await websocket.send_json({
+                        "type": "session_stopped",
+                        "session_id": session_id
+                    })
+                
+                # Interactive actions for element inspector
+                elif action == "click":
+                    x = message.get("x")
+                    y = message.get("y")
+                    session = browser_session_manager.get_session(session_id)
+                    if session and x is not None and y is not None:
+                        result = await session.click_at_point(x, y)
+                        await websocket.send_json({
+                            "type": "element_clicked",
+                            **result
+                        })
+                    elif not session:
+                        await websocket.send_json({"type": "error", "error": "No active session"})
+                
+                elif action == "inspect":
+                    # Get element info without clicking
+                    x = message.get("x")
+                    y = message.get("y")
+                    session = browser_session_manager.get_session(session_id)
+                    if session and x is not None and y is not None:
+                        element_info = await session.get_element_at_point(x, y)
+                        await websocket.send_json({
+                            "type": "element_info",
+                            "element": element_info,
+                            "x": x,
+                            "y": y
+                        })
+                    elif not session:
+                        await websocket.send_json({"type": "error", "error": "No active session"})
+                
+                elif action == "type":
+                    text = message.get("text", "")
+                    session = browser_session_manager.get_session(session_id)
+                    if session:
+                        result = await session.type_text(text)
+                        await websocket.send_json({
+                            "type": "typed",
+                            **result
+                        })
+                
+                elif action == "press":
+                    key = message.get("key", "")
+                    session = browser_session_manager.get_session(session_id)
+                    if session:
+                        result = await session.press_key(key)
+                        await websocket.send_json({
+                            "type": "key_pressed",
+                            **result
+                        })
+                
+                elif action == "scroll":
+                    direction = message.get("direction", "down")
+                    amount = message.get("amount", 300)
+                    session = browser_session_manager.get_session(session_id)
+                    if session:
+                        result = await session.scroll_page(direction, amount)
+                        await websocket.send_json({
+                            "type": "scrolled",
+                            **result
+                        })
+                
+                elif action == "ping":
+                    await websocket.send_json({"type": "pong"})
+                
+            except json.JSONDecodeError:
+                if data == "ping":
+                    await websocket.send_text("pong")
+    
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"Browser session WebSocket error: {e}")
+    finally:
+        # Cleanup
+        await browser_session_manager.stop_session(session_id)
+        if session_id in browser_session_connections:
+            del browser_session_connections[session_id]
+

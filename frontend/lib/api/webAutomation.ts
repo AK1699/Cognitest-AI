@@ -106,5 +106,55 @@ export const webAutomationApi = {
     stopRecording: async (projectId: string) => {
         const response = await api.post(`/api/v1/web-automation/recorder/stop`, { project_id: projectId })
         return response.data
+    },
+
+    // Browser Session Management - Live Browser Feature
+    launchBrowserSession: async (sessionId: string, options?: {
+        browserType?: string,
+        device?: string,
+        initialUrl?: string
+    }) => {
+        const params = new URLSearchParams({
+            session_id: sessionId,
+            browser_type: options?.browserType || 'chromium',
+            device: options?.device || 'desktop_chrome',
+            initial_url: options?.initialUrl || 'about:blank'
+        })
+        const response = await api.post(`/api/v1/web-automation/browser-sessions?${params}`)
+        return response.data
+    },
+
+    stopBrowserSession: async (sessionId: string) => {
+        const response = await api.delete(`/api/v1/web-automation/browser-sessions/${sessionId}`)
+        return response.data
+    },
+
+    navigateBrowserSession: async (sessionId: string, url: string) => {
+        const response = await api.post(`/api/v1/web-automation/browser-sessions/${sessionId}/navigate?url=${encodeURIComponent(url)}`)
+        return response.data
+    },
+
+    highlightElement: async (sessionId: string, selector: string, duration?: number) => {
+        const params = new URLSearchParams({
+            selector,
+            duration: String(duration || 2000)
+        })
+        const response = await api.post(`/api/v1/web-automation/browser-sessions/${sessionId}/highlight?${params}`)
+        return response.data
+    },
+
+    getBrowserSessionState: async (sessionId: string) => {
+        const response = await api.get(`/api/v1/web-automation/browser-sessions/${sessionId}`)
+        return response.data
+    },
+
+    listBrowserSessions: async () => {
+        const response = await api.get(`/api/v1/web-automation/browser-sessions`)
+        return response.data
+    },
+
+    getDevicePresets: async () => {
+        const response = await api.get<{ devices: Array<{ id: string, name: string, viewport: string, type: string }> }>(`/api/v1/web-automation/device-presets`)
+        return response.data
     }
 }
