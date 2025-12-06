@@ -1223,8 +1223,12 @@ async def websocket_browser_session(
                         continue
                     
                     try:
-                        # Get test flow
+                        # Get test flow and create execution run record
                         from app.core.database import get_db as get_db_session
+                        from app.models.web_automation import ExecutionRun, StepResult, ExecutionRunStatus, StepStatus, BrowserType, ExecutionMode
+                        from datetime import datetime
+                        import uuid
+                        
                         async for db in get_db_session():
                             result = await db.execute(select(TestFlow).where(TestFlow.id == flow_id))
                             test_flow = result.scalar_one_or_none()
@@ -1233,29 +1237,70 @@ async def websocket_browser_session(
                                 await websocket.send_json({"type": "error", "error": "Test flow not found"})
                                 break
                             
+                            # Create execution run record
+                            steps = test_flow.nodes or []
+                            execution_run = ExecutionRun(
+                                id=uuid.uuid4(),
+                                test_flow_id=test_flow.id,
+                                project_id=test_flow.project_id,
+                                browser_type=BrowserType.CHROMIUM,
+                                execution_mode=ExecutionMode.HEADED,
+                                status=ExecutionRunStatus.RUNNING,
+                                total_steps=len(steps),
+                                passed_steps=0,
+                                failed_steps=0,
+                                skipped_steps=0,
+                                healed_steps=0,
+                                started_at=datetime.utcnow(),
+                                trigger_source="live_browser"
+                            )
+                            db.add(execution_run)
+                            await db.commit()
+                            await db.refresh(execution_run)
+                            
                             # Notify test execution started
                             await websocket.send_json({
                                 "type": "test_execution_started",
                                 "flowId": str(flow_id),
-                                "totalSteps": len(test_flow.nodes or [])
+                                "executionId": str(execution_run.id),
+                                "testName": test_flow.name,
+                                "totalSteps": len(steps)
                             })
                             
+                            # Track results
+                            passed_count = 0
+                            failed_count = 0
+                            start_time = datetime.utcnow()
+                            
                             # Execute each step
-                            steps = test_flow.nodes or []
                             for i, step in enumerate(steps):
+                                step_start = datetime.utcnow()
+                                
                                 # Step data can be at root level or nested in 'data'
-                                step_data = step.get("data", step)  # Use step itself if no 'data' nested object
+                                step_data = step.get("data", step)
                                 
                                 # Step type can be 'action' or 'type' field
                                 step_type = step_data.get("action") or step_data.get("type") or step.get("action") or step.get("type") or "unknown"
                                 step_name = step_data.get("label") or step_data.get("description") or step.get("description") or f"Step {i+1}"
+                                step_id = step.get("id", f"step-{i}")
+                                selector_used = step_data.get("selector") or step.get("selector") or ""
+                                
+                                # Get step details for frontend display
+                                step_url = step_data.get("url") or step.get("url") or ""
+                                step_value = step_data.get("value") or step.get("value") or ""
                                 
                                 await websocket.send_json({
                                     "type": "step_started",
                                     "stepIndex": i,
                                     "stepType": step_type,
-                                    "stepName": step_name
+                                    "stepName": step_name,
+                                    "selector": selector_used,
+                                    "url": step_url,
+                                    "value": step_value
                                 })
+                                
+                                step_status = StepStatus.PASSED
+                                step_error = None
                                 
                                 try:
                                     # Execute step based on type
@@ -1264,43 +1309,75 @@ async def websocket_browser_session(
                                         if url:
                                             await session.navigate(url)
                                     elif step_type == "click":
-                                        selector = step_data.get("selector") or step.get("selector") or ""
-                                        if selector:
-                                            await session.click_element(selector)
+                                        if selector_used:
+                                            await session.click_element(selector_used)
                                     elif step_type == "type" or step_type == "fill":
-                                        selector = step_data.get("selector") or step.get("selector") or ""
                                         value = step_data.get("value") or step.get("value") or ""
-                                        if selector:
-                                            await session.type_into_element(selector, value)
+                                        if selector_used:
+                                            await session.type_into_element(selector_used, value)
                                     elif step_type == "wait":
                                         timeout = step_data.get("timeout") or step.get("timeout") or 1000
                                         import asyncio
                                         await asyncio.sleep(timeout / 1000)
                                     elif step_type == "assert":
-                                        # Basic assertion - just check element exists
-                                        selector = step_data.get("selector") or step.get("selector") or ""
-                                        if selector:
-                                            element_info = await session.get_element_info(selector)
+                                        if selector_used:
+                                            element_info = await session.get_element_info(selector_used)
                                             if not element_info:
-                                                raise Exception(f"Assertion failed: Element not found: {selector}")
+                                                raise Exception(f"Assertion failed: Element not found: {selector_used}")
                                     
-                                    await websocket.send_json({
-                                        "type": "step_completed",
-                                        "stepIndex": i,
-                                        "status": "passed"
-                                    })
+                                    passed_count += 1
                                     
-                                except Exception as step_error:
-                                    await websocket.send_json({
-                                        "type": "step_completed",
-                                        "stepIndex": i,
-                                        "status": "failed",
-                                        "error": str(step_error)
-                                    })
+                                except Exception as step_err:
+                                    step_status = StepStatus.FAILED
+                                    step_error = str(step_err)
+                                    failed_count += 1
+                                
+                                step_end = datetime.utcnow()
+                                step_duration = int((step_end - step_start).total_seconds() * 1000)
+                                
+                                # Create step result record
+                                step_result = StepResult(
+                                    id=uuid.uuid4(),
+                                    execution_run_id=execution_run.id,
+                                    step_id=step_id,
+                                    step_name=step_name,
+                                    step_type=step_type,
+                                    step_order=i,
+                                    status=step_status,
+                                    duration_ms=step_duration,
+                                    selector_used=selector_used if selector_used else None,
+                                    error_message=step_error,
+                                    was_healed=False
+                                )
+                                db.add(step_result)
+                                
+                                await websocket.send_json({
+                                    "type": "step_completed",
+                                    "stepIndex": i,
+                                    "status": step_status.value,
+                                    "error": step_error
+                                })
+                            
+                            # Update execution run with final results
+                            end_time = datetime.utcnow()
+                            total_duration = int((end_time - start_time).total_seconds() * 1000)
+                            
+                            execution_run.status = ExecutionRunStatus.COMPLETED if failed_count == 0 else ExecutionRunStatus.FAILED
+                            execution_run.passed_steps = passed_count
+                            execution_run.failed_steps = failed_count
+                            execution_run.duration_ms = total_duration
+                            execution_run.ended_at = end_time
+                            
+                            await db.commit()
                             
                             await websocket.send_json({
                                 "type": "test_execution_completed",
-                                "flowId": str(flow_id)
+                                "flowId": str(flow_id),
+                                "executionId": str(execution_run.id),
+                                "status": execution_run.status.value,
+                                "passedSteps": passed_count,
+                                "failedSteps": failed_count,
+                                "durationMs": total_duration
                             })
                             break
                     except Exception as e:

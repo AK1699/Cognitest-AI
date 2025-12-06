@@ -112,6 +112,17 @@ export default function LiveBrowserTab({
     // Execution
     const [elapsedTime, setElapsedTime] = useState(0)
     const [currentStep, setCurrentStep] = useState<number>(-1)
+    const [currentTestName, setCurrentTestName] = useState<string>('')
+    const [executingSteps, setExecutingSteps] = useState<Array<{
+        index: number
+        name: string
+        type: string
+        status: 'pending' | 'running' | 'passed' | 'failed'
+        error?: string
+        selector?: string
+        value?: string
+        url?: string
+    }>>([])
 
     // Element Inspector
     const [inspectMode, setInspectMode] = useState(true) // Enable inspector by default
@@ -293,15 +304,44 @@ export default function LiveBrowserTab({
 
             // Test execution messages
             case 'test_execution_started':
-                console.log('Test execution started:', data.flowId, 'Total steps:', data.totalSteps)
+                console.log('Test execution started:', data.flowId, 'Total steps:', data.totalSteps, 'Test:', data.testName)
+                // Set the test name from backend response
+                setCurrentTestName(data.testName || testToRun?.testName || testName)
+                // Initialize steps as pending and switch to steps tab
+                setExecutingSteps(Array.from({ length: data.totalSteps }, (_, i) => ({
+                    index: i,
+                    name: `Step ${i + 1}`,
+                    type: 'pending',
+                    status: 'pending' as const
+                })))
+                setActiveTab('steps')
                 break
 
             case 'step_started':
-                console.log(`Step ${data.stepIndex + 1}: ${data.stepName} (${data.stepType})`)
+                console.log(`Step ${data.stepIndex + 1}: ${data.stepName} (${data.stepType})`, data)
+                setCurrentStep(data.stepIndex)
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? {
+                            ...step,
+                            name: data.stepName,
+                            type: data.stepType,
+                            status: 'running' as const,
+                            selector: data.selector,
+                            url: data.url,
+                            value: data.value
+                        }
+                        : step
+                ))
                 break
 
             case 'step_completed':
                 console.log(`Step ${data.stepIndex + 1} ${data.status}`, data.error || '')
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? { ...step, status: data.status as 'passed' | 'failed', error: data.error }
+                        : step
+                ))
                 break
 
             case 'test_execution_completed':
@@ -621,7 +661,7 @@ export default function LiveBrowserTab({
                 {/* Status Info */}
                 <div className="flex items-center gap-4">
                     <div className="text-sm text-gray-600">
-                        <span className="font-medium">Test:</span> {testName}
+                        <span className="font-medium">Test:</span> {testToRun?.testName || testName}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                         {sessionStatus === 'running' ? (
@@ -965,65 +1005,216 @@ export default function LiveBrowserTab({
                             )}
                         </TabsContent>
 
-                        {/* Steps Tab */}
-                        <TabsContent value="steps" className="flex-1 overflow-y-auto p-0 m-0">
-                            {steps.length > 0 ? (
-                                <div className="divide-y divide-gray-100">
-                                    {steps.map((step, index) => (
-                                        <div
-                                            key={step.id}
-                                            className={`p-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 ${step.status === 'running' ? 'bg-blue-50' : ''
-                                                }`}
-                                            onClick={() => onStepClick?.(step.id)}
-                                        >
-                                            <div className="mt-0.5">
-                                                {step.status === 'passed' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
-                                                {step.status === 'running' && (
-                                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                                )}
-                                                {step.status === 'failed' && <XCircle className="w-4 h-4 text-red-600" />}
-                                                {step.status === 'pending' && (
-                                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className={`text-sm font-medium ${step.status === 'running' ? 'text-blue-700' :
-                                                        step.status === 'failed' ? 'text-red-700' :
-                                                            'text-gray-900'
-                                                        }`}>
-                                                        {step.action}
+                        {/* Steps Tab - Cypress-style light theme */}
+                        <TabsContent value="steps" className="flex-1 overflow-y-auto p-0 m-0 bg-gray-50">
+                            {executingSteps.length > 0 ? (
+                                <div className="p-3">
+                                    {/* Test Header Card */}
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-3 overflow-hidden">
+                                        {/* Progress Bar */}
+                                        <div className="h-1 bg-gray-100">
+                                            <div
+                                                className={`h-full transition-all duration-300 ${executingSteps.some(s => s.status === 'failed')
+                                                    ? 'bg-red-500'
+                                                    : 'bg-green-500'
+                                                    }`}
+                                                style={{
+                                                    width: `${(executingSteps.filter(s => s.status === 'passed' || s.status === 'failed').length / executingSteps.length) * 100}%`
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="px-4 py-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    {executingSteps.every(s => s.status === 'passed') ? (
+                                                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                                                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                        </div>
+                                                    ) : executingSteps.some(s => s.status === 'failed') ? (
+                                                        <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                                                            <XCircle className="w-4 h-4 text-red-600" />
+                                                        </div>
+                                                    ) : executingSteps.some(s => s.status === 'running') ? (
+                                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                                            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                                            <div className="w-3 h-3 rounded-full bg-gray-300" />
+                                                        </div>
+                                                    )}
+                                                    <span className="text-indigo-600 font-semibold text-sm">
+                                                        {currentTestName || testToRun?.testName || testName}
                                                     </span>
-                                                    <span className="text-xs text-gray-500">{step.duration || '-'}</span>
                                                 </div>
-                                                <p className="text-xs text-gray-500 truncate">
-                                                    {step.selector || step.value || '-'}
-                                                </p>
-                                                {step.error && (
-                                                    <p className="text-xs text-red-500 mt-1">{step.error}</p>
-                                                )}
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full font-medium">
+                                                        {executingSteps.filter(s => s.status === 'passed').length} passed
+                                                    </span>
+                                                    {executingSteps.some(s => s.status === 'failed') && (
+                                                        <span className="px-2 py-1 bg-red-50 text-red-700 rounded-full font-medium">
+                                                            {executingSteps.filter(s => s.status === 'failed').length} failed
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    {/* Steps List */}
+                                    <div className="space-y-2">
+                                        {executingSteps.map((step, index) => (
+                                            <div
+                                                key={step.index}
+                                                className={`bg-white rounded-lg border shadow-sm overflow-hidden transition-all ${step.status === 'running'
+                                                    ? 'border-blue-300 ring-2 ring-blue-100'
+                                                    : step.status === 'passed'
+                                                        ? 'border-gray-200'
+                                                        : step.status === 'failed'
+                                                            ? 'border-red-300'
+                                                            : 'border-gray-100 opacity-60'
+                                                    }`}
+                                            >
+                                                <div className={`flex items-start p-3 ${step.status === 'running' ? 'bg-blue-50/50' :
+                                                    step.status === 'failed' ? 'bg-red-50/50' : ''
+                                                    }`}>
+                                                    {/* Step Number Circle */}
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${step.status === 'passed' ? 'bg-green-500 text-white' :
+                                                        step.status === 'running' ? 'bg-blue-500 text-white' :
+                                                            step.status === 'failed' ? 'bg-red-500 text-white' :
+                                                                'bg-gray-200 text-gray-500'
+                                                        }`}>
+                                                        {step.status === 'passed' ? (
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        ) : step.status === 'running' ? (
+                                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        ) : step.status === 'failed' ? (
+                                                            <XCircle className="w-4 h-4" />
+                                                        ) : (
+                                                            step.index + 1
+                                                        )}
+                                                    </div>
+
+                                                    {/* Step Content */}
+                                                    <div className="flex-1 min-w-0 ml-3">
+                                                        {/* Action Row */}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`font-semibold text-sm ${step.status === 'running' ? 'text-blue-700' :
+                                                                step.status === 'passed' ? 'text-gray-900' :
+                                                                    step.status === 'failed' ? 'text-red-700' :
+                                                                        'text-gray-400'
+                                                                }`}>
+                                                                {step.type === 'navigate' && '→ Navigate'}
+                                                                {step.type === 'click' && '🖱️ Click'}
+                                                                {step.type === 'type' && '⌨️ Type'}
+                                                                {step.type === 'fill' && '⌨️ Fill'}
+                                                                {step.type === 'assert' && '✓ Assert'}
+                                                                {step.type === 'wait' && '⏱️ Wait'}
+                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'wait'].includes(step.type) && `◆ ${step.type}`}
+                                                            </span>
+                                                            {step.status === 'running' && (
+                                                                <span className="text-xs text-blue-600 animate-pulse">Running...</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Details Row */}
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {/* URL Badge */}
+                                                            {step.url && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 text-xs rounded-md font-mono border border-blue-200 truncate max-w-full" title={step.url}>
+                                                                    <span className="opacity-60 mr-1">🔗</span>
+                                                                    {step.url.length > 50 ? step.url.substring(0, 50) + '...' : step.url}
+                                                                </code>
+                                                            )}
+
+                                                            {/* Selector Badge */}
+                                                            {step.selector && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 text-xs rounded-md font-mono border border-purple-200 truncate max-w-[200px]" title={step.selector}>
+                                                                    <span className="opacity-60 mr-1">🎯</span>
+                                                                    {step.selector}
+                                                                </code>
+                                                            )}
+
+                                                            {/* Value Badge */}
+                                                            {step.value && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 text-xs rounded-md font-mono border border-amber-200 truncate max-w-[150px]" title={step.value}>
+                                                                    <span className="opacity-60 mr-1">✏️</span>
+                                                                    "{step.value}"
+                                                                </code>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Error Message */}
+                                                        {step.error && (
+                                                            <div className="mt-2 text-xs text-red-700 font-mono bg-red-50 px-3 py-2 rounded-md border border-red-200 flex items-start gap-2">
+                                                                <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                                                <span>{step.error}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : steps.length > 0 ? (
+                                <div className="py-2">
+                                    <div className="space-y-0.5">
+                                        {steps.map((step, index) => (
+                                            <div
+                                                key={step.id}
+                                                onClick={() => onStepClick?.(step.id)}
+                                                className={`flex items-start px-4 py-2 border-l-4 cursor-pointer hover:bg-gray-100 transition-all ${step.status === 'running'
+                                                    ? 'border-l-blue-500 bg-blue-50'
+                                                    : step.status === 'passed'
+                                                        ? 'border-l-green-500 bg-white'
+                                                        : step.status === 'failed'
+                                                            ? 'border-l-red-500 bg-red-50'
+                                                            : 'border-l-gray-300 bg-white'
+                                                    }`}
+                                            >
+                                                <span className="w-6 text-gray-400 text-sm font-mono shrink-0">
+                                                    {index + 1}
+                                                </span>
+                                                <div className="w-5 shrink-0 mt-0.5">
+                                                    {step.status === 'passed' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                                    {step.status === 'failed' && <XCircle className="w-4 h-4 text-red-500" />}
+                                                    {step.status === 'pending' && <div className="w-3 h-3 rounded-full border-2 border-gray-300 ml-0.5" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0 ml-2">
+                                                    <span className="font-mono text-sm text-gray-900">{step.action}</span>
+                                                    {step.selector && (
+                                                        <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-mono">
+                                                            {step.selector}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             ) : (
-                                <div className="p-8 text-center text-gray-400">
-                                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">No steps to display</p>
+                                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                                        <Play className="w-6 h-6 text-gray-400" />
+                                    </div>
+                                    <p className="text-gray-600 text-sm font-medium">No test running</p>
+                                    <p className="text-gray-400 text-xs mt-1">Click "Run Headed" to see steps execute here</p>
                                 </div>
                             )}
                         </TabsContent>
 
                         {/* Console Tab */}
-                        <TabsContent value="console" className="flex-1 overflow-y-auto p-0 m-0 bg-gray-900 text-gray-100 font-mono text-xs">
+                        <TabsContent value="console" className="flex-1 overflow-y-auto p-0 m-0 bg-gray-50 font-mono text-xs">
                             {consoleLogs.length > 0 ? (
                                 <div className="p-3 space-y-1">
                                     {consoleLogs.map((log, i) => (
-                                        <div key={i} className="flex items-start gap-2">
+                                        <div key={i} className="flex items-start gap-2 bg-white px-2 py-1 rounded border border-gray-100">
                                             {getLogIcon(log.level)}
-                                            <span className={`flex-1 ${log.level === 'error' ? 'text-red-400' :
-                                                log.level === 'warning' ? 'text-yellow-400' :
-                                                    'text-gray-300'
+                                            <span className={`flex-1 ${log.level === 'error' ? 'text-red-600' :
+                                                log.level === 'warning' ? 'text-amber-600' :
+                                                    'text-gray-700'
                                                 }`}>
                                                 {log.text}
                                             </span>
@@ -1031,7 +1222,7 @@ export default function LiveBrowserTab({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="p-8 text-center text-gray-500">
+                                <div className="p-8 text-center text-gray-400">
                                     <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
                                     <p className="text-sm">Console output will appear here</p>
                                 </div>
