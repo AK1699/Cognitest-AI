@@ -156,5 +156,30 @@ export const webAutomationApi = {
     getDevicePresets: async () => {
         const response = await api.get<{ devices: Array<{ id: string, name: string, viewport: string, type: string }> }>(`/api/v1/web-automation/device-presets`)
         return response.data
+    },
+
+    // AI-Powered Step Generation
+    generateStepsFromPrompt: async (prompt: string, context?: {
+        currentUrl?: string,
+        existingSteps?: Array<any>
+    }): Promise<{
+        success: boolean,
+        steps: Array<{
+            id: string,
+            action: string,
+            selector?: string,
+            value?: string,
+            url?: string,
+            description?: string,
+            [key: string]: any
+        }>,
+        explanation?: string,
+        error?: string
+    }> => {
+        const response = await api.post(`/api/v1/web-automation/generate-steps`, {
+            prompt,
+            context
+        })
+        return response.data
     }
 }

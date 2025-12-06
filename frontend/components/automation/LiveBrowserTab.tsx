@@ -639,8 +639,8 @@ export default function LiveBrowserTab({
                 </div>
 
                 {/* Right Panel - Element Inspector, Steps, Console, Network */}
-                <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <div className="w-96 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                         <div className="px-4 py-2 border-b border-gray-200">
                             <TabsList className="w-full grid grid-cols-4">
                                 <TabsTrigger value="element" className="text-xs">Element</TabsTrigger>
@@ -897,7 +897,7 @@ export default function LiveBrowserTab({
                         </TabsContent>
 
                         {/* Network Tab */}
-                        <TabsContent value="network" className="flex-1 overflow-y-auto p-0 m-0">
+                        <TabsContent value="network" className="flex-1 overflow-y-auto p-0 m-0 min-h-0">
                             {networkRequests.length > 0 ? (
                                 <div className="divide-y divide-gray-100">
                                     {networkRequests.map((req, i) => (

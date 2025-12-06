@@ -772,6 +772,54 @@ async def list_locator_alternatives(
 
 
 # ============================================================================
+# AI-POWERED TEST STEP GENERATION
+# ============================================================================
+
+from pydantic import BaseModel
+from app.services.prompt_to_steps import generate_steps_from_prompt
+
+
+class GenerateStepsRequest(BaseModel):
+    """Request body for generating steps from natural language"""
+    prompt: str
+    context: Optional[dict] = None
+
+
+class GenerateStepsResponse(BaseModel):
+    """Response containing generated test steps"""
+    success: bool
+    steps: List[dict]
+    explanation: Optional[str] = None
+    error: Optional[str] = None
+
+
+@router.post("/generate-steps", response_model=GenerateStepsResponse)
+async def generate_test_steps(
+    request: GenerateStepsRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate test steps from a natural language prompt using AI.
+    
+    Example prompts:
+    - "Login with email 'user@example.com' and password 'secret123'"
+    - "Fill out the registration form and submit"
+    - "Navigate to the products page, add an item to cart, and checkout"
+    """
+    result = await generate_steps_from_prompt(
+        prompt=request.prompt,
+        context=request.context
+    )
+    
+    return GenerateStepsResponse(
+        success=result.get("success", False),
+        steps=result.get("steps", []),
+        explanation=result.get("explanation"),
+        error=result.get("error")
+    )
+
+
+# ============================================================================
 # BROWSER SESSION MANAGEMENT - Live Browser Feature
 # ============================================================================
 

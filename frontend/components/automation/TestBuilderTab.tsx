@@ -219,6 +219,48 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     const [recordingUrl, setRecordingUrl] = useState('https://example.com')
     const recorderWsRef = React.useRef<WebSocket | null>(null)
 
+    // State for AI Generator
+    const [aiPrompt, setAiPrompt] = useState('')
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [generatedSteps, setGeneratedSteps] = useState<Array<any>>([])
+    const [generateError, setGenerateError] = useState<string | null>(null)
+
+    const handleGenerateSteps = async () => {
+        if (!aiPrompt.trim()) return
+
+        setIsGenerating(true)
+        setGenerateError(null)
+        setGeneratedSteps([])
+
+        try {
+            const result = await webAutomationApi.generateStepsFromPrompt(aiPrompt, {
+                existingSteps: steps
+            })
+
+            if (result.success && result.steps.length > 0) {
+                setGeneratedSteps(result.steps)
+            } else {
+                setGenerateError(result.error || 'No steps were generated. Try a more detailed description.')
+            }
+        } catch (error: any) {
+            setGenerateError(error.message || 'Failed to generate steps')
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    const handleAddGeneratedSteps = () => {
+        // Add generated steps to the main steps list
+        const newSteps = generatedSteps.map((step, index) => ({
+            ...step,
+            id: `step-${Date.now()}-${index}`,
+            status: 'pending' as const
+        }))
+        setSteps(prev => [...prev, ...newSteps])
+        setGeneratedSteps([])
+        setAiPrompt('')
+    }
+
     const handleStartRecording = async () => {
         // We now have projectId from props. flowId is optional for recording start (we might be creating a new flow).
 
@@ -799,17 +841,95 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         )}
                     </div>
                 ) : (
-                    <div className="flex-1 p-6 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                            <Sparkles className="w-8 h-8 text-purple-600" />
+                    <div className="flex-1 p-4 flex flex-col overflow-hidden">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                <Sparkles className="w-4 h-4 text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900">AI Generator</h3>
+                                <p className="text-[10px] text-gray-500">Describe your test in plain English</p>
+                            </div>
                         </div>
-                        <h3 className="text-sm font-bold text-gray-900 mb-2">AI Generator</h3>
-                        <p className="text-xs text-gray-500 mb-6">
-                            Describe your test scenario in plain English and let AI generate the steps for you.
-                        </p>
-                        <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                            Generate Test
+
+                        <textarea
+                            className="flex-shrink-0 w-full h-24 p-3 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Example: Login with email 'user@test.com' and password 'secret123', then click the dashboard link and verify the page title contains 'Dashboard'"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            disabled={isGenerating}
+                        />
+
+                        <Button
+                            className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
+                            onClick={handleGenerateSteps}
+                            disabled={isGenerating || !aiPrompt.trim()}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Wand2 className="w-4 h-4 mr-2" />
+                                    Generate Steps
+                                </>
+                            )}
                         </Button>
+
+                        {generateError && (
+                            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                                {generateError}
+                            </div>
+                        )}
+
+                        {/* Generated Steps Preview */}
+                        {generatedSteps.length > 0 && (
+                            <div className="mt-3 flex-1 overflow-y-auto">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-medium text-gray-700">
+                                        Generated {generatedSteps.length} steps
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleAddGeneratedSteps}
+                                        className="bg-green-600 hover:bg-green-700 text-xs"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Add All
+                                    </Button>
+                                </div>
+                                <div className="space-y-1">
+                                    {generatedSteps.map((step, index) => {
+                                        const actionDef = actionTypes.find((a: any) => a.id === step.action)
+                                        return (
+                                            <div
+                                                key={step.id || index}
+                                                className="p-2 bg-purple-50 border border-purple-200 rounded-md text-xs"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px]">
+                                                        {index + 1}
+                                                    </span>
+                                                    <span className="font-medium text-purple-900">
+                                                        {actionDef?.name || step.action}
+                                                    </span>
+                                                </div>
+                                                {step.description && (
+                                                    <p className="text-gray-600 mt-1 ml-7">{step.description}</p>
+                                                )}
+                                                {step.selector && (
+                                                    <code className="text-[10px] text-gray-500 ml-7 block mt-1 font-mono">
+                                                        {step.selector}
+                                                    </code>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
