@@ -96,5 +96,15 @@ export const webAutomationApi = {
     executeTestFlow: async (flowId: string, config?: any) => {
         const response = await api.post(`/api/v1/web-automation/test-flows/${flowId}/execute`, config || {})
         return response.data
+    },
+
+    startRecording: async (projectId: string, url: string) => {
+        const response = await api.post(`/api/v1/web-automation/recorder/start`, { project_id: projectId, url })
+        return response.data
+    },
+
+    stopRecording: async (projectId: string) => {
+        const response = await api.post(`/api/v1/web-automation/recorder/stop`, { project_id: projectId })
+        return response.data
     }
 }

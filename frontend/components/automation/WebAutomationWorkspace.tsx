@@ -34,16 +34,16 @@ import { Environment, EnvironmentManager } from './EnvironmentManager'
 
 interface WebAutomationWorkspaceProps {
   projectId: string
-  flowId?: string
+  // flowId?: string // Removed flowId from props
 }
 
 type TabView = 'explorer' | 'builder' | 'browser' | 'logs' | 'heal'
 
-export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomationWorkspaceProps) {
+export default function WebAutomationWorkspace({ projectId }: WebAutomationWorkspaceProps) {
   const router = useRouter()
-  const params = useParams()
+  const params = { projectId } // Initialize params with projectId
   const [activeTab, setActiveTab] = useState<TabView>('explorer')
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(flowId || null)
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null) // flowId is no longer passed as prop
 
   // Environment State
   const [environments, setEnvironments] = useState<Environment[]>([])
@@ -119,7 +119,7 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
         return <TestExplorerTab onEditTest={handleEditTest} />
       case 'builder':
         // @ts-ignore - We'll update TestBuilderTab types in the next step
-        return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} />
+        return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} projectId={projectId} />
       case 'browser':
         return <LiveBrowserTab />
       case 'logs':

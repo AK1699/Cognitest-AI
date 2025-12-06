@@ -483,20 +483,133 @@ class WebAutomationExecutor:
             raise
         
         finally:
-            await self.teardown_browser()
+            await self.cleanup() # Changed from teardown_browser
         
         return self.execution_run
     
+    async def cleanup(self):
+        """Clean up browser resources"""
+        if self.context:
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
+        if self.playwright:
+            await self.playwright.stop()
+            
+    async def start_recording(self, url: str):
+        """
+        Start a recording session
+        """
+        self.playwright = await async_playwright().start()
+        
+        # Launch browser in headed mode for recording
+        self.browser = await self.playwright.chromium.launch(
+            headless=False,
+            args=['--start-maximized']
+        )
+        
+        # Create context
+        self.context = await self.browser.new_context(
+            viewport=None,
+            record_video_dir=None
+        )
+        
+        # Create page
+        self.page = await self.context.new_page()
+        
+        # Expose binding for recording events
+        await self.page.expose_function("record_event", self.handle_recorded_event)
+        
+        # Navigate
+        try:
+            await self.page.goto(url, wait_until="domcontentloaded")
+            await self._inject_recorder_script()
+        except Exception as e:
+            print(f"Recording navigation error: {e}")
+            
+    async def stop_recording(self):
+        """Stop recording session"""
+        await self.cleanup()
+        
+    async def handle_recorded_event(self, event: Dict[str, Any]):
+        """Handle event from browser"""
+        # Emit to WebSocket
+        await self.emit_live_update("recorded_event", event)
+        
+    async def _inject_recorder_script(self):
+        """Inject observer script into page"""
+        script = """
+        (() => {
+            if (window._recorderActive) return;
+            window._recorderActive = true;
+            
+            function getCssSelector(el) {
+                if (!(el instanceof Element)) return;
+                const path = [];
+                while (el.nodeType === Node.ELEMENT_NODE) {
+                    let selector = el.nodeName.toLowerCase();
+                    if (el.id) {
+                        selector += '#' + el.id;
+                        path.unshift(selector);
+                        break;
+                    } else {
+                        let sib = el, nth = 1;
+                        while (sib = sib.previousElementSibling) {
+                            if (sib.nodeName.toLowerCase() == selector)
+                                nth++;
+                        }
+                        if (nth != 1)
+                            selector += ":nth-of-type(" + nth + ")";
+                    }
+                    path.unshift(selector);
+                    el = el.parentNode;
+                }
+                return path.join(" > ");
+            }
+            
+            // Click Handler
+            document.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                const selector = getCssSelector(e.target);
+                window.record_event({
+                    type: 'click',
+                    selector: { css: selector },
+                    description: `Click on ${e.target.innerText || selector}`
+                });
+            }, true);
+            
+            // Input Handler
+            document.addEventListener('change', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    const selector = getCssSelector(e.target);
+                    window.record_event({
+                        type: 'input',
+                        selector: { css: selector },
+                        value: e.target.value,
+                        description: `Type '${e.target.value}' into ${selector}`
+                    });
+                }
+            }, true);
+            
+            // Navigation (handled by page events usually, but capturing clicks on links helps)
+            
+            console.log("Cognitest Recorder Injected");
+        })();
+        """
+        await self.page.add_init_script(script)
+        # Also run immediately in case page is already loaded
+        await self.page.evaluate(script)
+
     async def setup_browser(
         self,
         browser_type: BrowserType,
-        mode: ExecutionMode,
-        options: Dict[str, Any]
+        execution_mode: ExecutionMode,
+        options: Dict[str, Any] = None # Added default None
     ):
         """
         Initialize browser instance
         """
-        playwright = await async_playwright().start()
+        self.playwright = await async_playwright().start() # Changed from local playwright variable
         
         launch_options = {
             "headless": mode == ExecutionMode.HEADLESS,
@@ -671,7 +784,850 @@ class WebAutomationExecutor:
         
         elif action_type == "screenshot":
             path = action_data.get("path", "screenshot.png")
-            await self.page.screenshot(path=path)
+            full_page = action_data.get("full_page", False)
+            await self.page.screenshot(path=path, full_page=full_page)
+
+        # --- Hover ---
+        elif action_type == "hover":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.hover()
+
+        # --- Select Dropdown ---
+        elif action_type == "select":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            # Support selecting by value, label, or index
+            select_by = action_data.get("select_by", "value")  # value, label, index
+            option = self.substitute_variables(action_data.get("option", ""))
+            
+            if select_by == "value":
+                await locator.select_option(value=option)
+            elif select_by == "label":
+                await locator.select_option(label=option)
+            elif select_by == "index":
+                await locator.select_option(index=int(option))
+            else:
+                await locator.select_option(option)
+
+        # --- File Upload ---
+        elif action_type == "upload":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            file_path = self.substitute_variables(action_data.get("file_path", ""))
+            if file_path:
+                await locator.set_input_files(file_path)
+
+        # --- Press Keyboard Key ---
+        elif action_type == "press":
+            key = action_data.get("key", "Enter")
+            # If a selector is provided, focus on element first
+            selector_data = action_data.get("selector", {})
+            if selector_data and selector_data.get("primary"):
+                locator, healing_info = await self.get_locator_with_healing(
+                    selector_data, action_type, test_flow
+                )
+                await locator.press(key)
+            else:
+                await self.page.keyboard.press(key)
+
+        # --- Scroll ---
+        elif action_type == "scroll":
+            scroll_type = action_data.get("scroll_type", "page")  # page, element, coordinates
+            direction = action_data.get("direction", "down")  # up, down, left, right
+            amount = action_data.get("amount", 500)  # pixels
+            
+            if scroll_type == "element":
+                selector_data = action_data.get("selector", {})
+                locator, healing_info = await self.get_locator_with_healing(
+                    selector_data, action_type, test_flow
+                )
+                await locator.scroll_into_view_if_needed()
+            elif scroll_type == "coordinates":
+                x = action_data.get("x", 0)
+                y = action_data.get("y", 0)
+                await self.page.evaluate(f"window.scrollTo({x}, {y})")
+            else:
+                # Scroll page
+                if direction == "down":
+                    await self.page.evaluate(f"window.scrollBy(0, {amount})")
+                elif direction == "up":
+                    await self.page.evaluate(f"window.scrollBy(0, -{amount})")
+                elif direction == "right":
+                    await self.page.evaluate(f"window.scrollBy({amount}, 0)")
+                elif direction == "left":
+                    await self.page.evaluate(f"window.scrollBy(-{amount}, 0)")
+                elif direction == "bottom":
+                    await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                elif direction == "top":
+                    await self.page.evaluate("window.scrollTo(0, 0)")
+
+        # --- Double Click ---
+        elif action_type == "double_click":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.dblclick()
+
+        # --- Right Click (Context Menu) ---
+        elif action_type == "right_click":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.click(button="right")
+
+        # --- Focus ---
+        elif action_type == "focus":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.focus()
+
+        # --- Clear Input ---
+        elif action_type == "clear":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.clear()
+
+        # --- Check/Uncheck Checkbox ---
+        elif action_type == "check":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.check()
+
+        elif action_type == "uncheck":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.uncheck()
+
+        # --- Drag and Drop ---
+        elif action_type == "drag_drop":
+            source_selector = action_data.get("source_selector", {})
+            target_selector = action_data.get("target_selector", {})
+            
+            source_locator, _ = await self.get_locator_with_healing(
+                source_selector, action_type, test_flow
+            )
+            target_locator, _ = await self.get_locator_with_healing(
+                target_selector, action_type, test_flow
+            )
+            await source_locator.drag_to(target_locator)
+
+        # --- Wait for Network Idle ---
+        elif action_type == "wait_network":
+            timeout = action_data.get("timeout", 30000)
+            await self.page.wait_for_load_state("networkidle", timeout=timeout)
+
+        # --- Wait for URL ---
+        elif action_type == "wait_url":
+            url_pattern = self.substitute_variables(action_data.get("url", ""))
+            timeout = action_data.get("timeout", 30000)
+            await self.page.wait_for_url(url_pattern, timeout=timeout)
+
+        # --- Go Back ---
+        elif action_type == "go_back":
+            await self.page.go_back()
+
+        # --- Go Forward ---
+        elif action_type == "go_forward":
+            await self.page.go_forward()
+
+        # --- Reload ---
+        elif action_type == "reload":
+            await self.page.reload()
+
+        # --- Data Extraction ---
+        elif action_type == "extract_text":
+            selector_data = action_data.get("selector", {})
+            variable_name = action_data.get("variable_name")
+            if variable_name:
+                locator, healing_info = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                text = await locator.text_content()
+                self.variables[variable_name] = text
+                
+        elif action_type == "extract_attribute":
+            selector_data = action_data.get("selector", {})
+            attribute_name = action_data.get("attribute_name")
+            variable_name = action_data.get("variable_name")
+            if variable_name and attribute_name:
+                locator, healing_info = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                value = await locator.get_attribute(attribute_name)
+                self.variables[variable_name] = value or ""
+
+        elif action_type == "set_variable":
+            variable_name = action_data.get("variable_name")
+            value = self.substitute_variables(action_data.get("value", ""))
+            if variable_name:
+                self.variables[variable_name] = value
+
+        # --- Scripting ---
+        elif action_type == "execute_script":
+            script = action_data.get("script", "")
+            variable_name = action_data.get("variable_name")
+            if script:
+                result = await self.page.evaluate(script)
+                if variable_name:
+                    self.variables[variable_name] = str(result)
+
+        # --- Cookies ---
+        elif action_type == "get_cookie":
+            name = action_data.get("name")
+            variable_name = action_data.get("variable_name")
+            if name and variable_name:
+                cookies = await self.context.cookies()
+                for cookie in cookies:
+                    if cookie["name"] == name:
+                        self.variables[variable_name] = cookie["value"]
+                        break
+        
+        elif action_type == "set_cookie":
+            name = self.substitute_variables(action_data.get("name", ""))
+            value = self.substitute_variables(action_data.get("value", ""))
+            url = action_data.get("url", self.page.url)
+            if name and value:
+                await self.context.add_cookies([{"name": name, "value": value, "url": url}])
+        
+        elif action_type == "delete_cookie":
+            name = action_data.get("name")
+            # Playwright doesn't have a direct delete_cookie for a specific cookie easily exposed on context without clearing needed logic, 
+            # but we can use client implementation or script if needed. 
+            # For now, using evaluate to delete from document if possible or finding it in context.
+            # Actually context.clear_cookies() clears all. To delete one, we might need to filter and re-add?
+            # Easier: use browser script.
+            if name:
+                await self.page.evaluate(f"document.cookie = '{name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'")
+
+        elif action_type == "clear_cookies":
+            await self.context.clear_cookies()
+
+        # --- Local/Session Storage ---
+        elif action_type == "get_local_storage":
+            key = action_data.get("key")
+            variable_name = action_data.get("variable_name")
+            if key and variable_name:
+                value = await self.page.evaluate(f"localStorage.getItem('{key}')")
+                self.variables[variable_name] = value or ""
+        
+        elif action_type == "set_local_storage":
+            key = action_data.get("key")
+            value = self.substitute_variables(action_data.get("value", ""))
+            if key:
+                await self.page.evaluate(f"localStorage.setItem('{key}', '{value}')")
+        
+        elif action_type == "clear_local_storage":
+             await self.page.evaluate("localStorage.clear()")
+
+        elif action_type == "get_session_storage":
+            key = action_data.get("key")
+            variable_name = action_data.get("variable_name")
+            if key and variable_name:
+                value = await self.page.evaluate(f"sessionStorage.getItem('{key}')")
+                self.variables[variable_name] = value or ""
+        
+        elif action_type == "set_session_storage":
+            key = action_data.get("key")
+            value = self.substitute_variables(action_data.get("value", ""))
+            if key:
+                await self.page.evaluate(f"sessionStorage.setItem('{key}', '{value}')")
+        
+        elif action_type == "clear_session_storage":
+             await self.page.evaluate("sessionStorage.clear()")
+
+        # --- Conditional Logic ---
+        elif action_type == "set_variable_ternary":
+            variable_name = action_data.get("variable_name")
+            condition = action_data.get("condition")
+            true_value = self.substitute_variables(action_data.get("true_value", ""))
+            false_value = self.substitute_variables(action_data.get("false_value", ""))
+            
+            if variable_name and condition:
+                # Evaluate condition in browser context
+                result = await self.page.evaluate(condition)
+                self.variables[variable_name] = true_value if result else false_value
+
+        elif action_type == "if_condition":
+            condition = action_data.get("condition")
+            nested_action_type = action_data.get("nested_action_type")
+            nested_action_data = action_data.get("nested_action_data", {})
+            
+            if condition and nested_action_type:
+                # Evaluate condition
+                should_run = await self.page.evaluate(condition)
+                if should_run:
+                    # Recursively execute the nested action
+                    # Note: We don't return healing info from nested for now to simple maintain flow
+                    await self.execute_action(nested_action_type, nested_action_data, test_flow)
+
+        # --- Control Flow: For Loop ---
+        elif action_type == "for-loop" or action_type == "for_loop":
+            iterations = action_data.get("iterations", 1)
+            loop_variable = action_data.get("loop_variable", "i")
+            nested_steps = action_data.get("nested_steps", [])
+            
+            for i in range(iterations):
+                # Set loop variable
+                self.variables[loop_variable] = str(i)
+                
+                # Execute all nested steps
+                for step in nested_steps:
+                    step_type = step.get("action") or step.get("actionType")
+                    step_data = step.get("data", step)
+                    await self.execute_action(step_type, step_data, test_flow)
+
+        # --- Control Flow: While Loop ---
+        elif action_type == "while-loop" or action_type == "while_loop":
+            condition = action_data.get("condition")
+            max_iterations = action_data.get("max_iterations", 100)  # Safety limit
+            nested_steps = action_data.get("nested_steps", [])
+            
+            iteration = 0
+            while iteration < max_iterations:
+                # Evaluate condition in browser
+                should_continue = await self.page.evaluate(condition)
+                if not should_continue:
+                    break
+                
+                # Execute nested steps
+                for step in nested_steps:
+                    step_type = step.get("action") or step.get("actionType")
+                    step_data = step.get("data", step)
+                    await self.execute_action(step_type, step_data, test_flow)
+                
+                iteration += 1
+                self.variables["loop_iteration"] = str(iteration)
+
+        # --- Control Flow: Try-Catch ---
+        elif action_type == "try-catch" or action_type == "try_catch":
+            try_steps = action_data.get("try_steps", [])
+            catch_steps = action_data.get("catch_steps", [])
+            finally_steps = action_data.get("finally_steps", [])
+            
+            try:
+                for step in try_steps:
+                    step_type = step.get("action") or step.get("actionType")
+                    step_data = step.get("data", step)
+                    await self.execute_action(step_type, step_data, test_flow)
+            except Exception as e:
+                self.variables["error_message"] = str(e)
+                for step in catch_steps:
+                    step_type = step.get("action") or step.get("actionType")
+                    step_data = step.get("data", step)
+                    await self.execute_action(step_type, step_data, test_flow)
+            finally:
+                for step in finally_steps:
+                    step_type = step.get("action") or step.get("actionType")
+                    step_data = step.get("data", step)
+                    await self.execute_action(step_type, step_data, test_flow)
+
+        # --- Random Data Generation ---
+        elif action_type == "random-data" or action_type == "random_data":
+            import random
+            import string
+            import uuid as uuid_lib
+            
+            data_type = action_data.get("data_type", "string")  # string, number, email, name, uuid, phone, date
+            variable_name = action_data.get("variable_name")
+            length = action_data.get("length", 10)
+            min_val = action_data.get("min", 0)
+            max_val = action_data.get("max", 1000)
+            prefix = action_data.get("prefix", "")
+            suffix = action_data.get("suffix", "")
+            
+            generated_value = ""
+            
+            if data_type == "string":
+                generated_value = ''.join(random.choices(string.ascii_letters, k=length))
+            elif data_type == "alphanumeric":
+                generated_value = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+            elif data_type == "number":
+                generated_value = str(random.randint(min_val, max_val))
+            elif data_type == "float":
+                generated_value = str(round(random.uniform(min_val, max_val), 2))
+            elif data_type == "email":
+                rand_str = ''.join(random.choices(string.ascii_lowercase, k=8))
+                domains = ["gmail.com", "yahoo.com", "outlook.com", "test.com"]
+                generated_value = f"{rand_str}@{random.choice(domains)}"
+            elif data_type == "name":
+                first_names = ["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Eve", "Frank"]
+                last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"]
+                generated_value = f"{random.choice(first_names)} {random.choice(last_names)}"
+            elif data_type == "first_name":
+                first_names = ["John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Eve", "Frank"]
+                generated_value = random.choice(first_names)
+            elif data_type == "last_name":
+                last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller"]
+                generated_value = random.choice(last_names)
+            elif data_type == "uuid":
+                generated_value = str(uuid_lib.uuid4())
+            elif data_type == "phone":
+                generated_value = f"+1{random.randint(200, 999)}{random.randint(1000000, 9999999)}"
+            elif data_type == "date":
+                # ISO format date within last year
+                from datetime import datetime, timedelta
+                days_ago = random.randint(0, 365)
+                date = datetime.now() - timedelta(days=days_ago)
+                generated_value = date.strftime("%Y-%m-%d")
+            elif data_type == "datetime":
+                from datetime import datetime, timedelta
+                days_ago = random.randint(0, 365)
+                date = datetime.now() - timedelta(days=days_ago)
+                generated_value = date.isoformat()
+            elif data_type == "password":
+                # Generate a random password with mixed characters
+                chars = string.ascii_letters + string.digits + "!@#$%"
+                generated_value = ''.join(random.choices(chars, k=max(length, 12)))
+            elif data_type == "sentence":
+                words = ["the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "test", "automation"]
+                generated_value = ' '.join(random.choices(words, k=length)) + "."
+            elif data_type == "paragraph":
+                words = ["the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "test", "automation", "web", "browser"]
+                sentences = []
+                for _ in range(3):
+                    sentence = ' '.join(random.choices(words, k=random.randint(5, 10))) + "."
+                    sentences.append(sentence.capitalize())
+                generated_value = ' '.join(sentences)
+            elif data_type == "url":
+                rand_str = ''.join(random.choices(string.ascii_lowercase, k=8))
+                generated_value = f"https://example.com/{rand_str}"
+            elif data_type == "address":
+                streets = ["Main St", "Oak Ave", "Elm Blvd", "Park Rd", "Lake Dr"]
+                cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix"]
+                generated_value = f"{random.randint(100, 9999)} {random.choice(streets)}, {random.choice(cities)}"
+            elif data_type == "company":
+                prefixes = ["Tech", "Global", "Smart", "Innovative", "Future"]
+                suffixes = ["Solutions", "Systems", "Corp", "Inc", "Labs"]
+                generated_value = f"{random.choice(prefixes)} {random.choice(suffixes)}"
+            
+            # Apply prefix/suffix
+            generated_value = f"{prefix}{generated_value}{suffix}"
+            
+            if variable_name:
+                self.variables[variable_name] = generated_value
+
+        # --- Alert/Dialog Handling ---
+        elif action_type == "accept_dialog":
+            # This requires setting up dialog handler before triggering the dialog
+            self.page.on("dialog", lambda dialog: asyncio.create_task(dialog.accept()))
+
+        elif action_type == "dismiss_dialog":
+            self.page.on("dialog", lambda dialog: asyncio.create_task(dialog.dismiss()))
+
+        elif action_type == "fill_dialog":
+            prompt_text = self.substitute_variables(action_data.get("text", ""))
+            self.page.on("dialog", lambda dialog: asyncio.create_task(dialog.accept(prompt_text)))
+
+        # --- Frame Handling ---
+        elif action_type == "switch_to_frame":
+            frame_selector = action_data.get("selector", "")
+            if frame_selector:
+                frame = self.page.frame_locator(frame_selector)
+                # Store reference for subsequent operations
+                self.current_frame = frame
+
+        elif action_type == "switch_to_main":
+            self.current_frame = None  # Reset to main page
+
+        # --- Tab/Window Handling ---
+        elif action_type == "new_tab":
+            new_page = await self.context.new_page()
+            url = action_data.get("url")
+            if url:
+                await new_page.goto(self.substitute_variables(url))
+            # Store reference
+            self.pages = getattr(self, 'pages', [self.page])
+            self.pages.append(new_page)
+
+        elif action_type == "switch_tab":
+            tab_index = action_data.get("index", 0)
+            pages = getattr(self, 'pages', [self.page])
+            if 0 <= tab_index < len(pages):
+                self.page = pages[tab_index]
+
+        elif action_type == "close_tab":
+            tab_index = action_data.get("index")
+            pages = getattr(self, 'pages', [self.page])
+            if tab_index is not None and 0 <= tab_index < len(pages):
+                await pages[tab_index].close()
+                pages.pop(tab_index)
+            else:
+                await self.page.close()
+
+        # --- Download Handling ---
+        elif action_type == "wait_for_download":
+            download_path = action_data.get("download_path", "./downloads")
+            variable_name = action_data.get("variable_name")
+            timeout = action_data.get("timeout", 30000)
+            
+            # Wait for download to start
+            async with self.page.expect_download(timeout=timeout) as download_info:
+                # The download is triggered by a previous action, we just wait
+                pass
+            download = await download_info.value
+            
+            # Save the downloaded file
+            save_path = f"{download_path}/{download.suggested_filename}"
+            await download.save_as(save_path)
+            
+            if variable_name:
+                self.variables[variable_name] = save_path
+                self.variables[f"{variable_name}_filename"] = download.suggested_filename
+
+        elif action_type == "verify_download":
+            import os
+            file_path = self.substitute_variables(action_data.get("file_path", ""))
+            min_size = action_data.get("min_size", 0)  # Minimum file size in bytes
+            
+            if not os.path.exists(file_path):
+                raise Exception(f"Downloaded file not found: {file_path}")
+            
+            file_size = os.path.getsize(file_path)
+            if file_size < min_size:
+                raise Exception(f"File size {file_size} is less than expected {min_size}")
+            
+            # Store file info in variables
+            self.variables["downloaded_file_size"] = str(file_size)
+
+        # --- Viewport/Device ---
+        elif action_type == "set_viewport":
+            width = action_data.get("width", 1920)
+            height = action_data.get("height", 1080)
+            device_scale_factor = action_data.get("device_scale_factor", 1)
+            is_mobile = action_data.get("is_mobile", False)
+            has_touch = action_data.get("has_touch", False)
+            
+            await self.page.set_viewport_size({"width": width, "height": height})
+            
+        elif action_type == "set_device":
+            device_name = action_data.get("device", "iPhone 13")
+            # Playwright has predefined device descriptors
+            from playwright.sync_api import sync_playwright
+            devices = {
+                "iPhone 13": {"viewport": {"width": 390, "height": 844}, "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)", "is_mobile": True, "has_touch": True},
+                "iPhone 13 Pro Max": {"viewport": {"width": 428, "height": 926}, "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)", "is_mobile": True, "has_touch": True},
+                "Pixel 5": {"viewport": {"width": 393, "height": 851}, "user_agent": "Mozilla/5.0 (Linux; Android 11; Pixel 5)", "is_mobile": True, "has_touch": True},
+                "iPad": {"viewport": {"width": 768, "height": 1024}, "user_agent": "Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X)", "is_mobile": True, "has_touch": True},
+                "Desktop Chrome": {"viewport": {"width": 1920, "height": 1080}, "is_mobile": False, "has_touch": False},
+                "Desktop Firefox": {"viewport": {"width": 1920, "height": 1080}, "is_mobile": False, "has_touch": False},
+            }
+            device = devices.get(device_name, devices["Desktop Chrome"])
+            await self.page.set_viewport_size(device["viewport"])
+
+        # --- Network/API ---
+        elif action_type == "wait_for_response":
+            url_pattern = self.substitute_variables(action_data.get("url", ""))
+            variable_name = action_data.get("variable_name")
+            timeout = action_data.get("timeout", 30000)
+            
+            response = await self.page.wait_for_response(url_pattern, timeout=timeout)
+            
+            if variable_name:
+                self.variables[variable_name] = str(response.status)
+                try:
+                    body = await response.json()
+                    self.variables[f"{variable_name}_body"] = str(body)
+                except:
+                    self.variables[f"{variable_name}_body"] = await response.text()
+
+        elif action_type == "wait_for_request":
+            url_pattern = self.substitute_variables(action_data.get("url", ""))
+            timeout = action_data.get("timeout", 30000)
+            
+            await self.page.wait_for_request(url_pattern, timeout=timeout)
+
+        elif action_type == "make_api_call":
+            import aiohttp
+            
+            url = self.substitute_variables(action_data.get("url", ""))
+            method = action_data.get("method", "GET").upper()
+            headers = action_data.get("headers", {})
+            body = action_data.get("body")
+            variable_name = action_data.get("variable_name")
+            
+            async with aiohttp.ClientSession() as session:
+                if method == "GET":
+                    async with session.get(url, headers=headers) as resp:
+                        response_text = await resp.text()
+                        status = resp.status
+                elif method == "POST":
+                    async with session.post(url, headers=headers, json=body) as resp:
+                        response_text = await resp.text()
+                        status = resp.status
+                elif method == "PUT":
+                    async with session.put(url, headers=headers, json=body) as resp:
+                        response_text = await resp.text()
+                        status = resp.status
+                elif method == "DELETE":
+                    async with session.delete(url, headers=headers) as resp:
+                        response_text = await resp.text()
+                        status = resp.status
+                else:
+                    raise Exception(f"Unsupported HTTP method: {method}")
+            
+            if variable_name:
+                self.variables[variable_name] = response_text
+                self.variables[f"{variable_name}_status"] = str(status)
+
+        # --- Logging/Debugging ---
+        elif action_type == "log":
+            message = self.substitute_variables(action_data.get("message", ""))
+            level = action_data.get("level", "info")  # info, warn, error, debug
+            
+            # Emit log message via live update
+            log_data = {"type": "log", "level": level, "message": message}
+            await self.emit_live_update(log_data)
+            
+            # Also store in test execution logs
+            if not hasattr(self, 'logs'):
+                self.logs = []
+            self.logs.append({"level": level, "message": message})
+
+        elif action_type == "comment":
+            # Just a no-op for documentation purposes
+            pass
+
+        elif action_type == "highlight_element":
+            selector_data = action_data.get("selector", {})
+            duration = action_data.get("duration", 2000)
+            color = action_data.get("color", "red")
+            
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            
+            # Add highlight style
+            await locator.evaluate(f"""
+                element => {{
+                    const originalStyle = element.style.cssText;
+                    element.style.cssText = 'border: 3px solid {color} !important; background: rgba(255,0,0,0.1) !important;';
+                    setTimeout(() => {{ element.style.cssText = originalStyle; }}, {duration});
+                }}
+            """)
+            await asyncio.sleep(duration / 1000)
+
+        # --- Advanced Assertions ---
+        elif action_type == "assert_element_count":
+            selector_data = action_data.get("selector", {})
+            expected_count = action_data.get("expected_count", 0)
+            comparison = action_data.get("comparison", "equals")  # equals, greater, less, at_least, at_most
+            
+            selector = selector_data.get("primary") or selector_data.get("css") or selector_data
+            if isinstance(selector, str):
+                count = await self.page.locator(selector).count()
+            else:
+                count = await self.page.locator(selector.get("css", selector.get("primary", ""))).count()
+            
+            self.variables["element_count"] = str(count)
+            
+            passed = False
+            if comparison == "equals":
+                passed = count == expected_count
+            elif comparison == "greater":
+                passed = count > expected_count
+            elif comparison == "less":
+                passed = count < expected_count
+            elif comparison == "at_least":
+                passed = count >= expected_count
+            elif comparison == "at_most":
+                passed = count <= expected_count
+            
+            if not passed:
+                raise Exception(f"Element count assertion failed: found {count}, expected {comparison} {expected_count}")
+
+        elif action_type == "assert_not_visible":
+            selector_data = action_data.get("selector", {})
+            selector = selector_data.get("primary") or selector_data.get("css") or selector_data
+            if isinstance(selector, str):
+                is_visible = await self.page.locator(selector).is_visible()
+            else:
+                is_visible = await self.page.locator(selector.get("css", "")).is_visible()
+            
+            if is_visible:
+                raise Exception(f"Element is visible but expected to be hidden: {selector}")
+
+        elif action_type == "soft_assert":
+            # Like assert but doesn't stop execution
+            try:
+                assertion = action_data.get("assertion", {})
+                assertor = SelfHealingAssertion(self.ai_service)
+                success, _ = await assertor.assert_with_healing(self.page, assertion)
+                
+                if not hasattr(self, 'soft_assert_failures'):
+                    self.soft_assert_failures = []
+                
+                if not success:
+                    self.soft_assert_failures.append(assertion)
+                    self.variables["soft_assert_failed"] = "true"
+            except Exception as e:
+                if not hasattr(self, 'soft_assert_failures'):
+                    self.soft_assert_failures = []
+                self.soft_assert_failures.append(str(e))
+
+        # --- Element Count/Info ---
+        elif action_type == "get_element_count":
+            selector_data = action_data.get("selector", {})
+            variable_name = action_data.get("variable_name")
+            
+            selector = selector_data.get("primary") or selector_data.get("css") or selector_data
+            if isinstance(selector, str):
+                count = await self.page.locator(selector).count()
+            else:
+                count = await self.page.locator(selector.get("css", "")).count()
+            
+            if variable_name:
+                self.variables[variable_name] = str(count)
+
+        # --- Performance ---
+        elif action_type == "measure_load_time":
+            variable_name = action_data.get("variable_name", "load_time")
+            
+            # Get performance timing
+            timing = await self.page.evaluate("""
+                () => {
+                    const perf = window.performance.timing;
+                    return {
+                        dns: perf.domainLookupEnd - perf.domainLookupStart,
+                        connection: perf.connectEnd - perf.connectStart,
+                        ttfb: perf.responseStart - perf.requestStart,
+                        download: perf.responseEnd - perf.responseStart,
+                        domParsing: perf.domInteractive - perf.responseEnd,
+                        domComplete: perf.domComplete - perf.domInteractive,
+                        total: perf.loadEventEnd - perf.navigationStart
+                    }
+                }
+            """)
+            
+            self.variables[variable_name] = str(timing.get("total", 0))
+            self.variables[f"{variable_name}_ttfb"] = str(timing.get("ttfb", 0))
+            self.variables[f"{variable_name}_details"] = str(timing)
+
+        elif action_type == "get_performance_metrics":
+            variable_name = action_data.get("variable_name", "perf")
+            
+            # Get Core Web Vitals and other metrics
+            metrics = await self.page.evaluate("""
+                () => {
+                    return new Promise((resolve) => {
+                        const metrics = {};
+                        
+                        // Get paint timing
+                        const paintEntries = performance.getEntriesByType('paint');
+                        paintEntries.forEach(entry => {
+                            metrics[entry.name] = entry.startTime;
+                        });
+                        
+                        // Get navigation timing
+                        const navEntries = performance.getEntriesByType('navigation');
+                        if (navEntries.length > 0) {
+                            metrics.domContentLoaded = navEntries[0].domContentLoadedEventEnd;
+                            metrics.loadComplete = navEntries[0].loadEventEnd;
+                        }
+                        
+                        resolve(metrics);
+                    });
+                }
+            """)
+            
+            self.variables[variable_name] = str(metrics)
+
+        # --- Clipboard ---
+        elif action_type == "copy_to_clipboard":
+            text = self.substitute_variables(action_data.get("text", ""))
+            await self.page.evaluate(f"navigator.clipboard.writeText('{text}')")
+
+        elif action_type == "paste_from_clipboard":
+            selector_data = action_data.get("selector", {})
+            locator, healing_info = await self.get_locator_with_healing(
+                selector_data, action_type, test_flow
+            )
+            await locator.press("Control+v")
+
+        # --- Data Files ---
+        elif action_type == "read_csv":
+            import csv
+            file_path = self.substitute_variables(action_data.get("file_path", ""))
+            variable_name = action_data.get("variable_name", "csv_data")
+            
+            with open(file_path, 'r') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+            
+            self.variables[variable_name] = str(data)
+            self.variables[f"{variable_name}_count"] = str(len(data))
+            # Store as iterable for loops
+            if not hasattr(self, 'datasets'):
+                self.datasets = {}
+            self.datasets[variable_name] = data
+
+        elif action_type == "read_json":
+            import json
+            file_path = self.substitute_variables(action_data.get("file_path", ""))
+            variable_name = action_data.get("variable_name", "json_data")
+            
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            
+            self.variables[variable_name] = str(data)
+            if isinstance(data, list):
+                self.variables[f"{variable_name}_count"] = str(len(data))
+                if not hasattr(self, 'datasets'):
+                    self.datasets = {}
+                self.datasets[variable_name] = data
+
+        elif action_type == "iterate_dataset":
+            dataset_name = action_data.get("dataset_name", "")
+            loop_variable = action_data.get("loop_variable", "row")
+            nested_steps = action_data.get("nested_steps", [])
+            
+            if hasattr(self, 'datasets') and dataset_name in self.datasets:
+                for i, row in enumerate(self.datasets[dataset_name]):
+                    self.variables[loop_variable] = str(row)
+                    self.variables[f"{loop_variable}_index"] = str(i)
+                    
+                    # Make row fields accessible
+                    if isinstance(row, dict):
+                        for key, value in row.items():
+                            self.variables[f"{loop_variable}_{key}"] = str(value)
+                    
+                    # Execute nested steps
+                    for step in nested_steps:
+                        step_type = step.get("action") or step.get("actionType")
+                        step_data = step.get("data", step)
+                        await self.execute_action(step_type, step_data, test_flow)
+
+        # --- Geolocation ---
+        elif action_type == "set_geolocation":
+            latitude = action_data.get("latitude", 0)
+            longitude = action_data.get("longitude", 0)
+            accuracy = action_data.get("accuracy", 100)
+            
+            await self.context.set_geolocation({
+                "latitude": latitude,
+                "longitude": longitude,
+                "accuracy": accuracy
+            })
+            await self.context.grant_permissions(["geolocation"])
+
+        # --- Timezone ---
+        elif action_type == "set_timezone":
+            timezone = action_data.get("timezone", "America/New_York")
+            # Note: This needs to be set at context creation, so we store for next context
+            self.variables["_timezone"] = timezone
+
         
         # Add more action types as needed
         

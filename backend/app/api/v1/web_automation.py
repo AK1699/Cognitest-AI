@@ -274,6 +274,98 @@ async def execute_multi_browser(
     return results
 
 
+@router.get("/executions/{execution_id}/live", response_model=ExecutionRunDetailResponse)
+async def get_execution_live_status(
+    execution_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get live status of an execution
+    """
+    result = await db.execute(select(ExecutionRun).where(ExecutionRun.id == execution_id))
+    run = result.scalar_one_or_none()
+    
+    if not run:
+        raise HTTPException(status_code=404, detail="Execution run not found")
+        
+    return run
+
+
+# --- Test Recorder ---
+
+from pydantic import BaseModel
+
+class RecordingRequest(BaseModel):
+    url: str
+    project_id: str
+
+class StopRecordingRequest(BaseModel):
+    project_id: str
+
+class RecordingResponse(BaseModel):
+    session_id: str
+    status: str
+
+# In-memory storage for active recorders
+# dict[session_id, WebAutomationExecutor]
+active_recorders: dict[str, WebAutomationExecutor] = {}
+
+@router.post("/recorder/start", response_model=RecordingResponse)
+async def start_recording(
+    request: RecordingRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Start a recording session"""
+    session_id = str(request.project_id) # Simplify: 1 active recording per project for now
+    
+    # Clean up existing if any
+    if session_id in active_recorders:
+        await active_recorders[session_id].stop_recording()
+        del active_recorders[session_id]
+    
+    executor = WebAutomationExecutor(db)
+    # Register websocket callback to forward events
+    async def ws_forwarder(message):
+        # Broadcast to project room or specific user connection
+        # For simplicity, we assume the frontend client is connected to a specific WS endpoint
+        # We will use the existing ConnectionManager but with a special ID prefix
+        await manager.send_message(f"recorder_{session_id}", message)
+        
+    executor.register_ws_callback(ws_forwarder)
+    
+    # Start asynchronously to not block
+    asyncio.create_task(executor.start_recording(request.url))
+    
+    active_recorders[session_id] = executor
+    
+    return RecordingResponse(session_id=session_id, status="started")
+
+@router.post("/recorder/stop")
+async def stop_recording(
+    request: StopRecordingRequest,
+    current_user: User = Depends(get_current_user)
+):
+    session_id = request.project_id
+    if session_id in active_recorders:
+        await active_recorders[session_id].stop_recording()
+        del active_recorders[session_id]
+        return {"status": "stopped"}
+    return {"status": "not_found"}
+
+@router.websocket("/ws/recorder/{project_id}")
+async def websocket_recorder_endpoint(websocket: WebSocket, project_id: str):
+    """WebSocket for recorder events"""
+    await manager.connect(f"recorder_{project_id}", websocket)
+    try:
+        while True:
+            # Keep alive / receive commands from frontend if needed
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(f"recorder_{project_id}")
+
+
 @router.get("/executions/{run_id}", response_model=ExecutionRunDetailResponse)
 async def get_execution_run(
     run_id: UUID,
