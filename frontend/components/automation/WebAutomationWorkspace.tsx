@@ -125,7 +125,7 @@ export default function WebAutomationWorkspace({ projectId }: WebAutomationWorks
       case 'logs':
         return <LogsTab projectId={projectId} />
       case 'heal':
-        return <AISelfHealTab />
+        return <AISelfHealTab projectId={projectId} />
       default:
         return <TestExplorerTab onEditTest={handleEditTest} />
     }

@@ -214,6 +214,17 @@ export const webAutomationApi = {
     getExecutionRun: async (runId: string): Promise<ExecutionRunDetail> => {
         const response = await api.get<ExecutionRunDetail>(`/api/v1/web-automation/executions/${runId}`)
         return response.data
+    },
+
+    // Self-Heal Dashboard
+    getSelfHealDashboard: async (projectId: string): Promise<SelfHealDashboard> => {
+        const response = await api.get<SelfHealDashboard>(`/api/v1/web-automation/projects/${projectId}/self-heal/dashboard`)
+        return response.data
+    },
+
+    // Apply healing fix
+    applyHealingFix: async (stepId: string, suggestion: { value: string, type: string }): Promise<void> => {
+        await api.post(`/api/v1/web-automation/healing/apply`, { step_id: stepId, suggestion })
     }
 }
 
@@ -278,4 +289,45 @@ export interface StepResult {
 export interface ExecutionRunDetail extends ExecutionRun {
     step_results: StepResult[]
     healing_events: any[]
+}
+
+export interface SelfHealDashboard {
+    health_score: number
+    total_tests: number
+    issues_detected: number
+    auto_healed_this_week: number
+    detected_issues: SelfHealIssue[]
+    repair_history: RepairHistoryItem[]
+    config: {
+        auto_apply_low_risk: boolean
+        notify_on_issues: boolean
+        visual_matching: boolean
+        confidence_threshold: number
+    }
+}
+
+export interface SelfHealIssue {
+    id: string
+    type: string
+    test: string
+    step: string
+    status: string
+    confidence: number
+    old_locator: string
+    error_message?: string
+    suggestions: {
+        id: string
+        value: string
+        confidence: number
+        type: string
+    }[]
+}
+
+export interface RepairHistoryItem {
+    id: string
+    date: string
+    type: string
+    test: string
+    action: string
+    success: boolean
 }

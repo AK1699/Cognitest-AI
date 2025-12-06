@@ -572,6 +572,115 @@ async def get_healing_report(
     )
 
 
+# Self-Heal Dashboard
+@router.get("/projects/{project_id}/self-heal/dashboard")
+async def get_self_heal_dashboard(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get self-heal dashboard data for a project
+    """
+    from datetime import datetime, timedelta
+    
+    # Get all test flows for the project
+    flows_result = await db.execute(
+        select(TestFlow).where(TestFlow.project_id == project_id)
+    )
+    test_flows = flows_result.scalars().all()
+    total_tests = len(test_flows)
+    
+    # Get recent executions (last 7 days)
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    exec_result = await db.execute(
+        select(ExecutionRun)
+        .where(ExecutionRun.project_id == project_id)
+        .where(ExecutionRun.created_at >= week_ago)
+        .order_by(desc(ExecutionRun.created_at))
+    )
+    recent_executions = exec_result.scalars().all()
+    
+    # Calculate health metrics
+    total_executions = len(recent_executions)
+    successful_executions = sum(1 for e in recent_executions if e.status.value == 'completed' and e.failed_steps == 0)
+    health_score = (successful_executions / total_executions * 100) if total_executions > 0 else 100.0
+    
+    # Count healed steps this week
+    auto_healed_this_week = sum(e.healed_steps for e in recent_executions)
+    
+    # Get healing events (potential issues)
+    healing_result = await db.execute(
+        select(HealingEvent)
+        .where(HealingEvent.execution_run_id.in_([e.id for e in recent_executions]) if recent_executions else False)
+        .order_by(desc(HealingEvent.recorded_at))
+        .limit(20)
+    )
+    healing_events = healing_result.scalars().all()
+    
+    # Get failed steps (detected issues)
+    failed_steps_result = await db.execute(
+        select(StepResult)
+        .where(StepResult.execution_run_id.in_([e.id for e in recent_executions]) if recent_executions else False)
+        .where(StepResult.status == 'failed')
+        .order_by(desc(StepResult.created_at))
+        .limit(10)
+    )
+    failed_steps = failed_steps_result.scalars().all()
+    
+    # Build detected issues
+    detected_issues = []
+    for step in failed_steps:
+        # Get the test flow name
+        exec_run = next((e for e in recent_executions if e.id == step.execution_run_id), None)
+        flow = next((f for f in test_flows if exec_run and f.id == exec_run.test_flow_id), None)
+        
+        issue = {
+            "id": str(step.id),
+            "type": "Locator Changed" if "not found" in (step.error_message or "").lower() else "Assertion Failed",
+            "test": flow.name if flow else "Unknown Test",
+            "step": step.step_name or step.step_type,
+            "status": "LOCATOR_NOT_FOUND" if "not found" in (step.error_message or "").lower() else "ASSERTION_FAILED",
+            "confidence": 95,  # Placeholder - would come from AI analysis
+            "old_locator": step.selector_used.get("css", "") if step.selector_used else "",
+            "error_message": step.error_message,
+            "suggestions": [
+                {"id": f"s{step.id[:8]}", "value": "AI suggestion pending", "confidence": 95, "type": "AI Match"}
+            ]
+        }
+        detected_issues.append(issue)
+    
+    # Build repair history
+    repair_history = []
+    for event in healing_events[:10]:
+        exec_run = next((e for e in recent_executions if e.id == event.execution_run_id), None)
+        flow = next((f for f in test_flows if exec_run and f.id == exec_run.test_flow_id), None)
+        
+        repair_history.append({
+            "id": str(event.id),
+            "date": event.recorded_at.isoformat() if event.recorded_at else "",
+            "type": f"{event.healing_type.value.title()} Update",
+            "test": flow.name if flow else "Unknown Test",
+            "action": "Auto-Healed" if event.success else "Manual Review",
+            "success": event.success
+        })
+    
+    return {
+        "health_score": round(health_score, 1),
+        "total_tests": total_tests,
+        "issues_detected": len(detected_issues),
+        "auto_healed_this_week": auto_healed_this_week,
+        "detected_issues": detected_issues,
+        "repair_history": repair_history,
+        "config": {
+            "auto_apply_low_risk": True,
+            "notify_on_issues": True,
+            "visual_matching": True,
+            "confidence_threshold": 90
+        }
+    }
+
+
 @router.get("/test-flows/{flow_id}/analytics", response_model=TestFlowAnalytics)
 async def get_test_flow_analytics(
     flow_id: UUID,
