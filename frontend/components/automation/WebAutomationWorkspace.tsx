@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { projectsApi, ProjectSettings } from '@/lib/api/projects'
 import TestExplorerTab from './TestExplorerTab'
-import TestBuilderTab from './TestBuilderTab'
+import TestBuilderTab from './test-builder'
 import LiveBrowserTab from './LiveBrowserTab'
 import LogsTab from './LogsTab'
 import AISelfHealTab from './AISelfHealTab'
@@ -34,16 +34,16 @@ import { Environment, EnvironmentManager } from './EnvironmentManager'
 
 interface WebAutomationWorkspaceProps {
   projectId: string
-  // flowId?: string // Removed flowId from props
+  flowId?: string // Optional: for deep linking to a specific flow
 }
 
 type TabView = 'explorer' | 'builder' | 'browser' | 'logs' | 'heal'
 
-export default function WebAutomationWorkspace({ projectId }: WebAutomationWorkspaceProps) {
+export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomationWorkspaceProps) {
   const router = useRouter()
-  const params = { projectId } // Initialize params with projectId
-  const [activeTab, setActiveTab] = useState<TabView>('explorer')
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null) // flowId is no longer passed as prop
+  const params = useParams() // Get full params including uuid
+  const [activeTab, setActiveTab] = useState<TabView>(flowId ? 'builder' : 'explorer')
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(flowId || null)
 
   // Environment State
   const [environments, setEnvironments] = useState<Environment[]>([])
