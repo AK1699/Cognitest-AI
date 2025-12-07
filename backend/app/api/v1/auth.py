@@ -160,6 +160,7 @@ async def login(credentials: UserLogin, response: Response, db: AsyncSession = D
     Authenticate user and set HttpOnly cookies with JWT tokens.
 
     Accepts email and password, sets access and refresh token cookies.
+    If MFA is enabled, returns mfa_required=true and a temporary token.
     """
     # Find user by email
     result = await db.execute(select(User).where(User.email == credentials.email))
@@ -178,7 +179,20 @@ async def login(credentials: UserLogin, response: Response, db: AsyncSession = D
             detail="Account is inactive"
         )
 
-    # Create tokens
+    # Check if MFA is enabled
+    if user.mfa_enabled:
+        # Create a short-lived token for MFA verification
+        mfa_token = create_access_token(
+            data={"sub": str(user.id), "email": user.email, "mfa_pending": True},
+            expires_delta=timedelta(minutes=5)  # 5 minutes to complete MFA
+        )
+        return {
+            "mfa_required": True,
+            "mfa_token": mfa_token,
+            "message": "MFA verification required"
+        }
+
+    # Create tokens (no MFA required)
     access_token_expires = None
     refresh_token_expires = None
 

@@ -20,6 +20,8 @@ greenlet==3.2.4
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
+pyotp==2.9.0
+qrcode[pil]==8.2
 
 # AI & ML
 langchain==0.1.7

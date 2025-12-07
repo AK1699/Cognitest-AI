@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -17,6 +17,11 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # MFA / Two-Factor Authentication
+    mfa_secret = Column(String(32), nullable=True)  # TOTP secret key (base32 encoded)
+    mfa_enabled = Column(Boolean, default=False)    # Whether MFA is active
+    mfa_backup_codes = Column(JSON, nullable=True)  # List of hashed backup codes
 
     # Relationships
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")

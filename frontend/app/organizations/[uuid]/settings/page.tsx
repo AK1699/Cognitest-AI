@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { GeneralSettings } from '@/components/settings/general-settings'
 import { LogoSettings } from '@/components/settings/logo-settings'
 import { DeleteOrganization } from '@/components/settings/delete-organization'
+import { MFASettings } from '@/components/settings/MFASettings'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -135,9 +136,10 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
         <div className="px-8 py-8">
           {/* Tabs Navigation */}
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full max-w-2xl grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-8">
+            <TabsList className="grid w-full max-w-3xl grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-8">
               <TabsTrigger value="general" className="text-sm font-semibold">General</TabsTrigger>
               <TabsTrigger value="logo" className="text-sm font-semibold">Logo</TabsTrigger>
+              <TabsTrigger value="security" className="text-sm font-semibold">Security</TabsTrigger>
               <TabsTrigger value="danger" className="text-sm font-semibold">Danger</TabsTrigger>
             </TabsList>
 
@@ -158,6 +160,13 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
               />
             </TabsContent>
 
+            <TabsContent value="security" className="mt-8 animate-in fade-in duration-300">
+              <div className="max-w-2xl">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Account Security</h2>
+                <MFASettings />
+              </div>
+            </TabsContent>
+
             <TabsContent value="danger" className="mt-8 animate-in fade-in duration-300">
               <DeleteOrganization
                 organisationName={organisation.name}
@@ -170,3 +179,4 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
     </div>
   )
 }
+
