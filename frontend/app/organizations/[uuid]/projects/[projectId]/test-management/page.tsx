@@ -124,6 +124,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }, [searchQuery])
 
   const fetchProject = async () => {
+    if (!projectId) return // Guard against undefined projectId
     try {
       const response = await api.get(`/api/v1/projects/${projectId}`)
       setProject(response.data)
@@ -136,6 +137,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }
 
   const fetchOrganisation = async () => {
+    if (!uuid) return // Guard against undefined uuid
     try {
       const response = await api.get(`/api/v1/organisations/${uuid}`)
       setOrganisation(response.data)
