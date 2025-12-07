@@ -252,6 +252,8 @@ async def create_organisation(
     Automatically initializes:
     - Default roles (Owner, Admin, QA Manager, QA Lead, QA Engineer, Product Owner, Viewer)
     - Group types (ADMIN, QA, DEV, PRODUCT) with their associated roles
+    - Simplified organization roles (Owner, Admin, Member, Viewer)
+    - Free subscription plan
     for the new organisation.
     """
     # Create new organisation
@@ -265,22 +267,68 @@ async def create_organisation(
     db.add(new_organisation)
     await db.flush()  # Flush to get the organisation ID
 
-    # Add owner to user_organisations table
+    # Initialize simplified organization roles
+    from app.models.organisation import DEFAULT_SYSTEM_ROLES, OrgRoleType, OrganizationRole, DEFAULT_ROLE_PERMISSIONS
+    owner_role_id = None
+    for role_data in DEFAULT_SYSTEM_ROLES:
+        role = OrganizationRole(
+            id=uuid.uuid4(),
+            organisation_id=new_organisation.id,
+            name=role_data["name"],
+            role_type=OrgRoleType(role_data["role_type"]),
+            description=role_data.get("description", ""),
+            color=role_data.get("color", "#6B7280"),
+            is_system_role=True,
+            is_default=role_data.get("is_default", False),
+            permissions=DEFAULT_ROLE_PERMISSIONS.get(OrgRoleType(role_data["role_type"]), {})
+        )
+        db.add(role)
+        if role_data["role_type"] == "owner":
+            owner_role_id = role.id
+    
+    await db.flush()
+
+    # Add owner to user_organisations table with the owner role
     from sqlalchemy import text
     await db.execute(
         text(
-            "INSERT INTO user_organisations (user_id, organisation_id, role, added_by) "
-            "VALUES (:user_id, :org_id, :role, :added_by)"
+            "INSERT INTO user_organisations (user_id, organisation_id, role, role_id, added_by, is_active, joined_at) "
+            "VALUES (:user_id, :org_id, :role, :role_id, :added_by, :is_active, NOW())"
         ),
         {
             "user_id": str(current_user.id),
             "org_id": str(new_organisation.id),
             "role": "owner",
-            "added_by": str(current_user.id)
+            "role_id": str(owner_role_id) if owner_role_id else None,
+            "added_by": str(current_user.id),
+            "is_active": True
         }
     )
 
-    # Automatically initialize default roles for the new organisation
+    # Initialize free subscription for the new organization
+    try:
+        # Get free plan
+        free_plan_result = await db.execute(
+            text("SELECT id FROM subscription_plans WHERE name = 'free' LIMIT 1")
+        )
+        free_plan = free_plan_result.fetchone()
+        if free_plan:
+            await db.execute(
+                text("""
+                    INSERT INTO organization_subscriptions (id, organisation_id, plan_id, status, billing_cycle, created_at, updated_at)
+                    VALUES (:id, :org_id, :plan_id, 'active', 'monthly', NOW(), NOW())
+                """),
+                {
+                    "id": str(uuid.uuid4()),
+                    "org_id": str(new_organisation.id),
+                    "plan_id": str(free_plan[0])
+                }
+            )
+    except Exception as e:
+        # If subscription creation fails, log but don't fail org creation
+        print(f"Warning: Failed to create subscription for org {new_organisation.id}: {e}")
+
+    # Automatically initialize default project roles for the new organisation
     await initialize_default_roles_for_org(
         organisation_id=new_organisation.id,
         created_by=current_user.email,

@@ -32,8 +32,9 @@ import { listGroups, deleteGroup, type Group } from '@/lib/api/groups'
 import { EditUserModal } from '@/components/users-teams/edit-user-modal'
 import { EditGroupModal } from '@/components/users-teams/edit-group-modal'
 import { CreateGroupWithTypeModal } from '@/components/users-teams/create-group-with-type-modal'
+import { RolesManager } from '@/components/settings/RolesManager'
 
-type Tab = 'users' | 'teams' | 'roles'
+type Tab = 'users' | 'teams' | 'roles' | 'org-roles'
 
 interface Project {
   id: string
@@ -580,7 +581,17 @@ export default function UsersTeamsPage() {
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >
                 <Shield className="w-4 h-4" />
-                Roles ({roles.length})
+                Project Roles ({roles.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('org-roles')}
+                className={`${activeTab === 'org-roles'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <Shield className="w-4 h-4" />
+                Org Roles
               </button>
             </nav>
           </div>
@@ -971,6 +982,22 @@ export default function UsersTeamsPage() {
                   <PermissionMatrix organisationId={organisationId} isAdmin={isCurrentUserAdmin} />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Org Roles Tab Content - New Simplified Role System */}
+          {activeTab === 'org-roles' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
+                <h3 className="font-medium text-gray-900">Organization-Level Roles</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Simplified role system with 4 tiers: Owner, Admin, Member, Viewer. These roles apply across the entire organization.
+                </p>
+              </div>
+              <RolesManager
+                organisationId={organisationId}
+                currentUserRole={organisation?.owner_id === currentUser?.id ? 'owner' : 'member'}
+              />
             </div>
           )}
 

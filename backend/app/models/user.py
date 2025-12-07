@@ -32,6 +32,7 @@ class User(Base):
     )
     project_roles = relationship("UserProjectRole", back_populates="user", cascade="all, delete-orphan")
     oauth_accounts = relationship("OAuthAccount", back_populates="user", cascade="all, delete-orphan")
+    organisation_memberships = relationship("UserOrganisation", foreign_keys="UserOrganisation.user_id", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email}>"

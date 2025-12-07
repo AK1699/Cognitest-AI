@@ -5,7 +5,8 @@ const nextConfig = {
   experimental: {
     serverActions: {
       enabled: true
-    }
+    },
+    proxyTimeout: 180000, // 3 minutes (180 seconds)
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
@@ -18,10 +19,6 @@ const nextConfig = {
         destination: 'http://localhost:8000/api/:path*',
       },
     ]
-  },
-  // Increase timeout for long-running AI operations
-  experimental: {
-    proxyTimeout: 180000, // 3 minutes (180 seconds)
   },
   // Also configure for API routes
   serverRuntimeConfig: {

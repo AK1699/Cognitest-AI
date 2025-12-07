@@ -1,25 +1,117 @@
 'use client'
 
-import { use } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-// import { Progress } from '@/components/ui/progress' // TODO: Component does not exist yet
+import { use, useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { UserNav } from '@/components/layout/user-nav'
-import { CreditCard } from 'lucide-react'
-
-const invoiceData = [
-  { id: 'INV-2023-001', date: '2023-10-01', amount: '$500.00', status: 'Paid' },
-  { id: 'INV-2023-002', date: '2023-09-01', amount: '$500.00', status: 'Paid' },
-  { id: 'INV-2023-003', date: '2023-08-01', amount: '$500.00', status: 'Paid' },
-]
+import { CreditCard, Users, FolderKanban, FileText, Activity, Loader2 } from 'lucide-react'
+import { PricingPlans } from '@/components/settings/PricingPlans'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getUsageLimits, getCurrentSubscription, formatLimit, type UsageLimit, type OrganizationSubscription } from '@/lib/api/subscription'
 
 interface PageParams {
   uuid: string
 }
 
+function UsageCard({
+  icon: Icon,
+  label,
+  current,
+  limit,
+  isUnlimited,
+  color
+}: {
+  icon: any
+  label: string
+  current: number
+  limit: number
+  isUnlimited: boolean
+  color: string
+}) {
+  const percentage = isUnlimited ? 0 : Math.min((current / limit) * 100, 100)
+  const isNearLimit = !isUnlimited && percentage >= 80
+  const isAtLimit = !isUnlimited && percentage >= 100
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <span className="font-medium text-gray-900">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-3xl font-bold text-gray-900">{current.toLocaleString()}</span>
+        <span className="text-gray-500">/ {isUnlimited ? '∞' : limit.toLocaleString()}</span>
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-2.5">
+        <div
+          className={`h-2.5 rounded-full transition-all ${isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-primary'
+            }`}
+          style={{ width: isUnlimited ? '10%' : `${percentage}%` }}
+        />
+      </div>
+      {isNearLimit && !isAtLimit && (
+        <p className="text-xs text-amber-600 mt-2">Approaching limit</p>
+      )}
+      {isAtLimit && (
+        <p className="text-xs text-red-600 mt-2">Limit reached</p>
+      )}
+    </div>
+  )
+}
+
 export default function BillingPage({ params }: { params: Promise<PageParams> }) {
   const { uuid } = use(params)
+  const [usage, setUsage] = useState<UsageLimit[]>([])
+  const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [uuid])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [usageData, subData] = await Promise.all([
+        getUsageLimits(uuid).catch(() => []),
+        getCurrentSubscription(uuid).catch(() => null)
+      ])
+      setUsage(usageData)
+      setSubscription(subData)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getUsageIcon = (resource: string) => {
+    switch (resource) {
+      case 'users': return Users
+      case 'projects': return FolderKanban
+      case 'test_cases': return FileText
+      default: return Activity
+    }
+  }
+
+  const getUsageColor = (resource: string) => {
+    switch (resource) {
+      case 'users': return 'bg-blue-500'
+      case 'projects': return 'bg-green-500'
+      case 'test_cases': return 'bg-purple-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const getUsageLabel = (resource: string) => {
+    switch (resource) {
+      case 'users': return 'Active Users'
+      case 'projects': return 'Projects'
+      case 'test_cases': return 'Test Cases'
+      default: return resource
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -43,93 +135,90 @@ export default function BillingPage({ params }: { params: Promise<PageParams> })
 
         {/* Page Content */}
         <div className="px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Usage</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Test Runs</span>
-                      <span className="text-sm">12,453 / 20,000</span>
-                    </div>
-                    {/* Assuming Progress component exists and works like this */}
-                    {/* <Progress value={62} /> */}
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                      <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '62%' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Active Users</span>
-                      <span className="text-sm">128 / 200</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                      <div className="bg-orange-500 h-2.5 rounded-full" style={{ width: '64%' }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Projects</span>
-                      <span className="text-sm">12 / 15</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                      <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '80%' }}></div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <Tabs defaultValue="usage" className="w-full">
+            <TabsList className="grid w-full max-w-lg grid-cols-3 bg-gray-100 p-1 rounded-lg mb-8">
+              <TabsTrigger value="usage" className="text-sm font-semibold">Usage</TabsTrigger>
+              <TabsTrigger value="plans" className="text-sm font-semibold">Plans & Pricing</TabsTrigger>
+              <TabsTrigger value="invoices" className="text-sm font-semibold">Invoices</TabsTrigger>
+            </TabsList>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Billing History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                      <tr>
-                        <th scope="col" className="px-6 py-3">Invoice ID</th>
-                        <th scope="col" className="px-6 py-3">Date</th>
-                        <th scope="col" className="px-6 py-3">Amount</th>
-                        <th scope="col" className="px-6 py-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoiceData.map((invoice) => (
-                        <tr key={invoice.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                          <td className="px-6 py-4">{invoice.id}</td>
-                          <td className="px-6 py-4">{invoice.date}</td>
-                          <td className="px-6 py-4">{invoice.amount}</td>
-                          <td className="px-6 py-4">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              {invoice.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-            </div>
+            <TabsContent value="usage" className="mt-0 animate-in fade-in duration-300">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Current Plan Banner */}
+                  {subscription && (
+                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Current Plan: {subscription.plan_display_name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Billing: {subscription.billing_cycle} • Status: {subscription.status}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Plan</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <h3 className="text-2xl font-bold">Basic</h3>
-                  <p className="text-gray-500">Your organization is currently on the Basic plan.</p>
-                  <Button className="w-full">Manage Plan</Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                  {/* Usage Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {usage.map((u) => (
+                      <UsageCard
+                        key={u.resource}
+                        icon={getUsageIcon(u.resource)}
+                        label={getUsageLabel(u.resource)}
+                        current={u.current}
+                        limit={u.limit}
+                        isUnlimited={u.is_unlimited}
+                        color={getUsageColor(u.resource)}
+                      />
+                    ))}
+                  </div>
+
+                  {usage.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      No usage data available
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="plans" className="mt-0 animate-in fade-in duration-300">
+              <PricingPlans organisationId={uuid} />
+            </TabsContent>
+
+            <TabsContent value="invoices" className="mt-0 animate-in fade-in duration-300">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Invoice ID</th>
+                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr className="text-center">
+                      <td colSpan={4} className="py-12 text-gray-500">
+                        No invoices yet. Invoices will appear here after you upgrade to a paid plan.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>
   )
 }
+
+

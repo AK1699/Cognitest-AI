@@ -4,7 +4,15 @@ This is important for Alembic migrations and for creating tables.
 """
 
 from app.models.user import User
-from app.models.organisation import Organisation
+from app.models.organisation import (
+    Organisation, 
+    OrganizationRole, 
+    UserOrganisation,
+    OrgRoleType,
+    ROLE_HIERARCHY,
+    DEFAULT_ROLE_PERMISSIONS,
+    DEFAULT_SYSTEM_ROLES,
+)
 from app.models.project import Project, ProjectStatus
 from app.models.test_plan import TestPlan
 from app.models.test_suite import TestSuite
@@ -44,6 +52,13 @@ from app.models.integration import (
     IntegrationType,
     IntegrationStatus,
     SyncDirection,
+)
+from app.models.subscription import (
+    SubscriptionPlan,
+    OrganizationSubscription,
+    PlanTier,
+    SubscriptionStatus,
+    DEFAULT_PLANS,
 )
 from app.models.web_automation import (
     TestFlow,
@@ -103,6 +118,11 @@ __all__ = [
     "IntegrationType",
     "IntegrationStatus",
     "SyncDirection",
+    "SubscriptionPlan",
+    "OrganizationSubscription",
+    "PlanTier",
+    "SubscriptionStatus",
+    "DEFAULT_PLANS",
     "TestFlow",
     "ExecutionRun",
     "StepResult",
