@@ -1,74 +1,59 @@
-# Cognitest - AI-Powered Testing Platform
+# Cognitest AI
 
 <div align="center">
 
-**Test. Automate. Accelerate.**
+<img src="frontend/public/cognitest-logo.png" alt="Cognitest Logo" width="120" />
 
-A dynamic, self-evolving testing ecosystem powered by AI.
+**AI-Powered Software Testing Platform**
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)]()
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
+*Test Smarter. Ship Faster.*
 
-**🚀 [START HERE - Launch Localhost](START_HERE.md)** | [Features](#-features) • [Documentation](#-documentation) • [Architecture](#-architecture) • [Roadmap](#-roadmap)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Python_3.11-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql)](https://www.postgresql.org/)
+[![Playwright](https://img.shields.io/badge/Playwright-Automation-2EAD33?logo=playwright)](https://playwright.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture) • [Contributing](#-contributing)
 
 </div>
 
 ---
 
-## 🎯 What is Cognitest?
+## 🎯 Overview
 
-Cognitest is an **AI-first testing platform** that learns from your projects to accelerate QA workflows. It combines intelligent agents, automation tools, and integrations into a unified ecosystem.
+Cognitest AI is a comprehensive **AI-driven software testing platform** that combines intelligent test generation, automated web testing, and self-healing capabilities into a unified ecosystem.
 
-### Why Cognitest?
+### Key Highlights
 
-- ✨ **AI-Powered**: Automatically generate test plans, suites, and cases from requirements
-- 🚀 **10x Faster**: Automate repetitive testing tasks with visual builders
-- 🧠 **Self-Learning**: Improves suggestions based on your feedback and usage patterns
-- 🔗 **Integrated**: Connects with JIRA, Notion, Slack, GitHub, and more
-- 📊 **Insightful**: Real-time analytics and performance metrics
-- 🎨 **Beautiful UI**: Modern, intuitive interface with teal theme
+| Feature | Description |
+|---------|-------------|
+| 🧠 **AI Test Generation** | Generate test plans, suites, and cases from requirements using GPT-4/Gemini |
+| 🎭 **No-Code Automation** | Visual test builder with drag-and-drop action library |
+| 🔧 **Self-Healing Tests** | AI-powered locator recovery when elements change |
+| 📊 **Real-Time Execution** | Live browser view with WebSocket-powered step tracking |
+| 👥 **Team Management** | Organizations, projects, RBAC, and environment variables |
 
 ---
 
-## 🌟 Features
+## ✨ Features
 
 ### 📝 Test Management
-- **AI Test Plan Generator**: Generate comprehensive test plans from BRDs, JIRA tickets, and documentation
-- **Smart Test Suites**: Automatically organize tests into logical groupings
-- **Test Case AI**: Auto-generate detailed test cases with steps and assertions
-- **Issue Tracker**: AI-powered bug detection with remediation suggestions
+- **AI Test Plan Generator** - Create comprehensive test plans from BRDs, JIRA tickets, or plain text
+- **Test Suites & Cases** - Organize tests with hierarchical structure and human-readable IDs
+- **Rich Text Editor** - Document test steps with TipTap-powered formatting
 
-### 🔌 API Testing Hub
-- **Postman-like Interface**: Visual API request builder and tester
-- **OpenAPI Import**: Auto-generate tests from Swagger/OpenAPI specs
-- **Response Validation**: Intelligent schema validation and assertions
-- **Security Analysis**: Automated security header and vulnerability checks
-- **Dependency Graph**: Visualize API relationships
+### 🤖 Web Automation Hub
+- **Visual Test Builder** - Drag-and-drop 40+ actions (click, type, assert, loops, API calls)
+- **Browser Recorder** - Record user interactions into test steps
+- **AI Step Generator** - Describe tests in plain English, get executable steps
+- **Live Browser Preview** - Watch tests execute with real-time step highlighting
 
-### 🔒 Security Testing
-- **OWASP Top 10 Scanner**: Automated vulnerability detection
-- **Dependency Checker**: Identify vulnerable packages
-- **AI Remediation**: Get fix suggestions for security issues
-- **Compliance Reports**: Generate security audit reports
-
-### ⚡ Performance Testing
-- **Load Test Generator**: AI-powered load test creation
-- **Bottleneck Detection**: Identify performance issues automatically
-- **Predictive Analysis**: Forecast failures before they happen
-- **Scaling Recommendations**: AI-suggested infrastructure improvements
-
-### 🤖 Automation Hub
-- **Visual Test Recorder**: Drag-and-drop UI for creating Playwright tests
-- **Code Generation**: Export to Python, JavaScript, or TypeScript
-- **Workflow Builder**: n8n-style visual automation designer
-- **Live Execution**: Run tests in headed or headless mode
-
-### 📱 Mobile Testing
-- **Appium Integration**: Test iOS and Android apps
-- **Device Farm**: Cross-device testing support
-- **AI Visual Testing**: Intelligent element detection
-- **Screenshot Comparison**: Automated visual regression testing
+### 🔒 Enterprise Features
+- **RBAC** - Role-based access control with granular permissions
+- **Multi-Tenancy** - Organizations with isolated projects
+- **Environment Variables** - Manage configs per environment (dev, staging, prod)
+- **Google SSO** - OAuth 2.0 authentication support
 
 ---
 
@@ -76,235 +61,135 @@ Cognitest is an **AI-first testing platform** that learns from your projects to 
 
 ### Prerequisites
 
-- Node.js 20+
-- Python 3.11+
-- PostgreSQL 15+
+- **Node.js** 20+
+- **Python** 3.11+
+- **PostgreSQL** 15+
+- **Redis** (optional, for caching)
 
-### Setup Instructions
-
-#### 1. Install PostgreSQL
-
-**macOS:**
-```bash
-# Install with Homebrew
-brew install postgresql@15
-
-# Start service
-brew services start postgresql@15
-
-# Create database
-createdb cognitest
-```
-
-**Ubuntu/Debian:**
-```bash
-# Install PostgreSQL
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-
-# Start service
-sudo systemctl start postgresql
-
-# Create database
-sudo -u postgres createdb cognitest
-```
-
-**Windows:**
-- Download PostgreSQL from [postgresql.org](https://www.postgresql.org/download/windows/)
-- Create database using pgAdmin or psql
-
-#### 2. Setup Project
+### Installation
 
 ```bash
-# Install root dependencies
+# Clone the repository
+git clone https://github.com/AK1699/Cognitest-AI.git
+cd Cognitest-AI
+
+# Install dependencies
 npm install
-
-# Backend setup
-cd backend
-cp .env.example .env
-# Edit .env with your OpenAI API key
-
-# Frontend setup
-cd ../frontend
-cp .env.example .env.local
-# Edit .env.local with your Clerk keys
-
-# Install all dependencies
-cd ..
 npm run install:all
 
-# Run migrations
+# Setup environment variables
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+# Edit both files with your API keys (Gemini/OpenAI)
+
+# Run database migrations
 npm run migrate
-```
 
-#### 3. Run Database Migrations
-
-```bash
-# Run migrations to create tables
-npm run migrate
-```
-
-#### 4. Start Development Server (One Command!)
-
-```bash
+# Start development servers
 npm start
 ```
 
-That's it! This single command starts:
-- ✅ PostgreSQL database
-- ✅ Qdrant vector database
-- ✅ Backend server (FastAPI)
-- ✅ Frontend server (Next.js)
+### Access the Application
 
-#### 5. Create Your Account
-
-- Visit http://localhost:3000/cognitest.ai
-- Click "Get Started" or "Sign In"
-- Create your account (email, username, password)
-- Start testing!
-
-**Landing Page**: http://localhost:3000/cognitest.ai
-**Signup**: http://localhost:3000/auth/signup
-**Sign In**: http://localhost:3000/auth/signin
+| Service | URL |
+|---------|-----|
+| 🖥️ Frontend | http://localhost:3000 |
+| ⚡ Backend API | http://localhost:8000 |
+| 📚 API Docs | http://localhost:8000/api/docs |
 
 ---
 
-## 📖 Documentation
+## 📁 Project Structure
 
-- [JWT Authentication Setup](JWT_AUTH_SETUP.md) - Complete authentication guide
-- [Development Guide](DEVELOPMENT.md) - Quick start and best practices
-- [NPM Scripts Reference](NPM_SCRIPTS.md) - All available npm commands
-- [Architecture Overview](ARCHITECTURE.md)
-- [Implementation Roadmap](IMPLEMENTATION_ROADMAP.md)
-- [System Design](docs/architecture/SYSTEM_DESIGN.md)
-- [API Documentation](http://localhost:8000/api/docs) (when running)
+```
+Cognitest-AI/
+├── frontend/                    # Next.js 16 application
+│   ├── app/                    # App Router pages
+│   ├── components/             # React components
+│   │   ├── automation/         # Web automation module
+│   │   │   └── test-builder/   # Modular test builder (refactored)
+│   │   ├── test-management/    # Test plans, suites, cases
+│   │   └── ui/                 # Shared UI components
+│   └── lib/api/                # API client layer
+│
+├── backend/                     # FastAPI application
+│   ├── app/
+│   │   ├── api/v1/            # REST API endpoints
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── services/          # Business logic
+│   │   │   └── web_automation_service.py
+│   │   └── core/              # Config, auth, database
+│   └── alembic/               # Database migrations
+│
+└── docs/                        # Documentation
+```
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend Layer                          │
-│              Next.js 14 + TypeScript + Tailwind                 │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ REST/GraphQL/WebSocket
-┌────────────────────────┴────────────────────────────────────────┐
-│                      API Gateway Layer                          │
-│                    (FastAPI + WebSocket)                        │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-┌───────▼──────┐ ┌──────▼──────┐ ┌──────▼──────────┐
-│   AI Agent   │ │  Backend    │ │   Automation    │
-│ Orchestrator │ │  Services   │ │   Engine        │
-└──────┬───────┘ └──────┬──────┘ └──────┬──────────┘
-       │                │                │
-┌──────▼────────────────▼────────────────▼──────┐
-│     PostgreSQL | MinIO | Qdrant              │
-└───────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js 16)                     │
+│          React 18 • TypeScript • Tailwind • shadcn/ui        │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ REST API / WebSocket
+┌─────────────────────────┴───────────────────────────────────┐
+│                   Backend (FastAPI)                          │
+│     Python 3.11 • SQLAlchemy • Pydantic • Alembic           │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  PostgreSQL  │  │    Redis     │  │  Playwright  │
+│   Database   │  │    Cache     │  │   Browsers   │
+└──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ### Tech Stack
 
-**Frontend**
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS + shadcn/ui
-- React Query
-- Zustand
-
-**Backend**
-- FastAPI (Python 3.11+)
-- SQLAlchemy + Alembic
-- Celery (PostgreSQL broker)
-- PostgreSQL
-- Qdrant (Vector DB)
-
-**AI Layer**
-- LangChain
-- OpenAI GPT-4 / Google Gemini
-- OpenAI Embeddings
-- Vector similarity search
-
-**Automation**
-- Playwright (Web)
-- Appium (Mobile)
-- Custom workflow engine
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | Next.js 16, React 18, TypeScript, Tailwind CSS, shadcn/ui, React Query, Zustand |
+| **Backend** | FastAPI, Python 3.11, SQLAlchemy, Pydantic, Alembic |
+| **Database** | PostgreSQL 15+, Redis |
+| **AI** | Google Gemini, OpenAI GPT-4, LangChain |
+| **Automation** | Playwright (Chrome, Firefox, Safari) |
 
 ---
 
-## 📊 Project Structure
+## 📖 Documentation
 
-```
-cognitest/
-├── frontend/                 # Next.js application
-│   ├── app/                 # App router pages
-│   ├── components/          # React components
-│   ├── lib/                 # Utilities
-│   └── styles/              # Global styles
-│
-├── backend/                  # FastAPI application
-│   ├── app/
-│   │   ├── api/            # API routes
-│   │   ├── agents/         # AI agents
-│   │   ├── automation/     # Automation module
-│   │   │   ├── playwright/ # Web automation
-│   │   │   ├── appium/     # Mobile automation
-│   │   │   └── workflows/  # Workflow engine
-│   │   ├── core/           # Core utilities
-│   │   ├── models/         # Database models
-│   │   ├── schemas/        # Pydantic schemas
-│   │   └── services/       # Business logic
-│   └── tests/
-│
-├── database/               # Database migrations
-├── docs/                   # Documentation
-└── scripts/                # Utility scripts
-```
+| Document | Description |
+|----------|-------------|
+| [Getting Started](GETTING_STARTED.md) | Full setup walkthrough |
+| [Development Guide](DEVELOPMENT.md) | Local development tips |
+| [Architecture](ARCHITECTURE.md) | System design details |
+| [Web Automation Guide](START_HERE_WEB_AUTOMATION.md) | Automation module usage |
+| [RBAC Guide](RBAC_README.md) | Role-based access control |
+| [API Reference](http://localhost:8000/api/docs) | Interactive API docs |
 
 ---
 
-## 🗺️ Roadmap
+## 🧪 Running Tests
 
-### ✅ Phase 1: Foundation (Completed)
-- [x] Project architecture
-- [x] Database schema
-- [x] Authentication system
-- [x] Basic UI components
+```bash
+# Frontend type check
+cd frontend && npm run type-check
 
-### 🚧 Phase 2: Test Management (In Progress)
-- [ ] AI Test Plan Generator
-- [ ] Test Suite Management
-- [ ] Test Case CRUD
-- [ ] Issue Tracker
+# Backend tests
+cd backend && pytest
 
-### 📋 Phase 3: API Testing (Planned)
-- [ ] API Collection Management
-- [ ] Request Builder
-- [ ] OpenAPI Integration
-- [ ] Response Validation
-
-### 📋 Phase 4: Security & Performance (Planned)
-- [ ] Security Scanner
-- [ ] Performance Testing
-- [ ] Load Test Generator
-- [ ] Analytics Dashboard
-
-### 📋 Phase 5: Automation Hub (Planned)
-- [ ] Visual Test Recorder
-- [ ] Workflow Builder
-- [ ] Mobile Testing
-- [ ] CI/CD Integration
-
-See [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) for detailed timeline.
+# Or run all checks
+npm run test
+```
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow standard GitHub flow:
+Contributions are welcome! Please follow the standard GitHub flow:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -316,21 +201,14 @@ We welcome contributions! Please follow standard GitHub flow:
 
 ## 📜 License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- Built with [Next.js](https://nextjs.org/)
-- Powered by [FastAPI](https://fastapi.tiangolo.com/)
-- AI by [LangChain](https://python.langchain.com/) & [OpenAI](https://openai.com/)
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
 **Built with ❤️ for the QA community**
+
+[⬆ Back to top](#cognitest-ai)
 
 </div>
