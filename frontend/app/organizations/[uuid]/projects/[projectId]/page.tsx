@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy } from 'lucide-react'
+import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy, BrainCircuit } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -10,7 +10,6 @@ import { useAuth } from '@/lib/auth-context'
 import { UserNav } from '@/components/layout/user-nav'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import CognitestBot3D from '@/components/ui/CognitestBot3D'
 import { ReportsAnalyticsTab } from '@/components/dashboard/reports-analytics-tab'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { TestManagementOverview } from '@/components/dashboard/module-overviews/test-management-overview'
@@ -318,7 +317,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
       <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
         {/* Logo Section - CogniTest branding */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-          <CognitestBot3D size={48} className="flex-shrink-0" />
+          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <BrainCircuit className="w-6 h-6 text-white" />
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 tracking-tight">
               Cogni<span className="text-primary">Test</span>

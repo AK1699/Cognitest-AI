@@ -16,13 +16,13 @@ import {
   CreditCard,
   Users,
   Puzzle,
-  Settings
+  Settings,
+  BrainCircuit
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
-import CognitestBot3D from '@/components/ui/CognitestBot3D'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -230,11 +230,11 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
         }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo Section - 3D Emo Robot with CogniTest text */}
+          {/* Logo Section */}
           <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-            {/* 3D Emo Robot Face - TV screen head with square eyes */}
-            <div className="w-20 h-20 rounded-full border-4 border-cyan-400 flex items-center justify-center bg-white flex-shrink-0">
-              <CognitestBot3D size={60} className="flex-shrink-0" />
+            {/* Logo Icon */}
+            <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <BrainCircuit className="w-6 h-6 text-white" />
             </div>
 
             {/* CogniTest Text - Hidden when collapsed */}

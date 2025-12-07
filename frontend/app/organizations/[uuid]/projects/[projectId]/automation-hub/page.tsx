@@ -2,10 +2,9 @@
 
 import React from 'react'
 import { UserNav } from '@/components/layout/user-nav'
-import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, FolderOpen, BarChart3 } from 'lucide-react'
+import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, FolderOpen, BarChart3, BrainCircuit } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
-import CognitestBot3D from '@/components/ui/CognitestBot3D'
 
 const automationTypes = [
   {
@@ -106,7 +105,9 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
       <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
         {/* Logo Section */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-          <CognitestBot3D size={48} className="flex-shrink-0" />
+          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <BrainCircuit className="w-6 h-6 text-white" />
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 tracking-tight">
               Cogni<span className="text-primary">Test</span>

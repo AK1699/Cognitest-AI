@@ -2,12 +2,11 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight } from 'lucide-react'
+import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight, BrainCircuit } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { UserNav } from '@/components/layout/user-nav'
-import CognitestBot3D from '@/components/ui/CognitestBot3D'
 import { testPlansAPI, testSuitesAPI, testCasesAPI, TestPlan, TestSuite, TestCase } from '@/lib/api/test-management'
 import TestPlanList from '@/components/test-management/TestPlanList'
 import CreateTestPlanModal from '@/components/test-management/CreateTestPlanModal'
@@ -390,7 +389,9 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
       <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
         {/* Logo Section - CogniTest branding */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-200">
-          <CognitestBot3D size={48} className="flex-shrink-0" />
+          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+            <BrainCircuit className="w-6 h-6 text-white" />
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 tracking-tight">
               Cogni<span className="text-primary">Test</span>
