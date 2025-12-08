@@ -147,8 +147,8 @@ export function PricingPlans({ organisationId }: PricingPlansProps) {
                     <button
                         onClick={() => setBillingCycle('monthly')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${billingCycle === 'monthly'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-600 dark:text-gray-400'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400'
                             }`}
                     >
                         Monthly
@@ -156,8 +156,8 @@ export function PricingPlans({ organisationId }: PricingPlansProps) {
                     <button
                         onClick={() => setBillingCycle('yearly')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${billingCycle === 'yearly'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-600 dark:text-gray-400'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400'
                             }`}
                     >
                         Yearly
@@ -178,14 +178,16 @@ export function PricingPlans({ organisationId }: PricingPlansProps) {
                         <div
                             key={plan.id}
                             className={`relative rounded-xl border-2 transition-all ${isCurrent
-                                    ? 'border-primary shadow-lg shadow-primary/10'
+                                ? 'border-primary shadow-lg shadow-primary/10'
+                                : plan.name === 'pro'
+                                    ? 'border-purple-300 dark:border-purple-500/50 hover:border-purple-400 dark:hover:border-purple-400'
                                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                                } bg-white dark:bg-gray-800 overflow-hidden`}
+                                } bg-white dark:bg-gray-800`}
                         >
                             {/* Popular Badge */}
                             {plan.name === 'pro' && (
-                                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                    <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                                <div className="flex justify-center pt-4 -mb-2">
+                                    <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
                                         Most Popular
                                     </span>
                                 </div>
@@ -272,10 +274,10 @@ export function PricingPlans({ organisationId }: PricingPlansProps) {
                                 {/* CTA Button */}
                                 <button
                                     className={`w-full mt-6 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${isCurrent
-                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-default'
-                                            : plan.name === 'pro'
-                                                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700'
-                                                : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
+                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-default'
+                                        : plan.name === 'pro'
+                                            ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700'
+                                            : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
                                         }`}
                                     disabled={isCurrent}
                                 >
