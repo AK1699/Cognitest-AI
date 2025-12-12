@@ -823,12 +823,12 @@ export default function LiveBrowserTab({
                 {/* Right Panel - Element Inspector, Steps, Console, Network */}
                 <div className="w-96 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                        <div className="px-4 py-2 border-b border-gray-200">
-                            <TabsList className="w-full grid grid-cols-4">
-                                <TabsTrigger value="element" className="text-xs">Element</TabsTrigger>
-                                <TabsTrigger value="steps" className="text-xs">Steps</TabsTrigger>
-                                <TabsTrigger value="console" className="text-xs">Console</TabsTrigger>
-                                <TabsTrigger value="network" className="text-xs">Network</TabsTrigger>
+                        <div className="px-4 py-3 border-b border-gray-200">
+                            <TabsList className="w-full grid grid-cols-4 gap-1">
+                                <TabsTrigger value="element" className="text-xs px-3 py-2">Element</TabsTrigger>
+                                <TabsTrigger value="steps" className="text-xs px-3 py-2">Steps</TabsTrigger>
+                                <TabsTrigger value="console" className="text-xs px-3 py-2">Console</TabsTrigger>
+                                <TabsTrigger value="network" className="text-xs px-3 py-2">Network</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -1105,13 +1105,14 @@ export default function LiveBrowserTab({
                                                                     step.status === 'failed' ? 'text-red-700' :
                                                                         'text-gray-400'
                                                                 }`}>
-                                                                {step.type === 'navigate' && '→ Navigate'}
-                                                                {step.type === 'click' && '🖱️ Click'}
-                                                                {step.type === 'type' && '⌨️ Type'}
-                                                                {step.type === 'fill' && '⌨️ Fill'}
-                                                                {step.type === 'assert' && '✓ Assert'}
-                                                                {step.type === 'wait' && '⏱️ Wait'}
-                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'wait'].includes(step.type) && `◆ ${step.type}`}
+                                                                {step.type === 'navigate' && 'Navigate'}
+                                                                {step.type === 'click' && 'Click'}
+                                                                {step.type === 'type' && 'Type'}
+                                                                {step.type === 'fill' && 'Fill'}
+                                                                {step.type === 'assert' && 'Assert'}
+                                                                {step.type === 'wait' && 'Wait'}
+                                                                {step.type === 'screenshot' && 'Screenshot'}
+                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'wait', 'screenshot'].includes(step.type) && step.type}
                                                             </span>
                                                             {step.status === 'running' && (
                                                                 <span className="text-xs text-blue-600 animate-pulse">Running...</span>

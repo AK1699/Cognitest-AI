@@ -35,15 +35,11 @@ export default function LandingPage() {
 
             {/* CTA Buttons */}
             <div className="flex items-center space-x-4">
-              <Link href="/auth/signin">
-                <button className="px-8 py-3.5 text-gray-900 font-medium transition-opacity hover:opacity-70 rounded-full">
-                  Sign in
-                </button>
+              <Link href="/auth/signin" className="px-8 py-3.5 text-gray-900 font-medium transition-opacity hover:opacity-70 rounded-full">
+                Sign in
               </Link>
-              <Link href="/auth/signup">
-                <button className="px-8 py-3.5 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
-                  Sign up
-                </button>
+              <Link href="/auth/signup" className="px-8 py-3.5 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
+                Sign up
               </Link>
             </div>
           </div>
@@ -83,16 +79,12 @@ export default function LandingPage() {
 
           {/* CTA Buttons */}
           <div className="flex items-center justify-center space-x-4 flex-wrap gap-4">
-            <Link href="/auth/signup">
-              <button className="group inline-flex items-center px-10 py-4 text-white text-lg font-medium rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
-                Start Testing Now
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
+            <Link href="/auth/signup" className="group inline-flex items-center px-10 py-4 text-white text-lg font-medium rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
+              Start Testing Now
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <Link href="#docs" suppressHydrationWarning>
-              <button className="inline-flex items-center px-10 py-4 bg-white hover:bg-gray-50 text-gray-900 text-lg font-medium rounded-full border-2 border-gray-300 transition-all">
-                View Documentation
-              </button>
+            <Link href="#docs" className="inline-flex items-center px-10 py-4 bg-white hover:bg-gray-50 text-gray-900 text-lg font-medium rounded-full border-2 border-gray-300 transition-all" suppressHydrationWarning>
+              View Documentation
             </Link>
           </div>
         </div>

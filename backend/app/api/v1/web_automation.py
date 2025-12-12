@@ -275,7 +275,7 @@ async def execute_multi_browser(
     return results
 
 
-@router.get("/executions/{execution_id}/live", response_model=ExecutionRunDetailResponse)
+@router.get("/executions/{execution_id}/live", response_model=ExecutionRunResponse)
 async def get_execution_live_status(
     execution_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -376,37 +376,129 @@ async def get_execution_run(
     """
     Get execution run with detailed results
     """
-    result = await db.execute(select(ExecutionRun).where(ExecutionRun.id == run_id))
-    execution_run = result.scalar_one_or_none()
-    
-    if not execution_run:
-        raise HTTPException(status_code=404, detail="Execution run not found")
-    
-    # Verify access
-    result = await db.execute(select(TestFlow).where(TestFlow.id == execution_run.test_flow_id))
-    test_flow = result.scalar_one_or_none()
-    
-    if not test_flow:
-        raise HTTPException(status_code=404, detail="Access denied")
-    
-    # Load step results and healing events
-    step_result = await db.execute(
-        select(StepResult)
-        .where(StepResult.execution_run_id == run_id)
-        .order_by(StepResult.step_order)
-    )
-    step_results = step_result.scalars().all()
-    
-    healing_result = await db.execute(
-        select(HealingEvent).where(HealingEvent.execution_run_id == run_id)
-    )
-    healing_events = healing_result.scalars().all()
-    
-    response = ExecutionRunDetailResponse.model_validate(execution_run)
-    response.step_results = [StepResultResponse.model_validate(sr) for sr in step_results]
-    response.healing_events = [HealingEventResponse.model_validate(he) for he in healing_events]
-    
-    return response
+    try:
+        result = await db.execute(select(ExecutionRun).where(ExecutionRun.id == run_id))
+        execution_run = result.scalar_one_or_none()
+        
+        if not execution_run:
+            raise HTTPException(status_code=404, detail="Execution run not found")
+        
+        # Verify access
+        result = await db.execute(select(TestFlow).where(TestFlow.id == execution_run.test_flow_id))
+        test_flow = result.scalar_one_or_none()
+        
+        if not test_flow:
+            raise HTTPException(status_code=404, detail="Access denied")
+        
+        # Load step results and healing events
+        step_result = await db.execute(
+            select(StepResult)
+            .where(StepResult.execution_run_id == run_id)
+            .order_by(StepResult.step_order)
+        )
+        step_results = step_result.scalars().all()
+        
+        healing_result = await db.execute(
+            select(HealingEvent).where(HealingEvent.execution_run_id == run_id)
+        )
+        healing_events = healing_result.scalars().all()
+        
+        # Build response manually to avoid validation issues
+        response_data = {
+            "id": execution_run.id,
+            "test_flow_id": execution_run.test_flow_id,
+            "project_id": execution_run.project_id,
+            "browser_type": execution_run.browser_type,
+            "execution_mode": execution_run.execution_mode,
+            "status": execution_run.status,
+            "total_steps": execution_run.total_steps or 0,
+            "passed_steps": execution_run.passed_steps or 0,
+            "failed_steps": execution_run.failed_steps or 0,
+            "skipped_steps": execution_run.skipped_steps or 0,
+            "healed_steps": execution_run.healed_steps or 0,
+            "duration_ms": execution_run.duration_ms,
+            "started_at": execution_run.started_at,
+            "ended_at": execution_run.ended_at,
+            "execution_environment": execution_run.execution_environment or {},
+            "video_url": execution_run.video_url,
+            "trace_url": execution_run.trace_url,
+            "screenshots_dir": execution_run.screenshots_dir,
+            "error_message": execution_run.error_message,
+            "error_stack": execution_run.error_stack,
+            "triggered_by": execution_run.triggered_by,
+            "trigger_source": execution_run.trigger_source,
+            "tags": execution_run.tags or [],
+            "notes": execution_run.notes,
+            "created_at": execution_run.created_at,
+            "test_flow_name": test_flow.name if test_flow else None,
+            "step_results": [],
+            "healing_events": []
+        }
+        
+        # Add step results
+        for sr in step_results:
+            response_data["step_results"].append({
+                "id": sr.id,
+                "execution_run_id": sr.execution_run_id,
+                "step_id": sr.step_id,
+                "step_name": sr.step_name,
+                "step_type": sr.step_type,
+                "step_order": sr.step_order,
+                "status": sr.status,
+                "selector_used": sr.selector_used,
+                "action_details": sr.action_details or {},
+                "actual_result": sr.actual_result,
+                "expected_result": sr.expected_result,
+                "error_message": sr.error_message,
+                "error_stack": sr.error_stack,
+                "duration_ms": sr.duration_ms,
+                "retry_count": sr.retry_count or 0,
+                "screenshot_url": sr.screenshot_url,
+                "screenshot_before_url": sr.screenshot_before_url,
+                "screenshot_after_url": sr.screenshot_after_url,
+                "was_healed": sr.was_healed or False,
+                "healing_applied": sr.healing_applied,
+                "console_logs": sr.console_logs or [],
+                "network_logs": sr.network_logs or [],
+                "started_at": sr.started_at,
+                "ended_at": sr.ended_at,
+                "created_at": sr.created_at
+            })
+        
+        # Add healing events
+        for he in healing_events:
+            response_data["healing_events"].append({
+                "id": he.id,
+                "execution_run_id": he.execution_run_id,
+                "step_result_id": he.step_result_id,
+                "healing_type": he.healing_type,
+                "strategy": he.strategy,
+                "original_value": he.original_value,
+                "healed_value": he.healed_value,
+                "step_id": he.step_id,
+                "step_type": he.step_type,
+                "failure_reason": he.failure_reason,
+                "success": he.success,
+                "confidence_score": he.confidence_score,
+                "retry_attempts": he.retry_attempts or 0,
+                "ai_model": he.ai_model,
+                "ai_reasoning": he.ai_reasoning,
+                "alternatives_tried": he.alternatives_tried or [],
+                "page_url": he.page_url,
+                "page_title": he.page_title,
+                "healing_duration_ms": he.healing_duration_ms,
+                "recorded_at": he.recorded_at
+            })
+        
+        return ExecutionRunDetailResponse(**response_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Error in get_execution_run: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @router.get("/projects/{project_id}/executions", response_model=List[ExecutionRunResponse])
 async def list_project_executions(

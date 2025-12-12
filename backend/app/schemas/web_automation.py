@@ -121,7 +121,7 @@ class ExecutionRunResponse(BaseModel):
     duration_ms: Optional[int]
     started_at: Optional[datetime]
     ended_at: Optional[datetime]
-    execution_environment: Dict[str, Any]
+    execution_environment: Optional[Dict[str, Any]] = {}
     video_url: Optional[str]
     trace_url: Optional[str]
     screenshots_dir: Optional[str]
@@ -129,7 +129,7 @@ class ExecutionRunResponse(BaseModel):
     error_stack: Optional[str]
     triggered_by: Optional[UUID]
     trigger_source: Optional[str]
-    tags: List[str]
+    tags: Optional[List[str]] = []
     notes: Optional[str]
     created_at: datetime
     test_flow_name: Optional[str] = None
@@ -153,20 +153,20 @@ class StepResultResponse(BaseModel):
     step_order: int
     status: StepStatus
     selector_used: Optional[Dict[str, Any]]
-    action_details: Dict[str, Any]
+    action_details: Optional[Dict[str, Any]] = {}
     actual_result: Optional[str]
     expected_result: Optional[str]
     error_message: Optional[str]
     error_stack: Optional[str]
     duration_ms: Optional[int]
-    retry_count: int
+    retry_count: Optional[int] = 0
     screenshot_url: Optional[str]
     screenshot_before_url: Optional[str]
     screenshot_after_url: Optional[str]
-    was_healed: bool
+    was_healed: Optional[bool] = False
     healing_applied: Optional[Dict[str, Any]]
-    console_logs: List[Dict[str, Any]]
-    network_logs: List[Dict[str, Any]]
+    console_logs: Optional[List[Dict[str, Any]]] = []
+    network_logs: Optional[List[Dict[str, Any]]] = []
     started_at: Optional[datetime]
     ended_at: Optional[datetime]
     created_at: datetime
@@ -189,10 +189,10 @@ class HealingEventResponse(BaseModel):
     failure_reason: Optional[str]
     success: bool
     confidence_score: Optional[float]
-    retry_attempts: int
+    retry_attempts: Optional[int] = 0
     ai_model: Optional[str]
     ai_reasoning: Optional[str]
-    alternatives_tried: List[Dict[str, Any]]
+    alternatives_tried: Optional[List[Dict[str, Any]]] = []
     page_url: Optional[str]
     page_title: Optional[str]
     healing_duration_ms: Optional[int]

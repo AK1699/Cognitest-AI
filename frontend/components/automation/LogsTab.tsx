@@ -36,6 +36,7 @@ export default function LogsTab({ projectId }: LogsTabProps) {
     const [selectedLogId, setSelectedLogId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'failed' | 'running'>('all')
+    const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
 
     // Data states
     const [executions, setExecutions] = useState<ExecutionRun[]>([])
@@ -177,6 +178,37 @@ export default function LogsTab({ projectId }: LogsTabProps) {
             case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
             default: return <Clock className="w-4 h-4 text-gray-400" />
         }
+    }
+
+    const getStepStatusBadge = (status: string) => {
+        switch (status) {
+            case 'passed':
+                return <Badge className="bg-green-100 text-green-700 border-green-200">Passed</Badge>
+            case 'failed':
+                return <Badge className="bg-red-100 text-red-700 border-red-200">Failed</Badge>
+            case 'skipped':
+                return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Skipped</Badge>
+            case 'healed':
+                return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Healed</Badge>
+            case 'running':
+                return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Running</Badge>
+            case 'pending':
+                return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Pending</Badge>
+            default:
+                return <Badge variant="outline">{status}</Badge>
+        }
+    }
+
+    const toggleStepExpanded = (stepId: string) => {
+        setExpandedSteps(prev => {
+            const newSet = new Set(prev)
+            if (newSet.has(stepId)) {
+                newSet.delete(stepId)
+            } else {
+                newSet.add(stepId)
+            }
+            return newSet
+        })
     }
 
     return (
@@ -372,77 +404,212 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                             )}
 
                             {/* Step Logs */}
-                            <div className="space-y-6">
-                                <h3 className="text-base font-semibold text-gray-900">Step Execution Details</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-base font-semibold text-gray-900">Step Execution Details</h3>
+                                    <span className="text-sm text-gray-500">
+                                        {selectedExecution.step_results.length} steps
+                                    </span>
+                                </div>
                                 {selectedExecution.step_results.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500">
+                                    <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
                                         <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                                         <p>No step results available</p>
+                                        <p className="text-xs mt-1">Steps will appear here after execution</p>
                                     </div>
                                 ) : (
-                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                        {selectedExecution.step_results.map((step, index) => (
-                                            <div key={step.id} className="border-b border-gray-200 last:border-0">
-                                                <div className="p-4 bg-white hover:bg-gray-50 transition-colors cursor-pointer flex items-start gap-3">
-                                                    <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center ${step.status === 'passed' ? 'bg-green-100' :
-                                                        step.status === 'failed' ? 'bg-red-100' :
-                                                            step.status === 'healed' ? 'bg-blue-100' :
-                                                                'bg-gray-100'
-                                                        }`}>
-                                                        {getStepStatusIcon(step.status)}
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="font-medium text-gray-900">
-                                                                Step {step.step_order}: {step.step_name || step.step_type}
-                                                            </span>
-                                                            <span className="text-xs text-gray-500">
-                                                                {formatDuration(step.duration_ms)}
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-sm text-gray-600 mb-2">
-                                                            <span className="capitalize">{step.step_type}</span>
-                                                            {step.selector_used && (
-                                                                <code className="ml-2 text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                                                                    {typeof step.selector_used === 'string'
-                                                                        ? step.selector_used
-                                                                        : step.selector_used.css || step.selector_used.xpath || 'selector'}
-                                                                </code>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Attachments */}
-                                                        <div className="flex gap-2">
-                                                            {step.screenshot_url && (
-                                                                <Badge variant="secondary" className="text-xs font-normal bg-gray-100 hover:bg-gray-200 cursor-pointer">
-                                                                    <Image className="w-3 h-3 mr-1 text-gray-500" />
-                                                                    Screenshot
-                                                                </Badge>
-                                                            )}
-                                                            {step.console_logs?.length > 0 && (
-                                                                <Badge variant="secondary" className="text-xs font-normal bg-gray-100 hover:bg-gray-200 cursor-pointer">
-                                                                    <FileText className="w-3 h-3 mr-1 text-gray-500" />
-                                                                    Console ({step.console_logs.length})
-                                                                </Badge>
-                                                            )}
-                                                            {step.was_healed && (
-                                                                <Badge className="text-xs font-normal bg-blue-100 text-blue-700">
-                                                                    <RefreshCw className="w-3 h-3 mr-1" />
-                                                                    Self-Healed
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Error Message */}
-                                                        {step.error_message && (
-                                                            <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-md text-sm text-red-700 font-mono">
-                                                                {step.error_message}
+                                    <div className="space-y-2">
+                                        {selectedExecution.step_results.map((step, index) => {
+                                            const isExpanded = expandedSteps.has(step.id)
+                                            return (
+                                                <div
+                                                    key={step.id}
+                                                    className={`border rounded-lg overflow-hidden transition-all ${step.status === 'passed' ? 'border-green-200 bg-green-50/30' :
+                                                            step.status === 'failed' ? 'border-red-200 bg-red-50/30' :
+                                                                step.status === 'healed' ? 'border-blue-200 bg-blue-50/30' :
+                                                                    step.status === 'skipped' ? 'border-gray-200 bg-gray-50/30' :
+                                                                        'border-gray-200 bg-white'
+                                                        }`}
+                                                >
+                                                    {/* Step Header - Always Visible */}
+                                                    <div
+                                                        onClick={() => toggleStepExpanded(step.id)}
+                                                        className="p-4 cursor-pointer hover:bg-white/50 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            {/* Step Number & Icon */}
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${step.status === 'passed' ? 'bg-green-100' :
+                                                                    step.status === 'failed' ? 'bg-red-100' :
+                                                                        step.status === 'healed' ? 'bg-blue-100' :
+                                                                            'bg-gray-100'
+                                                                }`}>
+                                                                {getStepStatusIcon(step.status)}
                                                             </div>
-                                                        )}
+
+                                                            {/* Step Info */}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="font-medium text-gray-900 truncate">
+                                                                        Step {step.step_order}: {step.step_name || step.step_type}
+                                                                    </span>
+                                                                    {getStepStatusBadge(step.status)}
+                                                                    {step.was_healed && (
+                                                                        <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs">
+                                                                            <RefreshCw className="w-3 h-3 mr-1" />
+                                                                            Auto-Healed
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                                    <span className="capitalize">{step.step_type}</span>
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Clock className="w-3 h-3" />
+                                                                        {formatDuration(step.duration_ms)}
+                                                                    </span>
+                                                                    {step.retry_count > 0 && (
+                                                                        <span className="text-orange-600">
+                                                                            {step.retry_count} {step.retry_count === 1 ? 'retry' : 'retries'}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Chevron */}
+                                                            <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                        </div>
                                                     </div>
+
+                                                    {/* Expanded Details */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 pt-0 border-t border-gray-100 bg-white/70">
+                                                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                                                {/* Duration */}
+                                                                <div className="bg-gray-50 rounded-lg p-3">
+                                                                    <div className="text-xs font-medium text-gray-500 mb-1">Duration</div>
+                                                                    <div className="text-lg font-semibold text-gray-900">
+                                                                        {formatDuration(step.duration_ms)}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Status */}
+                                                                <div className="bg-gray-50 rounded-lg p-3">
+                                                                    <div className="text-xs font-medium text-gray-500 mb-1">Status</div>
+                                                                    <div className="text-lg font-semibold capitalize">
+                                                                        {step.status}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Selector Used */}
+                                                            {step.selector_used && (
+                                                                <div className="mt-4">
+                                                                    <div className="text-xs font-medium text-gray-500 mb-2">Selector</div>
+                                                                    <code className="block text-sm bg-gray-100 px-3 py-2 rounded font-mono text-gray-800 break-all">
+                                                                        {typeof step.selector_used === 'string'
+                                                                            ? step.selector_used
+                                                                            : step.selector_used.css || step.selector_used.xpath || JSON.stringify(step.selector_used)}
+                                                                    </code>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Action Details */}
+                                                            {step.action_details && Object.keys(step.action_details).length > 0 && (
+                                                                <div className="mt-4">
+                                                                    <div className="text-xs font-medium text-gray-500 mb-2">Action Details</div>
+                                                                    <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                                                                        {Object.entries(step.action_details).map(([key, value]) => (
+                                                                            <div key={key} className="flex justify-between text-sm">
+                                                                                <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
+                                                                                <span className="text-gray-900 font-mono text-xs">
+                                                                                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Expected vs Actual Result */}
+                                                            {(step.expected_result || step.actual_result) && (
+                                                                <div className="mt-4 grid grid-cols-2 gap-3">
+                                                                    {step.expected_result && (
+                                                                        <div className="bg-blue-50 rounded-lg p-3">
+                                                                            <div className="text-xs font-medium text-blue-600 mb-1">Expected</div>
+                                                                            <div className="text-sm text-blue-800">{step.expected_result}</div>
+                                                                        </div>
+                                                                    )}
+                                                                    {step.actual_result && (
+                                                                        <div className={`rounded-lg p-3 ${step.status === 'passed' ? 'bg-green-50' : 'bg-red-50'
+                                                                            }`}>
+                                                                            <div className={`text-xs font-medium mb-1 ${step.status === 'passed' ? 'text-green-600' : 'text-red-600'
+                                                                                }`}>Actual</div>
+                                                                            <div className={`text-sm ${step.status === 'passed' ? 'text-green-800' : 'text-red-800'
+                                                                                }`}>{step.actual_result}</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Error Message */}
+                                                            {step.error_message && (
+                                                                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                                                    <div className="text-xs font-medium text-red-600 mb-1">Error</div>
+                                                                    <div className="text-sm text-red-700 font-mono">{step.error_message}</div>
+                                                                    {step.error_stack && (
+                                                                        <details className="mt-2">
+                                                                            <summary className="text-xs text-red-500 cursor-pointer hover:text-red-600">
+                                                                                Show Stack Trace
+                                                                            </summary>
+                                                                            <pre className="mt-2 text-xs text-red-600 overflow-x-auto whitespace-pre-wrap">
+                                                                                {step.error_stack}
+                                                                            </pre>
+                                                                        </details>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Healing Applied */}
+                                                            {step.healing_applied && (
+                                                                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                                                                    <div className="text-xs font-medium text-purple-600 mb-2">Healing Applied</div>
+                                                                    <pre className="text-xs text-purple-800 font-mono overflow-x-auto">
+                                                                        {JSON.stringify(step.healing_applied, null, 2)}
+                                                                    </pre>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Timestamps */}
+                                                            {(step.started_at || step.ended_at) && (
+                                                                <div className="mt-4 flex gap-4 text-xs text-gray-500">
+                                                                    {step.started_at && (
+                                                                        <span>Started: {new Date(step.started_at).toLocaleTimeString()}</span>
+                                                                    )}
+                                                                    {step.ended_at && (
+                                                                        <span>Ended: {new Date(step.ended_at).toLocaleTimeString()}</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Attachments */}
+                                                            <div className="flex gap-2 mt-4">
+                                                                {step.screenshot_url && (
+                                                                    <Button variant="outline" size="sm" className="text-xs">
+                                                                        <Image className="w-3 h-3 mr-1.5" />
+                                                                        View Screenshot
+                                                                    </Button>
+                                                                )}
+                                                                {step.console_logs?.length > 0 && (
+                                                                    <Button variant="outline" size="sm" className="text-xs">
+                                                                        <Terminal className="w-3 h-3 mr-1.5" />
+                                                                        Console Logs ({step.console_logs.length})
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </div>
