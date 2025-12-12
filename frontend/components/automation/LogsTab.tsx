@@ -425,10 +425,10 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                 <div
                                                     key={step.id}
                                                     className={`border rounded-lg overflow-hidden transition-all ${step.status === 'passed' ? 'border-green-200 bg-green-50/30' :
-                                                            step.status === 'failed' ? 'border-red-200 bg-red-50/30' :
-                                                                step.status === 'healed' ? 'border-blue-200 bg-blue-50/30' :
-                                                                    step.status === 'skipped' ? 'border-gray-200 bg-gray-50/30' :
-                                                                        'border-gray-200 bg-white'
+                                                        step.status === 'failed' ? 'border-red-200 bg-red-50/30' :
+                                                            step.status === 'healed' ? 'border-blue-200 bg-blue-50/30' :
+                                                                step.status === 'skipped' ? 'border-gray-200 bg-gray-50/30' :
+                                                                    'border-gray-200 bg-white'
                                                         }`}
                                                 >
                                                     {/* Step Header - Always Visible */}
@@ -439,9 +439,9 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                         <div className="flex items-center gap-3">
                                                             {/* Step Number & Icon */}
                                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${step.status === 'passed' ? 'bg-green-100' :
-                                                                    step.status === 'failed' ? 'bg-red-100' :
-                                                                        step.status === 'healed' ? 'bg-blue-100' :
-                                                                            'bg-gray-100'
+                                                                step.status === 'failed' ? 'bg-red-100' :
+                                                                    step.status === 'healed' ? 'bg-blue-100' :
+                                                                        'bg-gray-100'
                                                                 }`}>
                                                                 {getStepStatusIcon(step.status)}
                                                             </div>
@@ -450,7 +450,7 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <span className="font-medium text-gray-900 truncate">
-                                                                        Step {step.step_order}: {step.step_name || step.step_type}
+                                                                        Step {step.step_order + 1}: {step.step_name || step.step_type}
                                                                     </span>
                                                                     {getStepStatusBadge(step.status)}
                                                                     {step.was_healed && (

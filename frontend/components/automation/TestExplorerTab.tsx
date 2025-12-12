@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
     Search,
     ChevronRight,
@@ -17,7 +17,9 @@ import {
     Loader2,
     Play,
     Monitor,
-    MonitorOff
+    MonitorOff,
+    CheckCircle2,
+    XCircle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -80,6 +82,11 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [isRunning, setIsRunning] = useState(false)
+
+    // Execution tracking state for headless mode
+    const [executingStepIndex, setExecutingStepIndex] = useState<number | null>(null)
+    const [stepStatuses, setStepStatuses] = useState<Map<number, 'pending' | 'running' | 'passed' | 'failed'>>(new Map())
+    const wsRef = useRef<WebSocket | null>(null)
 
     // Modal States
     const [isCreateTestOpen, setIsCreateTestOpen] = useState(false)
@@ -320,21 +327,119 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
             return
         }
 
-        // Headless mode - run in background and show progress here
+        // Headless mode - run in background with real-time step updates
         setIsRunning(true)
+        setExecutingStepIndex(null)
+
+        // Capture flowId at start (before closures use it)
+        const flowId = selectedItem.data!.id
+
+        // Initialize step statuses
+        const steps = selectedItem.data?.nodes || []
+        const initialStatuses = new Map<number, 'pending' | 'running' | 'passed' | 'failed'>()
+        steps.forEach((_: any, index: number) => {
+            initialStatuses.set(index, 'pending')
+        })
+        setStepStatuses(initialStatuses)
+
         toast.info('Starting headless test execution...')
 
+        // Create WebSocket connection for live updates
+        const sessionId = `headless-${Date.now()}`
+        const wsUrl = `ws://localhost:8000/api/v1/web-automation/ws/browser-session/${sessionId}`
+
         try {
-            const result = await webAutomationApi.executeTestFlow(selectedItem.data.id, {
-                execution_mode: mode,
-                browser_type: 'chromium'
-            })
-            toast.success(`Test completed! Run ID: ${result.id?.substring(0, 8) || 'unknown'}`)
+            const ws = new WebSocket(wsUrl)
+            wsRef.current = ws
+
+            ws.onopen = () => {
+                // Launch browser in headless mode
+                ws.send(JSON.stringify({
+                    action: 'launch',
+                    browserType: 'chromium',
+                    device: 'desktop_chrome',
+                    url: 'about:blank',
+                    headless: true
+                }))
+            }
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data)
+
+                    switch (data.type) {
+                        case 'session_started':
+                            // Browser is ready, execute the test
+                            ws.send(JSON.stringify({
+                                action: 'execute_test',
+                                flowId: flowId
+                            }))
+                            break
+
+                        case 'step_started':
+                            setExecutingStepIndex(data.stepIndex)
+                            setStepStatuses(prev => {
+                                const newMap = new Map(prev)
+                                newMap.set(data.stepIndex, 'running')
+                                return newMap
+                            })
+                            break
+
+                        case 'step_completed':
+                            setStepStatuses(prev => {
+                                const newMap = new Map(prev)
+                                newMap.set(data.stepIndex, data.status === 'passed' ? 'passed' : 'failed')
+                                return newMap
+                            })
+                            break
+
+                        case 'test_execution_completed':
+                            setExecutingStepIndex(null)
+                            setIsRunning(false)
+                            ws.close()
+                            wsRef.current = null
+
+                            if (data.failedSteps > 0) {
+                                toast.error(`Test failed! ${data.passedSteps} passed, ${data.failedSteps} failed`)
+                            } else {
+                                toast.success(`Test passed! All ${data.passedSteps} steps completed successfully`)
+                            }
+                            break
+
+                        case 'error':
+                            console.error('Execution error:', data.error)
+                            toast.error(`Error: ${data.error}`)
+                            setIsRunning(false)
+                            setExecutingStepIndex(null)
+                            ws.close()
+                            wsRef.current = null
+                            break
+                    }
+                } catch (err) {
+                    console.error('Failed to parse WebSocket message:', err)
+                }
+            }
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error)
+                toast.error('Failed to connect to execution server')
+                setIsRunning(false)
+                setExecutingStepIndex(null)
+            }
+
+            ws.onclose = () => {
+                if (isRunning) {
+                    setIsRunning(false)
+                    setExecutingStepIndex(null)
+                }
+                wsRef.current = null
+            }
+
         } catch (error: any) {
             console.error("Failed to run test:", error)
             toast.error(`Failed to run test: ${error.message || 'Unknown error'}`)
-        } finally {
             setIsRunning(false)
+            setExecutingStepIndex(null)
         }
     }
 
@@ -729,71 +834,108 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                     <h3 className="text-sm font-semibold text-gray-700 mb-4">
                                         Test Steps ({selectedItem.data.nodes.length})
                                     </h3>
-                                    {selectedItem.data.nodes.map((step: any, index: number) => (
-                                        <div
-                                            key={step.id || index}
-                                            className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                                        >
-                                            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                                                {index + 1}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-sm font-semibold text-gray-900 capitalize">
-                                                        {step.action?.replace(/_/g, ' ') || 'Unknown Action'}
-                                                    </span>
+                                    {selectedItem.data.nodes.map((step: any, index: number) => {
+                                        const stepStatus = stepStatuses.get(index) || 'pending'
+                                        const isCurrentlyExecuting = executingStepIndex === index
+
+                                        return (
+                                            <div
+                                                key={step.id || index}
+                                                className={`flex items-start gap-3 p-4 bg-white border-2 rounded-lg shadow-sm transition-all ${isCurrentlyExecuting
+                                                    ? 'border-blue-400 ring-2 ring-blue-100 shadow-blue-100'
+                                                    : stepStatus === 'passed'
+                                                        ? 'border-green-400 bg-green-50/30'
+                                                        : stepStatus === 'failed'
+                                                            ? 'border-red-400 bg-red-50/30'
+                                                            : 'border-gray-200 hover:shadow-md'
+                                                    }`}
+                                            >
+                                                {/* Step number/status indicator */}
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCurrentlyExecuting
+                                                    ? 'bg-blue-500 text-white animate-pulse'
+                                                    : stepStatus === 'passed'
+                                                        ? 'bg-green-500 text-white'
+                                                        : stepStatus === 'failed'
+                                                            ? 'bg-red-500 text-white'
+                                                            : 'bg-blue-600 text-white'
+                                                    }`}>
+                                                    {isCurrentlyExecuting ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : stepStatus === 'passed' ? (
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                    ) : stepStatus === 'failed' ? (
+                                                        <XCircle className="w-4 h-4" />
+                                                    ) : (
+                                                        index + 1
+                                                    )}
                                                 </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-sm font-semibold text-gray-900 capitalize">
+                                                            {step.action?.replace(/_/g, ' ') || 'Unknown Action'}
+                                                        </span>
+                                                        {isCurrentlyExecuting && (
+                                                            <span className="text-xs text-blue-600 animate-pulse">Running...</span>
+                                                        )}
+                                                        {stepStatus === 'passed' && !isCurrentlyExecuting && (
+                                                            <span className="text-xs text-green-600">Passed</span>
+                                                        )}
+                                                        {stepStatus === 'failed' && !isCurrentlyExecuting && (
+                                                            <span className="text-xs text-red-600">Failed</span>
+                                                        )}
+                                                    </div>
 
-                                                {/* Navigate Action - Enhanced Display */}
-                                                {step.action === 'navigate' && step.url && (
-                                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-medium text-blue-700">URL:</span>
-                                                            <a
-                                                                href={step.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-xs text-blue-600 hover:underline truncate flex-1"
-                                                                title={step.url}
-                                                            >
-                                                                {step.url}
-                                                            </a>
+                                                    {/* Navigate Action - Enhanced Display */}
+                                                    {step.action === 'navigate' && step.url && (
+                                                        <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-medium text-blue-700">URL:</span>
+                                                                <a
+                                                                    href={step.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-xs text-blue-600 hover:underline truncate flex-1"
+                                                                    title={step.url}
+                                                                >
+                                                                    {step.url}
+                                                                </a>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
 
-                                                {/* Description */}
-                                                {step.description && (
-                                                    <p className="text-xs text-gray-600 mt-2">{step.description}</p>
-                                                )}
+                                                    {/* Description */}
+                                                    {step.description && (
+                                                        <p className="text-xs text-gray-600 mt-2">{step.description}</p>
+                                                    )}
 
-                                                {/* Selector */}
-                                                {step.selector && (
-                                                    <div className="mt-2 p-2 bg-gray-50 border border-gray-100 rounded-md">
-                                                        <span className="text-[10px] font-medium text-gray-500 uppercase">Selector</span>
-                                                        <code className="text-xs text-gray-700 font-mono block mt-0.5 truncate">
-                                                            {step.selector}
-                                                        </code>
-                                                    </div>
-                                                )}
+                                                    {/* Selector */}
+                                                    {step.selector && (
+                                                        <div className="mt-2 p-2 bg-gray-50 border border-gray-100 rounded-md">
+                                                            <span className="text-[10px] font-medium text-gray-500 uppercase">Selector</span>
+                                                            <code className="text-xs text-gray-700 font-mono block mt-0.5 truncate">
+                                                                {step.selector}
+                                                            </code>
+                                                        </div>
+                                                    )}
 
-                                                {/* Value (for type, assertions, etc.) */}
-                                                {step.value && step.action !== 'navigate' && (
-                                                    <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
-                                                        <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
-                                                        <p className="text-xs text-green-800 mt-0.5">{step.value}</p>
-                                                    </div>
-                                                )}
+                                                    {/* Value (for type, assertions, etc.) */}
+                                                    {step.value && step.action !== 'navigate' && (
+                                                        <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
+                                                            <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
+                                                            <p className="text-xs text-green-800 mt-0.5">{step.value}</p>
+                                                        </div>
+                                                    )}
 
-                                                {/* Timeout */}
-                                                {step.timeout && step.timeout !== 5000 && (
-                                                    <Badge variant="outline" className="mt-2 text-[10px]">
-                                                        Timeout: {step.timeout}ms
-                                                    </Badge>
-                                                )}
+                                                    {/* Timeout */}
+                                                    {step.timeout && step.timeout !== 5000 && (
+                                                        <Badge variant="outline" className="mt-2 text-[10px]">
+                                                            Timeout: {step.timeout}ms
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
