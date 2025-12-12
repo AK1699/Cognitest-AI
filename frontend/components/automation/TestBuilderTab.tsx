@@ -166,6 +166,8 @@ interface TestStep {
     // Assertions
     expected_count?: number
     comparison?: 'equals' | 'greater' | 'less' | 'at_least' | 'at_most'
+    css_property?: string
+    negate?: boolean
     // Data Files
     dataset_name?: string
     // Highlight
@@ -369,50 +371,73 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const [builderMethod, setBuilderMethod] = useState<'visual' | 'recorder' | 'ai'>('visual')
 
-    // Action Definitions - Browser Actions
-    const actionTypes = [
-        // Navigation
+    // Action Definitions - Navigation
+    const navigationActions = [
         { id: 'navigate', name: 'Navigate', icon: Send, color: 'bg-blue-500', description: 'Navigate to URL' },
         { id: 'go_back', name: 'Go Back', icon: ArrowLeft, color: 'bg-blue-400', description: 'Browser back button' },
         { id: 'go_forward', name: 'Go Forward', icon: ArrowRight, color: 'bg-blue-400', description: 'Browser forward button' },
         { id: 'reload', name: 'Reload', icon: RefreshCw, color: 'bg-blue-400', description: 'Reload page' },
-        // Click Actions
+    ]
+
+    // Click Actions
+    const clickActions = [
         { id: 'click', name: 'Click', icon: MousePointerClick, color: 'bg-green-500', description: 'Click element' },
         { id: 'double_click', name: 'Double Click', icon: Pointer, color: 'bg-green-600', description: 'Double click element' },
         { id: 'right_click', name: 'Right Click', icon: Menu, color: 'bg-green-700', description: 'Right click (context menu)' },
-        // Input Actions
+        { id: 'hover', name: 'Hover', icon: Hand, color: 'bg-cyan-500', description: 'Hover over element' },
+        { id: 'focus', name: 'Focus', icon: Target, color: 'bg-cyan-400', description: 'Focus on element' },
+        { id: 'drag_drop', name: 'Drag & Drop', icon: Move, color: 'bg-violet-500', description: 'Drag element to target' },
+    ]
+
+    // Input Actions
+    const inputActions = [
         { id: 'type', name: 'Type', icon: FormInput, color: 'bg-purple-500', description: 'Type text into input' },
         { id: 'clear', name: 'Clear', icon: Eraser, color: 'bg-purple-400', description: 'Clear input field' },
         { id: 'press', name: 'Press Key', icon: Keyboard, color: 'bg-pink-500', description: 'Press keyboard key' },
-        // Element Actions
-        { id: 'hover', name: 'Hover', icon: Hand, color: 'bg-cyan-500', description: 'Hover over element' },
-        { id: 'focus', name: 'Focus', icon: Target, color: 'bg-cyan-400', description: 'Focus on element' },
-        { id: 'scroll', name: 'Scroll', icon: Move, color: 'bg-cyan-600', description: 'Scroll page or element' },
-        // Form Actions
         { id: 'select', name: 'Select', icon: ChevronDown, color: 'bg-indigo-500', description: 'Select dropdown option' },
         { id: 'check', name: 'Check', icon: CheckSquare, color: 'bg-emerald-500', description: 'Check checkbox' },
         { id: 'uncheck', name: 'Uncheck', icon: Square, color: 'bg-emerald-400', description: 'Uncheck checkbox' },
         { id: 'upload', name: 'Upload', icon: Upload, color: 'bg-orange-500', description: 'Upload file' },
-        // Drag & Drop
-        { id: 'drag_drop', name: 'Drag & Drop', icon: Move, color: 'bg-violet-500', description: 'Drag element to target' },
-        // Wait Actions
+    ]
+
+    // Wait Actions
+    const waitActions = [
         { id: 'wait', name: 'Wait', icon: Timer, color: 'bg-yellow-500', description: 'Wait for element or time' },
         { id: 'wait_network', name: 'Wait Network', icon: Wifi, color: 'bg-yellow-600', description: 'Wait for network idle' },
         { id: 'wait_url', name: 'Wait URL', icon: Link, color: 'bg-yellow-400', description: 'Wait for URL change' },
-        // Assertions
-        { id: 'assert', name: 'Assert', icon: CheckCircle2, color: 'bg-emerald-600', description: 'Assert condition' },
-        // Screenshots
-        { id: 'screenshot', name: 'Screenshot', icon: Image, color: 'bg-teal-500', description: 'Take screenshot' },
-        // Dialog Handling
+    ]
+
+    // Dialog Actions
+    const dialogActions = [
         { id: 'accept_dialog', name: 'Accept Dialog', icon: CheckCircle2, color: 'bg-lime-500', description: 'Accept alert/confirm' },
         { id: 'dismiss_dialog', name: 'Dismiss Dialog', icon: X, color: 'bg-lime-600', description: 'Dismiss alert/confirm' },
-        // Tab/Window
+    ]
+
+    // Tab & Window Actions
+    const tabActions = [
         { id: 'new_tab', name: 'New Tab', icon: ExternalLink, color: 'bg-sky-500', description: 'Open new browser tab' },
         { id: 'switch_tab', name: 'Switch Tab', icon: Layers, color: 'bg-sky-600', description: 'Switch to tab by index' },
         { id: 'close_tab', name: 'Close Tab', icon: X, color: 'bg-sky-700', description: 'Close browser tab' },
-        // Frame Handling
         { id: 'switch_to_frame', name: 'Switch Frame', icon: Frame, color: 'bg-fuchsia-500', description: 'Switch to iframe' },
         { id: 'switch_to_main', name: 'Main Frame', icon: PanelTop, color: 'bg-fuchsia-400', description: 'Switch to main frame' },
+    ]
+
+    // Scroll & Element Actions
+    const elementActions = [
+        { id: 'scroll', name: 'Scroll', icon: Move, color: 'bg-cyan-600', description: 'Scroll page or element' },
+        { id: 'screenshot', name: 'Screenshot', icon: Image, color: 'bg-teal-500', description: 'Take screenshot' },
+        { id: 'highlight_element', name: 'Highlight', icon: Highlighter, color: 'bg-yellow-500', description: 'Highlight element visually' },
+    ]
+
+    // Keep actionTypes for backward compatibility in getActionConfig
+    const actionTypes = [
+        ...navigationActions,
+        ...clickActions,
+        ...inputActions,
+        ...waitActions,
+        ...dialogActions,
+        ...tabActions,
+        ...elementActions,
     ]
 
     // Data & Variables Actions
@@ -972,7 +997,22 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         <h2 className="text-lg font-bold text-gray-900">
                             {isFlowLoading ? 'Loading...' : testName}
                         </h2>
-                        <p className="text-xs text-gray-500">Sequence of steps executed in order</p>
+                        <p className="text-xs text-gray-500">
+                            {steps.length} step{steps.length !== 1 ? 's' : ''} in sequence
+                            {steps.length > 0 && (
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to clear all steps?')) {
+                                            setSteps([])
+                                            setSelectedStepId(null)
+                                        }
+                                    }}
+                                    className="ml-2 text-red-500 hover:text-red-700 hover:underline"
+                                >
+                                    Clear all
+                                </button>
+                            )}
+                        </p>
                     </div>
                     <div className="flex gap-2 items-center">
                         {selectedEnvironment && (
@@ -1139,26 +1179,39 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                 />
                             </div>
 
-                            {selectedStep.action !== 'navigate' && selectedStep.action !== 'wait' && (
-                                <div>
-                                    <label className="text-xs font-medium text-gray-700 mb-1.5 block">
-                                        Target Element <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={selectedStep.selector || ''}
-                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
-                                            placeholder="CSS Selector / XPath"
-                                            className="text-sm font-mono"
-                                        />
-                                        <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
-                                            <Target className="w-4 h-4" />
-                                        </Button>
+                            {/* Only show generic Target Element for actions without custom panels */}
+                            {![
+                                'navigate', 'wait', 'new_tab', 'wait_url', 'press', 'scroll',
+                                'drag_drop', 'random-data', 'random_data', 'set_variable',
+                                'execute_script', 'get_cookie', 'set_cookie', 'delete_cookie',
+                                'get_local_storage', 'set_local_storage', 'get_session_storage',
+                                'set_session_storage', 'for_loop', 'for-loop', 'while_loop', 'while-loop',
+                                'if_condition', 'switch_tab', 'switch_to_frame', 'assert',
+                                'assert_element_count', 'soft_assert', 'assert_not_visible',
+                                'set_viewport', 'set_device', 'set_geolocation', 'wait_for_download',
+                                'make_api_call', 'log', 'comment', 'read_csv', 'read_json',
+                                'iterate_dataset', 'measure_load_time', 'get_performance_metrics'
+                            ].includes(selectedStep.action) && (
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-700 mb-1.5 block">
+                                            Target Element <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={selectedStep.selector || ''}
+                                                onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                placeholder="CSS Selector / XPath"
+                                                className="text-sm font-mono"
+                                            />
+                                            <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                <Target className="w-4 h-4" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {(selectedStep.action === 'type' || selectedStep.action === 'assert') && (
+                            {/* Only show generic Value for type action */}
+                            {selectedStep.action === 'type' && (
                                 <div>
                                     <label className="text-xs font-medium text-gray-700 mb-1.5 block">
                                         Value
@@ -1893,34 +1946,74 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                                         value={selectedStep.data_type || 'visible'}
                                                         onChange={(e) => updateStep(selectedStep.id, 'data_type', e.target.value)}
                                                     >
-                                                        <option value="visible">Element is Visible</option>
-                                                        <option value="text">Text Content Equals</option>
-                                                        <option value="contains">Text Contains</option>
-                                                        <option value="url">URL Equals</option>
-                                                        <option value="attribute">Attribute Equals</option>
+                                                        <optgroup label="Extrinsic Assertions (Page)">
+                                                            <option value="url">URL Equals</option>
+                                                            <option value="url_contains">URL Contains</option>
+                                                            <option value="title">Page Title Equals</option>
+                                                            <option value="title_contains">Page Title Contains</option>
+                                                        </optgroup>
+                                                        <optgroup label="Intrinsic (Visibility)">
+                                                            <option value="visible">Element is Visible</option>
+                                                            <option value="hidden">Element is Hidden</option>
+                                                            <option value="exists">Element Exists in DOM</option>
+                                                        </optgroup>
+                                                        <optgroup label="Intrinsic (Text)">
+                                                            <option value="text">Text Content Equals</option>
+                                                            <option value="contains">Text Contains</option>
+                                                            <option value="not_contains">Text Does Not Contain</option>
+                                                        </optgroup>
+                                                        <optgroup label="Intrinsic (State)">
+                                                            <option value="enabled">Element is Enabled</option>
+                                                            <option value="disabled">Element is Disabled</option>
+                                                            <option value="checked">Element is Checked</option>
+                                                            <option value="unchecked">Element is Unchecked</option>
+                                                            <option value="focused">Element is Focused</option>
+                                                        </optgroup>
+                                                        <optgroup label="Intrinsic (Value & Attribute)">
+                                                            <option value="value">Input Value Equals</option>
+                                                            <option value="attribute">Attribute Equals</option>
+                                                            <option value="css_property">CSS Property Equals</option>
+                                                        </optgroup>
                                                     </select>
                                                 </div>
-                                                {selectedStep.data_type !== 'url' && (
+
+                                                {/* Element Selector - show for element-based assertions */}
+                                                {!['url', 'url_contains', 'title', 'title_contains'].includes(selectedStep.data_type || 'visible') && (
                                                     <div className="space-y-2">
                                                         <Label>Element Selector</Label>
-                                                        <Input
-                                                            value={selectedStep.selector || ''}
-                                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
-                                                            placeholder="#element"
-                                                            className="font-mono text-xs"
-                                                        />
+                                                        <div className="flex gap-2">
+                                                            <Input
+                                                                value={selectedStep.selector || ''}
+                                                                onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                                placeholder="#element, .class, [data-testid='value']"
+                                                                className="font-mono text-xs"
+                                                            />
+                                                            <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                                <Target className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
-                                                {(selectedStep.data_type === 'text' || selectedStep.data_type === 'contains' || selectedStep.data_type === 'url') && (
+
+                                                {/* Expected Value - show for assertions that need a value */}
+                                                {['text', 'contains', 'not_contains', 'value', 'url', 'url_contains', 'title', 'title_contains'].includes(selectedStep.data_type || '') && (
                                                     <div className="space-y-2">
                                                         <Label>Expected Value</Label>
                                                         <Input
                                                             value={selectedStep.value || ''}
                                                             onChange={(e) => updateStep(selectedStep.id, 'value', e.target.value)}
-                                                            placeholder="Expected text or URL"
+                                                            placeholder={
+                                                                ['url', 'url_contains'].includes(selectedStep.data_type || '')
+                                                                    ? 'https://example.com/path'
+                                                                    : ['title', 'title_contains'].includes(selectedStep.data_type || '')
+                                                                        ? 'Expected page title'
+                                                                        : 'Expected text value'
+                                                            }
                                                         />
                                                     </div>
                                                 )}
+
+                                                {/* Attribute assertions */}
                                                 {selectedStep.data_type === 'attribute' && (
                                                     <>
                                                         <div className="space-y-2">
@@ -1928,7 +2021,7 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                                             <Input
                                                                 value={selectedStep.attribute_name || ''}
                                                                 onChange={(e) => updateStep(selectedStep.id, 'attribute_name', e.target.value)}
-                                                                placeholder="class, disabled, data-*"
+                                                                placeholder="class, disabled, data-*, href"
                                                             />
                                                         </div>
                                                         <div className="space-y-2">
@@ -1941,6 +2034,42 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                                         </div>
                                                     </>
                                                 )}
+
+                                                {/* CSS Property assertions */}
+                                                {selectedStep.data_type === 'css_property' && (
+                                                    <>
+                                                        <div className="space-y-2">
+                                                            <Label>CSS Property</Label>
+                                                            <Input
+                                                                value={selectedStep.css_property || ''}
+                                                                onChange={(e) => updateStep(selectedStep.id, 'css_property', e.target.value)}
+                                                                placeholder="color, background-color, display"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label>Expected Value</Label>
+                                                            <Input
+                                                                value={selectedStep.value || ''}
+                                                                onChange={(e) => updateStep(selectedStep.id, 'value', e.target.value)}
+                                                                placeholder="rgb(0, 0, 0), block, none"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* Negation option for flexible assertions */}
+                                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="assert-negate"
+                                                        checked={selectedStep.negate || false}
+                                                        onChange={(e) => updateStep(selectedStep.id, 'negate', e.target.checked)}
+                                                        className="rounded"
+                                                    />
+                                                    <Label htmlFor="assert-negate" className="text-sm text-gray-600 cursor-pointer">
+                                                        Negate assertion (expect opposite)
+                                                    </Label>
+                                                </div>
                                             </div>
                                         )
 
@@ -2212,6 +2341,21 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                         return (
                                             <div className="space-y-3">
                                                 <div className="space-y-2">
+                                                    <Label>Element Selector *</Label>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedStep.selector || ''}
+                                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                            placeholder=".item, tr, [data-row]"
+                                                            className="font-mono text-xs"
+                                                        />
+                                                        <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                            <Target className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">Selector that matches the elements to count</p>
+                                                </div>
+                                                <div className="space-y-2">
                                                     <Label>Comparison</Label>
                                                     <select
                                                         className="w-full text-sm border rounded-md p-2"
@@ -2239,13 +2383,29 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                     // --- Get Element Count ---
                                     case 'get_element_count':
                                         return (
-                                            <div className="space-y-2">
-                                                <Label>Store In Variable</Label>
-                                                <Input
-                                                    value={selectedStep.variable_name || ''}
-                                                    onChange={(e) => updateStep(selectedStep.id, 'variable_name', e.target.value)}
-                                                    placeholder="elementCount"
-                                                />
+                                            <div className="space-y-3">
+                                                <div className="space-y-2">
+                                                    <Label>Element Selector *</Label>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedStep.selector || ''}
+                                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                            placeholder=".item, tr, [data-row]"
+                                                            className="font-mono text-xs"
+                                                        />
+                                                        <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                            <Target className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Store In Variable</Label>
+                                                    <Input
+                                                        value={selectedStep.variable_name || ''}
+                                                        onChange={(e) => updateStep(selectedStep.id, 'variable_name', e.target.value)}
+                                                        placeholder="elementCount"
+                                                    />
+                                                </div>
                                             </div>
                                         )
 
@@ -2346,7 +2506,78 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                     case 'close_tab':
                                     case 'paste_from_clipboard':
                                     case 'assert_not_visible':
+                                        return (
+                                            <div className="space-y-3">
+                                                <div className="space-y-2">
+                                                    <Label>Element Selector *</Label>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedStep.selector || ''}
+                                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                            placeholder="#element, .class, [data-testid='value']"
+                                                            className="font-mono text-xs"
+                                                        />
+                                                        <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                            <Target className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">Assert that this element is NOT visible on the page</p>
+                                                </div>
+                                            </div>
+                                        )
+
                                     case 'soft_assert':
+                                        return (
+                                            <div className="space-y-3">
+                                                <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                                                    <strong>Note:</strong> Soft assertions log failures but do not stop test execution
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Element Selector *</Label>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedStep.selector || ''}
+                                                            onChange={(e) => updateStep(selectedStep.id, 'selector', e.target.value)}
+                                                            placeholder="#element, .class, [data-testid='value']"
+                                                            className="font-mono text-xs"
+                                                        />
+                                                        <Button variant="outline" size="icon" className="flex-shrink-0" title="Pick Element">
+                                                            <Target className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Assertion Type</Label>
+                                                    <select
+                                                        className="w-full text-sm border rounded-md p-2"
+                                                        value={selectedStep.data_type || 'visible'}
+                                                        onChange={(e) => updateStep(selectedStep.id, 'data_type', e.target.value)}
+                                                    >
+                                                        <option value="visible">Element is Visible</option>
+                                                        <option value="hidden">Element is Hidden</option>
+                                                        <option value="text">Text Contains</option>
+                                                        <option value="enabled">Element is Enabled</option>
+                                                    </select>
+                                                </div>
+                                                {selectedStep.data_type === 'text' && (
+                                                    <div className="space-y-2">
+                                                        <Label>Expected Text</Label>
+                                                        <Input
+                                                            value={selectedStep.value || ''}
+                                                            onChange={(e) => updateStep(selectedStep.id, 'value', e.target.value)}
+                                                            placeholder="Expected text content"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+
+                                    // --- Simple Actions (no additional config) ---
+                                    case 'accept_dialog':
+                                    case 'dismiss_dialog':
+                                    case 'wait_network':
+                                    case 'close_tab':
+                                    case 'paste_from_clipboard':
                                         return null  // These actions don't need additional configuration
 
                                     default:

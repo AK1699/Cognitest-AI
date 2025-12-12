@@ -19,7 +19,8 @@ import {
     Monitor,
     MonitorOff,
     CheckCircle2,
-    XCircle
+    XCircle,
+    Copy
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -596,6 +597,33 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
         setIsDeleteOpen(true)
     }
 
+    // Duplicate Test
+    const handleDuplicateTest = async () => {
+        if (!selectedItem?.data || selectedItem.type !== 'test') return
+
+        setIsSaving(true)
+        try {
+            const originalTest = selectedItem.data
+            const duplicateData: TestFlowCreate = {
+                name: `${originalTest.name} (Copy)`,
+                description: originalTest.description || '',
+                nodes: originalTest.nodes || [],
+                edges: originalTest.edges || []
+            }
+
+            const newTest = await webAutomationApi.createTestFlow(projectId, duplicateData)
+            toast.success(`Test duplicated: ${newTest.name}`)
+
+            // Reload data to show the new test
+            await loadData()
+        } catch (error: any) {
+            console.error('Failed to duplicate test:', error)
+            toast.error(`Failed to duplicate test: ${error.message || 'Unknown error'}`)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
     // Render Tree Recursively
     const renderNode = (item: ExplorerItem, level = 0) => {
         // Filter by search
@@ -760,6 +788,10 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                             <Plus className="w-4 h-4" />
                         </Button>
                     </div>
+                    {/* Test count indicator */}
+                    <div className="px-3 py-1.5 text-xs text-gray-500 border-b border-gray-100 bg-gray-50/50">
+                        {rawTests.length} test{rawTests.length !== 1 ? 's' : ''}
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2">
@@ -787,7 +819,11 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                         {selectedItem.data?.status || 'Draft'}
                                     </Badge>
                                 </div>
-
+                                {selectedItem.data?.updated_at && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Last modified: {new Date(selectedItem.data.updated_at).toLocaleDateString()} at {new Date(selectedItem.data.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                )}
                             </div>
                             <div className="flex gap-2">
                                 <Button
@@ -795,6 +831,14 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                     onClick={() => onEditTest?.(selectedItem.id)}
                                 >
                                     Edit
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleDuplicateTest}
+                                    disabled={isSaving}
+                                >
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    {isSaving ? 'Duplicating...' : 'Duplicate'}
                                 </Button>
                                 <Button variant="outline">Properties</Button>
                                 <DropdownMenu>
