@@ -14,6 +14,7 @@ import { formatDateHumanReadable } from '@/lib/date-utils'
 import { useToast } from '@/hooks/use-toast'
 import { useConfirm } from '@/lib/hooks/use-confirm'
 import { TestPlanDetailsModal } from './TestPlanDetailsModal'
+import { useAuth } from '@/lib/auth-context'
 
 interface TestPlansTabProps {
   projectId: string
@@ -26,6 +27,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
   const [selectedPlan, setSelectedPlan] = useState<TestPlan | null>(null)
   const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { user } = useAuth()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -67,7 +69,7 @@ export function TestPlansTab({ projectId }: TestPlansTabProps) {
 
   const handleCreate = async () => {
     try {
-      const currentUser = localStorage.getItem('user_email') || 'user@cognitest.ai'
+      const currentUser = user?.email || 'user@cognitest.ai'
 
       const newPlan = await testPlansAPI.create({
         project_id: projectId,

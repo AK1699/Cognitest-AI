@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useConfirm } from '@/lib/hooks/use-confirm'
 import { TestSuiteDetailsModal } from './TestSuiteDetailsModal'
 import { TestCaseDetailsModal } from './TestCaseDetailsModal'
+import { useAuth } from '@/lib/auth-context'
 
 interface TestSuitesTabProps {
   projectId: string
@@ -30,6 +31,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null)
   const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { user } = useAuth()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -69,7 +71,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
 
   const handleCreate = async () => {
     try {
-      const currentUser = localStorage.getItem('user_email') || 'user@cognitest.ai'
+      const currentUser = user?.email || 'user@cognitest.ai'
 
       const payload: any = {
         project_id: projectId,
@@ -80,7 +82,7 @@ export function TestSuitesTab({ projectId }: TestSuitesTabProps) {
         generated_by: 'manual',
         meta_data: {},
       }
-      
+
       if (formData.test_plan_id) {
         payload.test_plan_id = formData.test_plan_id
       }

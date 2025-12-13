@@ -15,6 +15,7 @@ import { formatDateHumanReadable } from '@/lib/date-utils'
 import { toast } from 'sonner'
 import { useConfirm } from '@/lib/hooks/use-confirm'
 import { TestCaseDetailsModal } from './TestCaseDetailsModal'
+import { useAuth } from '@/lib/auth-context'
 
 interface TestCasesTabProps {
   projectId: string
@@ -46,6 +47,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
   const [showExecuteDialog, setShowExecuteDialog] = useState(false)
   // const { toast } = useToast()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { user } = useAuth()
 
   const [formData, setFormData] = useState({
     title: '',
@@ -93,7 +95,7 @@ export function TestCasesTab({ projectId }: TestCasesTabProps) {
 
   const handleCreate = async () => {
     try {
-      const currentUser = localStorage.getItem('user_email') || 'user@cognitest.ai'
+      const currentUser = user?.email || 'user@cognitest.ai'
 
       const newCase = await testCasesAPI.create({
         project_id: projectId,

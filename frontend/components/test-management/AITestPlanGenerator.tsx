@@ -210,7 +210,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               source: 'test_plan_generator',
               images: manualImages,
             },
-            localStorage.getItem('access_token') || ''
+            '' // Token not needed - auth via httpOnly cookies
           )
         } catch (memoryErr) {
           console.log('Failed to store in organization memory, continuing with generation:', memoryErr)
@@ -330,11 +330,10 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               <button
                 type="button"
                 onClick={() => setMode('manual')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  mode === 'manual'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'manual'
+                  ? 'bg-white text-purple-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 <Sparkles className="w-4 h-4" />
                 Manual Input
@@ -342,11 +341,10 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               <button
                 type="button"
                 onClick={() => setMode('document')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  mode === 'document'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'document'
+                  ? 'bg-white text-purple-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 <Upload className="w-4 h-4" />
                 Upload Document
@@ -356,198 +354,197 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
             {/* Manual Input Form */}
             {mode === 'manual' && (
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Test Plan Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Test Plan Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g., E-Commerce Platform Test Plan"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Project Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.project_type}
-                  onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {PROJECT_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Description with JIRA-like Editor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Description <span className="text-red-500">*</span>
-                </label>
-                <JiraLikeEditor
-                  content={formData.description}
-                  onChange={(value) => setFormData({ ...formData, description: value })}
-                  onImagesChange={setManualImages}
-                  placeholder="Describe your project, its purpose, and key functionality... You can paste screenshots (Ctrl/Cmd+V) or drag & drop images directly!"
-                  className="min-h-[250px]"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 <strong>Tip:</strong> Use the toolbar for rich formatting. Paste or drag & drop screenshots directly into the editor!
-                </p>
-              </div>
-
-              {/* Features */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Key Features <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-2">
-                  {formData.features.map((feature, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={feature}
-                        onChange={(e) => updateFeature(index, e.target.value)}
-                        placeholder={`Feature ${index + 1} (e.g., User Authentication, Payment Processing)`}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      {formData.features.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeFeature(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                {/* Test Plan Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Test Plan Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g., E-Commerce Platform Test Plan"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={addFeature}
-                  className="mt-2 flex items-center gap-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Another Feature
-                </button>
-              </div>
 
-              {/* Platforms */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Target Platforms <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {PLATFORMS.map(platform => (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => togglePlatform(platform)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                        formData.platforms.includes(platform)
+                {/* Project Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.project_type}
+                    onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    {PROJECT_TYPES.map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Description with JIRA-like Editor */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Description <span className="text-red-500">*</span>
+                  </label>
+                  <JiraLikeEditor
+                    content={formData.description}
+                    onChange={(value) => setFormData({ ...formData, description: value })}
+                    onImagesChange={setManualImages}
+                    placeholder="Describe your project, its purpose, and key functionality... You can paste screenshots (Ctrl/Cmd+V) or drag & drop images directly!"
+                    className="min-h-[250px]"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 <strong>Tip:</strong> Use the toolbar for rich formatting. Paste or drag & drop screenshots directly into the editor!
+                  </p>
+                </div>
+
+                {/* Features */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Key Features <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    {formData.features.map((feature, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={feature}
+                          onChange={(e) => updateFeature(index, e.target.value)}
+                          placeholder={`Feature ${index + 1} (e.g., User Authentication, Payment Processing)`}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        {formData.features.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeFeature(index)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addFeature}
+                    className="mt-2 flex items-center gap-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Another Feature
+                  </button>
+                </div>
+
+                {/* Platforms */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Target Platforms <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {PLATFORMS.map(platform => (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => togglePlatform(platform)}
+                        className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.platforms.includes(platform)
                           ? 'border-purple-600 bg-purple-50 text-purple-700 font-medium'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      {platform}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Priority and Complexity */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priority <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    {PRIORITIES.map(p => (
-                      <option key={p.value} value={p.value}>{p.label}</option>
+                          }`}
+                      >
+                        {platform}
+                      </button>
                     ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Complexity <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.complexity}
-                    onChange={(e) => setFormData({ ...formData, complexity: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    {COMPLEXITIES.map(c => (
-                      <option key={c.value} value={c.value}>
-                        {c.label} ({c.description})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Timeframe */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Timeframe (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={formData.timeframe}
-                  onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
-                  placeholder="e.g., 4 weeks, 2 months, Q1 2025"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Auto-generated based on complexity if not provided
-                </p>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-medium text-red-900">Error</h3>
-                    <p className="text-sm text-red-700 mt-1">{error}</p>
                   </div>
                 </div>
-              )}
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generate Comprehensive Test Plan
-                </button>
-              </div>
-            </form>
+                {/* Priority and Complexity */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Priority <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      {PRIORITIES.map(p => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Complexity <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.complexity}
+                      onChange={(e) => setFormData({ ...formData, complexity: e.target.value as any })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      {COMPLEXITIES.map(c => (
+                        <option key={c.value} value={c.value}>
+                          {c.label} ({c.description})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Timeframe */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Timeframe (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.timeframe}
+                    onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
+                    placeholder="e.g., 4 weeks, 2 months, Q1 2025"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-generated based on complexity if not provided
+                  </p>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium text-red-900">Error</h3>
+                      <p className="text-sm text-red-700 mt-1">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generate Comprehensive Test Plan
+                  </button>
+                </div>
+              </form>
             )}
 
             {/* Document Upload Form */}
@@ -915,12 +912,11 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                                     <div key={tcIdx} className="text-xs text-gray-700 flex items-start gap-1">
                                       <span className="text-purple-500">▸</span>
                                       <span className="flex-1">{testCase.name}</span>
-                                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                        testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
                                         testCase.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                                        testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}>
+                                          testCase.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-gray-100 text-gray-700'
+                                        }`}>
                                         {testCase.priority}
                                       </span>
                                     </div>

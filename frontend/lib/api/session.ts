@@ -79,3 +79,32 @@ export async function getCurrentProject(): Promise<string | undefined> {
     const session = await getSession()
     return session.current_project_id
 }
+
+/**
+ * Set selected environment for a project
+ */
+export async function setSelectedEnvironment(projectId: string, environmentId: string): Promise<boolean> {
+    const session = await getSession()
+    const preferences = session.preferences || {}
+    const selectedEnvironments = (preferences.selectedEnvironments as Record<string, string>) || {}
+
+    return updateSession({
+        preferences: {
+            ...preferences,
+            selectedEnvironments: {
+                ...selectedEnvironments,
+                [projectId]: environmentId
+            }
+        }
+    })
+}
+
+/**
+ * Get selected environment for a project
+ */
+export async function getSelectedEnvironment(projectId: string): Promise<string | undefined> {
+    const session = await getSession()
+    const preferences = session.preferences || {}
+    const selectedEnvironments = (preferences.selectedEnvironments as Record<string, string>) || {}
+    return selectedEnvironments[projectId]
+}

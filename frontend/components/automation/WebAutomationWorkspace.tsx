@@ -12,7 +12,8 @@ import {
   Activity,
   Settings,
   Plus,
-  Check
+  Check,
+  FolderOpen
 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import {
@@ -25,11 +26,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { projectsApi, ProjectSettings } from '@/lib/api/projects'
+import { getSelectedEnvironment, setSelectedEnvironment } from '@/lib/api/session'
 import TestExplorerTab from './TestExplorerTab'
 import TestBuilderTab from './test-builder'
 import LiveBrowserTab from './LiveBrowserTab'
 import LogsTab from './LogsTab'
 import AISelfHealTab from './AISelfHealTab'
+import ArtifactsTab from './ArtifactsTab'
 import { Environment, EnvironmentManager } from './EnvironmentManager'
 
 interface WebAutomationWorkspaceProps {
@@ -37,7 +40,7 @@ interface WebAutomationWorkspaceProps {
   flowId?: string // Optional: for deep linking to a specific flow
 }
 
-type TabView = 'explorer' | 'builder' | 'browser' | 'logs' | 'heal'
+type TabView = 'explorer' | 'builder' | 'browser' | 'logs' | 'artifacts' | 'heal'
 
 export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomationWorkspaceProps) {
   const router = useRouter()
@@ -62,8 +65,8 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
         const project = await projectsApi.getProject(projectId)
         if (project.settings?.environments && project.settings.environments.length > 0) {
           setEnvironments(project.settings.environments)
-          // Restore selected env from local storage or default to first
-          const savedEnvId = localStorage.getItem(`selectedEnv_${projectId}`)
+          // Restore selected env from server-side session or default to first
+          const savedEnvId = await getSelectedEnvironment(projectId)
           if (savedEnvId && project.settings.environments.some(e => e.id === savedEnvId)) {
             setSelectedEnvironmentId(savedEnvId)
           } else {
@@ -79,10 +82,10 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
     fetchProjectSettings()
   }, [projectId])
 
-  // Save selected env to local storage
+  // Save selected env to server-side session
   useEffect(() => {
     if (selectedEnvironmentId && projectId) {
-      localStorage.setItem(`selectedEnv_${projectId}`, selectedEnvironmentId)
+      setSelectedEnvironment(projectId, selectedEnvironmentId)
     }
   }, [selectedEnvironmentId, projectId])
 
@@ -132,6 +135,8 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
         return <LiveBrowserTab projectId={projectId} testToRun={testToRun} onTestComplete={() => setTestToRun(null)} />
       case 'logs':
         return <LogsTab projectId={projectId} />
+      case 'artifacts':
+        return <ArtifactsTab projectId={projectId} />
       case 'heal':
         return <AISelfHealTab projectId={projectId} />
       default:
@@ -214,6 +219,16 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
             >
               <FileText className="w-4 h-4" />
               Logs
+            </button>
+            <button
+              onClick={() => setActiveTab('artifacts')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'artifacts'
+                ? 'text-blue-700 bg-white border-b-2 border-blue-700 shadow-sm'
+                : 'text-gray-600 hover:text-blue-700 hover:bg-white/50'
+                }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              Artifacts
             </button>
             <button
               onClick={() => setActiveTab('heal')}

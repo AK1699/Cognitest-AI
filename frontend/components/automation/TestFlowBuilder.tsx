@@ -91,12 +91,10 @@ export default function TestFlowBuilder({
   const loadTestFlow = async (id: string) => {
     try {
       const response = await fetch(`/api/v1/web-automation/test-flows/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        credentials: 'include', // Use httpOnly cookies for auth
       })
       const data = await response.json()
-      
+
       setFlowName(data.name)
       setBaseUrl(data.base_url)
       setDefaultBrowser(data.default_browser)
@@ -199,15 +197,15 @@ export default function TestFlowBuilder({
       const url = flowId
         ? `/api/v1/web-automation/test-flows/${flowId}`
         : `/api/v1/web-automation/test-flows?project_id=${projectId}`
-      
+
       const method = flowId ? 'PUT' : 'POST'
-      
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+        credentials: 'include', // Use httpOnly cookies for auth
         body: JSON.stringify(flowData),
       })
 
@@ -239,8 +237,8 @@ export default function TestFlowBuilder({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
+          credentials: 'include', // Use httpOnly cookies for auth
           body: JSON.stringify({
             browser_type: defaultBrowser,
             execution_mode: defaultMode,
@@ -251,7 +249,7 @@ export default function TestFlowBuilder({
       if (response.ok) {
         const executionRun = await response.json()
         setExecutionStatus(`Execution started: ${executionRun.id}`)
-        
+
         // TODO: Connect to WebSocket for live updates
         connectToLivePreview(executionRun.id)
       } else {
@@ -273,7 +271,7 @@ export default function TestFlowBuilder({
     ws.onmessage = (event) => {
       const update = JSON.parse(event.data)
       console.log('Live update:', update)
-      
+
       // Update UI based on live updates
       if (update.type === 'stepStarted') {
         setExecutionStatus(`Executing: ${update.payload.step_name}`)
@@ -296,7 +294,7 @@ export default function TestFlowBuilder({
       {/* Action Library Sidebar */}
       <div className="w-64 border-r bg-gray-50 p-4 overflow-y-auto">
         <h3 className="font-bold text-lg mb-4">Test Actions</h3>
-        
+
         {/* Flow Settings */}
         <Card className="p-3 mb-4">
           <Label className="text-xs">Flow Name</Label>
@@ -305,14 +303,14 @@ export default function TestFlowBuilder({
             onChange={(e) => setFlowName(e.target.value)}
             className="mb-2"
           />
-          
+
           <Label className="text-xs">Base URL</Label>
           <Input
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             className="mb-2"
           />
-          
+
           <Label className="text-xs">Browser</Label>
           <select
             value={defaultBrowser}
@@ -325,7 +323,7 @@ export default function TestFlowBuilder({
               </option>
             ))}
           </select>
-          
+
           <Label className="text-xs">Mode</Label>
           <select
             value={defaultMode}
@@ -370,7 +368,7 @@ export default function TestFlowBuilder({
           <Background />
           <Controls />
           <MiniMap />
-          
+
           <Panel position="top-right" className="flex gap-2">
             <Button onClick={saveTestFlow} size="sm">
               <Save className="w-4 h-4 mr-1" />
@@ -396,7 +394,7 @@ export default function TestFlowBuilder({
             </Button>
           </Panel>
         </ReactFlow>
-        
+
         {/* Execution Status */}
         {executionStatus && (
           <div className="absolute bottom-4 left-4 bg-white p-3 rounded shadow-lg">
@@ -433,25 +431,25 @@ export default function TestFlowBuilder({
               {['click', 'type', 'select', 'assert'].includes(
                 selectedNode.data.actionType
               ) && (
-                <div>
-                  <Label>Selector</Label>
-                  <Input
-                    value={selectedNode.data.selector?.primary || ''}
-                    onChange={(e) =>
-                      updateNodeData(selectedNode.id, {
-                        selector: {
-                          ...selectedNode.data.selector,
-                          primary: e.target.value,
-                        },
-                      })
-                    }
-                    placeholder="CSS selector or XPath"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    e.g., #submit-button or button[data-testid="login"]
-                  </p>
-                </div>
-              )}
+                  <div>
+                    <Label>Selector</Label>
+                    <Input
+                      value={selectedNode.data.selector?.primary || ''}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, {
+                          selector: {
+                            ...selectedNode.data.selector,
+                            primary: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="CSS selector or XPath"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      e.g., #submit-button or button[data-testid="login"]
+                    </p>
+                  </div>
+                )}
 
               {/* Value Input */}
               {['type', 'navigate'].includes(selectedNode.data.actionType) && (
@@ -537,25 +535,25 @@ export default function TestFlowBuilder({
             <div className="mb-6">
               <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
               <div className="space-y-2">
-                <Button 
-                  onClick={saveTestFlow} 
-                  variant="outline" 
+                <Button
+                  onClick={saveTestFlow}
+                  variant="outline"
                   className="w-full justify-start"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Flow
                 </Button>
-                <Button 
-                  onClick={executeTestFlow} 
+                <Button
+                  onClick={executeTestFlow}
                   disabled={isExecuting || !flowId}
-                  variant="outline" 
+                  variant="outline"
                   className="w-full justify-start"
                 >
                   <Play className="w-4 h-4 mr-2" />
                   Execute Flow
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
                   onClick={() => {
                     const data = JSON.stringify({ nodes, edges }, null, 2)

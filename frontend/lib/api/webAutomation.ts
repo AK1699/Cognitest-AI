@@ -225,6 +225,29 @@ export const webAutomationApi = {
     // Apply healing fix
     applyHealingFix: async (stepId: string, suggestion: { value: string, type: string }): Promise<void> => {
         await api.post(`/api/v1/web-automation/healing/apply`, { step_id: stepId, suggestion })
+    },
+
+    // Artifacts
+    listArtifacts: async (projectId: string, options?: {
+        type?: 'screenshot' | 'video',
+        page?: number,
+        pageSize?: number
+    }): Promise<ArtifactListResponse> => {
+        const params = new URLSearchParams()
+        if (options?.type) params.append('type', options.type)
+        if (options?.page) params.append('page', String(options.page))
+        if (options?.pageSize) params.append('page_size', String(options.pageSize))
+        const query = params.toString() ? `?${params.toString()}` : ''
+        const response = await api.get<ArtifactListResponse>(`/api/v1/projects/${projectId}/artifacts${query}`)
+        return response.data
+    },
+
+    deleteArtifact: async (projectId: string, artifactId: string): Promise<void> => {
+        await api.delete(`/api/v1/projects/${projectId}/artifacts/${artifactId}`)
+    },
+
+    getArtifactDownloadUrl: (projectId: string, artifactId: string): string => {
+        return `/api/v1/projects/${projectId}/artifacts/${artifactId}/download`
     }
 }
 
@@ -330,4 +353,29 @@ export interface RepairHistoryItem {
     test: string
     action: string
     success: boolean
+}
+
+// Artifact Types
+export interface Artifact {
+    id: string
+    project_id: string
+    execution_run_id?: string
+    step_result_id?: string
+    name: string
+    type: 'screenshot' | 'video'
+    file_path: string
+    file_url?: string
+    size_bytes?: number
+    duration_ms?: number
+    test_name?: string
+    step_name?: string
+    created_at: string
+}
+
+export interface ArtifactListResponse {
+    items: Artifact[]
+    total: number
+    page: number
+    page_size: number
+    has_more: boolean
 }

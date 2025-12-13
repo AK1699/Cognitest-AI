@@ -70,9 +70,7 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
       const response = await fetch(
         `/api/v1/web-automation/executions/${executionRunId}`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
+          credentials: 'include', // Use httpOnly cookies for auth
         }
       )
       const data = await response.json()
@@ -114,19 +112,19 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
             <p className="text-sm text-gray-500">Browser</p>
             <p className="text-lg font-semibold">{executionData.browser_type}</p>
           </div>
-          
+
           <div>
             <p className="text-sm text-gray-500">Mode</p>
             <p className="text-lg font-semibold">{executionData.execution_mode}</p>
           </div>
-          
+
           <div>
             <p className="text-sm text-gray-500">Duration</p>
             <p className="text-lg font-semibold">
               {(executionData.duration_ms / 1000).toFixed(2)}s
             </p>
           </div>
-          
+
           <div>
             <p className="text-sm text-gray-500">Success Rate</p>
             <p className="text-lg font-semibold">{successRate.toFixed(1)}%</p>
@@ -139,12 +137,12 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
             <CheckCircle2 className="w-5 h-5 text-green-500" />
             <span className="font-semibold">{executionData.passed_steps} Passed</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <XCircle className="w-5 h-5 text-red-500" />
             <span className="font-semibold">{executionData.failed_steps} Failed</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-yellow-500" />
             <span className="font-semibold">{executionData.healed_steps} Healed</span>
@@ -159,7 +157,7 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
           <p className="text-sm text-gray-600 mb-4">
             {executionData.healing_events.length} healing event(s) occurred during execution
           </p>
-          
+
           <div className="space-y-3">
             {executionData.healing_events.map((event) => (
               <div
@@ -174,7 +172,7 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
                     {event.success ? '✓ Success' : '✗ Failed'}
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-1 text-sm">
                   <p>
                     <span className="font-semibold">Original:</span>{' '}
@@ -184,14 +182,14 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
                     <span className="font-semibold">Healed:</span>{' '}
                     <code className="bg-green-100 px-1 rounded">{event.healed_value}</code>
                   </p>
-                  
+
                   {event.confidence_score && (
                     <p>
                       <span className="font-semibold">Confidence:</span>{' '}
                       {(event.confidence_score * 100).toFixed(0)}%
                     </p>
                   )}
-                  
+
                   {event.ai_reasoning && (
                     <p className="text-gray-600 italic">{event.ai_reasoning}</p>
                   )}
@@ -205,20 +203,19 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
       {/* Step Results */}
       <Card className="p-6">
         <h3 className="text-xl font-bold mb-4">Step Results</h3>
-        
+
         <div className="space-y-2">
           {executionData.step_results.map((step, idx) => (
             <div
               key={step.id}
-              className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                selectedStep?.id === step.id ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
-              }`}
+              className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedStep?.id === step.id ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                }`}
               onClick={() => setSelectedStep(step)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-mono text-gray-500">#{idx + 1}</span>
-                  
+
                   {step.status === 'passed' && (
                     <CheckCircle2 className="w-5 h-5 text-green-500" />
                   )}
@@ -228,26 +225,26 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
                   {step.status === 'healed' && (
                     <AlertTriangle className="w-5 h-5 text-yellow-500" />
                   )}
-                  
+
                   <div>
                     <p className="font-semibold">{step.step_name}</p>
                     <p className="text-sm text-gray-500">{step.step_type}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   {step.was_healed && (
                     <Badge variant="outline" className="bg-yellow-100">
                       🔧 Healed
                     </Badge>
                   )}
-                  
+
                   <div className="text-right">
                     <p className="text-sm font-medium">
                       {step.duration_ms}ms
                     </p>
                   </div>
-                  
+
                   {step.screenshot_url && (
                     <Button size="sm" variant="outline">
                       <Eye className="w-4 h-4" />
@@ -255,13 +252,13 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
                   )}
                 </div>
               </div>
-              
+
               {step.error_message && (
                 <div className="mt-2 p-2 bg-red-50 rounded text-sm text-red-700">
                   {step.error_message}
                 </div>
               )}
-              
+
               {step.healing_applied && selectedStep?.id === step.id && (
                 <div className="mt-2 p-2 bg-yellow-50 rounded text-sm">
                   <p className="font-semibold">Healing Applied:</p>

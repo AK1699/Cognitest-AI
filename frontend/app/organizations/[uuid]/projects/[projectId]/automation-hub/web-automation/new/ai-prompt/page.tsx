@@ -9,15 +9,14 @@ export default function AIPromptPage() {
 
   const handleSave = async (testData: any) => {
     try {
-      const token = localStorage.getItem('token')
       const response = await fetch(
-        `http://localhost:8000/api/v1/web-automation/test-flows?project_id=${projectId}`,
+        `/api/v1/web-automation/test-flows?project_id=${projectId}`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // Use httpOnly cookies for auth
           body: JSON.stringify({
             name: testData.name,
             base_url: testData.baseUrl,
@@ -30,7 +29,7 @@ export default function AIPromptPage() {
           }),
         }
       )
-      
+
       if (response.ok) {
         alert('Test saved successfully!')
       }

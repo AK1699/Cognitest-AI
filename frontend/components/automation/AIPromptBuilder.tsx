@@ -59,15 +59,15 @@ export default function AIPromptBuilder({ projectId, onSave }: AIPromptBuilderPr
     setIsGenerating(true)
 
     try {
-      const token = localStorage.getItem('token')
+      // Use the centralized API client which handles auth automatically
       const response = await fetch(
-        'http://localhost:8000/api/v1/web-automation/generate-from-prompt',
+        '/api/v1/web-automation/generate-from-prompt',
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // Use httpOnly cookies for auth
           body: JSON.stringify({
             prompt: prompt,
             base_url: baseUrl,
@@ -104,7 +104,7 @@ export default function AIPromptBuilder({ projectId, onSave }: AIPromptBuilderPr
   const mockGenerateSteps = (prompt: string): GeneratedStep[] => {
     // Simple mock generation based on keywords
     const steps: GeneratedStep[] = []
-    
+
     steps.push({
       id: `step-${Date.now()}-0`,
       type: 'navigate',
@@ -382,18 +382,17 @@ export default function AIPromptBuilder({ projectId, onSave }: AIPromptBuilderPr
                     {generatedSteps.map((step, index) => (
                       <div
                         key={step.id}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          selectedStep === index
+                        className={`p-4 rounded-lg border-2 transition-all ${selectedStep === index
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-200 hover:border-purple-200'
-                        }`}
+                          }`}
                         onClick={() => setSelectedStep(index)}
                       >
                         <div className="flex items-start gap-3">
                           <div className={`p-2 rounded-lg ${getStepColor(step.type)}`}>
                             <span className="text-lg">{getStepIcon(step.type)}</span>
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-semibold text-gray-500">
