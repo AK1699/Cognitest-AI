@@ -87,8 +87,70 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                     setIsFlowLoading(true)
                     const flow = await webAutomationApi.getTestFlow(flowId)
                     setTestName(flow.name)
+                    console.log('=== LOADING TEST FLOW ===')
+                    console.log('flow.nodes:', flow.nodes)
+                    console.log('flow.nodes length:', flow.nodes?.length)
+
                     if (flow.nodes && Array.isArray(flow.nodes) && flow.nodes.length > 0) {
-                        setSteps(flow.nodes)
+                        // Transform from node format to flat step format
+                        const transformedSteps: TestStep[] = flow.nodes.map((node: any, idx: number) => {
+                            console.log(`Node ${idx}:`, JSON.stringify(node).substring(0, 300))
+
+                            // Handle both flat step format and nested node format
+                            const nodeData = node.data || {}
+
+                            // Extract action from multiple possible locations
+                            let extractedAction =
+                                node.action ||                    // Direct action field
+                                nodeData.actionType ||            // data.actionType (from save format)
+                                nodeData.action ||                // data.action  
+                                (node.type !== 'action' ? node.type : null) // type if not generic "action"
+
+                            // Infer action type from step properties if not found
+                            if (!extractedAction || extractedAction === 'unknown') {
+                                const url = node.url || nodeData.url
+                                const selector = node.selector || nodeData.selector
+                                const value = node.value || nodeData.value
+                                const expectedTitle = node.expected_title || nodeData.expected_title
+                                const expectedUrl = node.expected_url || nodeData.expected_url
+
+                                if (expectedTitle) {
+                                    extractedAction = 'assert_title'
+                                } else if (expectedUrl) {
+                                    extractedAction = 'assert_url'
+                                } else if (url && !selector) {
+                                    extractedAction = 'navigate'
+                                } else if (selector && value) {
+                                    extractedAction = 'type'
+                                } else if (selector) {
+                                    extractedAction = 'click'
+                                } else {
+                                    extractedAction = 'unknown'
+                                }
+                            }
+
+                            console.log(`Node ${idx} extracted action:`, extractedAction)
+
+                            // Spread nodeData first so explicit fields take precedence
+                            return {
+                                ...nodeData,
+                                // Then set explicit fields to ensure they're not overridden
+                                id: node.id || nodeData.id || `step-${Date.now()}-${Math.random()}`,
+                                action: extractedAction,
+                                selector: node.selector || nodeData.selector || '',
+                                value: node.value || nodeData.value || nodeData.expected_title || nodeData.expected_url || '',
+                                timeout: node.timeout || nodeData.timeout || 5000,
+                                description: node.description || nodeData.description || nodeData.label || '',
+                                variable_name: node.variable_name || nodeData.variable_name,
+                                attribute_name: node.attribute_name || nodeData.attribute_name,
+                                url: node.url || nodeData.url || '',
+                                data_type: node.data_type || nodeData.data_type,
+                            }
+                        })
+                        console.log('Transformed steps:', transformedSteps)
+                        setSteps(transformedSteps)
+                    } else {
+                        console.log('flow.nodes is empty or not an array')
                     }
                 } catch (error) {
                     console.error('Failed to fetch test flow:', error)
@@ -119,8 +181,8 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         <button
                             onClick={() => setBuilderMethod('visual')}
                             className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'visual'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white shadow text-gray-900'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             Visual
@@ -128,8 +190,8 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         <button
                             onClick={() => setBuilderMethod('recorder')}
                             className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'recorder'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white shadow text-gray-900'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             Recorder
@@ -137,8 +199,8 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         <button
                             onClick={() => setBuilderMethod('ai')}
                             className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'ai'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white shadow text-gray-900'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             AI

@@ -114,9 +114,22 @@ export function useTestBuilder({ flowId, selectedEnvironment }: UseTestBuilderPr
 
         setIsSaving(true)
         try {
+            // Transform steps to nodes format expected by backend
+            const nodes = steps.map((step, index) => ({
+                id: step.id,
+                type: 'action',
+                position: { x: 100, y: 100 + (index * 80) },
+                data: {
+                    actionType: step.action,
+                    label: step.description || step.action,
+                    // Include ALL step properties in data for backend execution
+                    ...step
+                }
+            }))
+
             await webAutomationApi.updateTestFlow(flowId, {
                 name: testName,
-                nodes: steps
+                nodes: nodes
             })
             toast.success('Test flow saved successfully!')
         } catch (error: any) {

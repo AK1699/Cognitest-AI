@@ -89,8 +89,6 @@ export const browserActions: ActionConfig[] = [
     { id: 'wait', name: 'Wait', icon: Timer, color: 'bg-yellow-500', description: 'Wait for element or time' },
     { id: 'wait_network', name: 'Wait Network', icon: Wifi, color: 'bg-yellow-600', description: 'Wait for network idle' },
     { id: 'wait_url', name: 'Wait URL', icon: Link, color: 'bg-yellow-400', description: 'Wait for URL change' },
-    // Assertions
-    { id: 'assert', name: 'Assert', icon: CheckCircle2, color: 'bg-emerald-600', description: 'Assert condition' },
     // Screenshots
     { id: 'screenshot', name: 'Screenshot', icon: Image, color: 'bg-teal-500', description: 'Take screenshot' },
     // Dialog Handling
@@ -170,6 +168,8 @@ export const advancedActions: ActionConfig[] = [
 // ============================================
 export const assertActions: ActionConfig[] = [
     { id: 'assert', name: 'Assert', icon: CheckCircle2, color: 'bg-emerald-600', description: 'Assert condition' },
+    { id: 'assert_title', name: 'Assert Title', icon: FileText, color: 'bg-emerald-700', description: 'Assert page title' },
+    { id: 'assert_url', name: 'Assert URL', icon: Link, color: 'bg-emerald-500', description: 'Assert page URL' },
     { id: 'assert_element_count', name: 'Assert Count', icon: Hash, color: 'bg-emerald-500', description: 'Assert element count' },
     { id: 'assert_not_visible', name: 'Assert Hidden', icon: EyeOff, color: 'bg-emerald-400', description: 'Assert element hidden' },
     { id: 'soft_assert', name: 'Soft Assert', icon: ShieldCheck, color: 'bg-lime-500', description: 'Assert without stopping' },
@@ -196,13 +196,6 @@ export const fileActions: ActionConfig[] = [
     { id: 'paste_from_clipboard', name: 'Paste', icon: ClipboardPaste, color: 'bg-gray-600', description: 'Paste from clipboard' },
 ]
 
-// ============================================
-// Variable Actions
-// ============================================
-export const variableActions: ActionConfig[] = [
-    { id: 'set-variable', name: 'Set Variable', icon: Variable, color: 'bg-teal-600', description: 'Create variable' },
-    { id: 'extract-variable', name: 'Extract', icon: Database, color: 'bg-cyan-600', description: 'Extract to variable' },
-]
 
 // ============================================
 // Combined list of all actions for lookup
@@ -217,7 +210,6 @@ export const allActions: ActionConfig[] = [
     ...assertActions,
     ...debugActions,
     ...fileActions,
-    ...variableActions,
 ]
 
 /**

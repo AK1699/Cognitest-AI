@@ -1373,13 +1373,62 @@ async def websocket_browser_session(
                                 
                                 # Step type can be 'action' or 'type' field
                                 step_type = step_data.get("action") or step_data.get("type") or step.get("action") or step.get("type") or "unknown"
-                                step_name = step_data.get("label") or step_data.get("description") or step.get("description") or f"Step {i+1}"
+                                
+                                # Generate human-friendly action name from step_type (e.g., 'assert_title' -> 'Assert Title')
+                                def format_action_name(action_type: str) -> str:
+                                    """Convert action_type to human-friendly name"""
+                                    action_names = {
+                                        'navigate': 'Navigate',
+                                        'click': 'Click',
+                                        'type': 'Type',
+                                        'fill': 'Fill',
+                                        'assert': 'Assert',
+                                        'assert_title': 'Assert Title',
+                                        'assert_url': 'Assert URL',
+                                        'assert_visible': 'Assert Visible',
+                                        'assert_text': 'Assert Text',
+                                        'assert_value': 'Assert Value',
+                                        'assert_not_visible': 'Assert Hidden',
+                                        'assert_element_count': 'Assert Count',
+                                        'soft_assert': 'Soft Assert',
+                                        'wait': 'Wait',
+                                        'wait_for_element': 'Wait for Element',
+                                        'screenshot': 'Screenshot',
+                                        'hover': 'Hover',
+                                        'scroll': 'Scroll',
+                                        'select': 'Select',
+                                        'upload': 'Upload',
+                                        'press': 'Press Key',
+                                        'double_click': 'Double Click',
+                                        'right_click': 'Right Click',
+                                        'focus': 'Focus',
+                                        'drag_drop': 'Drag and Drop',
+                                        'execute_script': 'Execute Script',
+                                        'set_variable': 'Set Variable',
+                                        'log': 'Log',
+                                        'reload': 'Reload',
+                                        'go_back': 'Go Back',
+                                        'go_forward': 'Go Forward',
+                                    }
+                                    return action_names.get(action_type, action_type.replace('_', ' ').title())
+                                
+                                # Use description/label if available, otherwise use formatted action name
+                                step_name = step_data.get("label") or step_data.get("description") or step.get("description") or format_action_name(step_type)
                                 step_id = step.get("id", f"step-{i}")
                                 selector_used = step_data.get("selector") or step.get("selector") or ""
                                 
                                 # Get step details for frontend display
                                 step_url = step_data.get("url") or step.get("url") or ""
-                                step_value = step_data.get("value") or step.get("value") or ""
+                                # For assert_title/assert_url, use expected_title/expected_url instead of value
+                                step_value = (
+                                    step_data.get("expected_title") or 
+                                    step_data.get("expected_url") or
+                                    step_data.get("value") or 
+                                    step.get("expected_title") or
+                                    step.get("expected_url") or
+                                    step.get("value") or 
+                                    ""
+                                )
                                 
                                 await websocket.send_json({
                                     "type": "step_started",

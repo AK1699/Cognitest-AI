@@ -1110,9 +1110,27 @@ export default function LiveBrowserTab({
                                                                 {step.type === 'type' && 'Type'}
                                                                 {step.type === 'fill' && 'Fill'}
                                                                 {step.type === 'assert' && 'Assert'}
+                                                                {step.type === 'assert_title' && 'Assert Title'}
+                                                                {step.type === 'assert_url' && 'Assert URL'}
+                                                                {step.type === 'assert_element_count' && 'Assert Count'}
+                                                                {step.type === 'assert_not_visible' && 'Assert Hidden'}
                                                                 {step.type === 'wait' && 'Wait'}
                                                                 {step.type === 'screenshot' && 'Screenshot'}
-                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'wait', 'screenshot'].includes(step.type) && step.type}
+                                                                {step.type === 'set_variable' && 'Set Variable'}
+                                                                {step.type === 'extract_text' && 'Extract Text'}
+                                                                {step.type === 'extract_attribute' && 'Extract Attribute'}
+                                                                {step.type === 'get_cookie' && 'Get Cookie'}
+                                                                {step.type === 'set_cookie' && 'Set Cookie'}
+                                                                {step.type === 'delete_cookie' && 'Delete Cookie'}
+                                                                {step.type === 'get_local_storage' && 'Get LocalStorage'}
+                                                                {step.type === 'set_local_storage' && 'Set LocalStorage'}
+                                                                {step.type === 'get_session_storage' && 'Get SessionStorage'}
+                                                                {step.type === 'set_session_storage' && 'Set SessionStorage'}
+                                                                {step.type === 'read_csv' && 'Read CSV'}
+                                                                {step.type === 'read_json' && 'Read JSON'}
+                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'assert_title', 'assert_url', 'assert_element_count', 'assert_not_visible', 'wait', 'screenshot', 'set_variable', 'extract_text', 'extract_attribute', 'get_cookie', 'set_cookie', 'delete_cookie', 'get_local_storage', 'set_local_storage', 'get_session_storage', 'set_session_storage', 'read_csv', 'read_json'].includes(step.type) && (
+                                                                    step.type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                                                                )}
                                                             </span>
                                                             {step.status === 'running' && (
                                                                 <span className="text-xs text-blue-600 animate-pulse">Running...</span>
@@ -1142,6 +1160,55 @@ export default function LiveBrowserTab({
                                                                 <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 text-xs rounded-md font-mono border border-amber-200 truncate max-w-[150px]" title={step.value}>
                                                                     <span className="opacity-60 mr-1">✏️</span>
                                                                     "{step.value}"
+                                                                </code>
+                                                            )}
+
+                                                            {/* Expected Title Badge (for assert_title) */}
+                                                            {step.type === 'assert_title' && step.value && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 text-xs rounded-md font-mono border border-emerald-200 truncate max-w-[200px]" title={`Expected Title: ${step.value}`}>
+                                                                    <span className="opacity-60 mr-1">📄</span>
+                                                                    equals: "{step.value}"
+                                                                </code>
+                                                            )}
+
+                                                            {/* Expected URL Badge (for assert_url) */}
+                                                            {step.type === 'assert_url' && step.value && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-teal-50 to-teal-100 text-teal-700 text-xs rounded-md font-mono border border-teal-200 truncate max-w-[200px]" title={`Expected URL: ${step.value}`}>
+                                                                    <span className="opacity-60 mr-1">🔗</span>
+                                                                    equals: "{step.value}"
+                                                                </code>
+                                                            )}
+
+                                                            {/* Expected Count Badge (for assert_element_count) */}
+                                                            {step.expected_count !== undefined && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 text-xs rounded-md font-mono border border-indigo-200" title={`Expected count: ${step.expected_count}`}>
+                                                                    <span className="opacity-60 mr-1">#️⃣</span>
+                                                                    {step.comparison && <span className="mr-1 opacity-75">{step.comparison}:</span>}
+                                                                    {step.expected_count}
+                                                                </code>
+                                                            )}
+
+                                                            {/* Variable Name Badge (for get/set operations) */}
+                                                            {step.variable_name && !step.value && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-pink-50 to-pink-100 text-pink-700 text-xs rounded-md font-mono border border-pink-200 truncate max-w-[150px]" title={`Variable: ${step.variable_name}`}>
+                                                                    <span className="opacity-60 mr-1">💾</span>
+                                                                    ${step.variable_name}
+                                                                </code>
+                                                            )}
+
+                                                            {/* Key Name Badge (for storage operations) */}
+                                                            {step.key && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 text-xs rounded-md font-mono border border-orange-200 truncate max-w-[150px]" title={`Key: ${step.key}`}>
+                                                                    <span className="opacity-60 mr-1">🔑</span>
+                                                                    {step.key}
+                                                                </code>
+                                                            )}
+
+                                                            {/* Cookie Name Badge */}
+                                                            {step.name && ['get_cookie', 'set_cookie', 'delete_cookie'].includes(step.type) && (
+                                                                <code className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 text-xs rounded-md font-mono border border-yellow-200 truncate max-w-[150px]" title={`Cookie: ${step.name}`}>
+                                                                    <span className="opacity-60 mr-1">🍪</span>
+                                                                    {step.name}
                                                                 </code>
                                                             )}
                                                         </div>

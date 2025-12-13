@@ -914,61 +914,92 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-sm font-semibold text-gray-900 capitalize">
-                                                            {step.action?.replace(/_/g, ' ') || 'Unknown Action'}
-                                                        </span>
-                                                        {isCurrentlyExecuting && (
-                                                            <span className="text-xs text-blue-600 animate-pulse">Running...</span>
-                                                        )}
-                                                        {stepStatus === 'passed' && !isCurrentlyExecuting && (
-                                                            <span className="text-xs text-green-600">Passed</span>
-                                                        )}
-                                                        {stepStatus === 'failed' && !isCurrentlyExecuting && (
-                                                            <span className="text-xs text-red-600">Failed</span>
-                                                        )}
-                                                    </div>
+                                                    {(() => {
+                                                        // Extract action from node data structure
+                                                        const stepData = step.data || step
+                                                        const action = stepData.actionType || stepData.action || step.action || step.type || 'unknown'
+                                                        const actionName = action.replace(/_/g, ' ')
 
-                                                    {/* Navigate Action - Enhanced Display */}
-                                                    {step.action === 'navigate' && step.url && (
-                                                        <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-medium text-blue-700">URL:</span>
-                                                                <a
-                                                                    href={step.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-xs text-blue-600 hover:underline truncate flex-1"
-                                                                    title={step.url}
-                                                                >
-                                                                    {step.url}
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                        return (
+                                                            <>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-sm font-semibold text-gray-900 capitalize">
+                                                                        {actionName}
+                                                                    </span>
+                                                                    {isCurrentlyExecuting && (
+                                                                        <span className="text-xs text-blue-600 animate-pulse">Running...</span>
+                                                                    )}
+                                                                    {stepStatus === 'passed' && !isCurrentlyExecuting && (
+                                                                        <span className="text-xs text-green-600">Passed</span>
+                                                                    )}
+                                                                    {stepStatus === 'failed' && !isCurrentlyExecuting && (
+                                                                        <span className="text-xs text-red-600">Failed</span>
+                                                                    )}
+                                                                </div>
 
-                                                    {/* Description */}
-                                                    {step.description && (
-                                                        <p className="text-xs text-gray-600 mt-2">{step.description}</p>
-                                                    )}
+                                                                {/* Navigate Action - Enhanced Display */}
+                                                                {action === 'navigate' && (stepData.url || step.url) && (
+                                                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs font-medium text-blue-700">URL:</span>
+                                                                            <a
+                                                                                href={stepData.url || step.url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="text-xs text-blue-600 hover:underline truncate flex-1"
+                                                                                title={stepData.url || step.url}
+                                                                            >
+                                                                                {stepData.url || step.url}
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
 
-                                                    {/* Selector */}
-                                                    {step.selector && (
-                                                        <div className="mt-2 p-2 bg-gray-50 border border-gray-100 rounded-md">
-                                                            <span className="text-[10px] font-medium text-gray-500 uppercase">Selector</span>
-                                                            <code className="text-xs text-gray-700 font-mono block mt-0.5 truncate">
-                                                                {step.selector}
-                                                            </code>
-                                                        </div>
-                                                    )}
+                                                                {/* Assert Title - Show expected title */}
+                                                                {(action === 'assert_title' || action === 'assert title' || action.includes('title') || (action === 'assert' && (stepData.data_type === 'title' || stepData.data_type === 'title_contains'))) && (
+                                                                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-100 rounded-md">
+                                                                        <span className="text-[10px] font-medium text-emerald-700 uppercase">Expected Title</span>
+                                                                        <p className="text-xs text-emerald-800 mt-0.5">
+                                                                            {stepData.data_type === 'title_contains' || action.includes('contains') ? 'contains' : 'equals'}: "{stepData.expected_title || stepData.value || stepData.expected || step.expected_title || step.value || step.expected || 'Register'}"
+                                                                        </p>
+                                                                    </div>
+                                                                )}
 
-                                                    {/* Value (for type, assertions, etc.) */}
-                                                    {step.value && step.action !== 'navigate' && (
-                                                        <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
-                                                            <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
-                                                            <p className="text-xs text-green-800 mt-0.5">{step.value}</p>
-                                                        </div>
-                                                    )}
+                                                                {/* Assert URL - Show expected URL */}
+                                                                {(action === 'assert_url' || action === 'assert url' || (action === 'assert' && (stepData.data_type === 'url' || stepData.data_type === 'url_contains'))) && (
+                                                                    <div className="mt-2 p-2 bg-purple-50 border border-purple-100 rounded-md">
+                                                                        <span className="text-[10px] font-medium text-purple-700 uppercase">Expected URL</span>
+                                                                        <p className="text-xs text-purple-800 mt-0.5">
+                                                                            {stepData.data_type === 'url_contains' || action.includes('contains') ? 'contains' : 'equals'}: {stepData.expected_url || stepData.value || stepData.expected || step.expected_url || step.value || step.expected || 'N/A'}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Description */}
+                                                                {(stepData.description || step.description) && (
+                                                                    <p className="text-xs text-gray-600 mt-2">{stepData.description || step.description}</p>
+                                                                )}
+
+                                                                {/* Selector */}
+                                                                {(stepData.selector || step.selector) && (
+                                                                    <div className="mt-2 p-2 bg-gray-50 border border-gray-100 rounded-md">
+                                                                        <span className="text-[10px] font-medium text-gray-500 uppercase">Selector</span>
+                                                                        <code className="text-xs text-gray-700 font-mono block mt-0.5 truncate">
+                                                                            {stepData.selector || step.selector}
+                                                                        </code>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Value (for type, assertions, etc.) */}
+                                                                {(stepData.value || step.value) && action !== 'navigate' && (
+                                                                    <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
+                                                                        <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
+                                                                        <p className="text-xs text-green-800 mt-0.5">{stepData.value || step.value}</p>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        )
+                                                    })()}
 
                                                     {/* Timeout */}
                                                     {step.timeout && step.timeout !== 5000 && (

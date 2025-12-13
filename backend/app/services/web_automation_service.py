@@ -664,11 +664,49 @@ class WebAutomationExecutor:
         step_data = node.get("data", {})
         step_type = step_data.get("actionType", "unknown")
         
+        # Generate human-friendly step name
+        def format_action_name(action_type: str) -> str:
+            """Convert action_type to human-friendly name"""
+            action_names = {
+                'navigate': 'Navigate',
+                'click': 'Click',
+                'type': 'Type',
+                'fill': 'Fill',
+                'assert': 'Assert',
+                'assert_title': 'Assert Title',
+                'assert_url': 'Assert URL',
+                'assert_visible': 'Assert Visible',
+                'assert_text': 'Assert Text',
+                'assert_not_visible': 'Assert Hidden',
+                'assert_element_count': 'Assert Count',
+                'soft_assert': 'Soft Assert',
+                'wait': 'Wait',
+                'screenshot': 'Screenshot',
+                'hover': 'Hover',
+                'scroll': 'Scroll',
+                'select': 'Select',
+                'upload': 'Upload',
+                'press': 'Press Key',
+                'double_click': 'Double Click',
+                'right_click': 'Right Click',
+                'focus': 'Focus',
+                'drag_drop': 'Drag and Drop',
+                'execute_script': 'Execute Script',
+                'set_variable': 'Set Variable',
+                'log': 'Log',
+                'reload': 'Reload',
+                'go_back': 'Go Back',
+                'go_forward': 'Go Forward',
+            }
+            return action_names.get(action_type, action_type.replace('_', ' ').title())
+        
+        step_name = step_data.get("label") or step_data.get("description") or format_action_name(step_type)
+        
         # Create step result record
         step_result = StepResult(
             execution_run_id=self.execution_run.id,
             step_id=step_id,
-            step_name=step_data.get("label", step_type),
+            step_name=step_name,
             step_type=step_type,
             step_order=step_order,
             status=StepStatus.RUNNING,
@@ -769,6 +807,46 @@ class WebAutomationExecutor:
             success, healing_info = await assertor.assert_with_healing(self.page, assertion)
             if not success:
                 raise Exception(f"Assertion failed: {assertion}")
+        
+        elif action_type == "assert_title":
+            expected_title = self.substitute_variables(action_data.get("expected_title", ""))
+            comparison = action_data.get("comparison", "equals")
+            actual_title = await self.page.title()
+            
+            passed = False
+            if comparison == "equals":
+                passed = actual_title == expected_title
+            elif comparison == "contains":
+                passed = expected_title in actual_title
+            elif comparison == "starts_with":
+                passed = actual_title.startswith(expected_title)
+            elif comparison == "ends_with":
+                passed = actual_title.endswith(expected_title)
+            elif comparison == "regex":
+                import re
+                passed = bool(re.search(expected_title, actual_title))
+            
+            if not passed:
+                raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+        
+        elif action_type == "assert_url":
+            expected_url = self.substitute_variables(action_data.get("expected_url", ""))
+            comparison = action_data.get("comparison", "equals")
+            actual_url = self.page.url
+            
+            passed = False
+            if comparison == "equals":
+                passed = actual_url == expected_url
+            elif comparison == "contains":
+                passed = expected_url in actual_url
+            elif comparison == "starts_with":
+                passed = actual_url.startswith(expected_url)
+            elif comparison == "regex":
+                import re
+                passed = bool(re.search(expected_url, actual_url))
+            
+            if not passed:
+                raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
         
         elif action_type == "wait":
             wait_type = action_data.get("waitType", "time")

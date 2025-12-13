@@ -198,9 +198,70 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                     setIsFlowLoading(true)
                     const flow = await webAutomationApi.getTestFlow(flowId)
                     setTestName(flow.name)
-                    // Load steps from nodes field
+                    console.log('=== LOADING TEST FLOW ===')
+                    console.log('flow.nodes:', flow.nodes)
+                    console.log('flow.nodes length:', flow.nodes?.length)
+
+                    // Load steps from nodes field - transform from node format to step format
                     if (flow.nodes && Array.isArray(flow.nodes) && flow.nodes.length > 0) {
-                        setSteps(flow.nodes)
+                        const transformedSteps: TestStep[] = flow.nodes.map((node: any, idx: number) => {
+                            console.log(`Node ${idx}:`, JSON.stringify(node).substring(0, 300))
+
+                            // Handle both flat step format and nested node format
+                            const nodeData = node.data || {}
+
+                            // Extract action from multiple possible locations
+                            let extractedAction =
+                                node.action ||                    // Direct action field
+                                nodeData.actionType ||            // data.actionType
+                                nodeData.action ||                // data.action  
+                                (node.type !== 'action' ? node.type : null) // type if not generic "action"
+
+                            // Infer action type from step properties if not found
+                            if (!extractedAction || extractedAction === 'unknown') {
+                                const url = node.url || nodeData.url
+                                const selector = node.selector || nodeData.selector
+                                const value = node.value || nodeData.value
+                                const expectedTitle = node.expected_title || nodeData.expected_title
+                                const expectedUrl = node.expected_url || nodeData.expected_url
+
+                                if (expectedTitle) {
+                                    extractedAction = 'assert_title'
+                                } else if (expectedUrl) {
+                                    extractedAction = 'assert_url'
+                                } else if (url && !selector) {
+                                    extractedAction = 'navigate'
+                                } else if (selector && value) {
+                                    extractedAction = 'type'
+                                } else if (selector) {
+                                    extractedAction = 'click'
+                                } else {
+                                    extractedAction = 'unknown'
+                                }
+                            }
+
+                            console.log(`Node ${idx} extracted action:`, extractedAction)
+
+                            // Spread nodeData first so explicit fields take precedence
+                            return {
+                                ...nodeData,
+                                // Then set explicit fields to ensure they're not overridden
+                                id: node.id || nodeData.id || `step-${Date.now()}-${Math.random()}`,
+                                action: extractedAction,
+                                selector: node.selector || nodeData.selector || '',
+                                value: node.value || nodeData.value || nodeData.expected_title || nodeData.expected_url || '',
+                                timeout: node.timeout || nodeData.timeout || 5000,
+                                description: node.description || nodeData.description || nodeData.label || '',
+                                variable_name: node.variable_name || nodeData.variable_name,
+                                attribute_name: node.attribute_name || nodeData.attribute_name,
+                                url: node.url || nodeData.url || '',
+                                data_type: node.data_type || nodeData.data_type,
+                            }
+                        })
+                        console.log('Transformed steps:', transformedSteps)
+                        setSteps(transformedSteps)
+                    } else {
+                        console.log('flow.nodes is empty or not an array')
                     }
                 } catch (error) {
                     console.error('Failed to fetch test flow:', error)
@@ -494,6 +555,10 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     // Assertion Actions
     const assertActions = [
         { id: 'assert', name: 'Assert', icon: CheckCircle2, color: 'bg-emerald-600', description: 'Assert condition' },
+        { id: 'assert_title', name: 'Assert Title', icon: FileText, color: 'bg-emerald-700', description: 'Assert page title' },
+        { id: 'assert_url', name: 'Assert URL', icon: Link, color: 'bg-emerald-600', description: 'Assert page URL' },
+        { id: 'assert_visible', name: 'Assert Visible', icon: Eye, color: 'bg-emerald-500', description: 'Assert element visible' },
+        { id: 'assert_text', name: 'Assert Text', icon: FileText, color: 'bg-emerald-500', description: 'Assert element text' },
         { id: 'assert_element_count', name: 'Assert Count', icon: Hash, color: 'bg-emerald-500', description: 'Assert element count' },
         { id: 'assert_not_visible', name: 'Assert Hidden', icon: EyeOff, color: 'bg-emerald-400', description: 'Assert element hidden' },
         { id: 'soft_assert', name: 'Soft Assert', icon: ShieldCheck, color: 'bg-lime-500', description: 'Assert without stopping' },
@@ -517,8 +582,8 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     ]
 
     const variableActions = [
-        { id: 'set-variable', name: 'Set Variable', icon: Variable, color: 'bg-teal-600', description: 'Create variable' },
-        { id: 'extract-variable', name: 'Extract', icon: Database, color: 'bg-cyan-600', description: 'Extract to variable' },
+        { id: 'set_variable', name: 'Set Variable', icon: Variable, color: 'bg-teal-600', description: 'Create variable' },
+        { id: 'extract_text', name: 'Extract', icon: Database, color: 'bg-cyan-600', description: 'Extract to variable' },
     ]
 
     const addStep = (actionType: string) => {
@@ -1043,9 +1108,19 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                     ) : (
                         <div className="space-y-3 max-w-3xl mx-auto">
                             {steps.map((step, index) => {
-                                const actionConfig = getActionConfig(step.action)
+                                // Get action type - steps should already have action field from transformation
+                                const actionType = step.action || 'unknown'
+                                const actionConfig = getActionConfig(actionType)
                                 const Icon = actionConfig?.icon || AlertCircle
                                 const isSelected = selectedStepId === step.id
+                                // Compute display name with fallback - show the raw action type if no config found
+                                const displayName = actionConfig?.name
+                                    || (actionType && actionType !== 'unknown'
+                                        ? actionType.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                                        : 'Unconfigured Step')
+
+                                // Debug logging for troubleshooting empty cards
+                                console.log(`Rendering step ${index}:`, { id: step.id, action: step.action, actionType, displayName, hasConfig: !!actionConfig })
 
                                 return (
                                     <div key={step.id} className="relative group">
@@ -1064,66 +1139,78 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                                     {index + 1}
                                                 </div>
 
-                                                <div className={`${actionConfig?.color} p-2 rounded-lg text-white shadow-sm`}>
+                                                <div className={`${actionConfig?.color || 'bg-gray-500'} p-2 rounded-lg text-white shadow-sm`}>
                                                     <Icon className="w-4 h-4" />
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-semibold text-gray-900">{actionConfig?.name}</span>
+                                                        <span className="text-sm font-semibold text-gray-900">
+                                                            {displayName}
+                                                        </span>
+                                                        {!actionConfig && (
+                                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">
+                                                                Needs config
+                                                            </Badge>
+                                                        )}
                                                         {step.description && (
                                                             <span className="text-xs text-gray-500 truncate">- {step.description}</span>
                                                         )}
                                                     </div>
-                                                    {(step.selector || step.value) && (
+                                                    {(step.selector || step.value || step.url) ? (
                                                         <div className="text-xs text-gray-500 mt-0.5 font-mono truncate">
+                                                            {step.url && <span className="text-purple-600">{step.url}</span>}
                                                             {step.selector && <span className="text-blue-600">{step.selector}</span>}
                                                             {step.selector && step.value && <span className="mx-1">→</span>}
                                                             {step.value && <span className="text-green-600">"{step.value}"</span>}
                                                         </div>
+                                                    ) : (
+                                                        <div className="text-xs text-gray-400 mt-0.5 italic">
+                                                            Click to configure
+                                                        </div>
                                                     )}
                                                 </div>
+                                            </div>
 
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            moveStep(step.id, 'up')
-                                                        }}
-                                                        disabled={index === 0}
-                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-30"
-                                                    >
-                                                        ↑
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            moveStep(step.id, 'down')
-                                                        }}
-                                                        disabled={index === steps.length - 1}
-                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-30"
-                                                    >
-                                                        ↓
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            duplicateStep(step.id)
-                                                        }}
-                                                        className="p-1.5 hover:bg-blue-50 rounded text-blue-600"
-                                                    >
-                                                        <Copy className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            deleteStep(step.id)
-                                                        }}
-                                                        className="p-1.5 hover:bg-red-50 rounded text-red-600"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        moveStep(step.id, 'up')
+                                                    }}
+                                                    disabled={index === 0}
+                                                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-30"
+                                                >
+                                                    ↑
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        moveStep(step.id, 'down')
+                                                    }}
+                                                    disabled={index === steps.length - 1}
+                                                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-30"
+                                                >
+                                                    ↓
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        duplicateStep(step.id)
+                                                    }}
+                                                    className="p-1.5 hover:bg-blue-50 rounded text-blue-600"
+                                                >
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        deleteStep(step.id)
+                                                    }}
+                                                    className="p-1.5 hover:bg-red-50 rounded text-red-600"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </Card>
                                     </div>
@@ -1155,14 +1242,16 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                 <label className="text-xs font-medium text-gray-700 mb-1.5 block">Action Type</label>
                                 <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
                                     {(() => {
-                                        const config = getActionConfig(selectedStep.action)
+                                        const actionValue = selectedStep.action || (selectedStep as any).actionType || (selectedStep as any).type || 'unknown'
+                                        const config = getActionConfig(actionValue)
                                         const Icon = config?.icon || AlertCircle
+                                        const displayName = config?.name || actionValue.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Action'
                                         return (
                                             <>
-                                                <div className={`${config?.color} p-1.5 rounded text-white`}>
+                                                <div className={`${config?.color || 'bg-gray-500'} p-1.5 rounded text-white`}>
                                                     <Icon className="w-3.5 h-3.5" />
                                                 </div>
-                                                <span className="text-sm font-medium">{config?.name}</span>
+                                                <span className="text-sm font-medium">{displayName}</span>
                                             </>
                                         )
                                     })()}
@@ -1608,7 +1697,6 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
 
                                     // --- Set Variable ---
                                     case 'set_variable':
-                                    case 'set-variable':
                                         return (
                                             <div className="space-y-3">
                                                 <div className="space-y-2">

@@ -81,7 +81,9 @@ export interface TestStep {
     level?: 'info' | 'warn' | 'error' | 'debug'
     // Assertions
     expected_count?: number
-    comparison?: 'equals' | 'greater' | 'less' | 'at_least' | 'at_most'
+    expected_title?: string
+    expected_url?: string
+    comparison?: 'equals' | 'contains' | 'starts_with' | 'ends_with' | 'regex' | 'greater' | 'less' | 'at_least' | 'at_most'
     // Data Files
     dataset_name?: string
     // Highlight

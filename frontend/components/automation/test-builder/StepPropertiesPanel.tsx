@@ -58,7 +58,7 @@ export function StepPropertiesPanel({ selectedStep, onUpdateStep }: StepProperti
             </div>
 
             {/* Target Element (for most actions) */}
-            {selectedStep.action !== 'navigate' && selectedStep.action !== 'wait' && (
+            {!['navigate', 'wait', 'assert_title', 'assert_url', 'set_variable', 'set_variable_ternary', 'execute_script', 'log', 'comment', 'screenshot', 'reload', 'go_back', 'go_forward', 'wait_network', 'wait_url', 'for-loop', 'while-loop', 'if_condition', 'try-catch', 'random-data', 'make_api_call', 'wait_for_response', 'wait_for_request', 'set_viewport', 'set_device', 'set_geolocation', 'measure_load_time', 'get_performance_metrics', 'read_csv', 'read_json', 'iterate_dataset', 'get_cookie', 'set_cookie', 'delete_cookie', 'clear_cookies', 'get_local_storage', 'set_local_storage', 'clear_local_storage', 'get_session_storage', 'set_session_storage', 'clear_session_storage', 'new_tab', 'switch_tab', 'close_tab', 'switch_to_frame', 'switch_to_main', 'accept_dialog', 'dismiss_dialog', 'wait_for_download', 'verify_download'].includes(selectedStep.action) && (
                 <div>
                     <label className="text-xs font-medium text-gray-700 mb-1.5 block">
                         Target Element <span className="text-red-500">*</span>
@@ -398,7 +398,6 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
 
         // Set Variable
         case 'set_variable':
-        case 'set-variable':
             return (
                 <div className="space-y-3">
                     <div className="space-y-2">
@@ -542,6 +541,69 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
                             </div>
                         </>
                     )}
+                </div>
+            )
+
+        // Assert Title
+        case 'assert_title':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Comparison Type</Label>
+                        <select
+                            className="w-full text-sm border rounded-md p-2"
+                            value={selectedStep.comparison || 'equals'}
+                            onChange={(e) => updateStep('comparison', e.target.value)}
+                        >
+                            <option value="equals">Equals</option>
+                            <option value="contains">Contains</option>
+                            <option value="starts_with">Starts With</option>
+                            <option value="ends_with">Ends With</option>
+                            <option value="regex">Regex Match</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Expected Title</Label>
+                        <Input
+                            value={selectedStep.expected_title || ''}
+                            onChange={(e) => updateStep('expected_title', e.target.value)}
+                            placeholder="Enter expected page title"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Tip: Use variables like ${`{variableName}`} in expected title
+                    </div>
+                </div>
+            )
+
+        // Assert URL
+        case 'assert_url':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Comparison Type</Label>
+                        <select
+                            className="w-full text-sm border rounded-md p-2"
+                            value={selectedStep.comparison || 'equals'}
+                            onChange={(e) => updateStep('comparison', e.target.value)}
+                        >
+                            <option value="equals">Equals</option>
+                            <option value="contains">Contains</option>
+                            <option value="starts_with">Starts With</option>
+                            <option value="regex">Regex Match</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Expected URL</Label>
+                        <Input
+                            value={selectedStep.expected_url || ''}
+                            onChange={(e) => updateStep('expected_url', e.target.value)}
+                            placeholder="https://example.com/page"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Tip: Use "contains" to match part of URL (e.g., "/dashboard")
+                    </div>
                 </div>
             )
 
@@ -803,6 +865,492 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
                             </div>
                         </div>
                     )}
+                </div>
+            )
+
+        // Storage: Get Cookie
+        case 'get_cookie':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Cookie Name</Label>
+                        <Input
+                            value={selectedStep.name || ''}
+                            onChange={(e) => updateStep('name', e.target.value)}
+                            placeholder="session_id"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store Value In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="cookieValue"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Storage: Set Cookie
+        case 'set_cookie':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Cookie Name</Label>
+                        <Input
+                            value={selectedStep.name || ''}
+                            onChange={(e) => updateStep('name', e.target.value)}
+                            placeholder="session_id"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Cookie Value</Label>
+                        <Input
+                            value={selectedStep.value || ''}
+                            onChange={(e) => updateStep('value', e.target.value)}
+                            placeholder="abc123"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Storage: Delete Cookie
+        case 'delete_cookie':
+            return (
+                <div className="space-y-2">
+                    <Label>Cookie Name</Label>
+                    <Input
+                        value={selectedStep.name || ''}
+                        onChange={(e) => updateStep('name', e.target.value)}
+                        placeholder="session_id"
+                    />
+                </div>
+            )
+
+        // Storage: Get Local Storage
+        case 'get_local_storage':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Key Name</Label>
+                        <Input
+                            value={selectedStep.key || ''}
+                            onChange={(e) => updateStep('key', e.target.value)}
+                            placeholder="user_token"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store Value In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="tokenValue"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Storage: Set Local Storage
+        case 'set_local_storage':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Key Name</Label>
+                        <Input
+                            value={selectedStep.key || ''}
+                            onChange={(e) => updateStep('key', e.target.value)}
+                            placeholder="user_token"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Value</Label>
+                        <Input
+                            value={selectedStep.value || ''}
+                            onChange={(e) => updateStep('value', e.target.value)}
+                            placeholder="xyz789 or ${variableName}"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Storage: Get Session Storage
+        case 'get_session_storage':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Key Name</Label>
+                        <Input
+                            value={selectedStep.key || ''}
+                            onChange={(e) => updateStep('key', e.target.value)}
+                            placeholder="temp_data"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store Value In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="sessionData"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Storage: Set Session Storage
+        case 'set_session_storage':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Key Name</Label>
+                        <Input
+                            value={selectedStep.key || ''}
+                            onChange={(e) => updateStep('key', e.target.value)}
+                            placeholder="temp_data"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Value</Label>
+                        <Input
+                            value={selectedStep.value || ''}
+                            onChange={(e) => updateStep('value', e.target.value)}
+                            placeholder="temporary value"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Data Files: Read CSV
+        case 'read_csv':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>File Path</Label>
+                        <Input
+                            value={selectedStep.file_path || ''}
+                            onChange={(e) => updateStep('file_path', e.target.value)}
+                            placeholder="/path/to/data.csv"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="csvData"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Data will be accessible as array: ${'{csvData}'}
+                    </div>
+                </div>
+            )
+
+        // Data Files: Read JSON
+        case 'read_json':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>File Path</Label>
+                        <Input
+                            value={selectedStep.file_path || ''}
+                            onChange={(e) => updateStep('file_path', e.target.value)}
+                            placeholder="/path/to/data.json"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="jsonData"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Access nested data: ${'{jsonData.users[0].name}'}
+                    </div>
+                </div>
+            )
+
+        // Control Flow: If Condition
+        case 'if_condition':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Condition (JavaScript)</Label>
+                        <Input
+                            value={selectedStep.condition || ''}
+                            onChange={(e) => updateStep('condition', e.target.value)}
+                            placeholder="document.querySelector('.error').textContent.length > 0"
+                            className="font-mono text-xs"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Nested steps will execute if condition is true
+                    </div>
+                </div>
+            )
+
+        // Control Flow: Iterate Dataset
+        case 'iterate_dataset':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Dataset Name</Label>
+                        <Input
+                            value={selectedStep.dataset_name || ''}
+                            onChange={(e) => updateStep('dataset_name', e.target.value)}
+                            placeholder="csvData (from read_csv/read_json)"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Loop Variable Name</Label>
+                        <Input
+                            value={selectedStep.loop_variable || 'row'}
+                            onChange={(e) => updateStep('loop_variable', e.target.value)}
+                            placeholder="row"
+                        />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Access row data: ${'{row_name}'}, ${'{row_email}'}
+                    </div>
+                </div>
+            )
+
+        // Control Flow: Try-Catch
+        case 'try-catch':
+        case 'try_catch':
+            return (
+                <div className="space-y-3">
+                    <div className="text-sm text-gray-600">
+                        Try-catch blocks allow graceful error handling. Add nested steps for try, catch, and finally blocks.
+                    </div>
+                    <div className="text-xs text-gray-500">
+                        💡 Error message available in catch block: ${'{error_message}'}
+                    </div>
+                </div>
+            )
+
+        // Assertions: Assert Element Count
+        case 'assert_element_count':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Comparison Type</Label>
+                        <select
+                            className="w-full text-sm border rounded-md p-2"
+                            value={selectedStep.comparison || 'equals'}
+                            onChange={(e) => updateStep('comparison', e.target.value)}
+                        >
+                            <option value="equals">Equals</option>
+                            <option value="greater">Greater Than</option>
+                            <option value="less">Less Than</option>
+                            <option value="at_least">At Least</option>
+                            <option value="at_most">At Most</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Expected Count</Label>
+                        <Input
+                            type="number"
+                            value={selectedStep.expected_count || 0}
+                            onChange={(e) => updateStep('expected_count', parseInt(e.target.value))}
+                            min={0}
+                        />
+                    </div>
+                </div>
+            )
+
+        // Assertions: Get Element Count
+        case 'get_element_count':
+            return (
+                <div className="space-y-2">
+                    <Label>Store Count In Variable</Label>
+                    <Input
+                        value={selectedStep.variable_name || ''}
+                        onChange={(e) => updateStep('variable_name', e.target.value)}
+                        placeholder="elementCount"
+                    />
+                </div>
+            )
+
+        // Data: Set Variable Ternary
+        case 'set_variable_ternary':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Variable Name</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="result"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Condition (JavaScript)</Label>
+                        <Input
+                            value={selectedStep.condition || ''}
+                            onChange={(e) => updateStep('condition', e.target.value)}
+                            placeholder="document.querySelector('.success') !== null"
+                            className="font-mono text-xs"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Value if True</Label>
+                        <Input
+                            value={selectedStep.true_value || ''}
+                            onChange={(e) => updateStep('true_value', e.target.value)}
+                            placeholder="Success"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Value if False</Label>
+                        <Input
+                            value={selectedStep.false_value || ''}
+                            onChange={(e) => updateStep('false_value', e.target.value)}
+                            placeholder="Failed"
+                        />
+                    </div>
+                </div>
+            )
+
+        // Performance: Measure Load Time
+        case 'measure_load_time':
+            return (
+                <div className="space-y-2">
+                    <Label>Store Load Time In Variable</Label>
+                    <Input
+                        value={selectedStep.variable_name || 'load_time'}
+                        onChange={(e) => updateStep('variable_name', e.target.value)}
+                        placeholder="load_time"
+                    />
+                    <div className="text-xs text-gray-500">
+                        💡 Also stores: ${'{load_time_ttfb}'}, ${'{load_time_details}'}
+                    </div>
+                </div>
+            )
+
+        // Performance: Get Performance Metrics
+        case 'get_performance_metrics':
+            return (
+                <div className="space-y-2">
+                    <Label>Store Metrics In Variable</Label>
+                    <Input
+                        value={selectedStep.variable_name || 'perf'}
+                        onChange={(e) => updateStep('variable_name', e.target.value)}
+                        placeholder="perf"
+                    />
+                    <div className="text-xs text-gray-500">
+                        💡 Captures Core Web Vitals (FCP, LCP, etc.)
+                    </div>
+                </div>
+            )
+
+        // Network: Wait for Response
+        case 'wait_for_response':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>URL Pattern</Label>
+                        <Input
+                            value={selectedStep.url || ''}
+                            onChange={(e) => updateStep('url', e.target.value)}
+                            placeholder="/api/users"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store Response In Variable (optional)</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="apiResponse"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Timeout (ms)</Label>
+                        <Input
+                            type="number"
+                            value={selectedStep.timeout || 30000}
+                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
+                        />
+                    </div>
+                </div>
+            )
+
+        // Network: Wait for Request
+        case 'wait_for_request':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>URL Pattern</Label>
+                        <Input
+                            value={selectedStep.url || ''}
+                            onChange={(e) => updateStep('url', e.target.value)}
+                            placeholder="/api/save"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Timeout (ms)</Label>
+                        <Input
+                            type="number"
+                            value={selectedStep.timeout || 30000}
+                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
+                        />
+                    </div>
+                </div>
+            )
+
+        // Downloads: Wait for Download
+        case 'wait_for_download':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Download Path</Label>
+                        <Input
+                            value={selectedStep.download_path || './downloads'}
+                            onChange={(e) => updateStep('download_path', e.target.value)}
+                            placeholder="./downloads"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Store File Path In Variable</Label>
+                        <Input
+                            value={selectedStep.variable_name || ''}
+                            onChange={(e) => updateStep('variable_name', e.target.value)}
+                            placeholder="downloadedFile"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Timeout (ms)</Label>
+                        <Input
+                            type="number"
+                            value={selectedStep.timeout || 30000}
+                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
+                        />
+                    </div>
+                </div>
+            )
+
+        // Downloads: Verify Download
+        case 'verify_download':
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>File Path</Label>
+                        <Input
+                            value={selectedStep.file_path || ''}
+                            onChange={(e) => updateStep('file_path', e.target.value)}
+                            placeholder="./downloads/report.pdf"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Minimum File Size (bytes)</Label>
+                        <Input
+                            type="number"
+                            value={selectedStep.min_size || 0}
+                            onChange={(e) => updateStep('min_size', parseInt(e.target.value))}
+                            min={0}
+                        />
+                    </div>
                 </div>
             )
 

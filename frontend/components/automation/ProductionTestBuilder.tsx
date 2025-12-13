@@ -116,8 +116,8 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
   ]
 
   const variableActions = [
-    { id: 'set-variable', name: 'Set Variable', icon: Variable, color: 'bg-teal-600', description: 'Create or update a variable' },
-    { id: 'extract-variable', name: 'Extract to Variable', icon: Database, color: 'bg-cyan-600', description: 'Extract text/value element to variable' },
+    { id: 'set_variable', name: 'Set Variable', icon: Variable, color: 'bg-teal-600', description: 'Create or update a variable' },
+    { id: 'extract_text', name: 'Extract to Variable', icon: Database, color: 'bg-cyan-600', description: 'Extract text/value element to variable' },
     { id: 'random-data', name: 'Generate Random Data', icon: Wand2, color: 'bg-green-600', description: 'Generate random test data (emai...' },
   ]
 

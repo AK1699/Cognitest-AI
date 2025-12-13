@@ -19,6 +19,132 @@ interface StepCardProps {
 }
 
 /**
+ * Helper function to generate step details display based on action type
+ */
+function getStepDetails(step: TestStep): React.ReactNode {
+    const formatSelector = (selector?: string) => selector ? (
+        <span className="text-blue-600">{selector}</span>
+    ) : null
+
+    const formatValue = (value?: string) => value ? (
+        <span className="text-green-600">"{value}"</span>
+    ) : null
+
+    const formatUrl = (url?: string) => url ? (
+        <span className="text-purple-600">{url}</span>
+    ) : null
+
+    switch (step.action) {
+        // Navigation actions
+        case 'navigate':
+        case 'new_tab':
+        case 'wait_url':
+            return step.url ? formatUrl(step.url) : formatUrl(step.value)
+
+        // Assert title
+        case 'assert_title':
+            return step.expected_title ? (
+                <>
+                    <span className="text-gray-400">Title {step.comparison || 'equals'} </span>
+                    <span className="text-green-600">"{step.expected_title}"</span>
+                </>
+            ) : null
+
+        // Assert URL
+        case 'assert_url':
+            return step.expected_url ? (
+                <>
+                    <span className="text-gray-400">URL {step.comparison || 'equals'} </span>
+                    <span className="text-purple-600">{step.expected_url}</span>
+                </>
+            ) : null
+
+        // Type/Input actions
+        case 'type':
+        case 'fill':
+            return (
+                <>
+                    {formatSelector(step.selector)}
+                    {step.selector && step.value && <span className="mx-1">→</span>}
+                    {formatValue(step.value)}
+                </>
+            )
+
+        // Click actions
+        case 'click':
+        case 'double_click':
+        case 'right_click':
+        case 'hover':
+        case 'focus':
+            return formatSelector(step.selector)
+
+        // Log action
+        case 'log':
+            return step.message ? (
+                <>
+                    <span className="text-gray-400">[{step.level || 'info'}] </span>
+                    <span className="text-amber-600">"{step.message}"</span>
+                </>
+            ) : null
+
+        // Wait action
+        case 'wait':
+            return step.amount ? (
+                <span className="text-gray-600">{step.amount}ms</span>
+            ) : null
+
+        // Screenshot action
+        case 'screenshot':
+            return step.path ? (
+                <span className="text-gray-600">{step.path}</span>
+            ) : <span className="text-gray-400">Auto-named</span>
+
+        // Set variable
+        case 'set_variable':
+            return (
+                <>
+                    <span className="text-orange-600">${'{' + (step.variable_name || 'var') + '}'}</span>
+                    {step.value && <span className="mx-1">=</span>}
+                    {formatValue(step.value)}
+                </>
+            )
+
+        // Execute script
+        case 'execute_script':
+            return step.script ? (
+                <span className="text-gray-600 truncate">{step.script.slice(0, 40)}{step.script.length > 40 ? '...' : ''}</span>
+            ) : null
+
+        // Assert with selector/value
+        case 'assert':
+        case 'soft_assert':
+            if (step.selector) {
+                return (
+                    <>
+                        {formatSelector(step.selector)}
+                        {step.value && <span className="mx-1">→</span>}
+                        {formatValue(step.value)}
+                    </>
+                )
+            }
+            return null
+
+        // Default case for actions with selector and/or value
+        default:
+            if (step.selector || step.value) {
+                return (
+                    <>
+                        {formatSelector(step.selector)}
+                        {step.selector && step.value && <span className="mx-1">→</span>}
+                        {formatValue(step.value)}
+                    </>
+                )
+            }
+            return null
+    }
+}
+
+/**
  * Individual step card component for the test builder
  */
 export function StepCard({
@@ -44,8 +170,8 @@ export function StepCard({
 
             <Card
                 className={`relative z-10 transition-all cursor-pointer border-2 ${isSelected
-                        ? 'border-blue-500 shadow-md ring-1 ring-blue-500/20'
-                        : 'border-transparent hover:border-gray-300'
+                    ? 'border-blue-500 shadow-md ring-1 ring-blue-500/20'
+                    : 'border-transparent hover:border-gray-300'
                     }`}
                 onClick={onSelect}
             >
@@ -72,15 +198,10 @@ export function StepCard({
                                 </span>
                             )}
                         </div>
-                        {(step.selector || step.value) && (
+                        {/* Display relevant details based on action type */}
+                        {getStepDetails(step) && (
                             <div className="text-xs text-gray-500 mt-0.5 font-mono truncate">
-                                {step.selector && (
-                                    <span className="text-blue-600">{step.selector}</span>
-                                )}
-                                {step.selector && step.value && <span className="mx-1">→</span>}
-                                {step.value && (
-                                    <span className="text-green-600">"{step.value}"</span>
-                                )}
+                                {getStepDetails(step)}
                             </div>
                         )}
                     </div>
