@@ -875,7 +875,7 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <span className="font-medium text-gray-900 truncate">
-                                                                        Step {step.step_order + 1}: {step.step_name || step.step_type}
+                                                                        Step {step.step_order + 1}: {(step.step_name || step.step_type).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                                                                     </span>
                                                                     {getStepStatusBadge(step.status)}
                                                                     {step.was_healed && (
@@ -886,7 +886,7 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                                     )}
                                                                 </div>
                                                                 <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                                    <span className="capitalize">{step.step_type}</span>
+                                                                    <span className="capitalize">{step.step_type.replace(/_/g, ' ')}</span>
                                                                     <span className="flex items-center gap-1">
                                                                         <Clock className="w-3 h-3" />
                                                                         {formatDuration(step.duration_ms)}
@@ -895,6 +895,44 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                                         <span className="text-orange-600">
                                                                             {step.retry_count} {step.retry_count === 1 ? 'retry' : 'retries'}
                                                                         </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Action-specific details */}
+                                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                                    {/* Navigate - show URL */}
+                                                                    {step.step_type === 'navigate' && step.action_details?.url && (
+                                                                        <code className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-mono border border-blue-200">
+                                                                            🔗 {step.action_details.url}
+                                                                        </code>
+                                                                    )}
+
+                                                                    {/* Assert Title - show expected title */}
+                                                                    {step.step_type === 'assert_title' && (
+                                                                        <code className="inline-flex items-center px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-md font-mono border border-emerald-200">
+                                                                            🏷️ "{step.action_details?.expected_title || step.action_details?.value || step.expected_result || ''}"
+                                                                        </code>
+                                                                    )}
+
+                                                                    {/* Assert URL - show expected URL */}
+                                                                    {step.step_type === 'assert_url' && (
+                                                                        <code className="inline-flex items-center px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-md font-mono border border-purple-200">
+                                                                            🔗 {step.action_details?.expected_url || step.action_details?.value || step.expected_result || ''}
+                                                                        </code>
+                                                                    )}
+
+                                                                    {/* Type/Fill - show value being typed */}
+                                                                    {(step.step_type === 'type' || step.step_type === 'fill') && step.action_details?.value && (
+                                                                        <code className="inline-flex items-center px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-md font-mono border border-amber-200">
+                                                                            ⌨️ "{step.action_details.value}"
+                                                                        </code>
+                                                                    )}
+
+                                                                    {/* Click/Type - show selector */}
+                                                                    {(step.step_type === 'click' || step.step_type === 'type' || step.step_type === 'fill' || step.step_type === 'hover') && step.selector_used && (
+                                                                        <code className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-mono border border-gray-200">
+                                                                            🎯 {typeof step.selector_used === 'string' ? step.selector_used : (step.selector_used.css || step.selector_used.xpath || '')}
+                                                                        </code>
                                                                     )}
                                                                 </div>
                                                             </div>

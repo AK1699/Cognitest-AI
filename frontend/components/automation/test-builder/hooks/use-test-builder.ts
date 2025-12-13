@@ -32,7 +32,7 @@ interface UseTestBuilderReturn {
     duplicateStep: (stepId: string) => void
     moveStep: (stepId: string, direction: 'up' | 'down') => void
     handleSaveFlow: () => Promise<void>
-    handleRunFlow: () => Promise<void>
+    handleRunFlow: (executionMode: 'headed' | 'headless') => Promise<void>
 }
 
 /**
@@ -140,21 +140,34 @@ export function useTestBuilder({ flowId, selectedEnvironment }: UseTestBuilderPr
         }
     }, [flowId, testName, steps, toast])
 
-    const handleRunFlow = useCallback(async () => {
-        if (!flowId) return
+    const handleRunFlow = useCallback(async (executionMode: 'headed' | 'headless') => {
+        if (!flowId) {
+            toast.error('Cannot run: Please save the flow first')
+            return
+        }
+
+        if (steps.length === 0) {
+            toast.error('Cannot run: Add at least one step before running')
+            return
+        }
 
         try {
             const variables = selectedEnvironment?.variables || {}
-            console.log('Running flow with variables:', variables)
+            console.log('Running flow with variables:', variables, 'mode:', executionMode)
+
+            toast.loading(`Running "${testName}" in ${executionMode} mode...`)
 
             await webAutomationApi.executeTestFlow(flowId, {
-                execution_mode: 'headed',
+                execution_mode: executionMode,
                 variables: variables
             })
-        } catch (error) {
+
+            toast.success('Test execution started! Check the Logs tab for results.')
+        } catch (error: any) {
             console.error('Failed to execute flow:', error)
+            toast.error(`Execution failed: ${error.message || 'Unknown error'}`)
         }
-    }, [flowId, selectedEnvironment])
+    }, [flowId, selectedEnvironment, steps, testName, toast])
 
     return {
         // State

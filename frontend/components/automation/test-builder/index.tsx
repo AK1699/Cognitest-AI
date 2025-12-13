@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
-import { Play, Save } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { webAutomationApi } from '@/lib/api/webAutomation'
 
@@ -50,7 +50,6 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
         duplicateStep,
         moveStep,
         handleSaveFlow,
-        handleRunFlow,
     } = useTestBuilder({ flowId, selectedEnvironment })
 
     // Recording functionality
@@ -259,10 +258,6 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                         <Button variant="outline" size="sm" onClick={handleSaveFlow} disabled={isSaving}>
                             <Save className="w-4 h-4 mr-2" />
                             {isSaving ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button size="sm" onClick={handleRunFlow}>
-                            <Play className="w-4 h-4 mr-2" />
-                            Run Flow
                         </Button>
                     </div>
                 </div>

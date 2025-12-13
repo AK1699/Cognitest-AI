@@ -1534,7 +1534,17 @@ async def websocket_browser_session(
                                 step_end = datetime.utcnow()
                                 step_duration = int((step_end - step_start).total_seconds() * 1000)
                                 
-                                # Create step result record
+                                # Create step result record with action details
+                                action_details = {
+                                    "url": step_data.get("url") or step.get("url"),
+                                    "value": step_data.get("value") or step.get("value"),
+                                    "expected_title": step_data.get("expected_title") or step.get("expected_title"),
+                                    "expected_url": step_data.get("expected_url") or step.get("expected_url"),
+                                    "comparison": step_data.get("comparison") or step.get("comparison"),
+                                }
+                                # Filter out None values
+                                action_details = {k: v for k, v in action_details.items() if v}
+                                
                                 step_result = StepResult(
                                     id=uuid.uuid4(),
                                     execution_run_id=execution_run.id,
@@ -1545,6 +1555,7 @@ async def websocket_browser_session(
                                     status=step_status,
                                     duration_ms=step_duration,
                                     selector_used=selector_used if selector_used else None,
+                                    action_details=action_details,
                                     error_message=step_error,
                                     was_healed=False
                                 )
