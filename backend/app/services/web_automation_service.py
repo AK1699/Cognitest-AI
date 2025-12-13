@@ -809,7 +809,10 @@ class WebAutomationExecutor:
                 raise Exception(f"Assertion failed: {assertion}")
         
         elif action_type == "assert_title":
-            expected_title = self.substitute_variables(action_data.get("expected_title", ""))
+            # Check expected_title first, fallback to value (frontend uses 'value' field)
+            expected_title = self.substitute_variables(
+                action_data.get("expected_title") or action_data.get("value", "")
+            )
             comparison = action_data.get("comparison", "equals")
             actual_title = await self.page.title()
             
@@ -830,7 +833,10 @@ class WebAutomationExecutor:
                 raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
         
         elif action_type == "assert_url":
-            expected_url = self.substitute_variables(action_data.get("expected_url", ""))
+            # Check expected_url first, fallback to value (frontend uses 'value' field)
+            expected_url = self.substitute_variables(
+                action_data.get("expected_url") or action_data.get("value", "")
+            )
             comparison = action_data.get("comparison", "equals")
             actual_url = self.page.url
             

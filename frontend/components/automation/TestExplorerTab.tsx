@@ -960,7 +960,7 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                                                     <div className="mt-2 p-2 bg-emerald-50 border border-emerald-100 rounded-md">
                                                                         <span className="text-[10px] font-medium text-emerald-700 uppercase">Expected Title</span>
                                                                         <p className="text-xs text-emerald-800 mt-0.5">
-                                                                            {stepData.data_type === 'title_contains' || action.includes('contains') ? 'contains' : 'equals'}: "{stepData.expected_title || stepData.value || stepData.expected || step.expected_title || step.value || step.expected || 'Register'}"
+                                                                            {stepData.comparison || (stepData.data_type === 'title_contains' || action.includes('contains') ? 'contains' : 'equals')}: "{stepData.expected_title || step.expected_title || stepData.value || step.value || stepData.expected || step.expected || ''}"
                                                                         </p>
                                                                     </div>
                                                                 )}
@@ -991,7 +991,7 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                                                 )}
 
                                                                 {/* Value (for type, assertions, etc.) */}
-                                                                {(stepData.value || step.value) && action !== 'navigate' && (
+                                                                {(stepData.value || step.value) && action !== 'navigate' && action !== 'assert_title' && action !== 'assert_url' && (
                                                                     <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
                                                                         <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
                                                                         <p className="text-xs text-green-800 mt-0.5">{stepData.value || step.value}</p>

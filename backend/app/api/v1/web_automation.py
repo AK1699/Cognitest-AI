@@ -1466,6 +1466,64 @@ async def websocket_browser_session(
                                             if not element_info:
                                                 raise Exception(f"Assertion failed: Element not found: {selector_used}")
                                     
+                                    # Assert Title - compare expected vs actual page title
+                                    elif step_type == "assert_title":
+                                        expected_title = (
+                                            step_data.get("expected_title") or 
+                                            step_data.get("value") or 
+                                            step.get("expected_title") or 
+                                            step.get("value") or 
+                                            ""
+                                        )
+                                        comparison = step_data.get("comparison") or step.get("comparison") or "equals"
+                                        
+                                        # Get actual page title from Playwright
+                                        actual_title = await session.page.title()
+                                        
+                                        passed = False
+                                        if comparison == "equals":
+                                            passed = actual_title == expected_title
+                                        elif comparison == "contains":
+                                            passed = expected_title in actual_title
+                                        elif comparison == "starts_with":
+                                            passed = actual_title.startswith(expected_title)
+                                        elif comparison == "ends_with":
+                                            passed = actual_title.endswith(expected_title)
+                                        elif comparison == "regex":
+                                            import re
+                                            passed = bool(re.search(expected_title, actual_title))
+                                        
+                                        if not passed:
+                                            raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+                                    
+                                    # Assert URL - compare expected vs actual page URL
+                                    elif step_type == "assert_url":
+                                        expected_url = (
+                                            step_data.get("expected_url") or 
+                                            step_data.get("value") or 
+                                            step.get("expected_url") or 
+                                            step.get("value") or 
+                                            ""
+                                        )
+                                        comparison = step_data.get("comparison") or step.get("comparison") or "equals"
+                                        
+                                        # Get actual page URL from Playwright
+                                        actual_url = session.page.url
+                                        
+                                        passed = False
+                                        if comparison == "equals":
+                                            passed = actual_url == expected_url
+                                        elif comparison == "contains":
+                                            passed = expected_url in actual_url
+                                        elif comparison == "starts_with":
+                                            passed = actual_url.startswith(expected_url)
+                                        elif comparison == "regex":
+                                            import re
+                                            passed = bool(re.search(expected_url, actual_url))
+                                        
+                                        if not passed:
+                                            raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+                                    
                                     passed_count += 1
                                     
                                 except Exception as step_err:

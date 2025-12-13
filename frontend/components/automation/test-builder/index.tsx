@@ -138,13 +138,17 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
                                 id: node.id || nodeData.id || `step-${Date.now()}-${Math.random()}`,
                                 action: extractedAction,
                                 selector: node.selector || nodeData.selector || '',
-                                value: node.value || nodeData.value || nodeData.expected_title || nodeData.expected_url || '',
+                                value: node.value || nodeData.value || '',
                                 timeout: node.timeout || nodeData.timeout || 5000,
                                 description: node.description || nodeData.description || nodeData.label || '',
                                 variable_name: node.variable_name || nodeData.variable_name,
                                 attribute_name: node.attribute_name || nodeData.attribute_name,
                                 url: node.url || nodeData.url || '',
                                 data_type: node.data_type || nodeData.data_type,
+                                // Assertion specific fields
+                                expected_title: node.expected_title || nodeData.expected_title || '',
+                                expected_url: node.expected_url || nodeData.expected_url || '',
+                                comparison: node.comparison || nodeData.comparison || 'equals',
                             }
                         })
                         console.log('Transformed steps:', transformedSteps)
