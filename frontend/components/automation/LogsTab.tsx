@@ -994,21 +994,29 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                                                             )}
 
                                                             {/* Action Details */}
-                                                            {step.action_details && Object.keys(step.action_details).length > 0 && (
-                                                                <div className="mt-4">
-                                                                    <div className="text-xs font-medium text-gray-500 mb-2">Action Details</div>
-                                                                    <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                                                                        {Object.entries(step.action_details).map(([key, value]) => (
-                                                                            <div key={key} className="flex justify-between text-sm">
-                                                                                <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
-                                                                                <span className="text-gray-900 font-mono text-xs">
-                                                                                    {typeof value === 'string' ? value : JSON.stringify(value)}
-                                                                                </span>
-                                                                            </div>
-                                                                        ))}
+                                                            {step.action_details && Object.keys(step.action_details).length > 0 && (() => {
+                                                                // Filter out 'value' field when we have actual_title/actual_url from execution
+                                                                const details = { ...step.action_details } as Record<string, any>
+                                                                if (details.actual_title || details.actual_url || details.expected_title || details.expected_url) {
+                                                                    delete details.value  // Remove old value field when proper actual fields exist
+                                                                }
+
+                                                                return Object.keys(details).length > 0 ? (
+                                                                    <div className="mt-4">
+                                                                        <div className="text-xs font-medium text-gray-500 mb-2">Action Details</div>
+                                                                        <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                                                                            {Object.entries(details).map(([key, value]) => (
+                                                                                <div key={key} className="flex justify-between text-sm">
+                                                                                    <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
+                                                                                    <span className="text-gray-900 font-mono text-xs">
+                                                                                        {typeof value === 'string' ? value : JSON.stringify(value)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            )}
+                                                                ) : null
+                                                            })()}
 
                                                             {/* Expected vs Actual Result */}
                                                             {(step.expected_result || step.actual_result) && (

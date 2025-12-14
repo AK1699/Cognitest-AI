@@ -1362,11 +1362,49 @@ async def websocket_browser_session(
                             # Track results
                             passed_count = 0
                             failed_count = 0
+                            skipped_count = 0
+                            stop_on_failure = True  # Stop executing after first failure
+                            has_failure = False
                             start_time = datetime.utcnow()
                             
                             # Execute each step
                             for i, step in enumerate(steps):
                                 step_start = datetime.utcnow()
+                                
+                                # Track actual values captured during execution
+                                actual_title = None
+                                actual_url = None
+                                
+                                # Skip remaining steps if a previous step failed
+                                if has_failure and stop_on_failure:
+                                    step_data = step.get("data", step)
+                                    step_type = step_data.get("action") or step_data.get("type") or step.get("action") or step.get("type") or "unknown"
+                                    step_id = step.get("id", str(uuid.uuid4()))
+                                    step_name = step_data.get("description") or step.get("description") or step_data.get("name") or step.get("name") or f"Step {i + 1}"
+                                    
+                                    # Record as skipped
+                                    step_result = StepResult(
+                                        id=uuid.uuid4(),
+                                        execution_run_id=execution_run.id,
+                                        step_id=step_id,
+                                        step_name=step_name,
+                                        step_type=step_type,
+                                        step_order=i,
+                                        status=StepStatus.SKIPPED,
+                                        duration_ms=0,
+                                        error_message="Skipped due to previous step failure",
+                                        was_healed=False
+                                    )
+                                    db.add(step_result)
+                                    skipped_count += 1
+                                    
+                                    await websocket.send_json({
+                                        "type": "step_completed",
+                                        "stepIndex": i,
+                                        "status": "skipped",
+                                        "error": "Skipped due to previous step failure"
+                                    })
+                                    continue
                                 
                                 # Step data can be at root level or nested in 'data'
                                 step_data = step.get("data", step)
@@ -1495,6 +1533,8 @@ async def websocket_browser_session(
                                         
                                         if not passed:
                                             raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+                                        
+                                        # Store actual title for action_details
                                     
                                     # Assert URL - compare expected vs actual page URL
                                     elif step_type == "assert_url":
@@ -1523,6 +1563,8 @@ async def websocket_browser_session(
                                         
                                         if not passed:
                                             raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+                                        
+                                        # Store actual URL for action_details
                                     
                                     passed_count += 1
                                     
@@ -1530,6 +1572,7 @@ async def websocket_browser_session(
                                     step_status = StepStatus.FAILED
                                     step_error = str(step_err)
                                     failed_count += 1
+                                    has_failure = True  # Mark that we've had a failure
                                 
                                 step_end = datetime.utcnow()
                                 step_duration = int((step_end - step_start).total_seconds() * 1000)
@@ -1541,6 +1584,8 @@ async def websocket_browser_session(
                                     "expected_title": step_data.get("expected_title") or step.get("expected_title"),
                                     "expected_url": step_data.get("expected_url") or step.get("expected_url"),
                                     "comparison": step_data.get("comparison") or step.get("comparison"),
+                                    "actual_title": actual_title,  # Add actual captured title
+                                    "actual_url": actual_url,  # Add actual captured URL
                                 }
                                 # Filter out None values
                                 action_details = {k: v for k, v in action_details.items() if v}

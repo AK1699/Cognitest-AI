@@ -6,12 +6,13 @@ import uuid
 import shutil
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.artifact import TestArtifact, ArtifactType
 from app.models.project import Project
@@ -37,27 +38,32 @@ async def list_artifacts(
     type: Optional[ArtifactType] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List all artifacts for a project"""
     # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Build query
-    query = db.query(TestArtifact).filter(TestArtifact.project_id == project_id)
+    # Build base query
+    base_query = select(TestArtifact).where(TestArtifact.project_id == project_id)
     
     if type:
-        query = query.filter(TestArtifact.type == type)
+        base_query = base_query.where(TestArtifact.type == type)
     
     # Get total count
-    total = query.count()
+    count_query = select(func.count()).select_from(base_query.subquery())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar() or 0
     
-    # Apply pagination
+    # Apply pagination and ordering
     offset = (page - 1) * page_size
-    artifacts = query.order_by(TestArtifact.created_at.desc()).offset(offset).limit(page_size).all()
+    artifacts_query = base_query.order_by(desc(TestArtifact.created_at)).offset(offset).limit(page_size)
+    artifacts_result = await db.execute(artifacts_query)
+    artifacts = artifacts_result.scalars().all()
     
     return ArtifactListResponse(
         items=artifacts,
@@ -72,14 +78,17 @@ async def list_artifacts(
 async def get_artifact(
     project_id: str,
     artifact_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get a single artifact by ID"""
-    artifact = db.query(TestArtifact).filter(
-        TestArtifact.id == artifact_id,
-        TestArtifact.project_id == project_id
-    ).first()
+    result = await db.execute(
+        select(TestArtifact).where(
+            TestArtifact.id == artifact_id,
+            TestArtifact.project_id == project_id
+        )
+    )
+    artifact = result.scalar_one_or_none()
     
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
@@ -87,7 +96,7 @@ async def get_artifact(
     return artifact
 
 
-@router.post("/{project_id}/artifacts", response_model=ArtifactResponse)
+@router.post("/{project_id}/artifacts", response_model=ArtifactResponse, status_code=status.HTTP_201_CREATED)
 async def upload_artifact(
     project_id: str,
     file: UploadFile = File(...),
@@ -96,12 +105,13 @@ async def upload_artifact(
     step_result_id: Optional[str] = Query(None),
     test_name: Optional[str] = Query(None),
     step_name: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Upload a new artifact"""
     # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -134,8 +144,8 @@ async def upload_artifact(
         )
         
         db.add(artifact)
-        db.commit()
-        db.refresh(artifact)
+        await db.commit()
+        await db.refresh(artifact)
         
         return artifact
         
@@ -150,14 +160,17 @@ async def upload_artifact(
 async def delete_artifact(
     project_id: str,
     artifact_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Delete an artifact"""
-    artifact = db.query(TestArtifact).filter(
-        TestArtifact.id == artifact_id,
-        TestArtifact.project_id == project_id
-    ).first()
+    result = await db.execute(
+        select(TestArtifact).where(
+            TestArtifact.id == artifact_id,
+            TestArtifact.project_id == project_id
+        )
+    )
+    artifact = result.scalar_one_or_none()
     
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
@@ -171,8 +184,8 @@ async def delete_artifact(
         print(f"Warning: Failed to delete file {artifact.file_path}: {e}")
     
     # Delete database record
-    db.delete(artifact)
-    db.commit()
+    await db.delete(artifact)
+    await db.commit()
     
     return {"message": "Artifact deleted successfully"}
 
@@ -181,14 +194,17 @@ async def delete_artifact(
 async def download_artifact(
     project_id: str,
     artifact_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Download an artifact file"""
-    artifact = db.query(TestArtifact).filter(
-        TestArtifact.id == artifact_id,
-        TestArtifact.project_id == project_id
-    ).first()
+    result = await db.execute(
+        select(TestArtifact).where(
+            TestArtifact.id == artifact_id,
+            TestArtifact.project_id == project_id
+        )
+    )
+    artifact = result.scalar_one_or_none()
     
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
