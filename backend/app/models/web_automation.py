@@ -140,6 +140,9 @@ class ExecutionRun(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     test_flow_id = Column(UUID(as_uuid=True), ForeignKey("test_flows.id", ondelete="CASCADE"), nullable=False)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    
+    # Human-friendly ID for display (EXE-XXXXX)
+    human_id = Column(String(12), unique=True, nullable=True)
 
     # Execution Configuration
     browser_type = Column(SQLEnum(BrowserType, values_callable=lambda x: [e.value for e in x]), nullable=False)

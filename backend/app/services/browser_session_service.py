@@ -110,13 +110,19 @@ class BrowserSession:
         on_update: Callable[[dict], Any],
         browser_type: str = "chromium",
         device: str = "desktop_chrome",
-        headless: bool = False
+        headless: bool = False,
+        record_video: bool = False,
+        video_dir: str = None,
+        project_id: str = None
     ):
         self.session_id = session_id
         self.on_update = on_update
         self.browser_type = browser_type
         self.device = device
         self.headless = headless
+        self.record_video = record_video
+        self.video_dir = video_dir
+        self.project_id = project_id
         
         self.playwright = None
         self.browser: Optional[Browser] = None
@@ -128,6 +134,9 @@ class BrowserSession:
         self.is_streaming = False
         self._screenshot_task: Optional[asyncio.Task] = None
         self._pending_requests: Dict[str, NetworkRequest] = {}
+        
+        # Video recording
+        self.video_path: Optional[str] = None
         
         # Captured data
         self.console_logs: List[ConsoleMessage] = []
@@ -161,6 +170,13 @@ class BrowserSession:
                 context_options["user_agent"] = device_config["user_agent"]
             if device_config.get("device_scale_factor"):
                 context_options["device_scale_factor"] = device_config["device_scale_factor"]
+            
+            # Add video recording if enabled
+            if self.record_video and self.video_dir:
+                import os
+                os.makedirs(self.video_dir, exist_ok=True)
+                context_options["record_video_dir"] = self.video_dir
+                context_options["record_video_size"] = {"width": 1280, "height": 720}
             
             self.context = await self.browser.new_context(**context_options)
             self.page = await self.context.new_page()
@@ -576,6 +592,15 @@ class BrowserSession:
         self.status = SessionStatus.STOPPED
         
         try:
+            # Get video path before closing context
+            if self.record_video and self.page:
+                try:
+                    video = self.page.video
+                    if video:
+                        self.video_path = await video.path()
+                except Exception as e:
+                    print(f"Failed to get video path: {e}")
+            
             if self.context:
                 await self.context.close()
             if self.browser:
@@ -587,7 +612,8 @@ class BrowserSession:
         
         await self._emit_update({
             "type": "session_stopped",
-            "session_id": self.session_id
+            "session_id": self.session_id,
+            "video_path": self.video_path
         })
     
     async def _emit_update(self, data: dict):
@@ -627,7 +653,10 @@ class BrowserSessionManager:
         browser_type: str = "chromium",
         device: str = "desktop_chrome",
         initial_url: str = "about:blank",
-        headless: bool = False
+        headless: bool = False,
+        record_video: bool = False,
+        video_dir: str = None,
+        project_id: str = None
     ) -> Optional[BrowserSession]:
         """Create and launch a new browser session"""
         
@@ -640,7 +669,10 @@ class BrowserSessionManager:
             on_update=on_update,
             browser_type=browser_type,
             device=device,
-            headless=headless
+            headless=headless,
+            record_video=record_video,
+            video_dir=video_dir,
+            project_id=project_id
         )
         
         success = await session.launch(initial_url)

@@ -1,5 +1,12 @@
 import api from './index'
 
+export interface ExecutionSettings {
+    videoRecording: boolean
+    screenshotOnFailure: boolean
+    screenshotEachStep: boolean
+    aiSelfHeal: boolean
+}
+
 export interface ProjectSettings {
     environments?: {
         id: string
@@ -7,6 +14,7 @@ export interface ProjectSettings {
         baseUrl: string
         variables: Record<string, string>
     }[]
+    executionSettings?: ExecutionSettings
     [key: string]: any
 }
 

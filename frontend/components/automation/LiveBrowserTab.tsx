@@ -77,6 +77,12 @@ interface LiveBrowserTabProps {
     onStepClick?: (stepId: string) => void
     testToRun?: { flowId: string; testName: string } | null
     onTestComplete?: () => void
+    executionSettings?: {
+        videoRecording: boolean
+        screenshotOnFailure: boolean
+        screenshotEachStep: boolean
+        aiSelfHeal: boolean
+    }
 }
 
 export default function LiveBrowserTab({
@@ -86,7 +92,8 @@ export default function LiveBrowserTab({
     steps = [],
     onStepClick,
     testToRun,
-    onTestComplete
+    onTestComplete,
+    executionSettings
 }: LiveBrowserTabProps) {
     // Session state
     const [sessionId, setSessionId] = useState<string | null>(null)
@@ -283,7 +290,13 @@ export default function LiveBrowserTab({
                     console.log('Session started, executing pending test:', pendingTestFlowId)
                     wsRef.current.send(JSON.stringify({
                         action: 'execute_test',
-                        flowId: pendingTestFlowId
+                        flowId: pendingTestFlowId,
+                        executionSettings: executionSettings || {
+                            videoRecording: true,
+                            screenshotOnFailure: true,
+                            screenshotEachStep: false,
+                            aiSelfHeal: true
+                        }
                     }))
                     setPendingTestFlowId(null)
                 }
@@ -414,7 +427,9 @@ export default function LiveBrowserTab({
                 browserType: selectedBrowser,
                 device: selectedDevice,
                 url: urlInput || 'about:blank',
-                headless: !headedMode // headed mode = not headless
+                headless: !headedMode, // headed mode = not headless
+                projectId: projectId,
+                recordVideo: executionSettings?.videoRecording ?? false
             }))
         }
 

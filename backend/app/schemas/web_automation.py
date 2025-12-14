@@ -152,7 +152,7 @@ class StepResultResponse(BaseModel):
     step_type: str
     step_order: int
     status: StepStatus
-    selector_used: Optional[Dict[str, Any]]
+    selector_used: Optional[str]
     action_details: Optional[Dict[str, Any]] = {}
     actual_result: Optional[str]
     expected_result: Optional[str]

@@ -8,12 +8,14 @@ from typing import List, Optional
 from uuid import UUID
 import asyncio
 import json
+import os
+from pathlib import Path
 
 from app.core.deps import get_db, get_current_user
 from app.models.user import User
 from app.models.web_automation import (
     TestFlow, ExecutionRun, StepResult, HealingEvent, LocatorAlternative,
-    BrowserType, ExecutionMode, TestFlowStatus, HealingStrategy
+    BrowserType, ExecutionMode, TestFlowStatus, HealingStrategy, HealingType
 )
 from app.models.project import Project
 from app.schemas.web_automation import (
@@ -26,7 +28,7 @@ from app.schemas.web_automation import (
     LocatorAlternativeCreate, LocatorAlternativeResponse,
     LiveUpdateMessage
 )
-from app.services.web_automation_service import WebAutomationExecutor
+from app.services.web_automation_service import WebAutomationExecutor, SelfHealingLocator
 from app.services.gemini_service import GeminiService
 from app.services.browser_session_service import browser_session_manager, DevicePreset
 
@@ -727,18 +729,40 @@ async def get_self_heal_dashboard(
         exec_run = next((e for e in recent_executions if e.id == step.execution_run_id), None)
         flow = next((f for f in test_flows if exec_run and f.id == exec_run.test_flow_id), None)
         
+        # Check if this step has a corresponding healing event with suggestions
+        healing_event = next((h for h in healing_events if h.step_result_id == step.id), None)
+        
+        # selector_used is now a string, not a dict
+        old_locator = step.selector_used or ""
+        
+        # Build suggestions from healing events or AI analysis
+        suggestions = []
+        if healing_event and healing_event.healed_value:
+            suggestions.append({
+                "id": f"s{str(step.id)[:8]}",
+                "value": healing_event.healed_value,
+                "confidence": int((healing_event.confidence_score or 0.95) * 100),
+                "type": healing_event.strategy.value.title() if healing_event.strategy else "AI Match"
+            })
+        else:
+            # Placeholder for when no healing event exists yet
+            suggestions.append({
+                "id": f"s{str(step.id)[:8]}",
+                "value": "Run with AI Self-Heal enabled to get suggestions",
+                "confidence": 0,
+                "type": "Pending"
+            })
+        
         issue = {
             "id": str(step.id),
             "type": "Locator Changed" if "not found" in (step.error_message or "").lower() else "Assertion Failed",
             "test": flow.name if flow else "Unknown Test",
             "step": step.step_name or step.step_type,
             "status": "LOCATOR_NOT_FOUND" if "not found" in (step.error_message or "").lower() else "ASSERTION_FAILED",
-            "confidence": 95,  # Placeholder - would come from AI analysis
-            "old_locator": step.selector_used.get("css", "") if step.selector_used else "",
+            "confidence": int((healing_event.confidence_score or 0.95) * 100) if healing_event else 0,
+            "old_locator": old_locator,
             "error_message": step.error_message,
-            "suggestions": [
-                {"id": f"s{step.id[:8]}", "value": "AI suggestion pending", "confidence": 95, "type": "AI Match"}
-            ]
+            "suggestions": suggestions
         }
         detected_issues.append(issue)
     
@@ -1189,6 +1213,13 @@ async def websocket_browser_session(
                     browser_type = message.get("browserType", "chromium")
                     device = message.get("device", "desktop_chrome")
                     url = message.get("url", "about:blank")
+                    project_id = message.get("projectId")
+                    
+                    # Video recording settings
+                    record_video = message.get("recordVideo", False)
+                    video_dir = None
+                    if record_video and project_id:
+                        video_dir = f"./artifacts/{project_id}/videos"
                     
                     await websocket.send_json({
                         "type": "launching",
@@ -1205,7 +1236,10 @@ async def websocket_browser_session(
                             browser_type=browser_type,
                             device=device,
                             initial_url=url,
-                            headless=headless
+                            headless=headless,
+                            record_video=record_video,
+                            video_dir=video_dir,
+                            project_id=project_id
                         )
                         
                         if not session:
@@ -1331,10 +1365,16 @@ async def websocket_browser_session(
                             
                             # Create execution run record
                             steps = test_flow.nodes or []
+                            
+                            # Generate human-friendly execution ID (EXE-XXXXX)
+                            import random
+                            exec_human_id = f"EXE-{random.randint(10000, 99999)}"
+                            
                             execution_run = ExecutionRun(
                                 id=uuid.uuid4(),
                                 test_flow_id=test_flow.id,
                                 project_id=test_flow.project_id,
+                                human_id=exec_human_id,
                                 browser_type=BrowserType.CHROMIUM,
                                 execution_mode=ExecutionMode.HEADED,
                                 status=ExecutionRunStatus.RUNNING,
@@ -1359,10 +1399,18 @@ async def websocket_browser_session(
                                 "totalSteps": len(steps)
                             })
                             
+                            # Extract execution settings from message
+                            exec_settings = message.get("executionSettings", {})
+                            healing_enabled = exec_settings.get("aiSelfHeal", True)
+                            screenshot_on_failure = exec_settings.get("screenshotOnFailure", True)
+                            screenshot_each_step = exec_settings.get("screenshotEachStep", False)
+                            video_recording = exec_settings.get("videoRecording", True)
+                            
                             # Track results
                             passed_count = 0
                             failed_count = 0
                             skipped_count = 0
+                            healed_count = 0
                             stop_on_failure = True  # Stop executing after first failure
                             has_failure = False
                             start_time = datetime.utcnow()
@@ -1480,6 +1528,14 @@ async def websocket_browser_session(
                                 
                                 step_status = StepStatus.PASSED
                                 step_error = None
+                                was_healed = False
+                                healing_info = None
+                                
+                                # Get alternatives for self-healing
+                                alternatives = step_data.get("alternatives") or step.get("alternatives") or []
+                                
+                                # Initialize AI service for healing if enabled
+                                ai_service = GeminiService() if healing_enabled else None
                                 
                                 try:
                                     # Execute step based on type
@@ -1487,13 +1543,49 @@ async def websocket_browser_session(
                                         url = step_data.get("url") or step.get("url") or ""
                                         if url:
                                             await session.navigate(url)
+                                    
                                     elif step_type == "click":
                                         if selector_used:
-                                            await session.click_element(selector_used)
+                                            try:
+                                                await session.click_element(selector_used)
+                                            except Exception as click_err:
+                                                # Try self-healing if enabled
+                                                if healing_enabled and ai_service:
+                                                    healer = SelfHealingLocator(selector_used, alternatives, ai_service)
+                                                    try:
+                                                        locator, healing_info = await healer.find_element(session.page, step_id, step_type)
+                                                        if locator and healing_info:
+                                                            await locator.click()
+                                                            was_healed = True
+                                                            selector_used = healing_info.get("healed", selector_used)
+                                                        else:
+                                                            raise click_err
+                                                    except Exception:
+                                                        raise click_err
+                                                else:
+                                                    raise click_err
+                                    
                                     elif step_type == "type" or step_type == "fill":
                                         value = step_data.get("value") or step.get("value") or ""
                                         if selector_used:
-                                            await session.type_into_element(selector_used, value)
+                                            try:
+                                                await session.type_into_element(selector_used, value)
+                                            except Exception as type_err:
+                                                # Try self-healing if enabled
+                                                if healing_enabled and ai_service:
+                                                    healer = SelfHealingLocator(selector_used, alternatives, ai_service)
+                                                    try:
+                                                        locator, healing_info = await healer.find_element(session.page, step_id, step_type)
+                                                        if locator and healing_info:
+                                                            await locator.fill(value)
+                                                            was_healed = True
+                                                            selector_used = healing_info.get("healed", selector_used)
+                                                        else:
+                                                            raise type_err
+                                                    except Exception:
+                                                        raise type_err
+                                                else:
+                                                    raise type_err
                                     elif step_type == "wait":
                                         timeout = step_data.get("timeout") or step.get("timeout") or 1000
                                         import asyncio
@@ -1532,6 +1624,46 @@ async def websocket_browser_session(
                                             passed = bool(re.search(expected_title, actual_title))
                                         
                                         if not passed:
+                                            # Try assertion healing if enabled
+                                            if healing_enabled and ai_service:
+                                                try:
+                                                    # Ask AI to analyze if actual title is a valid update
+                                                    heal_prompt = f"""Analyze this page title assertion failure:
+
+Expected Title: "{expected_title}"
+Actual Title: "{actual_title}"
+Page URL: {session.page.url}
+Comparison Type: {comparison}
+
+Determine if the actual title is a VALID page title that represents the same or similar page content.
+
+Rules for accepting:
+- Minor text changes (e.g., "Login" vs "Sign In") are acceptable
+- Same semantic meaning is acceptable
+- Completely unrelated titles should NOT be accepted (e.g., "Login" vs "Error 404")
+
+Respond with JSON only:
+{{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
+                                                    
+                                                    ai_response = await ai_service.generate_content(heal_prompt)
+                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                    
+                                                    if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
+                                                        # Accept the actual title - mark as healed
+                                                        was_healed = True
+                                                        healing_info = {
+                                                            "type": HealingType.ASSERTION.value,
+                                                            "strategy": HealingStrategy.AI.value,
+                                                            "original": expected_title,
+                                                            "healed": actual_title,
+                                                            "ai_reasoning": heal_result.get("reasoning", ""),
+                                                            "confidence_score": heal_result.get("confidence", 0.8)
+                                                        }
+                                                        passed = True  # Consider it passed after healing
+                                                except Exception as heal_err:
+                                                    print(f"Title assertion healing failed: {heal_err}")
+                                        
+                                        if not passed:
                                             raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
                                         
                                         # Store actual title for action_details
@@ -1562,6 +1694,47 @@ async def websocket_browser_session(
                                             passed = bool(re.search(expected_url, actual_url))
                                         
                                         if not passed:
+                                            # Try assertion healing if enabled
+                                            if healing_enabled and ai_service:
+                                                try:
+                                                    # Ask AI to analyze if actual URL is a valid update
+                                                    heal_prompt = f"""Analyze this page URL assertion failure:
+
+Expected URL: "{expected_url}"
+Actual URL: "{actual_url}"
+Comparison Type: {comparison}
+
+Determine if the actual URL represents the SAME or equivalent page as the expected URL.
+
+Rules for accepting:
+- Query parameter differences are acceptable if core path is same
+- Trailing slashes differences are acceptable
+- Same domain with minor path variations may be acceptable
+- Completely different domains should NOT be accepted
+- Error pages (404, 500, etc.) should NOT be accepted
+
+Respond with JSON only:
+{{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
+                                                    
+                                                    ai_response = await ai_service.generate_content(heal_prompt)
+                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                    
+                                                    if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
+                                                        # Accept the actual URL - mark as healed
+                                                        was_healed = True
+                                                        healing_info = {
+                                                            "type": HealingType.ASSERTION.value,
+                                                            "strategy": HealingStrategy.AI.value,
+                                                            "original": expected_url,
+                                                            "healed": actual_url,
+                                                            "ai_reasoning": heal_result.get("reasoning", ""),
+                                                            "confidence_score": heal_result.get("confidence", 0.8)
+                                                        }
+                                                        passed = True  # Consider it passed after healing
+                                                except Exception as heal_err:
+                                                    print(f"URL assertion healing failed: {heal_err}")
+                                        
+                                        if not passed:
                                             raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
                                         
                                         # Store actual URL for action_details
@@ -1576,6 +1749,10 @@ async def websocket_browser_session(
                                 
                                 step_end = datetime.utcnow()
                                 step_duration = int((step_end - step_start).total_seconds() * 1000)
+                                
+                                # Update status if step was healed
+                                if was_healed and step_status == StepStatus.PASSED:
+                                    step_status = StepStatus.HEALED
                                 
                                 # Create step result record with action details
                                 action_details = {
@@ -1602,15 +1779,82 @@ async def websocket_browser_session(
                                     selector_used=selector_used if selector_used else None,
                                     action_details=action_details,
                                     error_message=step_error,
-                                    was_healed=False
+                                    was_healed=was_healed
                                 )
                                 db.add(step_result)
+                                
+                                # Capture screenshot based on execution settings
+                                screenshot_url = None
+                                # Check if this is an assertion step (skip for screenshot_each_step)
+                                is_assertion_step = step_type.startswith('assert')
+                                should_capture = (
+                                    (screenshot_on_failure and step_status == StepStatus.FAILED) or
+                                    (screenshot_each_step and not is_assertion_step)
+                                )
+                                if should_capture and session.page:
+                                    try:
+                                        from app.models.artifact import TestArtifact, ArtifactType
+                                        
+                                        # Create screenshots directory
+                                        screenshots_dir = Path(f"./artifacts/{test_flow.project_id}/screenshots")
+                                        screenshots_dir.mkdir(parents=True, exist_ok=True)
+                                        
+                                        # Generate artifact ID upfront for proper URL
+                                        artifact_id = uuid.uuid4()
+                                        
+                                        # Capture screenshot
+                                        screenshot_filename = f"{execution_run.human_id}_{i}_{step_type}.png"
+                                        screenshot_path = screenshots_dir / screenshot_filename
+                                        await session.page.screenshot(path=str(screenshot_path))
+                                        
+                                        # Create artifact record with proper URL using artifact ID
+                                        artifact = TestArtifact(
+                                            id=artifact_id,
+                                            project_id=str(test_flow.project_id),
+                                            execution_run_id=str(execution_run.id),
+                                            step_result_id=str(step_result.id),
+                                            name=screenshot_filename,
+                                            type=ArtifactType.SCREENSHOT,
+                                            file_path=str(screenshot_path),
+                                            file_url=f"/api/v1/projects/{test_flow.project_id}/artifacts/{artifact_id}/download",
+                                            size_bytes=os.path.getsize(screenshot_path),
+                                            test_name=test_flow.name,
+                                            step_name=step_name
+                                        )
+                                        db.add(artifact)
+                                        screenshot_url = artifact.file_url
+                                        
+                                        # Update step result with screenshot URL
+                                        step_result.screenshot_url = screenshot_url
+                                    except Exception as ss_err:
+                                        print(f"Failed to capture screenshot: {ss_err}")
+                                
+                                # Record HealingEvent if healing occurred
+                                if was_healed and healing_info:
+                                    healing_event = HealingEvent(
+                                        id=uuid.uuid4(),
+                                        execution_run_id=execution_run.id,
+                                        step_result_id=step_result.id,
+                                        healing_type=HealingType(healing_info.get("type", "locator")),
+                                        strategy=HealingStrategy(healing_info.get("strategy", "ai")),
+                                        original_value=healing_info.get("original", ""),
+                                        healed_value=healing_info.get("healed", ""),
+                                        step_id=step_id,
+                                        step_type=step_type,
+                                        success=True,
+                                        confidence_score=healing_info.get("confidence_score", 0.8),
+                                        ai_reasoning=healing_info.get("ai_reasoning", ""),
+                                        page_url=session.page.url
+                                    )
+                                    db.add(healing_event)
                                 
                                 await websocket.send_json({
                                     "type": "step_completed",
                                     "stepIndex": i,
                                     "status": step_status.value,
-                                    "error": step_error
+                                    "error": step_error,
+                                    "healed": was_healed,
+                                    "healing_info": healing_info if was_healed else None
                                 })
                             
                             # Update execution run with final results
@@ -1624,6 +1868,37 @@ async def websocket_browser_session(
                             execution_run.ended_at = end_time
                             
                             await db.commit()
+                            
+                            # Save video artifact if recording was enabled
+                            if video_recording and session and session.record_video:
+                                try:
+                                    # Close page to finalize video
+                                    if session.page:
+                                        video = session.page.video
+                                        if video:
+                                            video_path = await video.path()
+                                            if video_path and os.path.exists(video_path):
+                                                from app.models.artifact import TestArtifact, ArtifactType
+                                                
+                                                video_id = uuid.uuid4()
+                                                video_filename = f"{execution_run.human_id}_recording.webm"
+                                                
+                                                video_artifact = TestArtifact(
+                                                    id=video_id,
+                                                    project_id=str(test_flow.project_id),
+                                                    execution_run_id=str(execution_run.id),
+                                                    name=video_filename,
+                                                    type=ArtifactType.VIDEO,
+                                                    file_path=str(video_path),
+                                                    file_url=f"/api/v1/projects/{test_flow.project_id}/artifacts/{video_id}/download",
+                                                    size_bytes=os.path.getsize(video_path),
+                                                    duration_ms=total_duration,
+                                                    test_name=test_flow.name
+                                                )
+                                                db.add(video_artifact)
+                                                await db.commit()
+                                except Exception as video_err:
+                                    print(f"Failed to save video artifact: {video_err}")
                             
                             await websocket.send_json({
                                 "type": "test_execution_completed",

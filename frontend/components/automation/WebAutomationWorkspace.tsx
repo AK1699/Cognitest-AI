@@ -13,7 +13,10 @@ import {
   Settings,
   Plus,
   Check,
-  FolderOpen
+  FolderOpen,
+  Video,
+  Camera,
+  Wand2
 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import {
@@ -24,6 +27,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { projectsApi, ProjectSettings } from '@/lib/api/projects'
 import { getSelectedEnvironment, setSelectedEnvironment } from '@/lib/api/session'
@@ -54,9 +64,17 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
   const [showEnvManager, setShowEnvManager] = useState(false)
   const [loadingVars, setLoadingVars] = useState(false)
 
+  // Execution Settings State
+  const [executionSettings, setExecutionSettings] = useState({
+    videoRecording: true,
+    screenshotOnFailure: true,
+    screenshotEachStep: false,
+    aiSelfHeal: true
+  })
+
   const selectedEnvironment = environments.find(e => e.id === selectedEnvironmentId)
 
-  // Fetch Environments
+  // Fetch Environments and Execution Settings
   useEffect(() => {
     const fetchProjectSettings = async () => {
       if (!projectId) return
@@ -73,6 +91,13 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
             setSelectedEnvironmentId(project.settings.environments[0].id)
           }
         }
+        // Load execution settings
+        if (project.settings?.executionSettings) {
+          setExecutionSettings(prev => ({
+            ...prev,
+            ...project.settings.executionSettings
+          }))
+        }
       } catch (error) {
         console.error('Failed to fetch project settings:', error)
       } finally {
@@ -88,6 +113,23 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
       setSelectedEnvironment(projectId, selectedEnvironmentId)
     }
   }, [selectedEnvironmentId, projectId])
+
+  // Save execution settings to project
+  const saveExecutionSettings = async (newSettings: typeof executionSettings) => {
+    setExecutionSettings(newSettings)
+    if (!projectId) return
+
+    try {
+      const project = await projectsApi.getProject(projectId)
+      const updatedSettings: ProjectSettings = {
+        ...project.settings,
+        executionSettings: newSettings
+      }
+      await projectsApi.updateProject(projectId, { settings: updatedSettings })
+    } catch (error) {
+      console.error('Failed to save execution settings:', error)
+    }
+  }
 
   const handleSaveEnvironments = async (newEnvironments: Environment[]) => {
     setEnvironments(newEnvironments)
@@ -132,7 +174,7 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
         // @ts-ignore - We'll update TestBuilderTab types in the next step
         return <TestBuilderTab selectedEnvironment={selectedEnvironment} flowId={selectedFlowId} projectId={projectId} />
       case 'browser':
-        return <LiveBrowserTab projectId={projectId} testToRun={testToRun} onTestComplete={() => setTestToRun(null)} />
+        return <LiveBrowserTab projectId={projectId} testToRun={testToRun} onTestComplete={() => setTestToRun(null)} executionSettings={executionSettings} />
       case 'logs':
         return <LogsTab projectId={projectId} />
       case 'artifacts':
@@ -243,7 +285,101 @@ export default function WebAutomationWorkspace({ projectId, flowId }: WebAutomat
           </div>
 
           {/* Environment Selector */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Settings Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-2 border-gray-200 hover:bg-gray-50"
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Execution Settings</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {/* Video Recording */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Video className="w-4 h-4 text-gray-500" />
+                        <Label htmlFor="video-recording" className="text-sm font-medium cursor-pointer">
+                          Video Recording
+                        </Label>
+                      </div>
+                      <Switch
+                        id="video-recording"
+                        checked={executionSettings.videoRecording}
+                        onCheckedChange={(checked) =>
+                          saveExecutionSettings({ ...executionSettings, videoRecording: checked })
+                        }
+                      />
+                    </div>
+
+                    {/* Screenshot on Failure */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-gray-500" />
+                        <Label htmlFor="screenshot-failure" className="text-sm font-medium cursor-pointer">
+                          Screenshot on Failure
+                        </Label>
+                      </div>
+                      <Switch
+                        id="screenshot-failure"
+                        checked={executionSettings.screenshotOnFailure}
+                        onCheckedChange={(checked) =>
+                          saveExecutionSettings({ ...executionSettings, screenshotOnFailure: checked })
+                        }
+                      />
+                    </div>
+
+                    {/* Screenshot Each Step */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-gray-500" />
+                        <Label htmlFor="screenshot-step" className="text-sm font-medium cursor-pointer">
+                          Screenshot Each Step
+                        </Label>
+                      </div>
+                      <Switch
+                        id="screenshot-step"
+                        checked={executionSettings.screenshotEachStep}
+                        onCheckedChange={(checked) =>
+                          saveExecutionSettings({ ...executionSettings, screenshotEachStep: checked })
+                        }
+                      />
+                    </div>
+
+                    {/* AI Self-Heal */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wand2 className="w-4 h-4 text-gray-500" />
+                        <Label htmlFor="ai-self-heal" className="text-sm font-medium cursor-pointer">
+                          AI Self-Heal
+                        </Label>
+                      </div>
+                      <Switch
+                        id="ai-self-heal"
+                        checked={executionSettings.aiSelfHeal}
+                        onCheckedChange={(checked) =>
+                          saveExecutionSettings({ ...executionSettings, aiSelfHeal: checked })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    These settings apply to all test executions in this project.
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Environment Dropdown */}
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Environment:</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

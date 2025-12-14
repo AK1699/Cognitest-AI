@@ -59,7 +59,7 @@ export default function ArtifactsTab({ projectId }: ArtifactsTabProps) {
         id: apiArtifact.id,
         name: apiArtifact.name,
         type: apiArtifact.type,
-        url: apiArtifact.file_url || webAutomationApi.getArtifactDownloadUrl(projectId, apiArtifact.id),
+        url: webAutomationApi.getArtifactDownloadUrl(projectId, apiArtifact.id),
         test_name: apiArtifact.test_name || 'Unknown Test',
         step_name: apiArtifact.step_name,
         created_at: apiArtifact.created_at,
@@ -269,38 +269,71 @@ export default function ArtifactsTab({ projectId }: ArtifactsTabProps) {
                                 {/* Thumbnail */}
                                 <div className="aspect-video bg-gray-100 relative overflow-hidden">
                                     {artifact.type === 'screenshot' ? (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                                            <ImageIcon className="w-8 h-8 text-gray-400" />
-                                        </div>
+                                        <img
+                                            src={`http://localhost:8000${artifact.url}`}
+                                            alt={artifact.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none'
+                                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                            }}
+                                        />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] border-l-white ml-1"></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Fallback icon */}
+                                    <div className="hidden w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 absolute inset-0">
+                                        {artifact.type === 'screenshot' ? (
+                                            <ImageIcon className="w-8 h-8 text-gray-400" />
+                                        ) : (
                                             <Video className="w-8 h-8 text-gray-400" />
-                                            {artifact.duration_ms && (
-                                                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-                                                    {formatDuration(artifact.duration_ms)}
-                                                </div>
-                                            )}
+                                        )}
+                                    </div>
+                                    {artifact.type === 'video' && artifact.duration_ms && (
+                                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                                            {formatDuration(artifact.duration_ms)}
                                         </div>
                                     )}
 
-                                    {/* Hover overlay */}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                        <Button size="sm" variant="secondary" className="h-8" onClick={(e) => handleView(artifact, e)}>
-                                            <Eye className="w-4 h-4 mr-1" />
-                                            View
-                                        </Button>
-                                        <Button size="sm" variant="secondary" className="h-8" onClick={(e) => handleDownload(artifact, e)}>
-                                            <Download className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            className="h-8 hover:bg-red-100 hover:text-red-600"
-                                            onClick={(e) => handleDelete(artifact.id, e)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
+                                    {/* Hover overlay - different for videos vs screenshots */}
+                                    {artifact.type === 'screenshot' ? (
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <Button size="sm" variant="secondary" className="h-8" onClick={(e) => handleView(artifact, e)}>
+                                                <Eye className="w-4 h-4 mr-1" />
+                                                View
+                                            </Button>
+                                            <Button size="sm" variant="secondary" className="h-8" onClick={(e) => handleDownload(artifact, e)}>
+                                                <Download className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="h-8 hover:bg-red-100 hover:text-red-600"
+                                                onClick={(e) => handleDelete(artifact.id, e)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        /* Video: show small menu in top-right corner */
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                            <Button size="sm" variant="secondary" className="h-7 w-7 p-0" onClick={(e) => handleDownload(artifact, e)}>
+                                                <Download className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
+                                                onClick={(e) => handleDelete(artifact.id, e)}
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Info */}
@@ -362,14 +395,29 @@ export default function ArtifactsTab({ projectId }: ArtifactsTabProps) {
                         {/* Modal Content */}
                         <div className="p-4 bg-gray-900 flex items-center justify-center min-h-[400px]">
                             {selectedArtifact.type === 'screenshot' ? (
-                                <div className="flex items-center justify-center text-gray-400">
-                                    <ImageIcon className="w-16 h-16" />
-                                </div>
+                                <img
+                                    src={`http://localhost:8000${selectedArtifact.url}`}
+                                    alt={selectedArtifact.name}
+                                    className="max-w-full max-h-[60vh] object-contain"
+                                    onError={(e) => {
+                                        // Show fallback icon on error
+                                        e.currentTarget.style.display = 'none'
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                    }}
+                                />
                             ) : (
-                                <div className="flex items-center justify-center text-gray-400">
-                                    <Video className="w-16 h-16" />
-                                </div>
+                                <video
+                                    src={`http://localhost:8000${selectedArtifact.url}`}
+                                    controls
+                                    className="max-w-full max-h-[60vh]"
+                                >
+                                    Your browser does not support video playback.
+                                </video>
                             )}
+                            <div className="hidden flex-col items-center justify-center text-gray-400">
+                                <ImageIcon className="w-16 h-16" />
+                                <p className="text-sm mt-2">Failed to load image</p>
+                            </div>
                         </div>
 
                         {/* Modal Footer */}

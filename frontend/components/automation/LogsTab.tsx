@@ -608,13 +608,6 @@ export default function LogsTab({ projectId }: LogsTabProps) {
                         >
                             Failed ({executions.filter(e => e.status === 'failed').length})
                         </Badge>
-                        <Badge
-                            variant={statusFilter === 'running' ? 'secondary' : 'outline'}
-                            className="cursor-pointer whitespace-nowrap hover:bg-gray-50"
-                            onClick={() => setStatusFilter('running')}
-                        >
-                            Running ({executions.filter(e => e.status === 'running').length})
-                        </Badge>
                         {/* Clear filters button */}
                         {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
                             <Badge
