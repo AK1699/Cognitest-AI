@@ -1413,6 +1413,7 @@ async def websocket_browser_session(
                             healed_count = 0
                             stop_on_failure = True  # Stop executing after first failure
                             has_failure = False
+                            execution_variables = {}  # Store extracted data during execution
                             start_time = datetime.utcnow()
                             
                             # Execute each step
@@ -1738,6 +1739,337 @@ Respond with JSON only:
                                             raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
                                         
                                         # Store actual URL for action_details
+                                    
+                                    # Additional browser actions
+                                    elif step_type == "double_click":
+                                        if selector_used:
+                                            await session.double_click(selector_used)
+                                    
+                                    elif step_type == "right_click":
+                                        if selector_used:
+                                            await session.right_click(selector_used)
+                                    
+                                    elif step_type == "hover":
+                                        if selector_used:
+                                            await session.hover(selector_used)
+                                    
+                                    elif step_type == "focus":
+                                        if selector_used:
+                                            await session.focus(selector_used)
+                                    
+                                    elif step_type == "clear":
+                                        if selector_used:
+                                            await session.clear_input(selector_used)
+                                    
+                                    elif step_type == "select":
+                                        value = step_data.get("value") or step.get("value") or ""
+                                        if selector_used:
+                                            await session.select_option(selector_used, value)
+                                    
+                                    elif step_type == "check":
+                                        if selector_used:
+                                            await session.check(selector_used)
+                                    
+                                    elif step_type == "uncheck":
+                                        if selector_used:
+                                            await session.uncheck(selector_used)
+                                    
+                                    elif step_type == "go_back":
+                                        await session.go_back()
+                                    
+                                    elif step_type == "go_forward":
+                                        await session.go_forward()
+                                    
+                                    elif step_type == "reload":
+                                        await session.reload()
+                                    
+                                    elif step_type == "scroll":
+                                        direction = step_data.get("direction") or step.get("direction") or "down"
+                                        amount = step_data.get("amount") or step.get("amount") or 300
+                                        await session.scroll_page(direction, amount)
+                                    
+                                    elif step_type == "press":
+                                        key = step_data.get("key") or step.get("key") or step_data.get("value") or step.get("value") or ""
+                                        if key:
+                                            await session.press_key(key)
+                                    
+                                    # ============================================
+                                    # File and Drag/Drop Actions
+                                    # ============================================
+                                    elif step_type == "upload":
+                                        file_path = step_data.get("file_path") or step.get("file_path") or step_data.get("value") or step.get("value") or ""
+                                        if selector_used and file_path:
+                                            await session.upload_file(selector_used, file_path)
+                                    
+                                    elif step_type == "drag_drop":
+                                        target_selector = step_data.get("target_selector") or step.get("target_selector") or step_data.get("target") or step.get("target") or ""
+                                        if selector_used and target_selector:
+                                            await session.drag_and_drop(selector_used, target_selector)
+                                    
+                                    # ============================================
+                                    # Wait Actions
+                                    # ============================================
+                                    elif step_type == "wait_network":
+                                        timeout = step_data.get("timeout") or step.get("timeout") or 30000
+                                        await session.wait_for_network_idle(timeout)
+                                    
+                                    elif step_type == "wait_url":
+                                        url_pattern = step_data.get("url_pattern") or step.get("url_pattern") or step_data.get("value") or step.get("value") or ""
+                                        timeout = step_data.get("timeout") or step.get("timeout") or 30000
+                                        if url_pattern:
+                                            await session.wait_for_url(url_pattern, timeout)
+                                    
+                                    # ============================================
+                                    # Dialog Handling
+                                    # ============================================
+                                    elif step_type == "accept_dialog":
+                                        prompt_text = step_data.get("prompt_text") or step.get("prompt_text") or step_data.get("value") or step.get("value")
+                                        await session.accept_dialog(prompt_text)
+                                    
+                                    elif step_type == "dismiss_dialog":
+                                        await session.dismiss_dialog()
+                                    
+                                    # ============================================
+                                    # Tab/Window Management
+                                    # ============================================
+                                    elif step_type == "new_tab":
+                                        url = step_data.get("url") or step.get("url") or "about:blank"
+                                        await session.new_tab(url)
+                                    
+                                    elif step_type == "switch_tab":
+                                        index = int(step_data.get("index") or step.get("index") or step_data.get("value") or step.get("value") or 0)
+                                        await session.switch_tab(index)
+                                    
+                                    elif step_type == "close_tab":
+                                        index = step_data.get("index") or step.get("index")
+                                        await session.close_tab(int(index) if index else None)
+                                    
+                                    # ============================================
+                                    # Frame Handling
+                                    # ============================================
+                                    elif step_type == "switch_to_frame":
+                                        if selector_used:
+                                            await session.switch_to_frame(selector_used)
+                                    
+                                    elif step_type == "switch_to_main":
+                                        await session.switch_to_main_frame()
+                                    
+                                    # ============================================
+                                    # Cookie Management
+                                    # ============================================
+                                    elif step_type == "get_cookie":
+                                        cookie_name = step_data.get("cookie_name") or step.get("cookie_name") or step_data.get("value") or step.get("value") or ""
+                                        if cookie_name:
+                                            result = await session.get_cookie(cookie_name)
+                                            # Store in variables if variable_name provided
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("value"):
+                                                execution_variables[variable_name] = result.get("value")
+                                    
+                                    elif step_type == "set_cookie":
+                                        cookie_name = step_data.get("cookie_name") or step.get("cookie_name") or ""
+                                        cookie_value = step_data.get("cookie_value") or step.get("cookie_value") or step_data.get("value") or step.get("value") or ""
+                                        domain = step_data.get("domain") or step.get("domain")
+                                        if cookie_name:
+                                            await session.set_cookie(cookie_name, cookie_value, domain)
+                                    
+                                    elif step_type == "delete_cookie":
+                                        cookie_name = step_data.get("cookie_name") or step.get("cookie_name") or step_data.get("value") or step.get("value") or ""
+                                        if cookie_name:
+                                            await session.delete_cookie(cookie_name)
+                                    
+                                    elif step_type == "clear_cookies":
+                                        await session.clear_cookies()
+                                    
+                                    # ============================================
+                                    # Local Storage
+                                    # ============================================
+                                    elif step_type == "get_local_storage":
+                                        storage_key = step_data.get("key") or step.get("key") or step_data.get("value") or step.get("value") or ""
+                                        if storage_key:
+                                            result = await session.get_local_storage(storage_key)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("value"):
+                                                execution_variables[variable_name] = result.get("value")
+                                    
+                                    elif step_type == "set_local_storage":
+                                        storage_key = step_data.get("key") or step.get("key") or ""
+                                        storage_value = step_data.get("value") or step.get("value") or ""
+                                        if storage_key:
+                                            await session.set_local_storage(storage_key, storage_value)
+                                    
+                                    elif step_type == "clear_local_storage":
+                                        await session.clear_local_storage()
+                                    
+                                    # ============================================
+                                    # Session Storage
+                                    # ============================================
+                                    elif step_type == "get_session_storage":
+                                        storage_key = step_data.get("key") or step.get("key") or step_data.get("value") or step.get("value") or ""
+                                        if storage_key:
+                                            result = await session.get_session_storage(storage_key)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("value"):
+                                                execution_variables[variable_name] = result.get("value")
+                                    
+                                    elif step_type == "set_session_storage":
+                                        storage_key = step_data.get("key") or step.get("key") or ""
+                                        storage_value = step_data.get("value") or step.get("value") or ""
+                                        if storage_key:
+                                            await session.set_session_storage(storage_key, storage_value)
+                                    
+                                    elif step_type == "clear_session_storage":
+                                        await session.clear_session_storage()
+                                    
+                                    # ============================================
+                                    # Data Extraction
+                                    # ============================================
+                                    elif step_type == "extract_text":
+                                        if selector_used:
+                                            result = await session.extract_text(selector_used)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("text"):
+                                                execution_variables[variable_name] = result.get("text")
+                                    
+                                    elif step_type == "extract_attribute":
+                                        attribute = step_data.get("attribute") or step.get("attribute") or step_data.get("value") or step.get("value") or ""
+                                        if selector_used and attribute:
+                                            result = await session.extract_attribute(selector_used, attribute)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("value"):
+                                                execution_variables[variable_name] = result.get("value")
+                                    
+                                    elif step_type == "set_variable":
+                                        variable_name = step_data.get("variable_name") or step.get("variable_name") or ""
+                                        variable_value = step_data.get("value") or step.get("value") or ""
+                                        if variable_name:
+                                            execution_variables[variable_name] = variable_value
+                                    
+                                    elif step_type == "get_element_count":
+                                        if selector_used:
+                                            result = await session.get_element_count(selector_used)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name:
+                                                execution_variables[variable_name] = result.get("count", 0)
+                                    
+                                    # ============================================
+                                    # JavaScript Execution
+                                    # ============================================
+                                    elif step_type == "execute_script":
+                                        script = step_data.get("script") or step.get("script") or step_data.get("value") or step.get("value") or ""
+                                        if script:
+                                            result = await session.execute_script(script)
+                                            variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                            if variable_name and result.get("result") is not None:
+                                                execution_variables[variable_name] = result.get("result")
+                                    
+                                    # ============================================
+                                    # Viewport and Device
+                                    # ============================================
+                                    elif step_type == "set_viewport":
+                                        width = int(step_data.get("width") or step.get("width") or 1280)
+                                        height = int(step_data.get("height") or step.get("height") or 720)
+                                        await session.set_viewport(width, height)
+                                    
+                                    elif step_type == "set_geolocation":
+                                        latitude = float(step_data.get("latitude") or step.get("latitude") or 0)
+                                        longitude = float(step_data.get("longitude") or step.get("longitude") or 0)
+                                        accuracy = float(step_data.get("accuracy") or step.get("accuracy") or 100)
+                                        await session.set_geolocation(latitude, longitude, accuracy)
+                                    
+                                    # ============================================
+                                    # Screenshot
+                                    # ============================================
+                                    elif step_type == "screenshot":
+                                        # Take manual screenshot (separate from auto-capture)
+                                        screenshot_name = step_data.get("name") or step.get("name") or f"manual_{i}"
+                                        full_page = step_data.get("full_page") or step.get("full_page") or False
+                                        await session.take_screenshot(full_page=full_page)
+                                    
+                                    # ============================================
+                                    # Additional Assertions
+                                    # ============================================
+                                    elif step_type == "assert_element_count":
+                                        expected_count = int(step_data.get("expected_count") or step.get("expected_count") or step_data.get("value") or step.get("value") or 0)
+                                        comparison = step_data.get("comparison") or step.get("comparison") or "equals"
+                                        if selector_used:
+                                            result = await session.get_element_count(selector_used)
+                                            actual_count = result.get("count", 0)
+                                            passed = False
+                                            if comparison == "equals":
+                                                passed = actual_count == expected_count
+                                            elif comparison == "greater_than":
+                                                passed = actual_count > expected_count
+                                            elif comparison == "less_than":
+                                                passed = actual_count < expected_count
+                                            elif comparison == "at_least":
+                                                passed = actual_count >= expected_count
+                                            if not passed:
+                                                raise Exception(f"Element count assertion failed: expected {expected_count} ({comparison}), got {actual_count}")
+                                    
+                                    elif step_type == "assert_not_visible":
+                                        if selector_used:
+                                            result = await session.get_element_info(selector_used)
+                                            if result.get("visible"):
+                                                raise Exception(f"Assert not visible failed: element {selector_used} is visible")
+                                    
+                                    elif step_type == "soft_assert":
+                                        # Soft assert - log failure but don't throw
+                                        try:
+                                            if selector_used:
+                                                result = await session.get_element_info(selector_used)
+                                                if not result.get("visible"):
+                                                    print(f"Soft assertion warning: element not visible {selector_used}")
+                                        except Exception as soft_err:
+                                            print(f"Soft assertion warning: {soft_err}")
+                                    
+                                    # ============================================
+                                    # Clipboard
+                                    # ============================================
+                                    elif step_type == "copy_to_clipboard":
+                                        text = step_data.get("text") or step.get("text") or step_data.get("value") or step.get("value") or ""
+                                        if text:
+                                            await session.copy_to_clipboard(text)
+                                    
+                                    elif step_type == "paste_from_clipboard":
+                                        result = await session.paste_from_clipboard()
+                                        variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                        if variable_name and result.get("text"):
+                                            execution_variables[variable_name] = result.get("text")
+                                    
+                                    # ============================================
+                                    # Performance
+                                    # ============================================
+                                    elif step_type == "measure_load_time":
+                                        result = await session.measure_load_time()
+                                        variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                        if variable_name and result.get("timing"):
+                                            execution_variables[variable_name] = result.get("timing")
+                                    
+                                    elif step_type == "get_performance_metrics":
+                                        result = await session.get_performance_metrics()
+                                        variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                        if variable_name and result.get("metrics"):
+                                            execution_variables[variable_name] = result.get("metrics")
+                                    
+                                    # ============================================
+                                    # Element highlighting
+                                    # ============================================
+                                    elif step_type == "highlight_element":
+                                        duration_ms = int(step_data.get("duration_ms") or step.get("duration_ms") or 2000)
+                                        if selector_used:
+                                            await session.highlight_element(selector_used, duration_ms)
+                                    
+                                    # ============================================
+                                    # Debugging
+                                    # ============================================
+                                    elif step_type == "log":
+                                        message = step_data.get("message") or step.get("message") or step_data.get("value") or step.get("value") or ""
+                                        print(f"[LOG] {message}")
+                                    
+                                    elif step_type == "comment":
+                                        # No-op, just a comment step
+                                        pass
                                     
                                     passed_count += 1
                                     

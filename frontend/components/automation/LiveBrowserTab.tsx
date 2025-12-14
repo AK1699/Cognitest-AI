@@ -970,12 +970,170 @@ export default function LiveBrowserTab({
                                     <div>
                                         <h4 className="text-xs font-semibold text-gray-700 mb-2">Attributes</h4>
                                         <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
-                                            {selectedElement.id && <div><span className="text-gray-500">id:</span> {selectedElement.id}</div>}
-                                            {selectedElement.name && <div><span className="text-gray-500">name:</span> {selectedElement.name}</div>}
-                                            {selectedElement.type && <div><span className="text-gray-500">type:</span> {selectedElement.type}</div>}
-                                            {selectedElement.placeholder && <div><span className="text-gray-500">placeholder:</span> {selectedElement.placeholder}</div>}
-                                            {selectedElement.href && <div><span className="text-gray-500">href:</span> <span className="text-blue-600 truncate block">{selectedElement.href}</span></div>}
+                                            {(() => {
+                                                let idx = 0;
+                                                const items = [];
+                                                if (selectedElement.id) {
+                                                    idx++;
+                                                    items.push(
+                                                        <div
+                                                            key="id"
+                                                            className="font-mono text-purple-600 cursor-pointer hover:bg-purple-50 px-1 rounded flex items-center gap-2"
+                                                            onClick={() => navigator.clipboard.writeText(`#${selectedElement.id}`)}
+                                                            title="Click to copy"
+                                                        >
+                                                            <span className="text-gray-400 text-[10px] w-4">{idx}.</span>
+                                                            #{selectedElement.id}
+                                                        </div>
+                                                    );
+                                                }
+                                                if (selectedElement.name) {
+                                                    idx++;
+                                                    items.push(
+                                                        <div
+                                                            key="name"
+                                                            className="font-mono text-blue-600 cursor-pointer hover:bg-blue-50 px-1 rounded flex items-center gap-2"
+                                                            onClick={() => navigator.clipboard.writeText(`[name="${selectedElement.name}"]`)}
+                                                            title="Click to copy"
+                                                        >
+                                                            <span className="text-gray-400 text-[10px] w-4">{idx}.</span>
+                                                            [name="{selectedElement.name}"]
+                                                        </div>
+                                                    );
+                                                }
+                                                if (selectedElement.type) {
+                                                    idx++;
+                                                    items.push(
+                                                        <div
+                                                            key="type"
+                                                            className="font-mono text-gray-600 cursor-pointer hover:bg-gray-100 px-1 rounded flex items-center gap-2"
+                                                            onClick={() => navigator.clipboard.writeText(`[type="${selectedElement.type}"]`)}
+                                                            title="Click to copy"
+                                                        >
+                                                            <span className="text-gray-400 text-[10px] w-4">{idx}.</span>
+                                                            [type="{selectedElement.type}"]
+                                                        </div>
+                                                    );
+                                                }
+                                                if (selectedElement.placeholder) {
+                                                    idx++;
+                                                    items.push(
+                                                        <div
+                                                            key="placeholder"
+                                                            className="font-mono text-green-600 cursor-pointer hover:bg-green-50 px-1 rounded flex items-center gap-2"
+                                                            onClick={() => navigator.clipboard.writeText(`[placeholder="${selectedElement.placeholder}"]`)}
+                                                            title="Click to copy"
+                                                        >
+                                                            <span className="text-gray-400 text-[10px] w-4">{idx}.</span>
+                                                            [placeholder="{selectedElement.placeholder}"]
+                                                        </div>
+                                                    );
+                                                }
+                                                if (selectedElement.href) {
+                                                    idx++;
+                                                    items.push(
+                                                        <div
+                                                            key="href"
+                                                            className="font-mono text-blue-600 cursor-pointer hover:bg-blue-50 px-1 rounded truncate flex items-center gap-2"
+                                                            onClick={() => navigator.clipboard.writeText(`[href="${selectedElement.href}"]`)}
+                                                            title="Click to copy"
+                                                        >
+                                                            <span className="text-gray-400 text-[10px] w-4">{idx}.</span>
+                                                            [href="{selectedElement.href}"]
+                                                        </div>
+                                                    );
+                                                }
+                                                return items;
+                                            })()}
                                         </div>
+
+                                        {/* Combined Selector for uniqueness */}
+                                        {(() => {
+                                            const parts = [selectedElement.tagName?.toLowerCase() || ''];
+                                            if (selectedElement.id) parts[0] += `#${selectedElement.id}`;
+                                            else {
+                                                if (selectedElement.type) parts.push(`[type="${selectedElement.type}"]`);
+                                                if (selectedElement.name) parts.push(`[name="${selectedElement.name}"]`);
+                                                if (selectedElement.placeholder) parts.push(`[placeholder="${selectedElement.placeholder}"]`);
+                                            }
+                                            const combined = parts.join('');
+                                            if (combined && combined !== (selectedElement.tagName?.toLowerCase() || '')) {
+                                                return (
+                                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                                        <div className="text-[10px] text-gray-500 mb-1">Combined (unique)</div>
+                                                        <div
+                                                            className="font-mono text-xs text-emerald-600 cursor-pointer hover:bg-emerald-50 px-1 py-0.5 rounded bg-emerald-50/50"
+                                                            onClick={() => navigator.clipboard.writeText(combined)}
+                                                            title="Click to copy combined selector"
+                                                        >
+                                                            {combined}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+
+                                        {/* Index-based Selectors (when multiple matches) */}
+                                        {selectedElement.indices && (() => {
+                                            const indexItems: React.ReactNode[] = [];
+                                            const indices = selectedElement.indices as Record<string, { index: number, total: number }>;
+
+                                            if (indices.type && indices.type.total > 1) {
+                                                const selector = `[type="${selectedElement.type}"] >> nth=${indices.type.index}`;
+                                                indexItems.push(
+                                                    <div
+                                                        key="type-idx"
+                                                        className="font-mono text-orange-600 cursor-pointer hover:bg-orange-50 px-1 rounded flex items-center justify-between"
+                                                        onClick={() => navigator.clipboard.writeText(selector)}
+                                                        title="Click to copy"
+                                                    >
+                                                        <span>{selector}</span>
+                                                        <span className="text-[10px] text-gray-400">({indices.type.index + 1} of {indices.type.total})</span>
+                                                    </div>
+                                                );
+                                            }
+                                            if (indices.placeholder && indices.placeholder.total > 1) {
+                                                const selector = `[placeholder="${selectedElement.placeholder}"] >> nth=${indices.placeholder.index}`;
+                                                indexItems.push(
+                                                    <div
+                                                        key="placeholder-idx"
+                                                        className="font-mono text-orange-600 cursor-pointer hover:bg-orange-50 px-1 rounded flex items-center justify-between"
+                                                        onClick={() => navigator.clipboard.writeText(selector)}
+                                                        title="Click to copy"
+                                                    >
+                                                        <span>{selector}</span>
+                                                        <span className="text-[10px] text-gray-400">({indices.placeholder.index + 1} of {indices.placeholder.total})</span>
+                                                    </div>
+                                                );
+                                            }
+                                            if (indices.tag && indices.tag.total > 1 && !selectedElement.id) {
+                                                const selector = `${selectedElement.tagName?.toLowerCase()} >> nth=${indices.tag.index}`;
+                                                indexItems.push(
+                                                    <div
+                                                        key="tag-idx"
+                                                        className="font-mono text-orange-600 cursor-pointer hover:bg-orange-50 px-1 rounded flex items-center justify-between"
+                                                        onClick={() => navigator.clipboard.writeText(selector)}
+                                                        title="Click to copy"
+                                                    >
+                                                        <span>{selector}</span>
+                                                        <span className="text-[10px] text-gray-400">({indices.tag.index + 1} of {indices.tag.total})</span>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (indexItems.length > 0) {
+                                                return (
+                                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                                        <div className="text-[10px] text-gray-500 mb-1">With Index (nth)</div>
+                                                        <div className="space-y-1 text-xs">
+                                                            {indexItems}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
 
                                     {/* Type Text Input */}

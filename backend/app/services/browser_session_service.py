@@ -435,6 +435,14 @@ class BrowserSession:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    async def type_into_element(self, selector: str, text: str) -> dict:
+        """Type text into a specific element by selector"""
+        try:
+            await self.page.fill(selector, text)
+            return {"success": True, "action": "type", "selector": selector, "text": text}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
     async def press_key(self, key: str) -> dict:
         """Press a keyboard key"""
         try:
@@ -540,6 +548,32 @@ class BrowserSession:
                     const bestSelector = selectors.id || selectors.testId || selectors.name || 
                                         selectors.ariaLabel || selectors.class || selectors.cssPath;
                     
+                    // Calculate element index among matching elements for each attribute
+                    const getElementIndex = (selector) => {{
+                        try {{
+                            const allMatching = document.querySelectorAll(selector);
+                            for (let i = 0; i < allMatching.length; i++) {{
+                                if (allMatching[i] === el) return {{ index: i, total: allMatching.length }};
+                            }}
+                        }} catch (e) {{}}
+                        return {{ index: 0, total: 1 }};
+                    }};
+                    
+                    // Get indices for common selectors
+                    const indices = {{}};
+                    if (el.getAttribute('type')) {{
+                        indices.type = getElementIndex(`[type="${{el.getAttribute('type')}}"]`);
+                    }}
+                    if (el.getAttribute('name')) {{
+                        indices.name = getElementIndex(`[name="${{el.getAttribute('name')}}"]`);
+                    }}
+                    if (el.getAttribute('placeholder')) {{
+                        indices.placeholder = getElementIndex(`[placeholder="${{el.getAttribute('placeholder')}}"]`);
+                    }}
+                    if (el.tagName) {{
+                        indices.tag = getElementIndex(el.tagName.toLowerCase());
+                    }}
+                    
                     return {{
                         tagName: el.tagName.toLowerCase(),
                         id: el.id || null,
@@ -561,7 +595,8 @@ class BrowserSession:
                             height: rect.height
                         }},
                         selectors: selectors,
-                        bestSelector: bestSelector
+                        bestSelector: bestSelector,
+                        indices: indices
                     }};
                 }})()
             """)
@@ -569,6 +604,114 @@ class BrowserSession:
             return element_info or {}
         except Exception as e:
             return {"error": str(e)}
+    
+    async def click_element(self, selector: str) -> dict:
+        """Click an element by selector"""
+        try:
+            await self.page.click(selector)
+            return {"success": True, "action": "click", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def double_click(self, selector: str) -> dict:
+        """Double click an element by selector"""
+        try:
+            await self.page.dblclick(selector)
+            return {"success": True, "action": "double_click", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def right_click(self, selector: str) -> dict:
+        """Right click an element by selector"""
+        try:
+            await self.page.click(selector, button="right")
+            return {"success": True, "action": "right_click", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def hover(self, selector: str) -> dict:
+        """Hover over an element"""
+        try:
+            await self.page.hover(selector)
+            return {"success": True, "action": "hover", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def focus(self, selector: str) -> dict:
+        """Focus on an element"""
+        try:
+            await self.page.focus(selector)
+            return {"success": True, "action": "focus", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def clear_input(self, selector: str) -> dict:
+        """Clear an input field"""
+        try:
+            await self.page.fill(selector, "")
+            return {"success": True, "action": "clear", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def select_option(self, selector: str, value: str) -> dict:
+        """Select option from dropdown"""
+        try:
+            await self.page.select_option(selector, value)
+            return {"success": True, "action": "select", "selector": selector, "value": value}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def check(self, selector: str) -> dict:
+        """Check a checkbox"""
+        try:
+            await self.page.check(selector)
+            return {"success": True, "action": "check", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def uncheck(self, selector: str) -> dict:
+        """Uncheck a checkbox"""
+        try:
+            await self.page.uncheck(selector)
+            return {"success": True, "action": "uncheck", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def go_back(self) -> dict:
+        """Go back in browser history"""
+        try:
+            await self.page.go_back()
+            return {"success": True, "action": "go_back"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def go_forward(self) -> dict:
+        """Go forward in browser history"""
+        try:
+            await self.page.go_forward()
+            return {"success": True, "action": "go_forward"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def reload(self) -> dict:
+        """Reload the page"""
+        try:
+            await self.page.reload()
+            return {"success": True, "action": "reload"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def get_element_info(self, selector: str) -> dict:
+        """Get information about an element"""
+        try:
+            element = await self.page.query_selector(selector)
+            if element:
+                is_visible = await element.is_visible()
+                text = await element.inner_text() if is_visible else ""
+                return {"success": True, "visible": is_visible, "text": text, "selector": selector}
+            return {"success": False, "error": "Element not found"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     async def scroll_page(self, direction: str = "down", amount: int = 300) -> dict:
         """Scroll the page"""
@@ -582,6 +725,354 @@ class BrowserSession:
             elif direction == "right":
                 await self.page.evaluate(f"window.scrollBy({amount}, 0)")
             return {"success": True, "action": "scroll", "direction": direction}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================
+    # File Upload
+    # ============================================
+    async def upload_file(self, selector: str, file_path: str) -> dict:
+        """Upload a file to a file input"""
+        try:
+            await self.page.set_input_files(selector, file_path)
+            return {"success": True, "action": "upload", "file": file_path}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Drag and Drop
+    # ============================================
+    async def drag_and_drop(self, source_selector: str, target_selector: str) -> dict:
+        """Drag element from source to target"""
+        try:
+            await self.page.drag_and_drop(source_selector, target_selector)
+            return {"success": True, "action": "drag_drop"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Wait Actions
+    # ============================================
+    async def wait_for_selector(self, selector: str, timeout: int = 30000) -> dict:
+        """Wait for element to appear"""
+        try:
+            await self.page.wait_for_selector(selector, timeout=timeout)
+            return {"success": True, "action": "wait", "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def wait_for_network_idle(self, timeout: int = 30000) -> dict:
+        """Wait for network to be idle"""
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=timeout)
+            return {"success": True, "action": "wait_network"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def wait_for_url(self, url_pattern: str, timeout: int = 30000) -> dict:
+        """Wait for URL to match pattern"""
+        try:
+            await self.page.wait_for_url(url_pattern, timeout=timeout)
+            return {"success": True, "action": "wait_url"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Dialog Handling
+    # ============================================
+    async def accept_dialog(self, prompt_text: str = None) -> dict:
+        """Accept alert/confirm/prompt dialog"""
+        try:
+            self.page.on("dialog", lambda dialog: dialog.accept(prompt_text) if prompt_text else dialog.accept())
+            return {"success": True, "action": "accept_dialog"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def dismiss_dialog(self) -> dict:
+        """Dismiss alert/confirm dialog"""
+        try:
+            self.page.on("dialog", lambda dialog: dialog.dismiss())
+            return {"success": True, "action": "dismiss_dialog"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Tab/Window Management
+    # ============================================
+    async def new_tab(self, url: str = "about:blank") -> dict:
+        """Open a new tab"""
+        try:
+            new_page = await self.context.new_page()
+            if url != "about:blank":
+                await new_page.goto(url)
+            return {"success": True, "action": "new_tab", "url": url}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def switch_tab(self, index: int) -> dict:
+        """Switch to tab by index"""
+        try:
+            pages = self.context.pages
+            if 0 <= index < len(pages):
+                self.page = pages[index]
+                await self.page.bring_to_front()
+                return {"success": True, "action": "switch_tab", "index": index}
+            return {"success": False, "error": f"Tab index {index} out of range"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def close_tab(self, index: int = None) -> dict:
+        """Close current or specified tab"""
+        try:
+            if index is not None:
+                pages = self.context.pages
+                if 0 <= index < len(pages):
+                    await pages[index].close()
+            else:
+                await self.page.close()
+            return {"success": True, "action": "close_tab"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Frame Handling
+    # ============================================
+    async def switch_to_frame(self, selector: str) -> dict:
+        """Switch to iframe"""
+        try:
+            frame = self.page.frame_locator(selector)
+            return {"success": True, "action": "switch_to_frame", "selector": selector, "frame": frame}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def switch_to_main_frame(self) -> dict:
+        """Switch back to main frame"""
+        try:
+            # Main frame is always accessible via self.page
+            return {"success": True, "action": "switch_to_main"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Cookie Management
+    # ============================================
+    async def get_cookie(self, name: str) -> dict:
+        """Get cookie value by name"""
+        try:
+            cookies = await self.context.cookies()
+            for cookie in cookies:
+                if cookie.get("name") == name:
+                    return {"success": True, "value": cookie.get("value"), "cookie": cookie}
+            return {"success": False, "error": f"Cookie '{name}' not found"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def set_cookie(self, name: str, value: str, domain: str = None, path: str = "/") -> dict:
+        """Set a cookie"""
+        try:
+            cookie = {"name": name, "value": value, "path": path}
+            if domain:
+                cookie["domain"] = domain
+            else:
+                cookie["url"] = self.page.url
+            await self.context.add_cookies([cookie])
+            return {"success": True, "action": "set_cookie", "name": name}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def delete_cookie(self, name: str) -> dict:
+        """Delete a specific cookie"""
+        try:
+            cookies = await self.context.cookies()
+            filtered = [c for c in cookies if c.get("name") != name]
+            await self.context.clear_cookies()
+            if filtered:
+                await self.context.add_cookies(filtered)
+            return {"success": True, "action": "delete_cookie", "name": name}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def clear_cookies(self) -> dict:
+        """Clear all cookies"""
+        try:
+            await self.context.clear_cookies()
+            return {"success": True, "action": "clear_cookies"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Local Storage
+    # ============================================
+    async def get_local_storage(self, key: str) -> dict:
+        """Get localStorage item"""
+        try:
+            value = await self.page.evaluate(f"localStorage.getItem('{key}')")
+            return {"success": True, "key": key, "value": value}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def set_local_storage(self, key: str, value: str) -> dict:
+        """Set localStorage item"""
+        try:
+            await self.page.evaluate(f"localStorage.setItem('{key}', '{value}')")
+            return {"success": True, "action": "set_local_storage", "key": key}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def clear_local_storage(self) -> dict:
+        """Clear all localStorage"""
+        try:
+            await self.page.evaluate("localStorage.clear()")
+            return {"success": True, "action": "clear_local_storage"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Session Storage
+    # ============================================
+    async def get_session_storage(self, key: str) -> dict:
+        """Get sessionStorage item"""
+        try:
+            value = await self.page.evaluate(f"sessionStorage.getItem('{key}')")
+            return {"success": True, "key": key, "value": value}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def set_session_storage(self, key: str, value: str) -> dict:
+        """Set sessionStorage item"""
+        try:
+            await self.page.evaluate(f"sessionStorage.setItem('{key}', '{value}')")
+            return {"success": True, "action": "set_session_storage", "key": key}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def clear_session_storage(self) -> dict:
+        """Clear all sessionStorage"""
+        try:
+            await self.page.evaluate("sessionStorage.clear()")
+            return {"success": True, "action": "clear_session_storage"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Data Extraction
+    # ============================================
+    async def extract_text(self, selector: str) -> dict:
+        """Extract text from element"""
+        try:
+            text = await self.page.inner_text(selector)
+            return {"success": True, "text": text, "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def extract_attribute(self, selector: str, attribute: str) -> dict:
+        """Extract attribute from element"""
+        try:
+            value = await self.page.get_attribute(selector, attribute)
+            return {"success": True, "attribute": attribute, "value": value}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def get_element_count(self, selector: str) -> dict:
+        """Get count of matching elements"""
+        try:
+            elements = await self.page.query_selector_all(selector)
+            return {"success": True, "count": len(elements), "selector": selector}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # JavaScript Execution
+    # ============================================
+    async def execute_script(self, script: str) -> dict:
+        """Execute JavaScript code"""
+        try:
+            result = await self.page.evaluate(script)
+            return {"success": True, "result": result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Viewport and Device
+    # ============================================
+    async def set_viewport(self, width: int, height: int) -> dict:
+        """Set viewport size"""
+        try:
+            await self.page.set_viewport_size({"width": width, "height": height})
+            return {"success": True, "action": "set_viewport", "width": width, "height": height}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def set_geolocation(self, latitude: float, longitude: float, accuracy: float = 100) -> dict:
+        """Set geolocation"""
+        try:
+            await self.context.set_geolocation({"latitude": latitude, "longitude": longitude, "accuracy": accuracy})
+            return {"success": True, "action": "set_geolocation"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Screenshots
+    # ============================================
+    async def take_screenshot(self, path: str = None, full_page: bool = False) -> dict:
+        """Take screenshot"""
+        try:
+            screenshot_bytes = await self.page.screenshot(path=path, full_page=full_page)
+            return {"success": True, "action": "screenshot", "path": path, "bytes": len(screenshot_bytes) if screenshot_bytes else 0}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Clipboard
+    # ============================================
+    async def copy_to_clipboard(self, text: str) -> dict:
+        """Copy text to clipboard"""
+        try:
+            await self.page.evaluate(f"navigator.clipboard.writeText('{text}')")
+            return {"success": True, "action": "copy_to_clipboard"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def paste_from_clipboard(self) -> dict:
+        """Paste from clipboard (reads clipboard)"""
+        try:
+            text = await self.page.evaluate("navigator.clipboard.readText()")
+            return {"success": True, "text": text}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ============================================
+    # Performance
+    # ============================================
+    async def measure_load_time(self) -> dict:
+        """Measure page load time"""
+        try:
+            timing = await self.page.evaluate("""() => {
+                const perf = performance.getEntriesByType('navigation')[0];
+                return {
+                    loadTime: perf.loadEventEnd - perf.startTime,
+                    domContentLoaded: perf.domContentLoadedEventEnd - perf.startTime,
+                    firstPaint: performance.getEntriesByName('first-paint')[0]?.startTime || 0
+                };
+            }""")
+            return {"success": True, "timing": timing}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def get_performance_metrics(self) -> dict:
+        """Get Web Vitals and performance metrics"""
+        try:
+            metrics = await self.page.evaluate("""() => {
+                return {
+                    memory: performance.memory ? {
+                        usedJSHeapSize: performance.memory.usedJSHeapSize,
+                        totalJSHeapSize: performance.memory.totalJSHeapSize
+                    } : null,
+                    navigation: performance.getEntriesByType('navigation')[0],
+                    resources: performance.getEntriesByType('resource').length
+                };
+            }""")
+            return {"success": True, "metrics": metrics}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
