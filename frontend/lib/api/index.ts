@@ -48,9 +48,8 @@ api.interceptors.response.use(
         // The server will set new httpOnly cookies automatically
         // Just retry the original request
         return api(originalRequest)
-      } catch (refreshError) {
-        // Refresh failed, redirect to login only if not already on signin page
-        // httpOnly cookies are managed by the server
+      } catch (refreshError: any) {
+        // Refresh failed - clear state and redirect to login
         // Clear any stale localStorage tokens for backward compatibility
         if (localStorage.getItem('access_token')) {
           localStorage.removeItem('access_token')
@@ -61,9 +60,15 @@ api.interceptors.response.use(
 
         // Only redirect if we're not already on the signin page
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/signin')) {
+          console.warn('Session expired. Redirecting to login...')
           window.location.href = '/auth/signin'
         }
-        return Promise.reject(refreshError)
+
+        // Return a more specific error for the caller
+        const authError = new Error('Session expired. Please sign in again.')
+          ; (authError as any).isAuthError = true
+          ; (authError as any).response = { status: 401, data: { detail: 'Session expired' } }
+        return Promise.reject(authError)
       }
     }
 

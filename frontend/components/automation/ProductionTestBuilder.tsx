@@ -177,8 +177,8 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
   }
 
   React.useEffect(() => {
-    if (selectedEnvironment?.baseUrl) {
-      setBaseUrl(selectedEnvironment.baseUrl)
+    if (selectedEnvironment?.variables?.BASE_URL) {
+      setBaseUrl(selectedEnvironment.variables.BASE_URL)
     }
   }, [selectedEnvironment])
 

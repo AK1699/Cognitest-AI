@@ -54,6 +54,8 @@ import {
     FileJson,
     ClipboardCopy,
     ClipboardPaste,
+    FunctionSquare,
+    Package,
 } from 'lucide-react'
 import { ActionConfig } from './types'
 
@@ -198,6 +200,15 @@ export const fileActions: ActionConfig[] = [
 
 
 // ============================================
+// Snippet Actions (Reusable Parameterized Steps)
+// ============================================
+export const snippetActions: ActionConfig[] = [
+    { id: 'call_snippet', name: 'Call Snippet', icon: FunctionSquare, color: 'bg-violet-500', description: 'Execute a reusable snippet' },
+    { id: 'create_snippet', name: 'Create Snippet', icon: Package, color: 'bg-violet-400', description: 'Create snippet from steps' },
+]
+
+
+// ============================================
 // Combined list of all actions for lookup
 // ============================================
 export const allActions: ActionConfig[] = [
@@ -210,6 +221,7 @@ export const allActions: ActionConfig[] = [
     ...assertActions,
     ...debugActions,
     ...fileActions,
+    ...snippetActions,
 ]
 
 /**
@@ -232,4 +244,5 @@ export const actionCategories = [
     { name: 'Advanced', actions: advancedActions },
     { name: 'Debugging', actions: debugActions },
     { name: 'Data Files', actions: fileActions },
+    { name: 'Snippets', actions: snippetActions },
 ]

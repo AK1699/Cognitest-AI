@@ -2071,6 +2071,87 @@ Respond with JSON only:
                                         # No-op, just a comment step
                                         pass
                                     
+                                    # ============================================
+                                    # Snippet Execution (Reusable Step Groups)
+                                    # ============================================
+                                    elif step_type == "call_snippet":
+                                        from app.models.snippet import TestSnippet
+                                        from app.api.v1.snippets import substitute_parameters
+                                        
+                                        snippet_id = step_data.get("snippet_id") or step.get("snippet_id")
+                                        snippet_params = step_data.get("parameters") or step.get("parameters") or {}
+                                        
+                                        if snippet_id:
+                                            # Circular reference detection
+                                            # Use a stack to track current snippet execution chain
+                                            snippet_call_stack = getattr(session, '_snippet_call_stack', set())
+                                            if snippet_id in snippet_call_stack:
+                                                raise Exception(f"Circular snippet reference detected: snippet {snippet_id} is already in the call stack")
+                                            
+                                            # Add current snippet to call stack
+                                            snippet_call_stack.add(snippet_id)
+                                            setattr(session, '_snippet_call_stack', snippet_call_stack)
+                                            
+                                            try:
+                                                # Fetch snippet from database
+                                                snippet_result = await db.execute(
+                                                    select(TestSnippet).where(TestSnippet.id == snippet_id)
+                                                )
+                                                snippet = snippet_result.scalar_one_or_none()
+                                                
+                                                if not snippet:
+                                                    raise Exception(f"Snippet not found: {snippet_id}")
+                                            
+                                                # Merge default parameter values with provided values
+                                                merged_params = {}
+                                                for param_def in (snippet.parameters or []):
+                                                    param_name = param_def.get("name")
+                                                    merged_params[param_name] = snippet_params.get(
+                                                        param_name, 
+                                                        param_def.get("default", "")
+                                                    )
+                                                
+                                                # Include execution variables in parameter substitution
+                                                merged_params.update({f"var_{k}": v for k, v in execution_variables.items()})
+                                                
+                                                # Substitute parameters in snippet steps
+                                                expanded_steps = substitute_parameters(snippet.steps or [], merged_params)
+                                                
+                                                # Execute each expanded step (recursive-like execution)
+                                                for sub_idx, sub_step in enumerate(expanded_steps):
+                                                    sub_step_type = sub_step.get("action") or sub_step.get("type") or "unknown"
+                                                    sub_selector = sub_step.get("selector", "")
+                                                    sub_value = sub_step.get("value", "")
+                                                    
+                                                    # Execute based on step type (simplified - main actions)
+                                                    if sub_step_type == "navigate":
+                                                        url = sub_step.get("url") or sub_value
+                                                        if url:
+                                                            await session.navigate(url)
+                                                    elif sub_step_type == "click":
+                                                        if sub_selector:
+                                                            await session.click_element(sub_selector)
+                                                    elif sub_step_type in ("type", "fill"):
+                                                        if sub_selector:
+                                                            await session.type_into_element(sub_selector, sub_value)
+                                                    elif sub_step_type == "wait":
+                                                        timeout = sub_step.get("timeout") or 1000
+                                                        import asyncio
+                                                        await asyncio.sleep(timeout / 1000)
+                                                    elif sub_step_type == "assert":
+                                                        if sub_selector:
+                                                            el_info = await session.get_element_info(sub_selector)
+                                                            if not el_info:
+                                                                raise Exception(f"Snippet assertion failed: {sub_selector}")
+                                                    # Add more step types as needed...
+                                                
+                                                # Update snippet usage count
+                                                snippet.usage_count = (snippet.usage_count or 0) + 1
+                                                await db.commit()
+                                            finally:
+                                                # Remove snippet from call stack after execution
+                                                snippet_call_stack.discard(snippet_id)
+                                    
                                     passed_count += 1
                                     
                                 except Exception as step_err:

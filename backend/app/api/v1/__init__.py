@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets
 from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
 
 api_router = APIRouter()
@@ -35,3 +35,6 @@ api_router.include_router(web_automation.router, prefix="/web-automation", tags=
 
 # Artifacts
 api_router.include_router(artifacts.router, prefix="/projects", tags=["artifacts"])
+
+# Snippets - Reusable parameterized test steps
+api_router.include_router(snippets.router, prefix="/snippets", tags=["snippets"])

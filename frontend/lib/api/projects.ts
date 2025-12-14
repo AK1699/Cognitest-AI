@@ -11,7 +11,7 @@ export interface ProjectSettings {
     environments?: {
         id: string
         name: string
-        baseUrl: string
+        baseUrl?: string
         variables: Record<string, string>
     }[]
     executionSettings?: ExecutionSettings

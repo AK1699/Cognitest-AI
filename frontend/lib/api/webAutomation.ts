@@ -379,3 +379,83 @@ export interface ArtifactListResponse {
     page_size: number
     has_more: boolean
 }
+
+// ============================================
+// Snippet Types
+// ============================================
+export interface SnippetParameter {
+    name: string
+    type: 'string' | 'number' | 'boolean' | 'selector'
+    default?: string
+    description?: string
+}
+
+export interface Snippet {
+    id: string
+    project_id: string
+    organisation_id: string
+    name: string
+    description?: string
+    parameters: SnippetParameter[]
+    steps: any[]
+    tags: string[]
+    is_global: boolean
+    version: string
+    usage_count: number
+    created_at: string
+    updated_at?: string
+    created_by?: string
+}
+
+export interface SnippetCreate {
+    name: string
+    description?: string
+    parameters: SnippetParameter[]
+    steps: any[]
+    tags?: string[]
+    is_global?: boolean
+}
+
+// Snippet API methods
+export const snippetApi = {
+    listSnippets: async (projectId: string, options?: { includeGlobal?: boolean, tag?: string, search?: string }) => {
+        const params = new URLSearchParams({ project_id: projectId })
+        if (options?.includeGlobal !== undefined) params.append('include_global', String(options.includeGlobal))
+        if (options?.tag) params.append('tag', options.tag)
+        if (options?.search) params.append('search', options.search)
+        const response = await api.get<Snippet[]>(`/api/v1/snippets?${params}`)
+        return response.data
+    },
+
+    getSnippet: async (snippetId: string) => {
+        const response = await api.get<Snippet>(`/api/v1/snippets/${snippetId}`)
+        return response.data
+    },
+
+    createSnippet: async (projectId: string, data: SnippetCreate) => {
+        const response = await api.post<Snippet>(`/api/v1/snippets?project_id=${projectId}`, data)
+        return response.data
+    },
+
+    updateSnippet: async (snippetId: string, data: Partial<SnippetCreate>) => {
+        const response = await api.put<Snippet>(`/api/v1/snippets/${snippetId}`, data)
+        return response.data
+    },
+
+    deleteSnippet: async (snippetId: string) => {
+        await api.delete(`/api/v1/snippets/${snippetId}`)
+    },
+
+    createFromSteps: async (projectId: string, data: {
+        name: string
+        description?: string
+        step_ids: string[]
+        steps?: any[]
+        parameters?: SnippetParameter[]
+        tags?: string[]
+        is_global?: boolean
+    }) => {
+        const response = await api.post<Snippet>(`/api/v1/snippets/from-steps?project_id=${projectId}`, data)
+        return response.data
+    },
+}

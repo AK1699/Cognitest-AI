@@ -134,6 +134,57 @@ app.add_middleware(
 # GZip Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Custom exception handlers to ensure CORS headers are included in error responses
+# This is necessary because FastAPI's CORS middleware doesn't handle exceptions
+# raised by dependencies before the route handler is called
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Handle HTTP exceptions with CORS headers."""
+    # Get the origin from the request
+    origin = request.headers.get("origin", "*")
+    
+    # Only allow configured origins
+    allowed_origin = origin if origin in settings.CORS_ORIGINS else settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else "*"
+    
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+    
+    # Add CORS headers to error responses
+    response.headers["Access-Control-Allow-Origin"] = allowed_origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions with CORS headers."""
+    origin = request.headers.get("origin", "*")
+    allowed_origin = origin if origin in settings.CORS_ORIGINS else settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else "*"
+    
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+    
+    response.headers["Access-Control-Allow-Origin"] = allowed_origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    # Log the actual error
+    print(f"⚠️ Unhandled exception: {exc}")
+    
+    return response
+
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

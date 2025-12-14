@@ -280,7 +280,7 @@ async def create_organisation(
             color=role_data.get("color", "#6B7280"),
             is_system_role=True,
             is_default=role_data.get("is_default", False),
-            permissions=DEFAULT_ROLE_PERMISSIONS.get(OrgRoleType(role_data["role_type"]), {})
+            permissions=DEFAULT_ROLE_PERMISSIONS.get(role_data["role_type"], {})
         )
         db.add(role)
         if role_data["role_type"] == "owner":

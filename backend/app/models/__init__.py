@@ -75,6 +75,7 @@ from app.models.web_automation import (
     HealingStrategy
 )
 from app.models.artifact import TestArtifact, ArtifactType
+from app.models.snippet import TestSnippet
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -138,6 +139,7 @@ __all__ = [
     "HealingStrategy",
     "TestArtifact",
     "ArtifactType",
+    "TestSnippet",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",

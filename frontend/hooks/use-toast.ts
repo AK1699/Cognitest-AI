@@ -7,7 +7,7 @@ export function useToast() {
       error: (message: string) => sonnerToast.error(message),
       loading: (message: string) => sonnerToast.loading(message),
       promise: (promise: Promise<any>, messages: any) => sonnerToast.promise(promise, messages),
-      custom: (message: string) => sonnerToast.custom(message),
+      info: (message: string) => sonnerToast.info(message),
       dismiss: () => sonnerToast.dismiss(),
     },
   }

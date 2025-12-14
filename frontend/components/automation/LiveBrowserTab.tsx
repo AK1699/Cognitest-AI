@@ -129,6 +129,11 @@ export default function LiveBrowserTab({
         selector?: string
         value?: string
         url?: string
+        expected_count?: number
+        comparison?: string
+        variable_name?: string
+        key?: string
+        cookie_name?: string
     }>>([])
 
     // Element Inspector

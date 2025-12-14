@@ -1,12 +1,14 @@
 'use client'
 
-import React from 'react'
-import { Settings, Target, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Settings, Target, AlertCircle, FunctionSquare, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { TestStep } from './types'
 import { getActionConfig, browserActions } from './action-configs'
+import { snippetApi, Snippet, SnippetParameter } from '@/lib/api/webAutomation'
 
 interface StepPropertiesPanelProps {
     selectedStep: TestStep | undefined
@@ -1379,7 +1381,210 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
         case 'soft_assert':
             return null
 
+        // Snippet: Call Snippet
+        case 'call_snippet':
+            return (
+                <CallSnippetFields selectedStep={selectedStep} updateStep={updateStep} />
+            )
+
         default:
             return null
     }
+}
+
+/**
+ * Fields for configuring a call_snippet step
+ * Allows selecting a snippet and configuring its parameters
+ */
+interface CallSnippetFieldsProps {
+    selectedStep: TestStep
+    updateStep: (field: keyof TestStep, value: any) => void
+}
+
+function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps) {
+    const [snippets, setSnippets] = useState<Snippet[]>([])
+    const [loading, setLoading] = useState(true)
+    const [selectedSnippet, setSelectedSnippet] = useState<Snippet | null>(null)
+    const [paramValues, setParamValues] = useState<Record<string, string>>(
+        (selectedStep.parameters as Record<string, string>) || {}
+    )
+
+    // Load snippets on mount - we need projectId from context/props
+    // For now we'll try to get it from URL or show message
+    useEffect(() => {
+        const loadSnippets = async () => {
+            try {
+                setLoading(true)
+                // Try to get projectId from URL
+                const pathParts = window.location.pathname.split('/')
+                const projectIdx = pathParts.indexOf('projects')
+                const projectId = projectIdx >= 0 ? pathParts[projectIdx + 1] : null
+
+                if (projectId) {
+                    const data = await snippetApi.listSnippets(projectId, { includeGlobal: true })
+                    setSnippets(data)
+
+                    // If step already has snippet_id, load it
+                    if (selectedStep.snippet_id) {
+                        const found = data.find(s => s.id === selectedStep.snippet_id)
+                        if (found) setSelectedSnippet(found)
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load snippets:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        loadSnippets()
+    }, [])
+
+    // When snippet_id changes, update selected snippet
+    useEffect(() => {
+        if (selectedStep.snippet_id && snippets.length > 0) {
+            const found = snippets.find(s => s.id === selectedStep.snippet_id)
+            if (found) {
+                setSelectedSnippet(found)
+                // Initialize params from snippet defaults
+                const defaults: Record<string, string> = {}
+                found.parameters?.forEach(p => {
+                    if (p.default && !paramValues[p.name]) {
+                        defaults[p.name] = p.default
+                    }
+                })
+                if (Object.keys(defaults).length > 0) {
+                    setParamValues(prev => ({ ...defaults, ...prev }))
+                }
+            }
+        }
+    }, [selectedStep.snippet_id, snippets])
+
+    const handleSnippetChange = (snippetId: string) => {
+        updateStep('snippet_id', snippetId)
+        const found = snippets.find(s => s.id === snippetId)
+        if (found) {
+            setSelectedSnippet(found)
+            // Reset params to snippet defaults
+            const defaults: Record<string, string> = {}
+            found.parameters?.forEach(p => {
+                defaults[p.name] = p.default || ''
+            })
+            setParamValues(defaults)
+            updateStep('parameters', defaults)
+        }
+    }
+
+    const handleParamChange = (paramName: string, value: string) => {
+        const updated = { ...paramValues, [paramName]: value }
+        setParamValues(updated)
+        updateStep('parameters', updated)
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading snippets...
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-4">
+            {/* Snippet Selector */}
+            <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                    <FunctionSquare className="w-4 h-4 text-violet-500" />
+                    Select Snippet *
+                </Label>
+                {snippets.length === 0 ? (
+                    <p className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                        No snippets available. Create a snippet first in the Snippet Manager.
+                    </p>
+                ) : (
+                    <select
+                        value={selectedStep.snippet_id || ''}
+                        onChange={(e) => handleSnippetChange(e.target.value)}
+                        className="w-full text-sm border rounded-md p-2"
+                    >
+                        <option value="">Select a snippet...</option>
+                        {snippets.map((s) => (
+                            <option key={s.id} value={s.id}>
+                                {s.name} {s.is_global ? '(Global)' : ''}
+                            </option>
+                        ))}
+                    </select>
+                )}
+            </div>
+
+            {/* Selected Snippet Info */}
+            {selectedSnippet && (
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                        <FunctionSquare className="w-4 h-4 text-violet-600" />
+                        <span className="font-medium text-violet-900">{selectedSnippet.name}</span>
+                    </div>
+                    {selectedSnippet.description && (
+                        <p className="text-xs text-violet-700 mb-2">{selectedSnippet.description}</p>
+                    )}
+                    <div className="flex gap-2 text-xs text-violet-600">
+                        <span>{selectedSnippet.steps?.length || 0} steps</span>
+                        <span>•</span>
+                        <span>{selectedSnippet.parameters?.length || 0} params</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Parameter Inputs */}
+            {selectedSnippet && selectedSnippet.parameters && selectedSnippet.parameters.length > 0 && (
+                <div className="space-y-3">
+                    <Label className="text-xs font-semibold text-gray-700">Parameters</Label>
+                    {selectedSnippet.parameters.map((param) => (
+                        <div key={param.name} className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <code className="text-xs text-violet-600 font-mono bg-violet-50 px-1.5 py-0.5 rounded">
+                                    {'{{'}{param.name}{'}}'}
+                                </code>
+                                <Badge variant="secondary" className="text-xs">
+                                    {param.type}
+                                </Badge>
+                                {param.description && (
+                                    <span className="text-xs text-gray-400">{param.description}</span>
+                                )}
+                            </div>
+                            <Input
+                                value={paramValues[param.name] || ''}
+                                onChange={(e) => handleParamChange(param.name, e.target.value)}
+                                placeholder={param.default || `Enter ${param.name}`}
+                                className="text-sm"
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Steps Preview */}
+            {selectedSnippet && selectedSnippet.steps && selectedSnippet.steps.length > 0 && (
+                <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-gray-700">Steps Preview</Label>
+                    <div className="bg-gray-50 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                        {selectedSnippet.steps.map((step, idx) => (
+                            <div
+                                key={idx}
+                                className="text-xs flex items-center gap-2 bg-white p-1.5 rounded border border-gray-100"
+                            >
+                                <span className="text-gray-400 w-4 text-right">{idx + 1}.</span>
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                    {step.action || step.type}
+                                </Badge>
+                                {step.selector && (
+                                    <code className="text-gray-500 truncate max-w-[150px]">{step.selector}</code>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
 }

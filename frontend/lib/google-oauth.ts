@@ -125,16 +125,16 @@ export function renderGoogleSignInButton(elementId: string, options?: any): void
     return
   }
 
-  const defaultOptions = {
+  const defaultOptions: { theme: string; size: string; width: string } = {
     theme: 'outline',
     size: 'large',
     width: '100%'
   }
 
-  (window as any).google.accounts.id.renderButton(
-    document.getElementById(elementId),
-    { ...defaultOptions, ...options }
-  )
+    ; (window as any).google.accounts.id.renderButton(
+      document.getElementById(elementId),
+      { ...defaultOptions, ...options }
+    )
 }
 
 export function promptGoogleSignIn(): void {

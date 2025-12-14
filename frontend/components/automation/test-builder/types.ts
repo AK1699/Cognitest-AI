@@ -92,6 +92,39 @@ export interface TestStep {
     // Clipboard
     text?: string
     is_active?: boolean
+    // Snippet fields
+    snippet_id?: string
+    parameters?: Record<string, string | number | boolean>
+}
+
+/**
+ * Snippet parameter definition
+ */
+export interface SnippetParameter {
+    name: string
+    type: 'string' | 'number' | 'boolean' | 'selector'
+    default?: string
+    description?: string
+}
+
+/**
+ * Snippet - reusable parameterized group of steps
+ */
+export interface Snippet {
+    id: string
+    project_id: string
+    organisation_id: string
+    name: string
+    description?: string
+    parameters: SnippetParameter[]
+    steps: TestStep[]
+    tags: string[]
+    is_global: boolean
+    version: string
+    usage_count: number
+    created_at: string
+    updated_at?: string
+    created_by?: string
 }
 
 /**

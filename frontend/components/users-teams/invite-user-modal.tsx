@@ -52,7 +52,7 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
     try {
       setGroupsLoading(true)
       const groupsData = await listGroups(organisationId)
-      setGroups(groupsData)
+      setGroups(groupsData.groups)
     } catch (error) {
       console.error('Error loading groups:', error)
       toast.error('Failed to load groups')
@@ -65,7 +65,7 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
     try {
       setRolesLoading(true)
       const rolesData = await listRoles(organisationId)
-      setRoles(rolesData)
+      setRoles(rolesData.roles)
     } catch (error) {
       console.error('Error loading roles:', error)
       toast.error('Failed to load roles')

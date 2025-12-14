@@ -53,6 +53,14 @@ export default function CreateOrganizationPage() {
       router.push(`/organizations/${response.data.id}/projects`)
     } catch (error: any) {
       console.error('Error creating organization:', error)
+
+      // Check if it's an authentication error
+      if (error.isAuthError || error.response?.status === 401) {
+        toast.error('Your session has expired. Please sign in again.')
+        router.push('/auth/signin')
+        return
+      }
+
       toast.error(error.response?.data?.detail || 'Failed to create organization')
       setLoading(false)
     }
