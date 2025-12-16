@@ -471,23 +471,6 @@ export default function TestFlowBuilder({
                 </div>
               )}
 
-              {/* Timeout */}
-              <div>
-                <Label>Timeout (ms)</Label>
-                <Input
-                  type="number"
-                  value={selectedNode.data.options?.timeout || 5000}
-                  onChange={(e) =>
-                    updateNodeData(selectedNode.id, {
-                      options: {
-                        ...selectedNode.data.options,
-                        timeout: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                />
-              </div>
-
               {/* Retry Count */}
               <div>
                 <Label>Retry Count</Label>

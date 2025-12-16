@@ -13,6 +13,7 @@ interface StepListProps {
     onDuplicateStep: (stepId: string) => void
     onDeleteStep: (stepId: string) => void
     onAddStepClick: () => void
+    onUpdateStep?: (stepId: string, field: keyof TestStep, value: any) => void
 }
 
 /**
@@ -26,6 +27,7 @@ export function StepList({
     onDuplicateStep,
     onDeleteStep,
     onAddStepClick,
+    onUpdateStep,
 }: StepListProps) {
     if (steps.length === 0) {
         return (
@@ -51,6 +53,7 @@ export function StepList({
                     onMoveDown={() => onMoveStep(step.id, 'down')}
                     onDuplicate={() => onDuplicateStep(step.id)}
                     onDelete={() => onDeleteStep(step.id)}
+                    onUpdateStep={onUpdateStep ? (field, value) => onUpdateStep(step.id, field, value) : undefined}
                 />
             ))}
 

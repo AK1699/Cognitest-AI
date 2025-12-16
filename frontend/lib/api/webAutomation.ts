@@ -427,9 +427,17 @@ export const snippetApi = {
         return response.data
     },
 
-    getSnippet: async (snippetId: string) => {
-        const response = await api.get<Snippet>(`/api/v1/snippets/${snippetId}`)
-        return response.data
+    getSnippet: async (snippetId: string): Promise<Snippet | null> => {
+        try {
+            const response = await api.get<Snippet>(`/api/v1/snippets/${snippetId}`)
+            return response.data
+        } catch (error: any) {
+            // Return null for 404 (snippet not found/deleted) instead of throwing
+            if (error?.response?.status === 404) {
+                return null
+            }
+            throw error
+        }
     },
 
     createSnippet: async (projectId: string, data: SnippetCreate) => {

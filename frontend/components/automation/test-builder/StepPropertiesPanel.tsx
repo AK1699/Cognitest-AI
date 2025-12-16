@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { TestStep } from './types'
 import { getActionConfig, browserActions } from './action-configs'
 import { snippetApi, Snippet, SnippetParameter } from '@/lib/api/webAutomation'
+import { toast } from 'sonner'
 
 interface StepPropertiesPanelProps {
     selectedStep: TestStep | undefined
@@ -60,7 +61,7 @@ export function StepPropertiesPanel({ selectedStep, onUpdateStep }: StepProperti
             </div>
 
             {/* Target Element (for most actions) */}
-            {!['navigate', 'wait', 'assert_title', 'assert_url', 'set_variable', 'set_variable_ternary', 'execute_script', 'log', 'comment', 'screenshot', 'reload', 'go_back', 'go_forward', 'wait_network', 'wait_url', 'for-loop', 'while-loop', 'if_condition', 'try-catch', 'random-data', 'make_api_call', 'wait_for_response', 'wait_for_request', 'set_viewport', 'set_device', 'set_geolocation', 'measure_load_time', 'get_performance_metrics', 'read_csv', 'read_json', 'iterate_dataset', 'get_cookie', 'set_cookie', 'delete_cookie', 'clear_cookies', 'get_local_storage', 'set_local_storage', 'clear_local_storage', 'get_session_storage', 'set_session_storage', 'clear_session_storage', 'new_tab', 'switch_tab', 'close_tab', 'switch_to_frame', 'switch_to_main', 'accept_dialog', 'dismiss_dialog', 'wait_for_download', 'verify_download'].includes(selectedStep.action) && (
+            {!['navigate', 'wait', 'assert_title', 'assert_url', 'set_variable', 'set_variable_ternary', 'execute_script', 'log', 'comment', 'screenshot', 'reload', 'go_back', 'go_forward', 'wait_network', 'wait_url', 'for-loop', 'while-loop', 'if_condition', 'try-catch', 'random-data', 'make_api_call', 'wait_for_response', 'wait_for_request', 'set_viewport', 'set_device', 'set_geolocation', 'measure_load_time', 'get_performance_metrics', 'read_csv', 'read_json', 'iterate_dataset', 'get_cookie', 'set_cookie', 'delete_cookie', 'clear_cookies', 'get_local_storage', 'set_local_storage', 'clear_local_storage', 'get_session_storage', 'set_session_storage', 'clear_session_storage', 'new_tab', 'switch_tab', 'close_tab', 'switch_to_frame', 'switch_to_main', 'accept_dialog', 'dismiss_dialog', 'wait_for_download', 'verify_download', 'call_snippet', 'create_snippet'].includes(selectedStep.action) && (
                 <div>
                     <label className="text-xs font-medium text-gray-700 mb-1.5 block">
                         Target Element <span className="text-red-500">*</span>
@@ -92,34 +93,26 @@ export function StepPropertiesPanel({ selectedStep, onUpdateStep }: StepProperti
                 </div>
             )}
 
+
             {/* Action-specific fields */}
             <ActionSpecificFields selectedStep={selectedStep} updateStep={updateStep} />
 
-            {/* Timeout */}
-            <div>
-                <label className="text-xs font-medium text-gray-700 mb-1.5 block">Timeout (ms)</label>
-                <Input
-                    type="number"
-                    value={selectedStep.timeout || 5000}
-                    onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
-                    className="text-sm"
-                />
-            </div>
-
-            {/* Advanced Options */}
-            <div className="pt-4 border-t border-gray-100">
-                <h3 className="text-xs font-semibold text-gray-900 mb-3">Advanced Options</h3>
-                <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                        <input type="checkbox" className="rounded border-gray-300" />
-                        Continue on error
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                        <input type="checkbox" className="rounded border-gray-300" />
-                        Take screenshot after
-                    </label>
+            {/* Advanced Options - not needed for call_snippet */}
+            {selectedStep.action !== 'call_snippet' && selectedStep.action !== 'create_snippet' && (
+                <div className="pt-4 border-t border-gray-100">
+                    <h3 className="text-xs font-semibold text-gray-900 mb-3">Advanced Options</h3>
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" className="rounded border-gray-300" />
+                            Continue on error
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" className="rounded border-gray-300" />
+                            Take screenshot after
+                        </label>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     )
 }
@@ -1267,14 +1260,6 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
                             placeholder="apiResponse"
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label>Timeout (ms)</Label>
-                        <Input
-                            type="number"
-                            value={selectedStep.timeout || 30000}
-                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
-                        />
-                    </div>
                 </div>
             )
 
@@ -1288,14 +1273,6 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
                             value={selectedStep.url || ''}
                             onChange={(e) => updateStep('url', e.target.value)}
                             placeholder="/api/save"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Timeout (ms)</Label>
-                        <Input
-                            type="number"
-                            value={selectedStep.timeout || 30000}
-                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
                         />
                     </div>
                 </div>
@@ -1319,14 +1296,6 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
                             value={selectedStep.variable_name || ''}
                             onChange={(e) => updateStep('variable_name', e.target.value)}
                             placeholder="downloadedFile"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Timeout (ms)</Label>
-                        <Input
-                            type="number"
-                            value={selectedStep.timeout || 30000}
-                            onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
                         />
                     </div>
                 </div>
@@ -1408,6 +1377,12 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
     const [paramValues, setParamValues] = useState<Record<string, string>>(
         (selectedStep.parameters as Record<string, string>) || {}
     )
+    // Inline editing state
+    const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
+    const [editedSteps, setEditedSteps] = useState<any[]>([])
+    const [isSavingSnippet, setIsSavingSnippet] = useState(false)
+    // Track if snippet was deleted
+    const [snippetNotFound, setSnippetNotFound] = useState(false)
 
     // Load snippets on mount - we need projectId from context/props
     // For now we'll try to get it from URL or show message
@@ -1420,18 +1395,33 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
                 const projectIdx = pathParts.indexOf('projects')
                 const projectId = projectIdx >= 0 ? pathParts[projectIdx + 1] : null
 
-                if (projectId) {
-                    const data = await snippetApi.listSnippets(projectId, { includeGlobal: true })
-                    setSnippets(data)
+                console.log('[CallSnippetFields] Loading snippets for projectId:', projectId)
+                console.log('[CallSnippetFields] Full URL path:', window.location.pathname)
 
-                    // If step already has snippet_id, load it
-                    if (selectedStep.snippet_id) {
-                        const found = data.find(s => s.id === selectedStep.snippet_id)
-                        if (found) setSelectedSnippet(found)
+                if (projectId) {
+                    try {
+                        const data = await snippetApi.listSnippets(projectId, { includeGlobal: true })
+                        console.log('[CallSnippetFields] Raw API response:', data)
+                        const snippetList = Array.isArray(data) ? data : []
+                        console.log('[CallSnippetFields] Loaded snippets count:', snippetList.length)
+                        setSnippets(snippetList)
+
+                        // If step already has snippet_id, load it
+                        if (selectedStep.snippet_id && snippetList.length > 0) {
+                            const found = snippetList.find(s => s.id === selectedStep.snippet_id)
+                            if (found) setSelectedSnippet(found)
+                        }
+                    } catch (apiError) {
+                        console.error('[CallSnippetFields] API call failed:', apiError)
+                        setSnippets([])
                     }
+                } else {
+                    console.warn('[CallSnippetFields] No projectId found in URL:', window.location.pathname)
+                    setSnippets([])
                 }
             } catch (error) {
-                console.error('Failed to load snippets:', error)
+                console.error('[CallSnippetFields] Failed to load snippets:', error)
+                setSnippets([])
             } finally {
                 setLoading(false)
             }
@@ -1445,6 +1435,7 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
             const found = snippets.find(s => s.id === selectedStep.snippet_id)
             if (found) {
                 setSelectedSnippet(found)
+                setSnippetNotFound(false)
                 // Initialize params from snippet defaults
                 const defaults: Record<string, string> = {}
                 found.parameters?.forEach(p => {
@@ -1455,15 +1446,27 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
                 if (Object.keys(defaults).length > 0) {
                     setParamValues(prev => ({ ...defaults, ...prev }))
                 }
+            } else {
+                // Snippet was deleted - not found in the list
+                setSnippetNotFound(true)
+                setSelectedSnippet(null)
             }
+        } else if (!selectedStep.snippet_id) {
+            // No snippet selected
+            setSnippetNotFound(false)
+            setSelectedSnippet(null)
         }
     }, [selectedStep.snippet_id, snippets])
 
     const handleSnippetChange = (snippetId: string) => {
-        updateStep('snippet_id', snippetId)
+        updateStep('snippet_id', snippetId || undefined)
         const found = snippets.find(s => s.id === snippetId)
         if (found) {
             setSelectedSnippet(found)
+            setSnippetNotFound(false)
+            // Save snippet name and steps for display in Test Explorer
+            updateStep('snippet_name', found.name)
+            updateStep('snippet_steps', found.steps || [])
             // Reset params to snippet defaults
             const defaults: Record<string, string> = {}
             found.parameters?.forEach(p => {
@@ -1471,6 +1474,14 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
             })
             setParamValues(defaults)
             updateStep('parameters', defaults)
+        } else {
+            // Clear snippet data when deselecting
+            setSelectedSnippet(null)
+            setSnippetNotFound(false)
+            updateStep('snippet_name', undefined)
+            updateStep('snippet_steps', undefined)
+            updateStep('parameters', {})
+            setParamValues({})
         }
     }
 
@@ -1478,6 +1489,57 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
         const updated = { ...paramValues, [paramName]: value }
         setParamValues(updated)
         updateStep('parameters', updated)
+    }
+
+    // Sync editedSteps when snippet changes
+    useEffect(() => {
+        if (selectedSnippet?.steps) {
+            setEditedSteps([...selectedSnippet.steps])
+        }
+    }, [selectedSnippet])
+
+    // Update a specific step field
+    const handleStepFieldChange = (stepIndex: number, field: string, value: any) => {
+        setEditedSteps(prev => {
+            const updated = [...prev]
+            updated[stepIndex] = { ...updated[stepIndex], [field]: value }
+            return updated
+        })
+    }
+
+    // Save edited steps to the snippet
+    const handleSaveSnippetSteps = async () => {
+        if (!selectedSnippet) return
+
+        setIsSavingSnippet(true)
+        try {
+            // Get projectId from URL
+            const pathParts = window.location.pathname.split('/')
+            const projectsIndex = pathParts.indexOf('projects')
+            const projectId = projectsIndex !== -1 ? pathParts[projectsIndex + 1] : null
+
+            if (!projectId) {
+                toast.error('Could not determine project ID')
+                return
+            }
+
+            await snippetApi.updateSnippet(selectedSnippet.id, {
+                steps: editedSteps
+            })
+
+            // Update local state
+            setSelectedSnippet({ ...selectedSnippet, steps: editedSteps })
+            // Update the step's snippet_steps for display
+            updateStep('snippet_steps', editedSteps)
+
+            toast.success('Snippet steps updated!')
+            setEditingStepIndex(null)
+        } catch (error) {
+            console.error('Failed to save snippet steps:', error)
+            toast.error('Failed to save snippet steps')
+        } finally {
+            setIsSavingSnippet(false)
+        }
     }
 
     if (loading) {
@@ -1516,6 +1578,21 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
                     </select>
                 )}
             </div>
+
+            {/* Error message when snippet was deleted */}
+            {snippetNotFound && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm text-red-700 font-medium">Snippet was deleted</p>
+                            <p className="text-xs text-red-500 mt-1">
+                                The previously selected snippet no longer exists. Please select a different snippet from the dropdown above.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Selected Snippet Info */}
             {selectedSnippet && (
@@ -1563,26 +1640,181 @@ function CallSnippetFields({ selectedStep, updateStep }: CallSnippetFieldsProps)
                 </div>
             )}
 
-            {/* Steps Preview */}
-            {selectedSnippet && selectedSnippet.steps && selectedSnippet.steps.length > 0 && (
+            {/* Steps - Editable */}
+            {selectedSnippet && editedSteps.length > 0 && (
                 <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-gray-700">Steps Preview</Label>
-                    <div className="bg-gray-50 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
-                        {selectedSnippet.steps.map((step, idx) => (
-                            <div
-                                key={idx}
-                                className="text-xs flex items-center gap-2 bg-white p-1.5 rounded border border-gray-100"
-                            >
-                                <span className="text-gray-400 w-4 text-right">{idx + 1}.</span>
-                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                    {step.action || step.type}
-                                </Badge>
-                                {step.selector && (
-                                    <code className="text-gray-500 truncate max-w-[150px]">{step.selector}</code>
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-gray-700">
+                            Steps ({editedSteps.length})
+                        </Label>
+                        {editingStepIndex !== null && (
+                            <div className="flex gap-1">
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 text-xs"
+                                    onClick={() => {
+                                        setEditedSteps([...selectedSnippet.steps || []])
+                                        setEditingStepIndex(null)
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    className="h-6 text-xs bg-violet-600 hover:bg-violet-700"
+                                    onClick={handleSaveSnippetSteps}
+                                    disabled={isSavingSnippet}
+                                >
+                                    {isSavingSnippet ? 'Saving...' : 'Save'}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2 space-y-1.5 max-h-80 overflow-y-auto">
+                        {editedSteps.map((step, idx) => (
+                            <div key={idx}>
+                                {/* Step header - clickable */}
+                                <div
+                                    onClick={() => setEditingStepIndex(editingStepIndex === idx ? null : idx)}
+                                    className={`text-xs flex items-center gap-2 bg-white p-2 rounded border cursor-pointer transition-all ${editingStepIndex === idx
+                                        ? 'border-violet-400 ring-1 ring-violet-200'
+                                        : 'border-gray-100 hover:border-violet-200'
+                                        }`}
+                                >
+                                    <span className="text-gray-400 w-4 text-right">{idx + 1}.</span>
+                                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                        {step.action || step.type}
+                                    </Badge>
+                                    {step.selector && (
+                                        <code className="text-gray-500 truncate max-w-[100px]">{step.selector}</code>
+                                    )}
+                                    {step.url && (
+                                        <code className="text-blue-500 truncate max-w-[100px]">{step.url}</code>
+                                    )}
+                                    {step.amount && (
+                                        <span className="text-gray-500">{step.amount}ms</span>
+                                    )}
+                                    <span className="ml-auto text-gray-400 text-[10px]">
+                                        {editingStepIndex === idx ? '▼' : '✎'}
+                                    </span>
+                                </div>
+
+                                {/* Inline edit form */}
+                                {editingStepIndex === idx && (
+                                    <div className="mt-1 p-2 bg-white border border-violet-200 rounded space-y-2">
+                                        {/* URL field for navigate/wait_url */}
+                                        {(step.action === 'navigate' || step.action === 'wait_url' || step.action === 'new_tab') && (
+                                            <div>
+                                                <Label className="text-[10px] text-gray-500">URL</Label>
+                                                <Input
+                                                    value={step.url || ''}
+                                                    onChange={(e) => handleStepFieldChange(idx, 'url', e.target.value)}
+                                                    placeholder="https://..."
+                                                    className="h-7 text-xs"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Selector field */}
+                                        {(step.action === 'click' || step.action === 'type' || step.action === 'fill' ||
+                                            step.action === 'hover' || step.action === 'focus' || step.action === 'double_click') && (
+                                                <div>
+                                                    <Label className="text-[10px] text-gray-500">Selector</Label>
+                                                    <Input
+                                                        value={step.selector || ''}
+                                                        onChange={(e) => handleStepFieldChange(idx, 'selector', e.target.value)}
+                                                        placeholder="#id or .class"
+                                                        className="h-7 text-xs font-mono"
+                                                    />
+                                                </div>
+                                            )}
+
+                                        {/* Value field for type/fill */}
+                                        {(step.action === 'type' || step.action === 'fill') && (
+                                            <div>
+                                                <Label className="text-[10px] text-gray-500">Value</Label>
+                                                <Input
+                                                    value={step.value || ''}
+                                                    onChange={(e) => handleStepFieldChange(idx, 'value', e.target.value)}
+                                                    placeholder="Text to type"
+                                                    className="h-7 text-xs"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Amount field for wait */}
+                                        {step.action === 'wait' && (
+                                            <div>
+                                                <Label className="text-[10px] text-gray-500">Duration (ms)</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={step.amount || step.timeout || 1000}
+                                                    onChange={(e) => handleStepFieldChange(idx, 'amount', parseInt(e.target.value))}
+                                                    className="h-7 text-xs"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Assert URL fields */}
+                                        {step.action === 'assert_url' && (
+                                            <>
+                                                <div>
+                                                    <Label className="text-[10px] text-gray-500">Comparison</Label>
+                                                    <select
+                                                        value={step.comparison || 'contains'}
+                                                        onChange={(e) => handleStepFieldChange(idx, 'comparison', e.target.value)}
+                                                        className="w-full h-7 text-xs border rounded px-2"
+                                                    >
+                                                        <option value="equals">Equals</option>
+                                                        <option value="contains">Contains</option>
+                                                        <option value="starts_with">Starts With</option>
+                                                        <option value="ends_with">Ends With</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[10px] text-gray-500">Expected URL</Label>
+                                                    <Input
+                                                        value={step.expected_url || ''}
+                                                        onChange={(e) => handleStepFieldChange(idx, 'expected_url', e.target.value)}
+                                                        placeholder="Expected URL or part"
+                                                        className="h-7 text-xs"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* Assert Title fields */}
+                                        {step.action === 'assert_title' && (
+                                            <>
+                                                <div>
+                                                    <Label className="text-[10px] text-gray-500">Comparison</Label>
+                                                    <select
+                                                        value={step.comparison || 'contains'}
+                                                        onChange={(e) => handleStepFieldChange(idx, 'comparison', e.target.value)}
+                                                        className="w-full h-7 text-xs border rounded px-2"
+                                                    >
+                                                        <option value="equals">Equals</option>
+                                                        <option value="contains">Contains</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[10px] text-gray-500">Expected Title</Label>
+                                                    <Input
+                                                        value={step.expected_title || ''}
+                                                        onChange={(e) => handleStepFieldChange(idx, 'expected_title', e.target.value)}
+                                                        placeholder="Expected page title"
+                                                        className="h-7 text-xs"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         ))}
                     </div>
+                    <p className="text-[10px] text-gray-400 italic">Click a step to edit</p>
                 </div>
             )}
         </div>

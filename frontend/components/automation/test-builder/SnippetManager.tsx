@@ -58,6 +58,11 @@ export function SnippetManager({
     const [newTagInput, setNewTagInput] = useState('')
     const [saving, setSaving] = useState(false)
 
+    // Delete confirmation modal state
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [snippetToDelete, setSnippetToDelete] = useState<Snippet | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
+
     useEffect(() => {
         if (open) {
             loadSnippets()
@@ -143,15 +148,28 @@ export function SnippetManager({
     }
 
     const handleDelete = async (snippet: Snippet) => {
-        if (!confirm(`Delete snippet "${snippet.name}"?`)) return
+        setSnippetToDelete(snippet)
+        setDeleteConfirmOpen(true)
+    }
 
+    const confirmDelete = async () => {
+        if (!snippetToDelete) return
+
+        setIsDeleting(true)
         try {
-            await snippetApi.deleteSnippet(snippet.id)
+            await snippetApi.deleteSnippet(snippetToDelete.id)
             toast.success('Snippet deleted')
+            setDeleteConfirmOpen(false)
+            setSnippetToDelete(null)
+            if (selectedSnippet?.id === snippetToDelete.id) {
+                setSelectedSnippet(null)
+            }
             await loadSnippets()
         } catch (error) {
             console.error('Failed to delete snippet:', error)
             toast.error('Failed to delete snippet')
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -191,378 +209,469 @@ export function SnippetManager({
     )
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl h-[650px] flex flex-col p-0 gap-0 overflow-hidden">
-                <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
-                    <DialogTitle className="flex items-center gap-2">
-                        <FunctionSquare className="w-5 h-5 text-violet-500" />
-                        Snippet Manager
-                    </DialogTitle>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-4xl h-[650px] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+                        <DialogTitle className="flex items-center gap-2">
+                            <FunctionSquare className="w-5 h-5 text-violet-500" />
+                            Snippet Manager
+                        </DialogTitle>
+                    </DialogHeader>
 
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Snippet List */}
-                    <div className="w-72 border-r bg-gray-50 flex flex-col">
-                        <div className="p-4 space-y-3 border-b">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search snippets..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-9 h-9"
-                                />
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Snippet List */}
+                        <div className="w-72 border-r bg-gray-50 flex flex-col">
+                            <div className="p-4 space-y-3 border-b">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Search snippets..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="pl-9 h-9"
+                                    />
+                                </div>
+                                <Button onClick={handleCreate} className="w-full" size="sm">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    New Snippet
+                                </Button>
                             </div>
-                            <Button onClick={handleCreate} className="w-full" size="sm">
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Snippet
-                            </Button>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {loading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                                </div>
-                            ) : filteredSnippets.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500 text-sm">
-                                    {search ? 'No snippets found' : 'No snippets yet'}
-                                </div>
-                            ) : (
-                                filteredSnippets.map((snippet) => (
-                                    <div
-                                        key={snippet.id}
-                                        className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedSnippet?.id === snippet.id
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                {loading ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                    </div>
+                                ) : filteredSnippets.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 text-sm">
+                                        {search ? 'No snippets found' : 'No snippets yet'}
+                                    </div>
+                                ) : (
+                                    filteredSnippets.map((snippet) => (
+                                        <div
+                                            key={snippet.id}
+                                            className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedSnippet?.id === snippet.id
                                                 ? 'bg-violet-50 border border-violet-200'
                                                 : 'hover:bg-gray-100 border border-transparent'
-                                            }`}
-                                        onClick={() => setSelectedSnippet(snippet)}
-                                    >
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <FunctionSquare className="w-4 h-4 text-violet-500 flex-shrink-0" />
-                                                <span className="font-medium text-sm truncate">{snippet.name}</span>
+                                                }`}
+                                            onClick={() => setSelectedSnippet(snippet)}
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <FunctionSquare className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                                                    <span className="font-medium text-sm truncate">{snippet.name}</span>
+                                                </div>
+                                                {snippet.is_global && (
+                                                    <Globe className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                                )}
                                             </div>
-                                            {snippet.is_global && (
-                                                <Globe className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                            {snippet.description && (
+                                                <p className="text-xs text-gray-500 mt-1 line-clamp-2 ml-6">
+                                                    {snippet.description}
+                                                </p>
                                             )}
+                                            {snippet.tags && snippet.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-2 ml-6">
+                                                    {snippet.tags.slice(0, 3).map((tag) => (
+                                                        <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
+                                                            {tag}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="text-xs text-gray-400 mt-2 ml-6">
+                                                {snippet.parameters?.length || 0} params • {snippet.steps?.length || 0} steps
+                                            </div>
                                         </div>
-                                        {snippet.description && (
-                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2 ml-6">
-                                                {snippet.description}
-                                            </p>
-                                        )}
-                                        {snippet.tags && snippet.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-2 ml-6">
-                                                {snippet.tags.slice(0, 3).map((tag) => (
-                                                    <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Detail/Edit Panel */}
+                        <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                            {isCreating || isEditing ? (
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Name *</Label>
+                                        <Input
+                                            value={formName}
+                                            onChange={(e) => setFormName(e.target.value)}
+                                            placeholder="e.g., Login Flow"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Description</Label>
+                                        <Input
+                                            value={formDescription}
+                                            onChange={(e) => setFormDescription(e.target.value)}
+                                            placeholder="What does this snippet do?"
+                                        />
+                                    </div>
+
+                                    {/* Tags */}
+                                    <div className="space-y-2">
+                                        <Label>Tags</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={newTagInput}
+                                                onChange={(e) => setNewTagInput(e.target.value)}
+                                                placeholder="Add tag"
+                                                onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                                                className="flex-1"
+                                            />
+                                            <Button onClick={addTag} size="sm" variant="outline">
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                        {formTags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {formTags.map((tag) => (
+                                                    <Badge
+                                                        key={tag}
+                                                        variant="secondary"
+                                                        className="flex items-center gap-1 cursor-pointer"
+                                                        onClick={() => removeTag(tag)}
+                                                    >
                                                         {tag}
+                                                        <Trash2 className="w-3 h-3" />
                                                     </Badge>
                                                 ))}
                                             </div>
                                         )}
-                                        <div className="text-xs text-gray-400 mt-2 ml-6">
-                                            {snippet.parameters?.length || 0} params • {snippet.steps?.length || 0} steps
+                                    </div>
+
+                                    {/* Parameters */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label>Parameters</Label>
+                                            <Button onClick={addParameter} size="sm" variant="ghost">
+                                                <Plus className="w-4 h-4 mr-1" />
+                                                Add
+                                            </Button>
+                                        </div>
+                                        {formParameters.length === 0 ? (
+                                            <p className="text-sm text-gray-500">
+                                                No parameters. Use {'{{param_name}}'} in step values.
+                                            </p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {formParameters.map((param, idx) => (
+                                                    <Card key={idx} className="p-3">
+                                                        <div className="grid grid-cols-4 gap-2">
+                                                            <Input
+                                                                value={param.name}
+                                                                onChange={(e) => updateParameter(idx, 'name', e.target.value)}
+                                                                placeholder="Name"
+                                                                className="text-sm"
+                                                            />
+                                                            <select
+                                                                value={param.type}
+                                                                onChange={(e) =>
+                                                                    updateParameter(idx, 'type', e.target.value as any)
+                                                                }
+                                                                className="text-sm border rounded px-2"
+                                                            >
+                                                                <option value="string">String</option>
+                                                                <option value="number">Number</option>
+                                                                <option value="boolean">Boolean</option>
+                                                                <option value="selector">Selector</option>
+                                                            </select>
+                                                            <Input
+                                                                value={param.default || ''}
+                                                                onChange={(e) => updateParameter(idx, 'default', e.target.value)}
+                                                                placeholder="Default"
+                                                                className="text-sm"
+                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    value={param.description || ''}
+                                                                    onChange={(e) =>
+                                                                        updateParameter(idx, 'description', e.target.value)
+                                                                    }
+                                                                    placeholder="Description"
+                                                                    className="text-sm flex-1"
+                                                                />
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    className="h-8 w-8 text-red-500"
+                                                                    onClick={() => removeParameter(idx)}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Global toggle */}
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="is-global"
+                                            checked={formIsGlobal}
+                                            onChange={(e) => setFormIsGlobal(e.target.checked)}
+                                            className="rounded"
+                                        />
+                                        <Label htmlFor="is-global" className="cursor-pointer">
+                                            Make this snippet available to all projects (Global)
+                                        </Label>
+                                    </div>
+                                </div>
+                            ) : selectedSnippet ? (
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                {selectedSnippet.name}
+                                                {selectedSnippet.is_global && (
+                                                    <Badge variant="outline" className="text-blue-600">
+                                                        <Globe className="w-3 h-3 mr-1" />
+                                                        Global
+                                                    </Badge>
+                                                )}
+                                            </h3>
+                                            {selectedSnippet.description && (
+                                                <p className="text-gray-600 mt-1">{selectedSnippet.description}</p>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleEdit(selectedSnippet)}
+                                            >
+                                                <Edit2 className="w-4 h-4 mr-1" />
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    onSnippetSelect?.(selectedSnippet)
+                                                    onOpenChange(false)
+                                                }}
+                                            >
+                                                <Copy className="w-4 h-4 mr-1" />
+                                                Use
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="text-red-500"
+                                                onClick={() => handleDelete(selectedSnippet)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
                                         </div>
                                     </div>
-                                ))
+
+                                    {/* Parameters list */}
+                                    {selectedSnippet.parameters && selectedSnippet.parameters.length > 0 && (
+                                        <div className="mb-4">
+                                            <h4 className="text-sm font-semibold mb-2">Parameters</h4>
+                                            <div className="space-y-1">
+                                                {selectedSnippet.parameters.map((param, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded"
+                                                    >
+                                                        <code className="text-violet-600 font-mono">
+                                                            {'{{'}{param.name}{'}}'}
+                                                        </code>
+                                                        <Badge variant="secondary">{param.type}</Badge>
+                                                        {param.default && (
+                                                            <span className="text-gray-500">= {param.default}</span>
+                                                        )}
+                                                        {param.description && (
+                                                            <span className="text-gray-400 ml-auto">{param.description}</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Steps preview */}
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-2">
+                                            Steps ({selectedSnippet.steps?.length || 0})
+                                        </h4>
+                                        {(!selectedSnippet.steps || selectedSnippet.steps.length === 0) ? (
+                                            <p className="text-sm text-gray-500">No steps defined yet.</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {selectedSnippet.steps.map((step, idx) => (
+                                                    <div key={idx} className="text-sm bg-gray-50 p-2.5 rounded border border-gray-100">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-gray-400 font-mono text-xs">{idx + 1}.</span>
+                                                            <span className="font-semibold text-gray-900">{step.action || step.type}</span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1.5 pl-5">
+                                                            {/* URL Badge */}
+                                                            {step.url && (
+                                                                <code className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 truncate max-w-[200px]" title={step.url}>
+                                                                    🔗 {step.url.length > 30 ? step.url.substring(0, 30) + '...' : step.url}
+                                                                </code>
+                                                            )}
+                                                            {/* Selector Badge */}
+                                                            {step.selector && (
+                                                                <code className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 truncate max-w-[150px]" title={step.selector}>
+                                                                    🎯 {step.selector}
+                                                                </code>
+                                                            )}
+                                                            {/* Value Badge */}
+                                                            {step.value && (
+                                                                <code className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 truncate max-w-[120px]" title={step.value}>
+                                                                    ✏️ "{step.value}"
+                                                                </code>
+                                                            )}
+                                                            {/* Timeout Badge */}
+                                                            {(step.timeout || step.amount) && (
+                                                                <code className="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                                                    ⏱️ {step.timeout || step.amount}ms
+                                                                </code>
+                                                            )}
+                                                            {/* Expected URL Badge */}
+                                                            {step.expected_url && (
+                                                                <code className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 truncate max-w-[180px]" title={step.expected_url}>
+                                                                    🔗 {step.comparison || 'contains'}: "{step.expected_url.length > 20 ? step.expected_url.substring(0, 20) + '...' : step.expected_url}"
+                                                                </code>
+                                                            )}
+                                                            {/* Expected Title Badge */}
+                                                            {step.expected_title && (
+                                                                <code className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 truncate max-w-[180px]" title={step.expected_title}>
+                                                                    📄 {step.comparison || 'equals'}: "{step.expected_title.length > 20 ? step.expected_title.substring(0, 20) + '...' : step.expected_title}"
+                                                                </code>
+                                                            )}
+                                                            {/* Key Badge (for press actions) */}
+                                                            {step.key && (
+                                                                <code className="text-[10px] text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-200">
+                                                                    ⌨️ {step.key}
+                                                                </code>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Tags */}
+                                    {selectedSnippet.tags && selectedSnippet.tags.length > 0 && (
+                                        <div className="mt-4">
+                                            <h4 className="text-sm font-semibold mb-2">Tags</h4>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedSnippet.tags.map((tag) => (
+                                                    <Badge key={tag} variant="secondary">
+                                                        <Tag className="w-3 h-3 mr-1" />
+                                                        {tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Metadata */}
+                                    <div className="mt-4 pt-4 border-t text-xs text-gray-400">
+                                        <p>Version: {selectedSnippet.version}</p>
+                                        <p>Used: {selectedSnippet.usage_count} times</p>
+                                        <p>Created: {new Date(selectedSnippet.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-gray-400">
+                                    <div className="text-center">
+                                        <FunctionSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                        <p>Select a snippet to view details</p>
+                                        <p className="text-sm mt-1">or create a new one</p>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Detail/Edit Panel */}
-                    <div className="flex-1 flex flex-col bg-white overflow-hidden">
-                        {isCreating || isEditing ? (
-                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Name *</Label>
-                                    <Input
-                                        value={formName}
-                                        onChange={(e) => setFormName(e.target.value)}
-                                        placeholder="e.g., Login Flow"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Description</Label>
-                                    <Input
-                                        value={formDescription}
-                                        onChange={(e) => setFormDescription(e.target.value)}
-                                        placeholder="What does this snippet do?"
-                                    />
-                                </div>
-
-                                {/* Tags */}
-                                <div className="space-y-2">
-                                    <Label>Tags</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={newTagInput}
-                                            onChange={(e) => setNewTagInput(e.target.value)}
-                                            placeholder="Add tag"
-                                            onKeyDown={(e) => e.key === 'Enter' && addTag()}
-                                            className="flex-1"
-                                        />
-                                        <Button onClick={addTag} size="sm" variant="outline">
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                    {formTags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                            {formTags.map((tag) => (
-                                                <Badge
-                                                    key={tag}
-                                                    variant="secondary"
-                                                    className="flex items-center gap-1 cursor-pointer"
-                                                    onClick={() => removeTag(tag)}
-                                                >
-                                                    {tag}
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Parameters */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label>Parameters</Label>
-                                        <Button onClick={addParameter} size="sm" variant="ghost">
-                                            <Plus className="w-4 h-4 mr-1" />
-                                            Add
-                                        </Button>
-                                    </div>
-                                    {formParameters.length === 0 ? (
-                                        <p className="text-sm text-gray-500">
-                                            No parameters. Use {'{{param_name}}'} in step values.
-                                        </p>
+                    <DialogFooter className="p-4 border-t bg-white flex-shrink-0">
+                        {(isCreating || isEditing) ? (
+                            <>
+                                <Button variant="outline" onClick={resetForm}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSave} disabled={saving}>
+                                    {saving ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : isEditing ? (
+                                        'Save Changes'
                                     ) : (
-                                        <div className="space-y-2">
-                                            {formParameters.map((param, idx) => (
-                                                <Card key={idx} className="p-3">
-                                                    <div className="grid grid-cols-4 gap-2">
-                                                        <Input
-                                                            value={param.name}
-                                                            onChange={(e) => updateParameter(idx, 'name', e.target.value)}
-                                                            placeholder="Name"
-                                                            className="text-sm"
-                                                        />
-                                                        <select
-                                                            value={param.type}
-                                                            onChange={(e) =>
-                                                                updateParameter(idx, 'type', e.target.value as any)
-                                                            }
-                                                            className="text-sm border rounded px-2"
-                                                        >
-                                                            <option value="string">String</option>
-                                                            <option value="number">Number</option>
-                                                            <option value="boolean">Boolean</option>
-                                                            <option value="selector">Selector</option>
-                                                        </select>
-                                                        <Input
-                                                            value={param.default || ''}
-                                                            onChange={(e) => updateParameter(idx, 'default', e.target.value)}
-                                                            placeholder="Default"
-                                                            className="text-sm"
-                                                        />
-                                                        <div className="flex items-center gap-2">
-                                                            <Input
-                                                                value={param.description || ''}
-                                                                onChange={(e) =>
-                                                                    updateParameter(idx, 'description', e.target.value)
-                                                                }
-                                                                placeholder="Description"
-                                                                className="text-sm flex-1"
-                                                            />
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-8 w-8 text-red-500"
-                                                                onClick={() => removeParameter(idx)}
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </Card>
-                                            ))}
-                                        </div>
+                                        'Create Snippet'
                                     )}
-                                </div>
-
-                                {/* Global toggle */}
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        id="is-global"
-                                        checked={formIsGlobal}
-                                        onChange={(e) => setFormIsGlobal(e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <Label htmlFor="is-global" className="cursor-pointer">
-                                        Make this snippet available to all projects (Global)
-                                    </Label>
-                                </div>
-                            </div>
-                        ) : selectedSnippet ? (
-                            <div className="flex-1 overflow-y-auto p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                                            {selectedSnippet.name}
-                                            {selectedSnippet.is_global && (
-                                                <Badge variant="outline" className="text-blue-600">
-                                                    <Globe className="w-3 h-3 mr-1" />
-                                                    Global
-                                                </Badge>
-                                            )}
-                                        </h3>
-                                        {selectedSnippet.description && (
-                                            <p className="text-gray-600 mt-1">{selectedSnippet.description}</p>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleEdit(selectedSnippet)}
-                                        >
-                                            <Edit2 className="w-4 h-4 mr-1" />
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                onSnippetSelect?.(selectedSnippet)
-                                                onOpenChange(false)
-                                            }}
-                                        >
-                                            <Copy className="w-4 h-4 mr-1" />
-                                            Use
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="text-red-500"
-                                            onClick={() => handleDelete(selectedSnippet)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Parameters list */}
-                                {selectedSnippet.parameters && selectedSnippet.parameters.length > 0 && (
-                                    <div className="mb-4">
-                                        <h4 className="text-sm font-semibold mb-2">Parameters</h4>
-                                        <div className="space-y-1">
-                                            {selectedSnippet.parameters.map((param, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded"
-                                                >
-                                                    <code className="text-violet-600 font-mono">
-                                                        {'{{'}{param.name}{'}}'}
-                                                    </code>
-                                                    <Badge variant="secondary">{param.type}</Badge>
-                                                    {param.default && (
-                                                        <span className="text-gray-500">= {param.default}</span>
-                                                    )}
-                                                    {param.description && (
-                                                        <span className="text-gray-400 ml-auto">{param.description}</span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Steps preview */}
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-2">
-                                        Steps ({selectedSnippet.steps?.length || 0})
-                                    </h4>
-                                    {(!selectedSnippet.steps || selectedSnippet.steps.length === 0) ? (
-                                        <p className="text-sm text-gray-500">No steps defined yet.</p>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            {selectedSnippet.steps.map((step, idx) => (
-                                                <div key={idx} className="text-sm bg-gray-50 p-2 rounded flex gap-2">
-                                                    <span className="text-gray-400">{idx + 1}.</span>
-                                                    <span className="font-medium">{step.action || step.type}</span>
-                                                    {step.selector && (
-                                                        <code className="text-xs text-gray-500 truncate max-w-[200px]">
-                                                            {step.selector}
-                                                        </code>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Tags */}
-                                {selectedSnippet.tags && selectedSnippet.tags.length > 0 && (
-                                    <div className="mt-4">
-                                        <h4 className="text-sm font-semibold mb-2">Tags</h4>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {selectedSnippet.tags.map((tag) => (
-                                                <Badge key={tag} variant="secondary">
-                                                    <Tag className="w-3 h-3 mr-1" />
-                                                    {tag}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Metadata */}
-                                <div className="mt-4 pt-4 border-t text-xs text-gray-400">
-                                    <p>Version: {selectedSnippet.version}</p>
-                                    <p>Used: {selectedSnippet.usage_count} times</p>
-                                    <p>Created: {new Date(selectedSnippet.created_at).toLocaleDateString()}</p>
-                                </div>
-                            </div>
+                                </Button>
+                            </>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-gray-400">
-                                <div className="text-center">
-                                    <FunctionSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                    <p>Select a snippet to view details</p>
-                                    <p className="text-sm mt-1">or create a new one</p>
-                                </div>
-                            </div>
+                            <Button variant="outline" onClick={() => onOpenChange(false)}>
+                                Close
+                            </Button>
                         )}
-                    </div>
-                </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                <DialogFooter className="p-4 border-t bg-white flex-shrink-0">
-                    {(isCreating || isEditing) ? (
-                        <>
-                            <Button variant="outline" onClick={resetForm}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleSave} disabled={saving}>
-                                {saving ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : isEditing ? (
-                                    'Save Changes'
-                                ) : (
-                                    'Create Snippet'
-                                )}
-                            </Button>
-                        </>
-                    ) : (
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>
-                            Close
+            {/* Delete Confirmation Modal */}
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5" />
+                            Delete Snippet
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-gray-600">
+                            Are you sure you want to delete the snippet{' '}
+                            <span className="font-semibold text-gray-900">"{snippetToDelete?.name}"</span>?
+                        </p>
+                        <p className="text-sm text-gray-500 mt-2">
+                            This action cannot be undone.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setDeleteConfirmOpen(false)
+                                setSnippetToDelete(null)
+                            }}
+                            disabled={isDeleting}
+                        >
+                            Cancel
                         </Button>
-                    )}
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }

@@ -581,21 +581,6 @@ export default function ProductionTestBuilder({ testId, onSave }: ProductionTest
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
-
-                          {/* Timeout Field */}
-                          <div>
-                            <label className="text-xs font-medium text-gray-700 mb-1 block">Timeout (ms)</label>
-                            <Input
-                              type="number"
-                              value={step.timeout || 5000}
-                              onChange={(e) => updateStep(step.id, 'timeout', parseInt(e.target.value))}
-                              min="0"
-                              step="1000"
-                              className="text-sm"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Maximum time to wait for this action</p>
-                          </div>
                         </div>
                       )}
                     </div>

@@ -857,7 +857,10 @@ class WebAutomationExecutor:
         elif action_type == "wait":
             wait_type = action_data.get("waitType", "time")
             if wait_type == "time":
-                duration = action_data.get("duration", 1000)
+                # Frontend uses 'amount', also check 'duration' and 'timeout' for compatibility
+                duration = action_data.get("amount") or action_data.get("duration") or action_data.get("timeout") or 5000
+                print(f"[WAIT DEBUG] action_data: {action_data}")
+                print(f"[WAIT DEBUG] Waiting for {duration}ms")
                 await asyncio.sleep(duration / 1000)
             elif wait_type == "element":
                 selector_data = action_data.get("selector", {})

@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
-import { Save } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { Save, CheckSquare, Puzzle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { webAutomationApi } from '@/lib/api/webAutomation'
+import { CreateSnippetDialog } from './CreateSnippetDialog'
 
 // Types
 import { TestStep, TestBuilderTabProps, BuilderMethod } from './types'
@@ -28,6 +29,12 @@ import { StepPropertiesPanel } from './StepPropertiesPanel'
 export default function TestBuilderTab({ selectedEnvironment, flowId, projectId }: TestBuilderTabProps) {
     // Builder method state
     const [builderMethod, setBuilderMethod] = React.useState<BuilderMethod>('visual')
+
+    // Snippet creation state
+    const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(new Set())
+    const [showCreateSnippetDialog, setShowCreateSnippetDialog] = useState(false)
+    const [showSnippetManager, setShowSnippetManager] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
 
     // WebSocket ref for cleanup
     const wsRef = useRef<WebSocket | null>(null)
@@ -175,121 +182,162 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     }, [flowId, setIsFlowLoading, setTestName, setSteps])
 
     return (
-        <div className="flex h-full bg-gray-50 overflow-hidden w-full">
-            {/* Left Panel - Actions Library */}
-            <div className="w-72 min-w-[288px] bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Method Selector */}
-                <div className="p-4 border-b border-gray-200">
-                    <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
-                        <button
-                            onClick={() => setBuilderMethod('visual')}
-                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'visual'
-                                ? 'bg-white shadow text-gray-900'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            Visual
-                        </button>
-                        <button
-                            onClick={() => setBuilderMethod('recorder')}
-                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'recorder'
-                                ? 'bg-white shadow text-gray-900'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            Recorder
-                        </button>
-                        <button
-                            onClick={() => setBuilderMethod('ai')}
-                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'ai'
-                                ? 'bg-white shadow text-gray-900'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            AI
-                        </button>
-                    </div>
+        <>
+            <div className="flex h-full bg-gray-50 overflow-hidden w-full">
+                {/* Left Panel - Actions Library */}
+                <div className="w-72 min-w-[288px] bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+                    {/* Method Selector */}
+                    <div className="p-4 border-b border-gray-200">
+                        <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                            <button
+                                onClick={() => setBuilderMethod('visual')}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'visual'
+                                    ? 'bg-white shadow text-gray-900'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Visual
+                            </button>
+                            <button
+                                onClick={() => setBuilderMethod('recorder')}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'recorder'
+                                    ? 'bg-white shadow text-gray-900'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Recorder
+                            </button>
+                            <button
+                                onClick={() => setBuilderMethod('ai')}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'ai'
+                                    ? 'bg-white shadow text-gray-900'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                AI
+                            </button>
+                        </div>
 
-                    {builderMethod === 'visual' && <ActionPaletteHeader />}
-                </div>
-
-                {/* Conditional Content */}
-                {builderMethod === 'visual' ? (
-                    <ActionPalette onAddStep={addStep} />
-                ) : builderMethod === 'recorder' ? (
-                    <RecordingPanel
-                        isRecording={isRecording}
-                        recordingUrl={recordingUrl}
-                        onUrlChange={setRecordingUrl}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={handleStopRecording}
-                    />
-                ) : (
-                    <AIGeneratorPanel
-                        aiPrompt={aiPrompt}
-                        onPromptChange={setAiPrompt}
-                        isGenerating={isGenerating}
-                        generatedSteps={generatedSteps}
-                        generateError={generateError}
-                        onGenerateSteps={handleGenerateSteps}
-                        onAddGeneratedSteps={handleAddGeneratedSteps}
-                    />
-                )}
-            </div>
-
-            {/* Center Panel - Test Canvas */}
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50/50">
-                {/* Header */}
-                <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-900">
-                            {isFlowLoading ? 'Loading...' : testName}
-                        </h2>
-                        <p className="text-xs text-gray-500">Sequence of steps executed in order</p>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                        {selectedEnvironment && (
-                            <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded border border-green-200">
-                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                Active Environment: <b>{selectedEnvironment.name}</b>
-                            </div>
+                        {builderMethod === 'visual' && (
+                            <ActionPaletteHeader
+                                onSnippetManagerClick={() => setShowSnippetManager(true)}
+                                searchQuery={searchQuery}
+                                onSearchChange={setSearchQuery}
+                            />
                         )}
+                    </div>
 
-                        <Button variant="outline" size="sm" onClick={handleSaveFlow} disabled={isSaving}>
-                            <Save className="w-4 h-4 mr-2" />
-                            {isSaving ? 'Saving...' : 'Save'}
-                        </Button>
+                    {builderMethod === 'visual' ? (
+                        <ActionPalette
+                            onAddStep={addStep}
+                            projectId={projectId}
+                            showSnippetManager={showSnippetManager}
+                            onSnippetManagerChange={setShowSnippetManager}
+                            searchQuery={searchQuery}
+                        />
+                    ) : builderMethod === 'recorder' ? (
+                        <RecordingPanel
+                            isRecording={isRecording}
+                            recordingUrl={recordingUrl}
+                            onUrlChange={setRecordingUrl}
+                            onStartRecording={handleStartRecording}
+                            onStopRecording={handleStopRecording}
+                        />
+                    ) : (
+                        <AIGeneratorPanel
+                            aiPrompt={aiPrompt}
+                            onPromptChange={setAiPrompt}
+                            isGenerating={isGenerating}
+                            generatedSteps={generatedSteps}
+                            generateError={generateError}
+                            onGenerateSteps={handleGenerateSteps}
+                            onAddGeneratedSteps={handleAddGeneratedSteps}
+                        />
+                    )}
+                </div>
+
+                {/* Center Panel - Test Canvas */}
+                <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50/50">
+                    {/* Header */}
+                    <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 flex justify-between items-center">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">
+                                {isFlowLoading ? 'Loading...' : testName}
+                            </h2>
+                            <p className="text-xs text-gray-500">Sequence of steps executed in order</p>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            {selectedEnvironment && (
+                                <div className="flex items-center gap-2 mr-2 px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded border border-green-200">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                    Active Environment: <b>{selectedEnvironment.name}</b>
+                                </div>
+                            )}
+
+                            {/* Create Snippet Button */}
+                            {steps.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setSelectedStepIds(new Set(steps.map(s => s.id)))
+                                        setShowCreateSnippetDialog(true)
+                                    }}
+                                    className="border-pink-300 text-pink-700 hover:bg-pink-50"
+                                >
+                                    <Puzzle className="w-4 h-4 mr-2" />
+                                    Create Snippet
+                                </Button>
+                            )}
+
+                            <Button variant="outline" size="sm" onClick={handleSaveFlow} disabled={isSaving}>
+                                <Save className="w-4 h-4 mr-2" />
+                                {isSaving ? 'Saving...' : 'Save'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Step List */}
+                    <div className="flex-1 overflow-y-auto p-6">
+                        <StepList
+                            steps={steps}
+                            selectedStepId={selectedStepId}
+                            onSelectStep={setSelectedStepId}
+                            onMoveStep={moveStep}
+                            onDuplicateStep={duplicateStep}
+                            onDeleteStep={deleteStep}
+                            onAddStepClick={() => setSelectedStepId(null)}
+                            onUpdateStep={updateStep}
+                        />
                     </div>
                 </div>
 
-                {/* Step List */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    <StepList
-                        steps={steps}
-                        selectedStepId={selectedStepId}
-                        onSelectStep={setSelectedStepId}
-                        onMoveStep={moveStep}
-                        onDuplicateStep={duplicateStep}
-                        onDeleteStep={deleteStep}
-                        onAddStepClick={() => setSelectedStepId(null)}
-                    />
+                {/* Right Panel - Properties */}
+                <div className="w-80 border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+                    <div className="p-4 border-b border-gray-200">
+                        <h2 className="text-sm font-bold text-gray-900">Properties</h2>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4">
+                        <StepPropertiesPanel
+                            selectedStep={selectedStep}
+                            onUpdateStep={updateStep}
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Right Panel - Properties */}
-            <div className="w-80 border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
-                <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-sm font-bold text-gray-900">Properties</h2>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4">
-                    <StepPropertiesPanel
-                        selectedStep={selectedStep}
-                        onUpdateStep={updateStep}
-                    />
-                </div>
-            </div>
-        </div>
+            {/* Create Snippet Dialog */}
+            <CreateSnippetDialog
+                open={showCreateSnippetDialog}
+                onOpenChange={setShowCreateSnippetDialog}
+                selectedSteps={steps.filter(s => selectedStepIds.has(s.id))}
+                projectId={projectId}
+                onCreated={() => {
+                    setSelectedStepIds(new Set())
+                }}
+            />
+        </>
     )
 }
 

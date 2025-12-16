@@ -101,7 +101,20 @@ export function CreateSnippetDialog({
                 description: description.trim(),
                 parameters,
                 step_ids: selectedSteps.map(s => s.id),
-                is_global: isGlobal,
+                steps: selectedSteps.map(s => ({
+                    id: s.id,
+                    action: s.action,
+                    selector: s.selector,
+                    value: s.value,
+                    url: s.url,
+                    timeout: s.timeout,
+                    amount: s.amount, // For wait step duration
+                    description: s.description,
+                    expected_title: s.expected_title,
+                    expected_url: s.expected_url,
+                    comparison: s.comparison,
+                })),
+                tags: [],
             })
 
             toast.success(`Snippet "${name}" created with ${selectedSteps.length} steps`)

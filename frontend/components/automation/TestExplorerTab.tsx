@@ -20,13 +20,15 @@ import {
     MonitorOff,
     CheckCircle2,
     XCircle,
-    Copy
+    Copy,
+    FunctionSquare,
+    AlertCircle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useParams, useRouter } from 'next/navigation'
-import { webAutomationApi, TestFlow, TestFlowCreate } from '@/lib/api/webAutomation'
+import { webAutomationApi, TestFlow, TestFlowCreate, snippetApi } from '@/lib/api/webAutomation'
 import { projectsApi, ProjectSettings } from '@/lib/api/projects'
 import {
     Dialog,
@@ -88,6 +90,13 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
     const [executingStepIndex, setExecutingStepIndex] = useState<number | null>(null)
     const [stepStatuses, setStepStatuses] = useState<Map<number, 'pending' | 'running' | 'passed' | 'failed'>>(new Map())
     const wsRef = useRef<WebSocket | null>(null)
+
+    // Snippet expansion state - track which call_snippet steps are expanded
+    const [expandedSnippetSteps, setExpandedSnippetSteps] = useState<Record<number, boolean>>({})
+    // Cache for snippet data fetched dynamically (for steps without embedded snippet_steps)
+    const [snippetCache, setSnippetCache] = useState<Record<string, { name: string, steps: any[] }>>({})
+    // Track snippets that failed to load (deleted or not found)
+    const [snippetErrors, setSnippetErrors] = useState<Record<string, string>>({})
 
     // Modal States
     const [isCreateTestOpen, setIsCreateTestOpen] = useState(false)
@@ -991,12 +1000,183 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                                                                 )}
 
                                                                 {/* Value (for type, assertions, etc.) */}
-                                                                {(stepData.value || step.value) && action !== 'navigate' && action !== 'assert_title' && action !== 'assert_url' && (
+                                                                {(stepData.value || step.value) && action !== 'navigate' && action !== 'assert_title' && action !== 'assert_url' && action !== 'call_snippet' && (
                                                                     <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
                                                                         <span className="text-[10px] font-medium text-green-700 uppercase">Value</span>
                                                                         <p className="text-xs text-green-800 mt-0.5">{stepData.value || step.value}</p>
                                                                     </div>
                                                                 )}
+
+                                                                {/* Call Snippet - Show snippet name and expandable nested steps */}
+                                                                {action === 'call_snippet' && (() => {
+                                                                    const snippetId = stepData.snippet_id || step.snippet_id || step.data?.snippet_id
+                                                                    // Try to get steps from embedded data first, then from cache
+                                                                    let snippetSteps = stepData.snippet_steps || step.snippet_steps || step.data?.snippet_steps || []
+                                                                    let snippetName = stepData.snippet_name || step.snippet_name || step.data?.snippet_name || 'Snippet'
+
+                                                                    // If no embedded steps but we have snippet_id, check cache and fetch
+                                                                    if (snippetSteps.length === 0 && snippetId) {
+                                                                        if (snippetCache[snippetId]) {
+                                                                            snippetSteps = snippetCache[snippetId].steps
+                                                                            snippetName = snippetCache[snippetId].name
+                                                                        } else if (!snippetErrors[snippetId]) {
+                                                                            // Fetch snippet data asynchronously
+                                                                            snippetApi.getSnippet(snippetId).then(snippet => {
+                                                                                if (snippet) {
+                                                                                    setSnippetCache(prev => ({
+                                                                                        ...prev,
+                                                                                        [snippetId]: { name: snippet.name, steps: snippet.steps || [] }
+                                                                                    }))
+                                                                                } else {
+                                                                                    // Snippet was deleted (null returned)
+                                                                                    setSnippetErrors(prev => ({
+                                                                                        ...prev,
+                                                                                        [snippetId]: 'Snippet was deleted. Please update this test to use a different snippet.'
+                                                                                    }))
+                                                                                }
+                                                                            }).catch(err => {
+                                                                                console.error('Failed to fetch snippet:', err)
+                                                                                setSnippetErrors(prev => ({
+                                                                                    ...prev,
+                                                                                    [snippetId]: 'Failed to load snippet'
+                                                                                }))
+                                                                            })
+                                                                        }
+                                                                    }
+
+                                                                    // Check for error state
+                                                                    const snippetError = snippetId ? snippetErrors[snippetId] : null
+                                                                    // Check if no snippet is selected
+                                                                    const noSnippetSelected = !snippetId && !snippetError
+
+                                                                    return (
+                                                                        <div className="mt-2">
+                                                                            {/* Snippet header with expand/collapse */}
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setExpandedSnippetSteps(prev => ({ ...prev, [index]: !prev[index] }))
+                                                                                }}
+                                                                                className={`w-full text-left p-2 rounded-md transition-colors ${noSnippetSelected
+                                                                                    ? 'bg-amber-50 border border-amber-200 hover:bg-amber-100'
+                                                                                    : snippetError
+                                                                                        ? 'bg-red-50 border border-red-200 hover:bg-red-100'
+                                                                                        : 'bg-violet-50 border border-violet-200 hover:bg-violet-100'
+                                                                                    }`}
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {expandedSnippetSteps[index] ? (
+                                                                                        <ChevronDown className={`w-4 h-4 ${noSnippetSelected ? 'text-amber-500' : snippetError ? 'text-red-500' : 'text-violet-500'}`} />
+                                                                                    ) : (
+                                                                                        <ChevronRight className={`w-4 h-4 ${noSnippetSelected ? 'text-amber-500' : snippetError ? 'text-red-500' : 'text-violet-500'}`} />
+                                                                                    )}
+                                                                                    <FunctionSquare className={`w-4 h-4 ${noSnippetSelected ? 'text-amber-600' : snippetError ? 'text-red-600' : 'text-violet-600'}`} />
+                                                                                    <span className={`text-sm font-medium ${noSnippetSelected ? 'text-amber-700' : snippetError ? 'text-red-700' : 'text-violet-700'}`}>
+                                                                                        {snippetName}()
+                                                                                    </span>
+                                                                                    {noSnippetSelected ? (
+                                                                                        <span className="text-xs text-amber-500 ml-auto">⚠️ Not configured</span>
+                                                                                    ) : snippetError ? (
+                                                                                        <span className="text-xs text-red-500 ml-auto">⚠️ Error</span>
+                                                                                    ) : (
+                                                                                        <span className="text-xs text-violet-500 ml-auto">
+                                                                                            {snippetSteps.length} steps
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </button>
+
+                                                                            {/* Warning message when no snippet is selected */}
+                                                                            {noSnippetSelected && (
+                                                                                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                                                                                    <div className="flex items-start gap-2">
+                                                                                        <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                                                                        <div>
+                                                                                            <p className="text-sm text-amber-700 font-medium">No snippet selected</p>
+                                                                                            <p className="text-xs text-amber-500 mt-1">
+                                                                                                Edit this test in the Test Builder to select a snippet.
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Error message when snippet is deleted */}
+                                                                            {snippetError && (
+                                                                                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                                                                                    <div className="flex items-start gap-2">
+                                                                                        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                                                                                        <div>
+                                                                                            <p className="text-sm text-red-700 font-medium">{snippetError}</p>
+                                                                                            <p className="text-xs text-red-500 mt-1">
+                                                                                                Edit this test in the Test Builder to select a new snippet.
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Expanded nested steps */}
+                                                                            {expandedSnippetSteps[index] && snippetSteps.length > 0 && (
+                                                                                <div className="mt-2 pl-4 border-l-2 border-violet-300 space-y-1.5">
+                                                                                    {snippetSteps.map((subStep: any, subIdx: number) => (
+                                                                                        <div key={subIdx} className="p-2 bg-gray-50 rounded border border-gray-100">
+                                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                                <span className="text-gray-400 font-mono text-[10px]">{subIdx + 1}.</span>
+                                                                                                <span className="font-semibold text-xs text-gray-800">{subStep.action || subStep.type}</span>
+                                                                                            </div>
+                                                                                            <div className="flex flex-wrap gap-1.5 pl-4">
+                                                                                                {subStep.url && (
+                                                                                                    <code className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 break-all">
+                                                                                                        🔗 {subStep.url}
+                                                                                                    </code>
+                                                                                                )}
+                                                                                                {subStep.selector && (
+                                                                                                    <code className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 break-all">
+                                                                                                        🎯 {subStep.selector}
+                                                                                                    </code>
+                                                                                                )}
+                                                                                                {subStep.value && (
+                                                                                                    <code className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 break-all">
+                                                                                                        ✏️ "{subStep.value}"
+                                                                                                    </code>
+                                                                                                )}
+                                                                                                {/* Show wait duration only for wait steps */}
+                                                                                                {(subStep.action === 'wait' || subStep.type === 'wait' || subStep.actionType === 'wait') && (subStep.amount || subStep.timeout) && (
+                                                                                                    <code className="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                                                                                        ⏱️ {subStep.amount || subStep.timeout}ms
+                                                                                                    </code>
+                                                                                                )}
+                                                                                                {subStep.expected_url && (
+                                                                                                    <code className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 break-all">
+                                                                                                        🔗 {subStep.comparison || 'contains'}: "{subStep.expected_url}"
+                                                                                                    </code>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )
+                                                                            }
+
+                                                                            {/* Parameters if any */}
+                                                                            {
+                                                                                (stepData.parameters || step.parameters) && Object.keys(stepData.parameters || step.parameters).length > 0 && (
+                                                                                    <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                                                                                        <span className="text-[10px] font-medium text-orange-700 uppercase">Parameters</span>
+                                                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                                                            {Object.entries(stepData.parameters || step.parameters).map(([key, value]) => (
+                                                                                                <code key={key} className="text-[10px] text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">
+                                                                                                    {key}: "{String(value)}"
+                                                                                                </code>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )
+                                                                            }
+                                                                        </div >
+                                                                    )
+                                                                })()}
                                                             </>
                                                         )
                                                     })()}
@@ -1160,6 +1340,6 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }

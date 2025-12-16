@@ -4,7 +4,7 @@ CRUD operations for reusable parameterized test step snippets
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_, and_
 from typing import List, Optional
 from uuid import UUID
 import re
@@ -45,12 +45,16 @@ async def list_snippets(
     
     org_id = organisation_id or project.organisation_id
     
-    # Build query
-    query = select(TestSnippet).where(
-        (TestSnippet.project_id == project_id) |
-        (TestSnippet.is_global == True and TestSnippet.organisation_id == org_id) if include_global
-        else (TestSnippet.project_id == project_id)
-    )
+    # Build query - properly handle include_global condition
+    if include_global:
+        query = select(TestSnippet).where(
+            or_(
+                TestSnippet.project_id == project_id,
+                and_(TestSnippet.is_global == True, TestSnippet.organisation_id == org_id)
+            )
+        )
+    else:
+        query = select(TestSnippet).where(TestSnippet.project_id == project_id)
     
     if tag:
         query = query.where(TestSnippet.tags.contains([tag]))
@@ -142,6 +146,13 @@ async def update_snippet(
     
     # Update fields
     update_data = snippet_data.model_dump(exclude_unset=True)
+    
+    # Debug: Log the received update data
+    print(f"[SNIPPET UPDATE DEBUG] snippet_id: {snippet_id}")
+    print(f"[SNIPPET UPDATE DEBUG] update_data: {update_data}")
+    if "steps" in update_data:
+        for i, step in enumerate(update_data["steps"]):
+            print(f"[SNIPPET UPDATE DEBUG] Step {i}: action={step.get('action')}, amount={step.get('amount')}, timeout={step.get('timeout')}")
     
     # Convert parameters if provided
     if "parameters" in update_data and update_data["parameters"]:

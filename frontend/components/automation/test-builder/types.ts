@@ -94,6 +94,8 @@ export interface TestStep {
     is_active?: boolean
     // Snippet fields
     snippet_id?: string
+    snippet_name?: string
+    snippet_steps?: TestStep[]
     parameters?: Record<string, string | number | boolean>
 }
 

@@ -2101,7 +2101,20 @@ Respond with JSON only:
                                                 
                                                 if not snippet:
                                                     raise Exception(f"Snippet not found: {snippet_id}")
+                                                
+                                                # Send snippet info to frontend
+                                                await websocket.send_json({
+                                                    "type": "snippet_started",
+                                                    "stepIndex": i,
+                                                    "snippetId": str(snippet_id),
+                                                    "snippetName": snippet.name,
+                                                    "totalSubSteps": len(snippet.steps or [])
+                                                })
                                             
+                                                # Debug: Log snippet params received
+                                                print(f"[SNIPPET DEBUG] snippet_params received: {snippet_params}")
+                                                print(f"[SNIPPET DEBUG] snippet.parameters definitions: {snippet.parameters}")
+                                                
                                                 # Merge default parameter values with provided values
                                                 merged_params = {}
                                                 for param_def in (snippet.parameters or []):
@@ -2114,36 +2127,189 @@ Respond with JSON only:
                                                 # Include execution variables in parameter substitution
                                                 merged_params.update({f"var_{k}": v for k, v in execution_variables.items()})
                                                 
+                                                print(f"[SNIPPET DEBUG] merged_params for substitution: {merged_params}")
+                                                
                                                 # Substitute parameters in snippet steps
                                                 expanded_steps = substitute_parameters(snippet.steps or [], merged_params)
+                                                
+                                                print(f"[SNIPPET DEBUG] First expanded step: {expanded_steps[0] if expanded_steps else 'empty'}")
                                                 
                                                 # Execute each expanded step (recursive-like execution)
                                                 for sub_idx, sub_step in enumerate(expanded_steps):
                                                     sub_step_type = sub_step.get("action") or sub_step.get("type") or "unknown"
                                                     sub_selector = sub_step.get("selector", "")
                                                     sub_value = sub_step.get("value", "")
+                                                    sub_url = sub_step.get("url", "")
+                                                    sub_timeout = sub_step.get("timeout") or sub_step.get("amount") or ""
+                                                    sub_expected_url = sub_step.get("expected_url", "")
+                                                    sub_expected_title = sub_step.get("expected_title", "")
+                                                    sub_comparison = sub_step.get("comparison", "")
                                                     
-                                                    # Execute based on step type (simplified - main actions)
-                                                    if sub_step_type == "navigate":
-                                                        url = sub_step.get("url") or sub_value
-                                                        if url:
-                                                            await session.navigate(url)
-                                                    elif sub_step_type == "click":
-                                                        if sub_selector:
-                                                            await session.click_element(sub_selector)
-                                                    elif sub_step_type in ("type", "fill"):
-                                                        if sub_selector:
-                                                            await session.type_into_element(sub_selector, sub_value)
-                                                    elif sub_step_type == "wait":
-                                                        timeout = sub_step.get("timeout") or 1000
-                                                        import asyncio
-                                                        await asyncio.sleep(timeout / 1000)
-                                                    elif sub_step_type == "assert":
-                                                        if sub_selector:
-                                                            el_info = await session.get_element_info(sub_selector)
-                                                            if not el_info:
-                                                                raise Exception(f"Snippet assertion failed: {sub_selector}")
-                                                    # Add more step types as needed...
+                                                    # Notify frontend about sub-step starting
+                                                    await websocket.send_json({
+                                                        "type": "snippet_substep_started",
+                                                        "stepIndex": i,
+                                                        "subStepIndex": sub_idx,
+                                                        "subStepType": sub_step_type,
+                                                        "subStepName": sub_step_type.replace('_', ' ').title(),
+                                                        "selector": sub_selector,
+                                                        "value": sub_value,
+                                                        "url": sub_url,
+                                                        "timeout": sub_timeout,
+                                                        "expectedUrl": sub_expected_url,
+                                                        "expectedTitle": sub_expected_title,
+                                                        "comparison": sub_comparison
+                                                    })
+                                                    
+                                                    try:
+                                                        # Execute based on step type - comprehensive support
+                                                        if sub_step_type == "navigate":
+                                                            url = sub_step.get("url") or sub_value
+                                                            if url:
+                                                                await session.navigate(url)
+                                                        elif sub_step_type == "click":
+                                                            if sub_selector:
+                                                                await session.click_element(sub_selector)
+                                                        elif sub_step_type in ("type", "fill"):
+                                                            if sub_selector:
+                                                                await session.type_into_element(sub_selector, sub_value)
+                                                        elif sub_step_type == "wait":
+                                                            timeout = sub_step.get("timeout") or 1000
+                                                            import asyncio
+                                                            await asyncio.sleep(timeout / 1000)
+                                                        elif sub_step_type == "assert":
+                                                            if sub_selector:
+                                                                el_info = await session.get_element_info(sub_selector)
+                                                                if not el_info:
+                                                                    raise Exception(f"Snippet assertion failed: {sub_selector}")
+                                                        
+                                                        # Assert URL - check current page URL
+                                                        elif sub_step_type == "assert_url":
+                                                            expected_url = sub_step.get("expected_url") or sub_step.get("value") or sub_value or ""
+                                                            comparison = sub_step.get("comparison") or "contains"
+                                                            actual_url = session.page.url
+                                                            passed = False
+                                                            if comparison == "equals":
+                                                                passed = actual_url == expected_url
+                                                            elif comparison == "contains":
+                                                                passed = expected_url in actual_url
+                                                            elif comparison == "starts_with":
+                                                                passed = actual_url.startswith(expected_url)
+                                                            elif comparison == "regex":
+                                                                import re
+                                                                passed = bool(re.search(expected_url, actual_url))
+                                                            if not passed:
+                                                                raise Exception(f"Snippet URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+                                                        
+                                                        # Assert Title
+                                                        elif sub_step_type == "assert_title":
+                                                            expected_title = sub_step.get("expected_title") or sub_step.get("value") or sub_value or ""
+                                                            comparison = sub_step.get("comparison") or "equals"
+                                                            actual_title = await session.page.title()
+                                                            passed = False
+                                                            if comparison == "equals":
+                                                                passed = actual_title == expected_title
+                                                            elif comparison == "contains":
+                                                                passed = expected_title in actual_title
+                                                            elif comparison == "starts_with":
+                                                                passed = actual_title.startswith(expected_title)
+                                                            if not passed:
+                                                                raise Exception(f"Snippet title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+                                                        
+                                                        # Additional click actions
+                                                        elif sub_step_type == "double_click":
+                                                            if sub_selector:
+                                                                await session.double_click(sub_selector)
+                                                        elif sub_step_type == "right_click":
+                                                            if sub_selector:
+                                                                await session.right_click(sub_selector)
+                                                        elif sub_step_type == "hover":
+                                                            if sub_selector:
+                                                                await session.hover(sub_selector)
+                                                        
+                                                        # Form actions
+                                                        elif sub_step_type == "clear":
+                                                            if sub_selector:
+                                                                await session.clear_input(sub_selector)
+                                                        elif sub_step_type == "select":
+                                                            if sub_selector:
+                                                                await session.select_option(sub_selector, sub_value)
+                                                        elif sub_step_type == "check":
+                                                            if sub_selector:
+                                                                await session.check(sub_selector)
+                                                        elif sub_step_type == "uncheck":
+                                                            if sub_selector:
+                                                                await session.uncheck(sub_selector)
+                                                        
+                                                        # Keyboard
+                                                        elif sub_step_type == "press":
+                                                            key = sub_step.get("key") or sub_value
+                                                            if key:
+                                                                await session.press_key(key)
+                                                        
+                                                        # Navigation
+                                                        elif sub_step_type == "go_back":
+                                                            await session.go_back()
+                                                        elif sub_step_type == "go_forward":
+                                                            await session.go_forward()
+                                                        elif sub_step_type == "reload":
+                                                            await session.reload()
+                                                        
+                                                        # Scroll
+                                                        elif sub_step_type == "scroll":
+                                                            direction = sub_step.get("direction") or "down"
+                                                            amount = sub_step.get("amount") or 300
+                                                            await session.scroll_page(direction, amount)
+                                                        
+                                                        # Wait variations
+                                                        elif sub_step_type == "wait_network":
+                                                            timeout = sub_step.get("timeout") or 30000
+                                                            await session.wait_for_network_idle(timeout)
+                                                        
+                                                        # Dialogs
+                                                        elif sub_step_type == "accept_dialog":
+                                                            await session.accept_dialog(sub_step.get("prompt_text"))
+                                                        elif sub_step_type == "dismiss_dialog":
+                                                            await session.dismiss_dialog()
+                                                        
+                                                        # Screenshot
+                                                        elif sub_step_type == "screenshot":
+                                                            full_page = sub_step.get("full_page") or False
+                                                            await session.take_screenshot(full_page=full_page)
+                                                        
+                                                        # Focus
+                                                        elif sub_step_type == "focus":
+                                                            if sub_selector:
+                                                                await session.focus(sub_selector)
+                                                        
+                                                        # Log/Comment (no-op for comments)
+                                                        elif sub_step_type == "log":
+                                                            message = sub_step.get("message") or sub_value
+                                                            print(f"[SNIPPET LOG] {message}")
+                                                        elif sub_step_type == "comment":
+                                                            pass  # No-op
+                                                        
+                                                        # Unknown - log warning but continue
+                                                        else:
+                                                            print(f"[SNIPPET] Unsupported step type in snippet: {sub_step_type}")
+                                                        
+                                                        # Notify sub-step completed successfully
+                                                        await websocket.send_json({
+                                                            "type": "snippet_substep_completed",
+                                                            "stepIndex": i,
+                                                            "subStepIndex": sub_idx,
+                                                            "status": "passed"
+                                                        })
+                                                    except Exception as sub_step_err:
+                                                        # Notify sub-step failed
+                                                        await websocket.send_json({
+                                                            "type": "snippet_substep_completed",
+                                                            "stepIndex": i,
+                                                            "subStepIndex": sub_idx,
+                                                            "status": "failed",
+                                                            "error": str(sub_step_err)
+                                                        })
+                                                        raise  # Re-raise to fail the entire call_snippet step
                                                 
                                                 # Update snippet usage count
                                                 snippet.usage_count = (snippet.usage_count or 0) + 1

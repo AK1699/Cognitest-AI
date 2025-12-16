@@ -58,6 +58,10 @@ export function SnippetCard({
             setLoading(true)
             setError(null)
             const data = await snippetApi.getSnippet(step.snippet_id)
+            if (!data) {
+                setError('Snippet not found')
+                return
+            }
             setSnippet(data)
 
             // Initialize parameter values from snippet defaults

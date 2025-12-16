@@ -16,6 +16,7 @@ import {
     Tablet,
     Globe,
     ChevronRight,
+    ChevronDown,
     CheckCircle2,
     Clock,
     MousePointerClick,
@@ -134,6 +135,22 @@ export default function LiveBrowserTab({
         variable_name?: string
         key?: string
         cookie_name?: string
+        // Snippet-specific fields
+        snippetName?: string
+        subSteps?: Array<{
+            index: number
+            name: string
+            type: string
+            status: 'pending' | 'running' | 'passed' | 'failed'
+            error?: string
+            selector?: string
+            value?: string
+            url?: string
+            timeout?: number | string
+            expectedUrl?: string
+            expectedTitle?: string
+            comparison?: string
+        }>
     }>>([])
 
     // Element Inspector
@@ -147,6 +164,10 @@ export default function LiveBrowserTab({
 
     // Interactive mode - when focused, forward keyboard to browser
     const [isFocused, setIsFocused] = useState(false)
+
+    // Expanded snippets state - track which snippet steps are expanded
+    const [expandedSnippets, setExpandedSnippets] = useState<Record<number, boolean>>({})
+
     const browserContainerRef = useRef<HTMLDivElement>(null)
 
     // WebSocket
@@ -358,6 +379,76 @@ export default function LiveBrowserTab({
                 setExecutingSteps(prev => prev.map((step, i) =>
                     i === data.stepIndex
                         ? { ...step, status: data.status as 'passed' | 'failed', error: data.error }
+                        : step
+                ))
+                break
+
+            // Snippet execution messages  
+            case 'snippet_started':
+                console.log(`Snippet started: ${data.snippetName} (${data.totalSubSteps} steps)`)
+                // Auto-expand the snippet when it starts executing
+                setExpandedSnippets(prev => ({ ...prev, [data.stepIndex]: true }))
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? {
+                            ...step,
+                            name: data.snippetName,
+                            snippetName: data.snippetName,
+                            subSteps: Array.from({ length: data.totalSubSteps }, (_, idx) => ({
+                                index: idx,
+                                name: `Step ${idx + 1}`,
+                                type: 'pending',
+                                status: 'pending' as const
+                            }))
+                        }
+                        : step
+                ))
+                break
+
+            case 'snippet_substep_started':
+                console.log(`Snippet sub-step ${data.subStepIndex + 1}: ${data.subStepName}`)
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex && step.subSteps
+                        ? {
+                            ...step,
+                            subSteps: step.subSteps.map((subStep, si) =>
+                                si === data.subStepIndex
+                                    ? {
+                                        ...subStep,
+                                        name: data.subStepName,
+                                        type: data.subStepType,
+                                        status: 'running' as const,
+                                        selector: data.selector,
+                                        value: data.value,
+                                        url: data.url,
+                                        timeout: data.timeout,
+                                        expectedUrl: data.expectedUrl,
+                                        expectedTitle: data.expectedTitle,
+                                        comparison: data.comparison
+                                    }
+                                    : subStep
+                            )
+                        }
+                        : step
+                ))
+                break
+
+            case 'snippet_substep_completed':
+                console.log(`Snippet sub-step ${data.subStepIndex + 1} ${data.status}`)
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex && step.subSteps
+                        ? {
+                            ...step,
+                            subSteps: step.subSteps.map((subStep, si) =>
+                                si === data.subStepIndex
+                                    ? {
+                                        ...subStep,
+                                        status: data.status as 'passed' | 'failed',
+                                        error: data.error
+                                    }
+                                    : subStep
+                            )
+                        }
                         : step
                 ))
                 break
@@ -1306,7 +1397,13 @@ export default function LiveBrowserTab({
                                                                 {step.type === 'set_session_storage' && 'Set SessionStorage'}
                                                                 {step.type === 'read_csv' && 'Read CSV'}
                                                                 {step.type === 'read_json' && 'Read JSON'}
-                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'assert_title', 'assert_url', 'assert_element_count', 'assert_not_visible', 'wait', 'screenshot', 'set_variable', 'extract_text', 'extract_attribute', 'get_cookie', 'set_cookie', 'delete_cookie', 'get_local_storage', 'set_local_storage', 'get_session_storage', 'set_session_storage', 'read_csv', 'read_json'].includes(step.type) && (
+                                                                {step.type === 'call_snippet' && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <span className="text-violet-600">📦</span>
+                                                                        {step.snippetName || step.name}()
+                                                                    </span>
+                                                                )}
+                                                                {!['navigate', 'click', 'type', 'fill', 'assert', 'assert_title', 'assert_url', 'assert_element_count', 'assert_not_visible', 'wait', 'screenshot', 'set_variable', 'extract_text', 'extract_attribute', 'get_cookie', 'set_cookie', 'delete_cookie', 'get_local_storage', 'set_local_storage', 'get_session_storage', 'set_session_storage', 'read_csv', 'read_json', 'call_snippet'].includes(step.type) && (
                                                                     step.type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
                                                                 )}
                                                             </span>
@@ -1396,6 +1493,105 @@ export default function LiveBrowserTab({
                                                             <div className="mt-2 text-xs text-red-700 font-mono bg-red-50 px-3 py-2 rounded-md border border-red-200 flex items-start gap-2">
                                                                 <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                                                 <span>{step.error}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Snippet Sub-Steps */}
+                                                        {step.subSteps && step.subSteps.length > 0 && (
+                                                            <div className="mt-3 pl-2 border-l-2 border-violet-300 space-y-1.5">
+                                                                <button
+                                                                    onClick={() => setExpandedSnippets(prev => ({ ...prev, [index]: !prev[index] }))}
+                                                                    className="text-xs text-violet-600 font-medium mb-2 flex items-center gap-1 hover:text-violet-800 transition-colors cursor-pointer w-full text-left"
+                                                                >
+                                                                    {expandedSnippets[index] ? (
+                                                                        <ChevronDown className="w-3.5 h-3.5" />
+                                                                    ) : (
+                                                                        <ChevronRight className="w-3.5 h-3.5" />
+                                                                    )}
+                                                                    <span>📦</span>
+                                                                    Snippet Steps ({step.subSteps.filter(s => s.status === 'passed').length}/{step.subSteps.length})
+                                                                </button>
+                                                                {expandedSnippets[index] && step.subSteps.map((subStep, subIdx) => (
+                                                                    <div
+                                                                        key={subIdx}
+                                                                        className={`p-2 rounded-md text-xs ${subStep.status === 'running'
+                                                                            ? 'bg-blue-50 border border-blue-200'
+                                                                            : subStep.status === 'passed'
+                                                                                ? 'bg-green-50 border border-green-200'
+                                                                                : subStep.status === 'failed'
+                                                                                    ? 'bg-red-50 border border-red-200'
+                                                                                    : 'bg-gray-50 border border-gray-200 opacity-60'
+                                                                            }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            {/* Sub-step number */}
+                                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${subStep.status === 'passed' ? 'bg-green-500 text-white' :
+                                                                                subStep.status === 'running' ? 'bg-blue-500 text-white' :
+                                                                                    subStep.status === 'failed' ? 'bg-red-500 text-white' :
+                                                                                        'bg-gray-300 text-gray-600'
+                                                                                }`}>
+                                                                                {subStep.status === 'passed' ? '✓' :
+                                                                                    subStep.status === 'running' ? '◌' :
+                                                                                        subStep.status === 'failed' ? '✕' :
+                                                                                            subIdx + 1}
+                                                                            </div>
+                                                                            {/* Sub-step name */}
+                                                                            <span className={`font-medium ${subStep.status === 'running' ? 'text-blue-700' :
+                                                                                subStep.status === 'failed' ? 'text-red-700' :
+                                                                                    'text-gray-700'
+                                                                                }`}>
+                                                                                {subStep.name || subStep.type?.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                                                            </span>
+                                                                            {subStep.status === 'running' && (
+                                                                                <span className="text-blue-500 animate-pulse">...</span>
+                                                                            )}
+                                                                        </div>
+                                                                        {/* Sub-step details */}
+                                                                        {(subStep.url || subStep.selector || subStep.value || subStep.timeout || subStep.expectedUrl || subStep.expectedTitle) && (
+                                                                            <div className="flex flex-wrap gap-1 mt-1 pl-7">
+                                                                                {subStep.url && (
+                                                                                    <code className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded truncate max-w-[180px]" title={subStep.url}>
+                                                                                        🔗 {subStep.url.length > 25 ? subStep.url.substring(0, 25) + '...' : subStep.url}
+                                                                                    </code>
+                                                                                )}
+                                                                                {subStep.selector && (
+                                                                                    <code className="text-[10px] text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={subStep.selector}>
+                                                                                        🎯 {subStep.selector}
+                                                                                    </code>
+                                                                                )}
+                                                                                {subStep.value && (
+                                                                                    <code className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded truncate max-w-[100px]" title={subStep.value}>
+                                                                                        ✏️ "{subStep.value}"
+                                                                                    </code>
+                                                                                )}
+                                                                                {/* Timeout for Wait steps */}
+                                                                                {subStep.timeout && (
+                                                                                    <code className="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                        ⏱️ {subStep.timeout}ms
+                                                                                    </code>
+                                                                                )}
+                                                                                {/* Expected URL for assert_url */}
+                                                                                {subStep.expectedUrl && (
+                                                                                    <code className="text-[10px] text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded truncate max-w-[180px]" title={subStep.expectedUrl}>
+                                                                                        🔗 {subStep.comparison || 'contains'}: "{subStep.expectedUrl.length > 20 ? subStep.expectedUrl.substring(0, 20) + '...' : subStep.expectedUrl}"
+                                                                                    </code>
+                                                                                )}
+                                                                                {/* Expected Title for assert_title */}
+                                                                                {subStep.expectedTitle && (
+                                                                                    <code className="text-[10px] text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded truncate max-w-[180px]" title={subStep.expectedTitle}>
+                                                                                        📄 {subStep.comparison || 'equals'}: "{subStep.expectedTitle.length > 20 ? subStep.expectedTitle.substring(0, 20) + '...' : subStep.expectedTitle}"
+                                                                                    </code>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        {/* Sub-step error */}
+                                                                        {subStep.error && (
+                                                                            <div className="mt-1 pl-7 text-[10px] text-red-600">
+                                                                                ❌ {subStep.error}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </div>
