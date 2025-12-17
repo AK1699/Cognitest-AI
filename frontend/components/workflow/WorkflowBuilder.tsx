@@ -323,9 +323,9 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-950">
+        <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
                 <div className="flex items-center gap-4">
                     {onBack && (
                         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -335,11 +335,11 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                     <Input
                         value={workflowName}
                         onChange={(e) => setWorkflowName(e.target.value)}
-                        className="w-64 bg-zinc-800 border-zinc-700 text-white"
+                        className="w-64 bg-white border-gray-300 text-gray-900"
                         placeholder="Workflow name"
                     />
                     {workflow?.human_id && (
-                        <Badge variant="outline" className="text-zinc-400">
+                        <Badge variant="outline" className="text-gray-500">
                             {workflow.human_id}
                         </Badge>
                     )}
@@ -347,9 +347,9 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         <Badge
                             variant="outline"
                             className={
-                                workflow.status === 'active' ? 'text-green-400 border-green-400/30' :
-                                    workflow.status === 'draft' ? 'text-yellow-400 border-yellow-400/30' :
-                                        'text-zinc-400 border-zinc-400/30'
+                                workflow.status === 'active' ? 'text-green-600 border-green-300' :
+                                    workflow.status === 'draft' ? 'text-amber-600 border-amber-300' :
+                                        'text-gray-500 border-gray-300'
                             }
                         >
                             {workflow.status}
@@ -389,7 +389,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         <Grid3X3 className="h-4 w-4" />
                     </Button>
 
-                    <div className="w-px h-6 bg-zinc-700 mx-2" />
+                    <div className="w-px h-6 bg-gray-300 mx-2" />
 
                     <Button
                         variant="outline"
@@ -439,39 +439,39 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         onDrop={onDrop}
                         nodeTypes={nodeTypes}
                         fitView
-                        className="bg-zinc-950"
+                        className="bg-gray-100"
                         defaultEdgeOptions={{
                             type: 'smoothstep',
                             markerEnd: { type: MarkerType.ArrowClosed },
                         }}
                     >
                         <Controls
-                            className="bg-zinc-900 border-zinc-700 [&>button]:bg-zinc-800 [&>button]:border-zinc-700 [&>button]:text-zinc-400 [&>button:hover]:bg-zinc-700"
+                            className="bg-white border-gray-200 [&>button]:bg-gray-50 [&>button]:border-gray-200 [&>button]:text-gray-600 [&>button:hover]:bg-gray-100"
                         />
                         {showGrid && (
                             <Background
                                 variant={BackgroundVariant.Dots}
                                 gap={20}
                                 size={1}
-                                color="#27272a"
+                                color="#e5e7eb"
                             />
                         )}
                         {showMiniMap && (
                             <MiniMap
-                                nodeColor="#3f3f46"
-                                maskColor="rgba(0, 0, 0, 0.8)"
-                                className="bg-zinc-900 border-zinc-700"
+                                nodeColor="#d1d5db"
+                                maskColor="rgba(255, 255, 255, 0.8)"
+                                className="bg-white border-gray-200"
                             />
                         )}
 
                         {/* Stats Panel */}
                         <Panel position="bottom-left" className="m-4">
-                            <Card className="bg-zinc-900/90 border-zinc-800 p-3">
-                                <div className="flex items-center gap-4 text-sm text-zinc-400">
-                                    <div>Nodes: <span className="text-white">{nodes.length}</span></div>
-                                    <div>Edges: <span className="text-white">{edges.length}</span></div>
+                            <Card className="bg-white/90 border-gray-200 p-3 shadow-sm">
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div>Nodes: <span className="text-gray-900 font-medium">{nodes.length}</span></div>
+                                    <div>Edges: <span className="text-gray-900 font-medium">{edges.length}</span></div>
                                     {workflow?.total_executions !== undefined && (
-                                        <div>Executions: <span className="text-white">{workflow.total_executions}</span></div>
+                                        <div>Executions: <span className="text-gray-900 font-medium">{workflow.total_executions}</span></div>
                                     )}
                                 </div>
                             </Card>

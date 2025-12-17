@@ -120,17 +120,17 @@ export const NodePalette: React.FC = () => {
     })).filter(category => category.nodes.length > 0)
 
     return (
-        <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+        <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
             {/* Header */}
-            <div className="p-3 border-b border-zinc-800">
-                <h3 className="text-sm font-medium text-white mb-2">Node Palette</h3>
+            <div className="p-3 border-b border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Node Palette</h3>
                 <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search nodes..."
-                        className="pl-8 bg-zinc-800 border-zinc-700 text-sm"
+                        className="pl-8 bg-gray-50 border-gray-300 text-sm"
                     />
                 </div>
             </div>
@@ -143,21 +143,21 @@ export const NodePalette: React.FC = () => {
                             {/* Category Header */}
                             <button
                                 onClick={() => toggleCategory(category.name)}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-zinc-800 rounded transition-colors"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-gray-100 rounded transition-colors"
                             >
                                 {expandedCategories[category.name] ? (
-                                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                                    <ChevronDown className="h-4 w-4 text-gray-400" />
                                 ) : (
-                                    <ChevronRight className="h-4 w-4 text-zinc-500" />
+                                    <ChevronRight className="h-4 w-4 text-gray-400" />
                                 )}
                                 <category.icon
                                     className="h-4 w-4"
                                     style={{ color: category.color }}
                                 />
-                                <span className="text-sm font-medium text-zinc-300">
+                                <span className="text-sm font-medium text-gray-700">
                                     {category.name}
                                 </span>
-                                <span className="ml-auto text-xs text-zinc-500">
+                                <span className="ml-auto text-xs text-gray-400">
                                     {category.nodes.length}
                                 </span>
                             </button>
@@ -170,11 +170,11 @@ export const NodePalette: React.FC = () => {
                                             key={node.type}
                                             draggable
                                             onDragStart={(e) => onDragStart(e, node.type, node.label)}
-                                            className="flex items-center gap-2 px-2 py-2 bg-zinc-800/50 hover:bg-zinc-800 rounded cursor-grab active:cursor-grabbing transition-colors group border border-transparent hover:border-zinc-700"
+                                            className="flex items-center gap-2 px-2 py-2 bg-gray-50 hover:bg-gray-100 rounded cursor-grab active:cursor-grabbing transition-colors group border border-transparent hover:border-gray-200"
                                         >
                                             <div
                                                 className="p-1.5 rounded"
-                                                style={{ backgroundColor: `${category.color}20` }}
+                                                style={{ backgroundColor: `${category.color}15` }}
                                             >
                                                 <node.icon
                                                     className="h-4 w-4"
@@ -182,10 +182,10 @@ export const NodePalette: React.FC = () => {
                                                 />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm text-zinc-200 truncate">
+                                                <div className="text-sm text-gray-700 truncate">
                                                     {node.label}
                                                 </div>
-                                                <div className="text-xs text-zinc-500 truncate">
+                                                <div className="text-xs text-gray-400 truncate">
                                                     {node.description}
                                                 </div>
                                             </div>
@@ -199,8 +199,8 @@ export const NodePalette: React.FC = () => {
             </ScrollArea>
 
             {/* Footer Help */}
-            <div className="p-3 border-t border-zinc-800">
-                <p className="text-xs text-zinc-500 text-center">
+            <div className="p-3 border-t border-gray-200">
+                <p className="text-xs text-gray-400 text-center">
                     Drag nodes to the canvas to add them to your workflow
                 </p>
             </div>

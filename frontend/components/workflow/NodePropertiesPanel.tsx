@@ -36,14 +36,14 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 }) => {
     if (!selectedNode) {
         return (
-            <div className="w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col">
-                <div className="p-4 border-b border-zinc-800">
-                    <h3 className="text-sm font-medium text-white">Node Properties</h3>
+            <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+                <div className="p-4 border-b border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-900">Node Properties</h3>
                 </div>
                 <div className="flex-1 flex items-center justify-center p-8">
                     <div className="text-center">
-                        <Settings className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
-                        <p className="text-sm text-zinc-500">
+                        <Settings className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-400">
                             Select a node to view and edit its properties
                         </p>
                     </div>
@@ -65,16 +65,16 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     }
 
     return (
-        <div className="w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col">
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
             {/* Header */}
-            <div className="p-4 border-b border-zinc-800">
+            <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-white">Node Properties</h3>
+                    <h3 className="text-sm font-medium text-gray-900">Node Properties</h3>
                     <div className="flex items-center gap-1">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-zinc-400 hover:text-white"
+                            className="h-7 w-7 text-gray-500 hover:text-gray-900"
                             onClick={() => {/* TODO: Duplicate node */ }}
                         >
                             <Copy className="h-4 w-4" />
@@ -82,7 +82,7 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
                             onClick={() => onDelete(selectedNode.id)}
                         >
                             <Trash2 className="h-4 w-4" />
@@ -94,7 +94,7 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: getNodeColor(nodeType) }}
                     />
-                    <span className="text-sm text-zinc-400">{nodeType}</span>
+                    <span className="text-sm text-gray-500">{nodeType}</span>
                 </div>
             </div>
 
@@ -104,20 +104,20 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     {/* Basic Info */}
                     <div className="space-y-3">
                         <div>
-                            <Label className="text-zinc-400 text-xs">Label</Label>
+                            <Label className="text-gray-500 text-xs">Label</Label>
                             <Input
                                 value={nodeData.label || ''}
                                 onChange={(e) => handleUpdate({ label: e.target.value })}
-                                className="mt-1 bg-zinc-800 border-zinc-700"
+                                className="mt-1 bg-gray-50 border-gray-300"
                                 placeholder="Node label"
                             />
                         </div>
                         <div>
-                            <Label className="text-zinc-400 text-xs">Description</Label>
+                            <Label className="text-gray-500 text-xs">Description</Label>
                             <Textarea
                                 value={nodeData.description || ''}
                                 onChange={(e) => handleUpdate({ description: e.target.value })}
-                                className="mt-1 bg-zinc-800 border-zinc-700 h-20 resize-none"
+                                className="mt-1 bg-gray-50 border-gray-300 h-20 resize-none"
                                 placeholder="Optional description"
                             />
                         </div>
@@ -125,8 +125,8 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
                     {/* Type-specific configuration */}
                     <Accordion type="single" collapsible defaultValue="config" className="space-y-2">
-                        <AccordionItem value="config" className="border-zinc-800">
-                            <AccordionTrigger className="text-sm text-zinc-300 hover:no-underline py-2">
+                        <AccordionItem value="config" className="border-gray-200">
+                            <AccordionTrigger className="text-sm text-gray-700 hover:no-underline py-2">
                                 Configuration
                             </AccordionTrigger>
                             <AccordionContent>
@@ -136,21 +136,21 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             </AccordionContent>
                         </AccordionItem>
 
-                        <AccordionItem value="advanced" className="border-zinc-800">
-                            <AccordionTrigger className="text-sm text-zinc-300 hover:no-underline py-2">
+                        <AccordionItem value="advanced" className="border-gray-200">
+                            <AccordionTrigger className="text-sm text-gray-700 hover:no-underline py-2">
                                 Advanced
                             </AccordionTrigger>
                             <AccordionContent>
                                 <div className="space-y-3 pt-2">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-zinc-400 text-xs">Disabled</Label>
+                                        <Label className="text-gray-500 text-xs">Disabled</Label>
                                         <Switch
                                             checked={nodeData.disabled || false}
                                             onCheckedChange={(checked) => handleUpdate({ disabled: checked })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-zinc-400 text-xs">Continue on error</Label>
+                                        <Label className="text-gray-500 text-xs">Continue on error</Label>
                                         <Switch
                                             checked={nodeData.continueOnError || false}
                                             onCheckedChange={(checked) => handleUpdate({ continueOnError: checked })}
@@ -160,19 +160,19 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             </AccordionContent>
                         </AccordionItem>
 
-                        <AccordionItem value="debug" className="border-zinc-800">
-                            <AccordionTrigger className="text-sm text-zinc-300 hover:no-underline py-2">
+                        <AccordionItem value="debug" className="border-gray-200">
+                            <AccordionTrigger className="text-sm text-gray-700 hover:no-underline py-2">
                                 Debug Info
                             </AccordionTrigger>
                             <AccordionContent>
                                 <div className="space-y-2 pt-2">
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <p className="text-xs text-zinc-500">Node ID</p>
-                                        <p className="text-xs text-zinc-300 font-mono">{selectedNode.id}</p>
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <p className="text-xs text-gray-400">Node ID</p>
+                                        <p className="text-xs text-gray-700 font-mono">{selectedNode.id}</p>
                                     </div>
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <p className="text-xs text-zinc-500">Position</p>
-                                        <p className="text-xs text-zinc-300 font-mono">
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <p className="text-xs text-gray-400">Position</p>
+                                        <p className="text-xs text-gray-700 font-mono">
                                             x: {Math.round(selectedNode.position.x)}, y: {Math.round(selectedNode.position.y)}
                                         </p>
                                     </div>
@@ -207,11 +207,11 @@ function renderNodeConfig(
         return (
             <>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Method</Label>
+                    <Label className="text-gray-500 text-xs">Method</Label>
                     <select
                         value={config.method || 'GET'}
                         onChange={(e) => onUpdate('method', e.target.value)}
-                        className="w-full mt-1 bg-zinc-800 border-zinc-700 rounded-md px-3 py-2 text-sm text-white"
+                        className="w-full mt-1 bg-gray-50 border-gray-300 border rounded-md px-3 py-2 text-sm text-gray-900"
                     >
                         <option value="GET">GET</option>
                         <option value="POST">POST</option>
@@ -221,16 +221,16 @@ function renderNodeConfig(
                     </select>
                 </div>
                 <div>
-                    <Label className="text-zinc-400 text-xs">URL</Label>
+                    <Label className="text-gray-500 text-xs">URL</Label>
                     <Input
                         value={config.url || ''}
                         onChange={(e) => onUpdate('url', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700"
+                        className="mt-1 bg-gray-50 border-gray-300"
                         placeholder="https://api.example.com/endpoint"
                     />
                 </div>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Headers (JSON)</Label>
+                    <Label className="text-gray-500 text-xs">Headers (JSON)</Label>
                     <Textarea
                         value={config.headers ? JSON.stringify(config.headers, null, 2) : ''}
                         onChange={(e) => {
@@ -238,16 +238,16 @@ function renderNodeConfig(
                                 onUpdate('headers', JSON.parse(e.target.value))
                             } catch { }
                         }}
-                        className="mt-1 bg-zinc-800 border-zinc-700 h-20 font-mono text-xs resize-none"
+                        className="mt-1 bg-gray-50 border-gray-300 h-20 font-mono text-xs resize-none"
                         placeholder='{"Content-Type": "application/json"}'
                     />
                 </div>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Body</Label>
+                    <Label className="text-gray-500 text-xs">Body</Label>
                     <Textarea
                         value={config.body || ''}
                         onChange={(e) => onUpdate('body', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700 h-24 font-mono text-xs resize-none"
+                        className="mt-1 bg-gray-50 border-gray-300 h-24 font-mono text-xs resize-none"
                         placeholder="Request body..."
                     />
                 </div>
@@ -260,23 +260,23 @@ function renderNodeConfig(
         return (
             <>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Cron Expression</Label>
+                    <Label className="text-gray-500 text-xs">Cron Expression</Label>
                     <Input
                         value={config.cron || ''}
                         onChange={(e) => onUpdate('cron', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700 font-mono"
+                        className="mt-1 bg-gray-50 border-gray-300 font-mono"
                         placeholder="0 9 * * 1-5"
                     />
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                         e.g., "0 9 * * 1-5" = 9 AM weekdays
                     </p>
                 </div>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Timezone</Label>
+                    <Label className="text-gray-500 text-xs">Timezone</Label>
                     <Input
                         value={config.timezone || 'UTC'}
                         onChange={(e) => onUpdate('timezone', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700"
+                        className="mt-1 bg-gray-50 border-gray-300"
                         placeholder="UTC"
                     />
                 </div>
@@ -288,12 +288,12 @@ function renderNodeConfig(
     if (nodeType === 'wait') {
         return (
             <div>
-                <Label className="text-zinc-400 text-xs">Duration (seconds)</Label>
+                <Label className="text-gray-500 text-xs">Duration (seconds)</Label>
                 <Input
                     type="number"
                     value={config.duration || 0}
                     onChange={(e) => onUpdate('duration', parseInt(e.target.value) || 0)}
-                    className="mt-1 bg-zinc-800 border-zinc-700"
+                    className="mt-1 bg-gray-50 border-gray-300"
                     placeholder="10"
                 />
             </div>
@@ -304,14 +304,14 @@ function renderNodeConfig(
     if (nodeType === 'if-condition') {
         return (
             <div>
-                <Label className="text-zinc-400 text-xs">Condition Expression</Label>
+                <Label className="text-gray-500 text-xs">Condition Expression</Label>
                 <Textarea
                     value={config.condition || ''}
                     onChange={(e) => onUpdate('condition', e.target.value)}
-                    className="mt-1 bg-zinc-800 border-zinc-700 h-20 font-mono text-xs resize-none"
+                    className="mt-1 bg-gray-50 border-gray-300 h-20 font-mono text-xs resize-none"
                     placeholder="data.status === 'success'"
                 />
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                     JavaScript expression that evaluates to true/false
                 </p>
             </div>
@@ -323,20 +323,20 @@ function renderNodeConfig(
         return (
             <>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Channel</Label>
+                    <Label className="text-gray-500 text-xs">Channel</Label>
                     <Input
                         value={config.channel || ''}
                         onChange={(e) => onUpdate('channel', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700"
+                        className="mt-1 bg-gray-50 border-gray-300"
                         placeholder="#general"
                     />
                 </div>
                 <div>
-                    <Label className="text-zinc-400 text-xs">Message</Label>
+                    <Label className="text-gray-500 text-xs">Message</Label>
                     <Textarea
                         value={config.message || ''}
                         onChange={(e) => onUpdate('message', e.target.value)}
-                        className="mt-1 bg-zinc-800 border-zinc-700 h-24 resize-none"
+                        className="mt-1 bg-gray-50 border-gray-300 h-24 resize-none"
                         placeholder="Workflow completed successfully!"
                     />
                 </div>
@@ -348,11 +348,11 @@ function renderNodeConfig(
     if (nodeType === 'run-test') {
         return (
             <div>
-                <Label className="text-zinc-400 text-xs">Test Flow ID</Label>
+                <Label className="text-gray-500 text-xs">Test Flow ID</Label>
                 <Input
                     value={config.test_flow_id || ''}
                     onChange={(e) => onUpdate('test_flow_id', e.target.value)}
-                    className="mt-1 bg-zinc-800 border-zinc-700"
+                    className="mt-1 bg-gray-50 border-gray-300"
                     placeholder="Enter test flow ID"
                 />
             </div>
@@ -362,7 +362,7 @@ function renderNodeConfig(
     // Default: Show JSON editor
     return (
         <div>
-            <Label className="text-zinc-400 text-xs">Configuration (JSON)</Label>
+            <Label className="text-gray-500 text-xs">Configuration (JSON)</Label>
             <Textarea
                 value={JSON.stringify(config || {}, null, 2)}
                 onChange={(e) => {
@@ -371,7 +371,7 @@ function renderNodeConfig(
                         Object.keys(parsed).forEach(key => onUpdate(key, parsed[key]))
                     } catch { }
                 }}
-                className="mt-1 bg-zinc-800 border-zinc-700 h-32 font-mono text-xs resize-none"
+                className="mt-1 bg-gray-50 border-gray-300 h-32 font-mono text-xs resize-none"
                 placeholder="{}"
             />
         </div>

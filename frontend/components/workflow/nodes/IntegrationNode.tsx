@@ -41,19 +41,19 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
         <div
             className={`
         relative px-4 py-3 rounded-lg border-2 min-w-[180px]
-        bg-zinc-900
+        bg-white shadow-sm
         transition-all duration-200
       `}
             style={{
                 borderColor: selected ? color : `${color}80`,
-                boxShadow: selected ? `0 10px 25px -5px ${color}30` : 'none',
+                boxShadow: selected ? `0 10px 25px -5px ${color}30` : '0 1px 3px rgba(0,0,0,0.1)',
             }}
         >
             {/* Input handle */}
             <Handle
                 type="target"
                 position={Position.Top}
-                className="!w-3 !h-3 !border-2 !border-zinc-900"
+                className="!w-3 !h-3 !border-2 !border-white"
                 style={{ backgroundColor: color }}
             />
 
@@ -61,15 +61,15 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
             <div className="flex items-center gap-2 mb-2">
                 <div
                     className="p-1.5 rounded"
-                    style={{ backgroundColor: `${color}30` }}
+                    style={{ backgroundColor: `${color}15` }}
                 >
                     <Icon className="h-4 w-4" style={{ color }} />
                 </div>
                 <div className="flex-1">
-                    <div className="text-sm font-medium text-white truncate">
+                    <div className="text-sm font-medium text-gray-900 truncate">
                         {data.label || getIntegrationName(integrationType)}
                     </div>
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-xs text-gray-400 truncate">
                         {integrationType}
                     </div>
                 </div>
@@ -77,22 +77,22 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
 
             {/* Config preview based on integration type */}
             {data.config && Object.keys(data.config).length > 0 && (
-                <div className="mt-2 pt-2 border-t border-zinc-800">
+                <div className="mt-2 pt-2 border-t border-gray-100">
                     {renderConfigPreview(integrationType, data.config)}
                 </div>
             )}
 
             {/* Description if exists */}
             {data.description && (
-                <p className="text-xs text-zinc-400 mt-1 truncate">
+                <p className="text-xs text-gray-500 mt-1 truncate">
                     {data.description}
                 </p>
             )}
 
             {/* Disabled overlay */}
             {data.disabled && (
-                <div className="absolute inset-0 bg-zinc-900/80 rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-zinc-500">Disabled</span>
+                <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                    <span className="text-xs text-gray-400">Disabled</span>
                 </div>
             )}
 
@@ -100,7 +100,7 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
             <Handle
                 type="source"
                 position={Position.Bottom}
-                className="!w-3 !h-3 !border-2 !border-zinc-900"
+                className="!w-3 !h-3 !border-2 !border-white"
                 style={{ backgroundColor: color }}
             />
         </div>
@@ -127,22 +127,22 @@ function renderConfigPreview(type: string, config: Record<string, any>): React.R
     switch (type) {
         case 'slack':
             return config.channel ? (
-                <div className="text-xs text-zinc-500 truncate">
-                    Channel: <span className="text-pink-400">{config.channel}</span>
+                <div className="text-xs text-gray-500 truncate">
+                    Channel: <span className="text-pink-600">{config.channel}</span>
                 </div>
             ) : null
 
         case 'jira':
             return (
-                <div className="text-xs text-zinc-500 truncate">
-                    {config.action && <span className="text-blue-400">{config.action}</span>}
+                <div className="text-xs text-gray-500 truncate">
+                    {config.action && <span className="text-blue-600">{config.action}</span>}
                     {config.project && <span> in {config.project}</span>}
                 </div>
             )
 
         case 'github':
             return (
-                <div className="text-xs text-zinc-500 truncate">
+                <div className="text-xs text-gray-500 truncate">
                     {config.owner && config.repo && (
                         <span>{config.owner}/{config.repo}</span>
                     )}
@@ -153,14 +153,14 @@ function renderConfigPreview(type: string, config: Record<string, any>): React.R
         case 'mysql':
         case 'mongodb':
             return config.query ? (
-                <div className="text-xs text-zinc-500 font-mono truncate">
+                <div className="text-xs text-gray-500 font-mono truncate">
                     {config.query.substring(0, 30)}...
                 </div>
             ) : null
 
         case 'email':
             return config.to ? (
-                <div className="text-xs text-zinc-500 truncate">
+                <div className="text-xs text-gray-500 truncate">
                     To: {config.to}
                 </div>
             ) : null

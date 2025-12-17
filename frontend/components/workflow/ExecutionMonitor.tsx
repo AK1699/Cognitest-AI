@@ -146,33 +146,33 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'completed':
-                return <CheckCircle2 className="h-4 w-4 text-green-400" />
+                return <CheckCircle2 className="h-4 w-4 text-green-600" />
             case 'failed':
-                return <XCircle className="h-4 w-4 text-red-400" />
+                return <XCircle className="h-4 w-4 text-red-500" />
             case 'running':
-                return <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+                return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
             case 'stopped':
-                return <Pause className="h-4 w-4 text-yellow-400" />
+                return <Pause className="h-4 w-4 text-amber-500" />
             case 'pending':
             case 'queued':
-                return <Clock className="h-4 w-4 text-zinc-400" />
+                return <Clock className="h-4 w-4 text-gray-400" />
             default:
-                return <AlertCircle className="h-4 w-4 text-zinc-400" />
+                return <AlertCircle className="h-4 w-4 text-gray-400" />
         }
     }
 
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'completed':
-                return 'text-green-400 bg-green-400/10 border-green-400/30'
+                return 'text-green-600 bg-green-50 border-green-200'
             case 'failed':
-                return 'text-red-400 bg-red-400/10 border-red-400/30'
+                return 'text-red-500 bg-red-50 border-red-200'
             case 'running':
-                return 'text-blue-400 bg-blue-400/10 border-blue-400/30'
+                return 'text-blue-600 bg-blue-50 border-blue-200'
             case 'stopped':
-                return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30'
+                return 'text-amber-500 bg-amber-50 border-amber-200'
             default:
-                return 'text-zinc-400 bg-zinc-400/10 border-zinc-400/30'
+                return 'text-gray-500 bg-gray-50 border-gray-200'
         }
     }
 
@@ -183,9 +183,9 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
         : 0
 
     return (
-        <div className={`border-t border-zinc-800 bg-zinc-900 transition-all ${isExpanded ? 'h-64' : 'h-12'}`}>
+        <div className={`border-t border-gray-200 bg-white transition-all shadow-lg ${isExpanded ? 'h-64' : 'h-12'}`}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                     <Button
                         variant="ghost"
@@ -200,7 +200,7 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                         )}
                     </Button>
 
-                    <span className="text-sm font-medium text-white">Execution Monitor</span>
+                    <span className="text-sm font-medium text-gray-900">Execution Monitor</span>
 
                     {execution && (
                         <>
@@ -221,7 +221,7 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={handleStop}
-                            className="h-7 text-xs text-red-400 border-red-400/30 hover:bg-red-400/10"
+                            className="h-7 text-xs text-red-500 border-red-200 hover:bg-red-50"
                         >
                             <Pause className="h-3 w-3 mr-1" />
                             Stop
@@ -255,15 +255,15 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
             {isExpanded && (
                 <div className="flex h-[calc(100%-48px)]">
                     {/* Progress Section */}
-                    <div className="w-64 p-4 border-r border-zinc-800">
+                    <div className="w-64 p-4 border-r border-gray-200">
                         {isLoading ? (
                             <div className="flex items-center justify-center h-full">
-                                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                             </div>
                         ) : execution ? (
                             <div className="space-y-4">
                                 <div>
-                                    <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                                         <span>Progress</span>
                                         <span>{Math.round(progress)}%</span>
                                     </div>
@@ -271,29 +271,29 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <div className="text-zinc-500">Total</div>
-                                        <div className="text-white font-medium">{execution.total_nodes}</div>
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <div className="text-gray-400">Total</div>
+                                        <div className="text-gray-900 font-medium">{execution.total_nodes}</div>
                                     </div>
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <div className="text-zinc-500">Completed</div>
-                                        <div className="text-green-400 font-medium">{execution.completed_nodes}</div>
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <div className="text-gray-400">Completed</div>
+                                        <div className="text-green-600 font-medium">{execution.completed_nodes}</div>
                                     </div>
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <div className="text-zinc-500">Failed</div>
-                                        <div className="text-red-400 font-medium">{execution.failed_nodes}</div>
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <div className="text-gray-400">Failed</div>
+                                        <div className="text-red-500 font-medium">{execution.failed_nodes}</div>
                                     </div>
-                                    <div className="bg-zinc-800/50 rounded p-2">
-                                        <div className="text-zinc-500">Duration</div>
-                                        <div className="text-white font-medium">
+                                    <div className="bg-gray-50 rounded p-2">
+                                        <div className="text-gray-400">Duration</div>
+                                        <div className="text-gray-900 font-medium">
                                             {execution.duration_ms ? `${(execution.duration_ms / 1000).toFixed(1)}s` : '-'}
                                         </div>
                                     </div>
                                 </div>
 
                                 {execution.error_message && (
-                                    <div className="bg-red-500/10 border border-red-500/30 rounded p-2">
-                                        <p className="text-xs text-red-400">{execution.error_message}</p>
+                                    <div className="bg-red-50 border border-red-200 rounded p-2">
+                                        <p className="text-xs text-red-500">{execution.error_message}</p>
                                     </div>
                                 )}
                             </div>
@@ -309,7 +309,7 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                                 ))}
                             </div>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-sm text-zinc-500">
+                            <div className="flex items-center justify-center h-full text-sm text-gray-400">
                                 {isLoading ? 'Loading...' : 'No steps executed yet'}
                             </div>
                         )}
@@ -329,33 +329,33 @@ const StepCard: React.FC<StepCardProps> = ({ step, index }) => {
     const getStepStatusIcon = (status: string) => {
         switch (status) {
             case 'completed':
-                return <CheckCircle2 className="h-4 w-4 text-green-400" />
+                return <CheckCircle2 className="h-4 w-4 text-green-600" />
             case 'failed':
-                return <XCircle className="h-4 w-4 text-red-400" />
+                return <XCircle className="h-4 w-4 text-red-500" />
             case 'running':
-                return <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+                return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
             case 'skipped':
-                return <AlertCircle className="h-4 w-4 text-yellow-400" />
+                return <AlertCircle className="h-4 w-4 text-amber-500" />
             default:
-                return <Clock className="h-4 w-4 text-zinc-400" />
+                return <Clock className="h-4 w-4 text-gray-400" />
         }
     }
 
     return (
-        <div className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded hover:bg-zinc-800 transition-colors">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-700 text-xs text-zinc-300">
+        <div className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600">
                 {index + 1}
             </div>
             {getStepStatusIcon(step.status)}
             <div className="flex-1 min-w-0">
-                <div className="text-sm text-white truncate">{step.node_name || step.node_id}</div>
-                <div className="text-xs text-zinc-500">{step.node_type}</div>
+                <div className="text-sm text-gray-900 truncate">{step.node_name || step.node_id}</div>
+                <div className="text-xs text-gray-400">{step.node_type}</div>
             </div>
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-gray-500">
                 {step.duration_ms ? `${step.duration_ms}ms` : '-'}
             </div>
             {step.error_message && (
-                <div className="max-w-[200px] text-xs text-red-400 truncate" title={step.error_message}>
+                <div className="max-w-[200px] text-xs text-red-500 truncate" title={step.error_message}>
                     {step.error_message}
                 </div>
             )}
