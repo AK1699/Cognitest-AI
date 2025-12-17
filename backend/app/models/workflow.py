@@ -18,7 +18,7 @@ from app.core.database import Base
 # ENUMS
 # ============================================================================
 
-class WorkflowStatus(str, enum.Enum):
+class WorkflowDefStatus(str, enum.Enum):
     """Status of a workflow definition"""
     DRAFT = "draft"
     ACTIVE = "active"
@@ -119,7 +119,7 @@ class WorkflowDefinition(Base):
     # Workflow Details
     name = Column(String(500), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    status = Column(SQLEnum(WorkflowStatus, values_callable=lambda x: [e.value for e in x]), default=WorkflowStatus.DRAFT, index=True)
+    status = Column(SQLEnum(WorkflowDefStatus, name='workflow_def_status', values_callable=lambda x: [e.value for e in x]), default=WorkflowDefStatus.DRAFT, index=True)
     
     # Trigger Configuration
     trigger_type = Column(SQLEnum(TriggerType, values_callable=lambda x: [e.value for e in x]), default=TriggerType.MANUAL)
@@ -338,7 +338,7 @@ class WorkflowCredential(Base):
     encrypted_data = Column(LargeBinary, nullable=False)  # Fernet encrypted JSON
     
     # Credential Metadata (non-sensitive)
-    metadata = Column(JSON, default=dict)  # e.g., {"scope": ["read", "write"], "expires_at": "..."}
+    credential_metadata = Column(JSON, default=dict)  # e.g., {"scope": ["read", "write"], "expires_at": "..."}
     
     # Usage Tracking
     last_used_at = Column(DateTime(timezone=True), nullable=True)

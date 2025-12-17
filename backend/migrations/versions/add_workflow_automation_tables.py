@@ -25,16 +25,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create ENUM types
-    op.execute("""
-        CREATE TYPE workflowstatus AS ENUM ('draft', 'active', 'inactive', 'archived');
-        CREATE TYPE triggertype AS ENUM ('manual', 'schedule', 'webhook', 'event');
-        CREATE TYPE nodetype AS ENUM ('trigger', 'action', 'condition', 'loop', 'switch', 'wait', 'set_variable', 'transform', 'filter', 'merge', 'error_handler', 'subworkflow');
-        CREATE TYPE integrationnodetype AS ENUM ('http_request', 'slack', 'email', 'jira', 'github', 'gitlab', 'google_sheets', 'postgresql', 'mysql', 'mongodb', 'webhook', 'test_automation', 'custom_code');
-        CREATE TYPE workflowexecutionstatus AS ENUM ('pending', 'queued', 'running', 'completed', 'failed', 'stopped', 'waiting', 'timeout');
-        CREATE TYPE workflowstepstatus AS ENUM ('pending', 'running', 'completed', 'failed', 'skipped', 'waiting');
-        CREATE TYPE credentialtype AS ENUM ('api_key', 'oauth2', 'basic_auth', 'bearer_token', 'custom');
-    """)
+    # Create ENUM types (idempotent - using DO block for IF NOT EXISTS)
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_def_status') THEN CREATE TYPE workflow_def_status AS ENUM ('draft', 'active', 'inactive', 'archived'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'triggertype') THEN CREATE TYPE triggertype AS ENUM ('manual', 'schedule', 'webhook', 'event'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nodetype') THEN CREATE TYPE nodetype AS ENUM ('trigger', 'action', 'condition', 'loop', 'switch', 'wait', 'set_variable', 'transform', 'filter', 'merge', 'error_handler', 'subworkflow'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'integrationnodetype') THEN CREATE TYPE integrationnodetype AS ENUM ('http_request', 'slack', 'email', 'jira', 'github', 'gitlab', 'google_sheets', 'postgresql', 'mysql', 'mongodb', 'webhook', 'test_automation', 'custom_code'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflowexecutionstatus') THEN CREATE TYPE workflowexecutionstatus AS ENUM ('pending', 'queued', 'running', 'completed', 'failed', 'stopped', 'waiting', 'timeout'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflowstepstatus') THEN CREATE TYPE workflowstepstatus AS ENUM ('pending', 'running', 'completed', 'failed', 'skipped', 'waiting'); END IF; END $$")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'credentialtype') THEN CREATE TYPE credentialtype AS ENUM ('api_key', 'oauth2', 'basic_auth', 'bearer_token', 'custom'); END IF; END $$")
     
     # Create workflow_definitions table
     op.create_table(
@@ -47,7 +45,7 @@ def upgrade() -> None:
         
         sa.Column('name', sa.String(500), nullable=False, index=True),
         sa.Column('description', sa.Text, nullable=True),
-        sa.Column('status', postgresql.ENUM('draft', 'active', 'inactive', 'archived', name='workflowstatus', create_type=False), server_default='draft', index=True),
+        sa.Column('status', postgresql.ENUM('draft', 'active', 'inactive', 'archived', name='workflow_def_status', create_type=False), server_default='draft', index=True),
         
         sa.Column('trigger_type', postgresql.ENUM('manual', 'schedule', 'webhook', 'event', name='triggertype', create_type=False), server_default='manual'),
         sa.Column('trigger_config', postgresql.JSON, server_default='{}'),
@@ -183,7 +181,7 @@ def upgrade() -> None:
         sa.Column('integration_type', sa.String(100), nullable=False),
         
         sa.Column('encrypted_data', sa.LargeBinary, nullable=False),
-        sa.Column('metadata', postgresql.JSON, server_default='{}'),
+        sa.Column('credential_metadata', postgresql.JSON, server_default='{}'),
         
         sa.Column('last_used_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('use_count', sa.Integer, server_default='0'),
@@ -314,13 +312,12 @@ def downgrade() -> None:
     op.drop_table('workflow_executions')
     op.drop_table('workflow_definitions')
     
-    # Drop ENUM types
-    op.execute("""
-        DROP TYPE IF EXISTS credentialtype;
-        DROP TYPE IF EXISTS workflowstepstatus;
-        DROP TYPE IF EXISTS workflowexecutionstatus;
-        DROP TYPE IF EXISTS integrationnodetype;
-        DROP TYPE IF EXISTS nodetype;
-        DROP TYPE IF EXISTS triggertype;
-        DROP TYPE IF EXISTS workflowstatus;
-    """)
+    # Drop ENUM types (each must be separate for asyncpg)
+    op.execute("DROP TYPE IF EXISTS credentialtype")
+    op.execute("DROP TYPE IF EXISTS workflowstepstatus")
+    op.execute("DROP TYPE IF EXISTS workflowexecutionstatus")
+    op.execute("DROP TYPE IF EXISTS integrationnodetype")
+    op.execute("DROP TYPE IF EXISTS nodetype")
+    op.execute("DROP TYPE IF EXISTS triggertype")
+    op.execute("DROP TYPE IF EXISTS workflow_def_status")
+

@@ -87,19 +87,19 @@ export default function WorkflowAutomationPage() {
     const getStatusBadge = (status: string) => {
         const statusConfig: Record<string, { className: string; icon: React.ReactNode }> = {
             active: {
-                className: 'text-green-400 border-green-400/30 bg-green-400/10',
+                className: 'text-green-600 border-green-200 bg-green-50',
                 icon: <CheckCircle2 className="h-3 w-3" />
             },
             draft: {
-                className: 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10',
+                className: 'text-amber-600 border-amber-200 bg-amber-50',
                 icon: <Clock className="h-3 w-3" />
             },
             inactive: {
-                className: 'text-zinc-400 border-zinc-400/30 bg-zinc-400/10',
+                className: 'text-gray-500 border-gray-200 bg-gray-50',
                 icon: <XCircle className="h-3 w-3" />
             },
             archived: {
-                className: 'text-zinc-500 border-zinc-500/30 bg-zinc-500/10',
+                className: 'text-gray-400 border-gray-200 bg-gray-100',
                 icon: <XCircle className="h-3 w-3" />
             },
         }
@@ -121,24 +121,25 @@ export default function WorkflowAutomationPage() {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950">
+        <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <div className="border-b border-zinc-800 bg-zinc-900/50">
+            <div className="border-b border-gray-200 bg-white">
                 <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="flex items-center gap-4 mb-4">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => router.push(`/organizations/${orgId}/projects/${projectId}/automation-hub`)}
+                            className="text-gray-600 hover:text-gray-900"
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                                <Workflow className="h-6 w-6 text-purple-400" />
+                            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                                <Workflow className="h-6 w-6 text-purple-600" />
                                 Workflow Automation
                             </h1>
-                            <p className="text-zinc-400 text-sm mt-1">
+                            <p className="text-gray-500 text-sm mt-1">
                                 Build and automate complex workflows with a visual node-based editor
                             </p>
                         </div>
@@ -147,18 +148,18 @@ export default function WorkflowAutomationPage() {
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 flex-1">
                             <div className="relative flex-1 max-w-md">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search workflows..."
-                                    className="pl-9 bg-zinc-800 border-zinc-700"
+                                    className="pl-9 bg-white border-gray-300"
                                     onKeyDown={(e) => e.key === 'Enter' && loadWorkflows()}
                                 />
                             </div>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="gap-2">
+                                    <Button variant="outline" className="gap-2 border-gray-300">
                                         <Filter className="h-4 w-4" />
                                         {statusFilter || 'All Status'}
                                     </Button>
@@ -179,7 +180,7 @@ export default function WorkflowAutomationPage() {
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <Button variant="ghost" size="icon" onClick={loadWorkflows}>
+                            <Button variant="ghost" size="icon" onClick={loadWorkflows} className="text-gray-600">
                                 <RefreshCw className="h-4 w-4" />
                             </Button>
                         </div>
@@ -199,7 +200,7 @@ export default function WorkflowAutomationPage() {
                 {isLoading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
-                            <Card key={i} className="bg-zinc-900 border-zinc-800 p-4">
+                            <Card key={i} className="bg-white border-gray-200 p-4">
                                 <Skeleton className="h-6 w-3/4 mb-2" />
                                 <Skeleton className="h-4 w-1/2 mb-4" />
                                 <Skeleton className="h-20 w-full" />
@@ -208,11 +209,11 @@ export default function WorkflowAutomationPage() {
                     </div>
                 ) : workflows.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16">
-                        <div className="p-6 rounded-full bg-zinc-800/50 mb-4">
-                            <Workflow className="h-12 w-12 text-zinc-600" />
+                        <div className="p-6 rounded-full bg-purple-100 mb-4">
+                            <Workflow className="h-12 w-12 text-purple-600" />
                         </div>
-                        <h3 className="text-xl font-medium text-white mb-2">No workflows yet</h3>
-                        <p className="text-zinc-400 text-center max-w-md mb-6">
+                        <h3 className="text-xl font-medium text-gray-900 mb-2">No workflows yet</h3>
+                        <p className="text-gray-500 text-center max-w-md mb-6">
                             Create your first workflow to automate testing, notifications, and integrations with a visual node-based editor.
                         </p>
                         <Button
@@ -228,7 +229,7 @@ export default function WorkflowAutomationPage() {
                         {workflows.map((workflow) => (
                             <Card
                                 key={workflow.id}
-                                className="bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer group"
+                                className="bg-white border-gray-200 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer group"
                                 onClick={() => router.push(`/organizations/${orgId}/projects/${projectId}/automation-hub/workflow-automation/${workflow.id}`)}
                             >
                                 <div className="p-4">
@@ -236,7 +237,7 @@ export default function WorkflowAutomationPage() {
                                         <div className="flex items-center gap-2">
                                             <div
                                                 className="p-2 rounded-lg"
-                                                style={{ backgroundColor: `${workflow.color || '#8b5cf6'}20` }}
+                                                style={{ backgroundColor: `${workflow.color || '#8b5cf6'}15` }}
                                             >
                                                 <Zap
                                                     className="h-5 w-5"
@@ -244,15 +245,15 @@ export default function WorkflowAutomationPage() {
                                                 />
                                             </div>
                                             <div>
-                                                <h3 className="font-medium text-white group-hover:text-purple-400 transition-colors">
+                                                <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition-colors">
                                                     {workflow.name}
                                                 </h3>
-                                                <p className="text-xs text-zinc-500">{workflow.human_id}</p>
+                                                <p className="text-xs text-gray-400">{workflow.human_id}</p>
                                             </div>
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 text-gray-500">
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -268,7 +269,7 @@ export default function WorkflowAutomationPage() {
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                     onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDelete(workflow.id) }}
-                                                    className="text-red-400"
+                                                    className="text-red-600"
                                                 >
                                                     <Trash2 className="h-4 w-4 mr-2" />
                                                     Delete
@@ -278,14 +279,14 @@ export default function WorkflowAutomationPage() {
                                     </div>
 
                                     {workflow.description && (
-                                        <p className="text-sm text-zinc-400 mb-3 line-clamp-2">
+                                        <p className="text-sm text-gray-500 mb-3 line-clamp-2">
                                             {workflow.description}
                                         </p>
                                     )}
 
                                     <div className="flex items-center gap-2 mb-3">
                                         {getStatusBadge(workflow.status)}
-                                        <Badge variant="outline" className="text-zinc-400 border-zinc-700">
+                                        <Badge variant="outline" className="text-gray-500 border-gray-200">
                                             {workflow.trigger_type === 'schedule' ? (
                                                 <Calendar className="h-3 w-3 mr-1" />
                                             ) : workflow.trigger_type === 'webhook' ? (
@@ -297,22 +298,22 @@ export default function WorkflowAutomationPage() {
                                         </Badge>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
-                                        <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                        <div className="flex items-center gap-4 text-xs text-gray-400">
                                             <div className="flex items-center gap-1" title="Total executions">
                                                 <Play className="h-3 w-3" />
                                                 {workflow.total_executions}
                                             </div>
-                                            <div className="flex items-center gap-1 text-green-400" title="Successful">
+                                            <div className="flex items-center gap-1 text-green-600" title="Successful">
                                                 <CheckCircle2 className="h-3 w-3" />
                                                 {workflow.successful_executions}
                                             </div>
-                                            <div className="flex items-center gap-1 text-red-400" title="Failed">
+                                            <div className="flex items-center gap-1 text-red-500" title="Failed">
                                                 <XCircle className="h-3 w-3" />
                                                 {workflow.failed_executions}
                                             </div>
                                         </div>
-                                        <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-purple-400 transition-colors" />
+                                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
                                     </div>
                                 </div>
                             </Card>

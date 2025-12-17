@@ -84,7 +84,7 @@ from app.models.workflow import (
     WorkflowSchedule,
     WorkflowWebhook,
     WorkflowTemplate,
-    WorkflowStatus,
+    WorkflowDefStatus as WorkflowStatus,
     TriggerType,
     NodeType,
     IntegrationNodeType,
