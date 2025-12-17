@@ -37,7 +37,7 @@ const automationTypes = [
       'Conditional logic & branching',
       'Scheduled executions'
     ],
-    status: 'coming-soon'
+    status: 'available'
   },
   {
     id: 'api-automation',
@@ -94,7 +94,7 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
 
   const handleCardClick = (type: typeof automationTypes[0]) => {
     if (type.status === 'available' && orgId && projectId) {
-      const path = `/organizations/${orgId}/projects/${projectId}/automation-hub/web-automation`
+      const path = `/organizations/${orgId}/projects/${projectId}${type.path}`
       router.push(path)
     }
   }
@@ -149,12 +149,11 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
                 Web Automation
               </button>
               <button
-                disabled
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed"
+                onClick={() => handleCardClick(automationTypes[1])}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
               >
                 <Workflow className="w-4 h-4" />
                 Workflow Automation
-                <span className="ml-auto text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Soon</span>
               </button>
               <button
                 disabled

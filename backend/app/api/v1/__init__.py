@@ -38,3 +38,10 @@ api_router.include_router(artifacts.router, prefix="/projects", tags=["artifacts
 
 # Snippets - Reusable parameterized test steps
 api_router.include_router(snippets.router, prefix="/snippets", tags=["snippets"])
+
+# Workflow Automation Module - n8n-style visual workflow builder
+from app.api.v1 import workflow, webhooks
+api_router.include_router(workflow.router, prefix="/workflows", tags=["workflows"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+
+

@@ -76,6 +76,22 @@ from app.models.web_automation import (
 )
 from app.models.artifact import TestArtifact, ArtifactType
 from app.models.snippet import TestSnippet
+from app.models.workflow import (
+    WorkflowDefinition,
+    WorkflowExecution,
+    WorkflowExecutionStep,
+    WorkflowCredential,
+    WorkflowSchedule,
+    WorkflowWebhook,
+    WorkflowTemplate,
+    WorkflowStatus,
+    TriggerType,
+    NodeType,
+    IntegrationNodeType,
+    ExecutionStatus as WorkflowExecutionStatus,
+    StepStatus as WorkflowStepStatus,
+    CredentialType,
+)
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -140,6 +156,21 @@ __all__ = [
     "TestArtifact",
     "ArtifactType",
     "TestSnippet",
+    # Workflow Automation Models
+    "WorkflowDefinition",
+    "WorkflowExecution",
+    "WorkflowExecutionStep",
+    "WorkflowCredential",
+    "WorkflowSchedule",
+    "WorkflowWebhook",
+    "WorkflowTemplate",
+    "WorkflowStatus",
+    "TriggerType",
+    "NodeType",
+    "IntegrationNodeType",
+    "WorkflowExecutionStatus",
+    "WorkflowStepStatus",
+    "CredentialType",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",
