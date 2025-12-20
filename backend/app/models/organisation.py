@@ -17,33 +17,61 @@ from app.core.database import Base
 
 class OrgRoleType(str, enum.Enum):
     """Organization role types with hierarchy (higher = more permissions)"""
-    OWNER = "owner"      # Full control - billing, delete org, manage all
-    ADMIN = "admin"      # Manage users, settings, all features
-    MEMBER = "member"    # Standard access to allowed features
-    VIEWER = "viewer"    # Read-only access
+    OWNER = "owner"           # Full control - billing, delete org, manage all
+    ADMIN = "admin"           # Manage users, settings, all features
+    SEC_OFFICER = "sec_officer"  # Security & compliance - SoD split with Admin
+    AUDITOR = "auditor"       # Read-only compliance access
+    SVC_ACCOUNT = "svc_account"  # CI/CD service account - token auth, no UI
+    MEMBER = "member"         # Standard access to allowed features
+    VIEWER = "viewer"         # Read-only access
 
 
 # Role hierarchy: higher number = more permissions
 ROLE_HIERARCHY = {
     OrgRoleType.VIEWER.value: 1,
+    OrgRoleType.SVC_ACCOUNT.value: 1,  # CI/CD - same level as viewer, different permissions
+    OrgRoleType.AUDITOR.value: 2,      # Read-only compliance - above viewer
     OrgRoleType.MEMBER.value: 2,
+    OrgRoleType.SEC_OFFICER.value: 3,  # Security - same level as admin, SoD split
     OrgRoleType.ADMIN.value: 3,
     OrgRoleType.OWNER.value: 4,
 }
 
 
-# Default permissions for each role type
+# Default permissions for each role type (based on role-based.md spec)
 DEFAULT_ROLE_PERMISSIONS = {
     OrgRoleType.OWNER.value: {
+        # Billing & Organization
         "can_manage_billing": True,
         "can_delete_org": True,
+        "can_delete_tenant_gdpr": True,  # GDPR deletion
+        "can_edit_branding": True,
+        # User & Team Management
         "can_manage_users": True,
+        "can_impersonate_user": True,  # Owner-only
         "can_manage_roles": True,
+        "can_manage_teams": True,
+        # Settings & Security
         "can_manage_settings": True,
+        "can_configure_sso": True,
+        "can_rotate_secrets": True,
+        # Projects
         "can_create_projects": True,
         "can_delete_projects": True,
+        # Audit & Compliance
         "can_view_audit_logs": True,
+        "can_export_audit": True,
+        "can_delete_audit": True,  # Owner-only
+        "can_view_invoices": True,
+        "can_export_cost_report": True,
+        # Security Features
+        "can_manage_scan_profiles": True,
+        "can_triage_vuln": True,
+        "can_mark_false_positive": True,
+        # Integrations & Marketplace
         "can_manage_integrations": True,
+        "can_publish_marketplace": True,
+        # Testing
         "can_execute_tests": True,
         "can_write_tests": True,
         "can_read_tests": True,
@@ -51,27 +79,142 @@ DEFAULT_ROLE_PERMISSIONS = {
     OrgRoleType.ADMIN.value: {
         "can_manage_billing": False,
         "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": True,
         "can_manage_users": True,
+        "can_impersonate_user": False,
         "can_manage_roles": True,
+        "can_manage_teams": True,
         "can_manage_settings": True,
+        "can_configure_sso": True,
+        "can_rotate_secrets": False,
         "can_create_projects": True,
         "can_delete_projects": True,
         "can_view_audit_logs": True,
+        "can_export_audit": True,
+        "can_delete_audit": False,
+        "can_view_invoices": True,
+        "can_export_cost_report": True,
+        "can_manage_scan_profiles": True,
+        "can_triage_vuln": True,
+        "can_mark_false_positive": False,
         "can_manage_integrations": True,
+        "can_publish_marketplace": True,
         "can_execute_tests": True,
         "can_write_tests": True,
         "can_read_tests": True,
     },
-    OrgRoleType.MEMBER.value: {
+    OrgRoleType.SEC_OFFICER.value: {
         "can_manage_billing": False,
         "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": False,
         "can_manage_users": False,
+        "can_impersonate_user": False,
         "can_manage_roles": False,
+        "can_manage_teams": False,
         "can_manage_settings": False,
+        "can_configure_sso": False,
+        "can_rotate_secrets": False,
+        "can_create_projects": False,
+        "can_delete_projects": False,
+        "can_view_audit_logs": True,
+        "can_export_audit": True,
+        "can_delete_audit": False,
+        "can_view_invoices": False,
+        "can_export_cost_report": False,
+        "can_manage_scan_profiles": True,
+        "can_triage_vuln": True,
+        "can_mark_false_positive": True,
+        "can_manage_integrations": False,
+        "can_publish_marketplace": False,
+        "can_execute_tests": True,
+        "can_write_tests": True,
+        "can_read_tests": True,
+    },
+    OrgRoleType.AUDITOR.value: {
+        "can_manage_billing": False,
+        "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": False,
+        "can_manage_users": False,
+        "can_impersonate_user": False,
+        "can_manage_roles": False,
+        "can_manage_teams": False,
+        "can_manage_settings": False,
+        "can_configure_sso": False,
+        "can_rotate_secrets": False,
+        "can_create_projects": False,
+        "can_delete_projects": False,
+        "can_view_audit_logs": True,
+        "can_export_audit": True,
+        "can_delete_audit": False,
+        "can_view_invoices": True,
+        "can_export_cost_report": True,
+        "can_manage_scan_profiles": False,
+        "can_triage_vuln": False,
+        "can_mark_false_positive": False,
+        "can_manage_integrations": False,
+        "can_publish_marketplace": False,
+        "can_execute_tests": False,
+        "can_write_tests": False,
+        "can_read_tests": True,
+    },
+    OrgRoleType.SVC_ACCOUNT.value: {
+        # Service accounts: token auth, IP whitelist, no UI
+        # Allowed: execute flows/scans, post results
+        # Denied: read audit, manage users, billing, export
+        "can_manage_billing": False,
+        "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": False,
+        "can_manage_users": False,
+        "can_impersonate_user": False,
+        "can_manage_roles": False,
+        "can_manage_teams": False,
+        "can_manage_settings": False,
+        "can_configure_sso": False,
+        "can_rotate_secrets": False,
         "can_create_projects": False,
         "can_delete_projects": False,
         "can_view_audit_logs": False,
+        "can_export_audit": False,
+        "can_delete_audit": False,
+        "can_view_invoices": False,
+        "can_export_cost_report": False,
+        "can_manage_scan_profiles": False,
+        "can_triage_vuln": False,
+        "can_mark_false_positive": False,
         "can_manage_integrations": False,
+        "can_publish_marketplace": False,
+        "can_execute_tests": True,  # Execute flows/scans
+        "can_write_tests": False,
+        "can_read_tests": True,  # Post results
+    },
+    OrgRoleType.MEMBER.value: {
+        "can_manage_billing": False,
+        "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": False,
+        "can_manage_users": False,
+        "can_impersonate_user": False,
+        "can_manage_roles": False,
+        "can_manage_teams": False,
+        "can_manage_settings": False,
+        "can_configure_sso": False,
+        "can_rotate_secrets": False,
+        "can_create_projects": False,
+        "can_delete_projects": False,
+        "can_view_audit_logs": False,
+        "can_export_audit": False,
+        "can_delete_audit": False,
+        "can_view_invoices": False,
+        "can_export_cost_report": False,
+        "can_manage_scan_profiles": False,
+        "can_triage_vuln": False,
+        "can_mark_false_positive": False,
+        "can_manage_integrations": False,
+        "can_publish_marketplace": False,
         "can_execute_tests": True,
         "can_write_tests": True,
         "can_read_tests": True,
@@ -79,13 +222,27 @@ DEFAULT_ROLE_PERMISSIONS = {
     OrgRoleType.VIEWER.value: {
         "can_manage_billing": False,
         "can_delete_org": False,
+        "can_delete_tenant_gdpr": False,
+        "can_edit_branding": False,
         "can_manage_users": False,
+        "can_impersonate_user": False,
         "can_manage_roles": False,
+        "can_manage_teams": False,
         "can_manage_settings": False,
+        "can_configure_sso": False,
+        "can_rotate_secrets": False,
         "can_create_projects": False,
         "can_delete_projects": False,
         "can_view_audit_logs": False,
+        "can_export_audit": False,
+        "can_delete_audit": False,
+        "can_view_invoices": False,
+        "can_export_cost_report": False,
+        "can_manage_scan_profiles": False,
+        "can_triage_vuln": False,
+        "can_mark_false_positive": False,
         "can_manage_integrations": False,
+        "can_publish_marketplace": False,
         "can_execute_tests": False,
         "can_write_tests": False,
         "can_read_tests": True,
@@ -237,7 +394,7 @@ DEFAULT_SYSTEM_ROLES = [
     {
         "name": "Owner",
         "role_type": OrgRoleType.OWNER.value,
-        "description": "Full control over the organization including billing and deletion",
+        "description": "Full control over the organization including billing, GDPR deletion, and impersonation",
         "color": "#EF4444",  # Red
         "is_system_role": True,
         "is_default": False,
@@ -246,11 +403,38 @@ DEFAULT_SYSTEM_ROLES = [
     {
         "name": "Administrator",
         "role_type": OrgRoleType.ADMIN.value,
-        "description": "Manage users, settings, and all features",
+        "description": "Manage users, settings, SSO, and all features except billing and secrets",
         "color": "#F59E0B",  # Amber
         "is_system_role": True,
         "is_default": False,
         "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.ADMIN.value],
+    },
+    {
+        "name": "Security Officer",
+        "role_type": OrgRoleType.SEC_OFFICER.value,
+        "description": "Separation of duties - manages scan profiles, vulnerability triage, and false-positive marking",
+        "color": "#8B5CF6",  # Purple
+        "is_system_role": True,
+        "is_default": False,
+        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.SEC_OFFICER.value],
+    },
+    {
+        "name": "Auditor",
+        "role_type": OrgRoleType.AUDITOR.value,
+        "description": "Read-only compliance access - view audit logs, invoices, and cost reports",
+        "color": "#06B6D4",  # Cyan
+        "is_system_role": True,
+        "is_default": False,
+        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.AUDITOR.value],
+    },
+    {
+        "name": "Service Account",
+        "role_type": OrgRoleType.SVC_ACCOUNT.value,
+        "description": "CI/CD integration - token auth, IP whitelist, execute flows/scans only",
+        "color": "#64748B",  # Slate
+        "is_system_role": True,
+        "is_default": False,
+        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.SVC_ACCOUNT.value],
     },
     {
         "name": "Member",

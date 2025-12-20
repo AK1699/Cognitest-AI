@@ -12,8 +12,13 @@ import {
     Pencil,
     Trash2,
     Check,
-    X
+    X,
+    ShieldCheck,
+    ClipboardCheck,
+    Bot,
+    Grid3X3
 } from 'lucide-react'
+import { OrgPermissionMatrix } from './org-permission-matrix'
 import {
     listOrgRoles,
     updateOrgRole,
@@ -22,7 +27,9 @@ import {
     removeMember,
     getRoleBadgeColor,
     getRoleLabel,
+    getRoleDescription,
     canManageRole,
+    isServiceAccountRole,
     type OrganizationRole,
     type UserRoleAssignment
 } from '@/lib/api/org-roles'
@@ -36,7 +43,7 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
     const [roles, setRoles] = useState<OrganizationRole[]>([])
     const [members, setMembers] = useState<UserRoleAssignment[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members')
+    const [activeTab, setActiveTab] = useState<'members' | 'roles' | 'matrix'>('members')
     const [editingMember, setEditingMember] = useState<string | null>(null)
     const [selectedRole, setSelectedRole] = useState<string>('')
     const [error, setError] = useState<string | null>(null)
@@ -49,15 +56,18 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
         try {
             setLoading(true)
             setError(null)
+            console.log('[RolesManager] Loading org roles for:', organisationId)
             const [rolesData, membersData] = await Promise.all([
                 listOrgRoles(organisationId),
                 listOrgMembers(organisationId)
             ])
+            console.log('[RolesManager] Loaded roles:', rolesData)
+            console.log('[RolesManager] Loaded members:', membersData)
             setRoles(rolesData)
             setMembers(membersData)
         } catch (err: any) {
+            console.error('[RolesManager] Error loading data:', err)
             setError(err.message || 'Failed to load data')
-            console.error(err)
         } finally {
             setLoading(false)
         }
@@ -67,6 +77,9 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
         switch (roleType) {
             case 'owner': return <Crown className="w-4 h-4" />
             case 'admin': return <Shield className="w-4 h-4" />
+            case 'sec_officer': return <ShieldCheck className="w-4 h-4" />
+            case 'auditor': return <ClipboardCheck className="w-4 h-4" />
+            case 'svc_account': return <Bot className="w-4 h-4" />
             case 'member': return <User className="w-4 h-4" />
             case 'viewer': return <Eye className="w-4 h-4" />
             default: return <User className="w-4 h-4" />
@@ -121,8 +134,8 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                 <button
                     onClick={() => setActiveTab('members')}
                     className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${activeTab === 'members'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     <Users className="inline-block w-4 h-4 mr-2" />
@@ -131,12 +144,22 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                 <button
                     onClick={() => setActiveTab('roles')}
                     className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${activeTab === 'roles'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     <Shield className="inline-block w-4 h-4 mr-2" />
                     Roles ({roles.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('matrix')}
+                    className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${activeTab === 'matrix'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <Grid3X3 className="inline-block w-4 h-4 mr-2" />
+                    Permission Matrix
                 </button>
             </div>
 
@@ -297,6 +320,11 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* Permission Matrix Tab */}
+            {activeTab === 'matrix' && (
+                <OrgPermissionMatrix organisationId={organisationId} />
             )}
         </div>
     )

@@ -212,3 +212,82 @@ class PermissionMiddleware:
                 )
         
         return True
+
+
+def require_abac(
+    action: str,
+    resource_type: str,
+    environment: Optional[str] = None,
+    get_user_attributes: Optional[Callable] = None
+):
+    """
+    Decorator for ABAC (Attribute-Based Access Control) checks.
+    
+    Implements production access controls, high VU load test approval,
+    and other attribute-based rules from role-based.md spec.
+    
+    Args:
+        action: The action being performed (execute, read, write, approve)
+        resource_type: The resource type (automation_flow, load_test, security_scan)
+        environment: Optional environment (dev, staging, prod)
+        get_user_attributes: Optional callable to get user attributes from context
+        
+    Usage:
+        @router.post("/flows/{flow_id}/execute")
+        @require_abac("execute", "automation_flow", environment="prod")
+        async def execute_flow_prod(
+            flow_id: UUID,
+            current_user: User = Depends(get_current_user),
+            db: AsyncSession = Depends(get_db)
+        ):
+            ...
+    """
+    from app.core.abac import check_abac, ABACContext, ABACDecision
+    
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            current_user = kwargs.get('current_user')
+            db = kwargs.get('db')
+            
+            if not current_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Missing current_user dependency"
+                )
+            
+            # Superusers bypass ABAC
+            if current_user.is_superuser:
+                return await func(*args, **kwargs)
+            
+            # Get user attributes (could be from user profile, role, etc.)
+            if get_user_attributes:
+                user_attributes = get_user_attributes(current_user, kwargs)
+            else:
+                # Default: get from user meta_data or profile
+                user_attributes = getattr(current_user, 'attributes', []) or []
+                if hasattr(current_user, 'meta_data') and current_user.meta_data:
+                    user_attributes = current_user.meta_data.get('abac_attributes', [])
+            
+            # Build ABAC context
+            context = ABACContext(
+                user_id=current_user.id,
+                action=action,
+                resource_type=resource_type,
+                environment=environment,
+                project_id=kwargs.get('project_id'),
+                organisation_id=kwargs.get('organisation_id') or kwargs.get('org_id')
+            )
+            
+            # Evaluate ABAC rules
+            result = await check_abac(context, user_attributes, db)
+            
+            if result.decision == ABACDecision.DENY:
+                raise PermissionDenied(
+                    f"{result.reason}. Required attributes: {', '.join(result.required_attributes)}"
+                )
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+

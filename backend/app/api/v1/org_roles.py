@@ -6,7 +6,7 @@ Provides endpoints for managing organization roles and user role assignments.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
@@ -37,16 +37,38 @@ router = APIRouter()
 # ==================== Schemas ====================
 
 class RolePermissions(BaseModel):
-    """Permission flags for a role"""
+    """Permission flags for a role (enterprise RBAC)"""
+    # Billing & Organization
     can_manage_billing: bool = False
     can_delete_org: bool = False
+    can_delete_tenant_gdpr: bool = False
+    can_edit_branding: bool = False
+    # User & Team Management
     can_manage_users: bool = False
+    can_impersonate_user: bool = False
     can_manage_roles: bool = False
+    can_manage_teams: bool = False
+    # Settings & Security
     can_manage_settings: bool = False
+    can_configure_sso: bool = False
+    can_rotate_secrets: bool = False
+    # Projects
     can_create_projects: bool = False
     can_delete_projects: bool = False
+    # Audit & Compliance
     can_view_audit_logs: bool = False
+    can_export_audit: bool = False
+    can_delete_audit: bool = False
+    can_view_invoices: bool = False
+    can_export_cost_report: bool = False
+    # Security Features
+    can_manage_scan_profiles: bool = False
+    can_triage_vuln: bool = False
+    can_mark_false_positive: bool = False
+    # Integrations & Marketplace
     can_manage_integrations: bool = False
+    can_publish_marketplace: bool = False
+    # Testing
     can_execute_tests: bool = False
     can_write_tests: bool = False
     can_read_tests: bool = True
@@ -105,7 +127,7 @@ class UserRoleAssignment(BaseModel):
 class AssignRoleRequest(BaseModel):
     """Request to assign a role to a user"""
     user_id: str
-    role_type: str  # owner, admin, member, viewer
+    role_type: str  # owner, admin, sec_officer, auditor, svc_account, member, viewer
 
 
 # ==================== Role Management Endpoints ====================
@@ -117,14 +139,36 @@ async def list_org_roles(
     db: AsyncSession = Depends(get_db)
 ):
     """List all roles for an organization"""
-    # Get roles with user count
+    # Get all roles for this organization
     result = await db.execute(
         select(OrganizationRole)
-        .options(selectinload(OrganizationRole.user_assignments))
         .where(OrganizationRole.organisation_id == organisation_id)
         .order_by(OrganizationRole.role_type.desc())
     )
     roles = result.scalars().all()
+    
+    # Get user counts by role (both by role_id and by role string match)
+    # This handles both new assignments (role_id) and legacy assignments (role string)
+    user_counts = {}
+    for role in roles:
+        # Count users assigned via role_id
+        result_by_id = await db.execute(
+            select(func.count(UserOrganisation.id))
+            .where(UserOrganisation.organisation_id == organisation_id)
+            .where(UserOrganisation.role_id == role.id)
+        )
+        count_by_id = result_by_id.scalar() or 0
+        
+        # Count users assigned via role string (legacy/current)
+        result_by_string = await db.execute(
+            select(func.count(UserOrganisation.id))
+            .where(UserOrganisation.organisation_id == organisation_id)
+            .where(UserOrganisation.role == role.role_type)
+            .where(UserOrganisation.role_id == None)  # Only count if not already linked
+        )
+        count_by_string = result_by_string.scalar() or 0
+        
+        user_counts[str(role.id)] = count_by_id + count_by_string
     
     return [
         RoleResponse(
@@ -136,7 +180,7 @@ async def list_org_roles(
             is_system_role=role.is_system_role,
             is_default=role.is_default,
             permissions=role.permissions or {},
-            user_count=len(role.user_assignments)
+            user_count=user_counts.get(str(role.id), 0)
         )
         for role in roles
     ]

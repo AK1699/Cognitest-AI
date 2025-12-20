@@ -985,13 +985,13 @@ export default function UsersTeamsPage() {
             </div>
           )}
 
-          {/* Org Roles Tab Content - New Simplified Role System */}
+          {/* Org Roles Tab Content - Enterprise Role System */}
           {activeTab === 'org-roles' && (
             <div className="space-y-6">
               <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
                 <h3 className="font-medium text-gray-900">Organization-Level Roles</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Simplified role system with 4 tiers: Owner, Admin, Member, Viewer. These roles apply across the entire organization.
+                  Enterprise role system with 7 tiers: Owner, Admin, Security Officer, Auditor, Service Account, Member, Viewer. These roles apply across the entire organization.
                 </p>
               </div>
               <RolesManager

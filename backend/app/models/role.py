@@ -8,14 +8,13 @@ from app.core.database import Base
 
 
 class ProjectRoleType(str, enum.Enum):
-    """Predefined project role types"""
-    OWNER = "owner"
-    ADMIN = "admin"
-    QA_MANAGER = "qa_manager"
-    QA_LEAD = "qa_lead"
-    QA_ENGINEER = "qa_engineer"
-    PRODUCT_OWNER = "product_owner"
-    VIEWER = "viewer"
+    """Predefined project role types (based on role-based.md spec)"""
+    PROJECT_ADMIN = "project_admin"   # Full project control
+    QA_LEAD = "qa_lead"               # Leads testers, approves test cases
+    TESTER = "tester"                 # Creates/executes tests
+    AUTO_ENG = "auto_eng"             # Automation engineer, manages flows
+    DEV_RO = "dev_ro"                 # Developer read-only
+    VIEWER = "viewer"                 # Read-only access
 
 
 class PermissionAction(str, enum.Enum):
@@ -26,7 +25,11 @@ class PermissionAction(str, enum.Enum):
     DELETE = "delete"
     EXECUTE = "execute"
     MANAGE = "manage"
-    WRITE = "write"  # Combination of CREATE and UPDATE
+    WRITE = "write"       # Combination of CREATE and UPDATE
+    APPROVE = "approve"   # Approve test cases, requirements
+    LINK = "link"         # Link requirements
+    EXPORT = "export"     # Export reports, SARIF
+    SCHEDULE = "schedule" # Schedule reports, runs
 
 
 class PermissionResource(str, enum.Enum):
@@ -41,6 +44,21 @@ class PermissionResource(str, enum.Enum):
     GROUP = "group"
     ROLE = "role"
     SETTINGS = "settings"
+
+    # New project-level resources (from role-based.md)
+    TEST_ARTIFACT = "test_artifact"       # CRUD test artifacts
+    TEST_CYCLE = "test_cycle"             # Test cycles/runs
+    REQUIREMENT = "requirement"           # Requirement linking
+    AUTOMATION_FLOW = "automation_flow"   # Automation flows
+    SECURITY_FINDING = "security_finding" # Vulnerability findings
+    SECURITY_SCAN = "security_scan"       # Security scans
+    K6_SCRIPT = "k6_script"               # K6 performance scripts
+    LOAD_TEST = "load_test"               # Load test execution
+    DASHBOARD = "dashboard"               # Custom dashboards
+    ENVIRONMENT_VAR = "env_var"           # Environment variables
+    PROJECT_SECRET = "project_secret"     # Project secrets rotation
+    SELF_HEAL = "self_heal"               # AI self-healing acceptance
+    SARIF_REPORT = "sarif_report"         # SARIF export
 
     # Module-based resources
     AUTOMATION_HUB = "automation_hub"
