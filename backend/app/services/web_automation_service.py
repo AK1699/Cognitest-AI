@@ -353,6 +353,7 @@ class WebAutomationExecutor:
     def substitute_variables(self, text: str) -> str:
         """
         Substitute environment variables in text using ${VAR_NAME} format
+        Supports nested access like ${apiResponse.body} or ${apiResponse.body.userId}
         """
         if not text or not isinstance(text, str):
             return text
@@ -362,11 +363,55 @@ class WebAutomationExecutor:
             
         import re
         
-        def replace(match):
-            var_name = match.group(1)
-            return self.variables.get(var_name, match.group(0))
+        def get_nested_value(var_path: str):
+            """Get value from nested path like 'apiResponse.body.userId'"""
+            parts = var_path.split('.')
+            root = parts[0]
             
-        return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace, text)
+            # First check if full path exists as a direct key (for backward compatibility)
+            if var_path in self.variables:
+                return str(self.variables[var_path])
+            
+            # Then try to get the root variable
+            if root not in self.variables:
+                return None
+            
+            value = self.variables[root]
+            
+            # Navigate through nested properties
+            for part in parts[1:]:
+                if isinstance(value, dict):
+                    if part in value:
+                        value = value[part]
+                    else:
+                        return None
+                elif isinstance(value, str):
+                    # Try to parse as JSON
+                    import json
+                    try:
+                        parsed = json.loads(value)
+                        if isinstance(parsed, dict) and part in parsed:
+                            value = parsed[part]
+                        else:
+                            return None
+                    except:
+                        return None
+                else:
+                    return None
+            
+            # Convert to string for substitution
+            if isinstance(value, dict):
+                import json
+                return json.dumps(value)
+            return str(value) if value is not None else None
+        
+        def replace(match):
+            var_path = match.group(1)
+            result = get_nested_value(var_path)
+            return result if result is not None else match.group(0)
+            
+        # Updated regex to support dot notation in variable names
+        return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_.]*)\}', replace, text)
 
     async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
         """Emit live update to all registered callbacks"""
@@ -1438,45 +1483,195 @@ class WebAutomationExecutor:
 
         elif action_type == "make_api_call":
             import aiohttp
+            import base64
+            from urllib.parse import urlencode
             
             url = self.substitute_variables(action_data.get("url", ""))
             method = action_data.get("method", "GET").upper()
-            headers = action_data.get("headers", {})
-            body = action_data.get("body")
             variable_name = action_data.get("variable_name")
+            timeout_ms = action_data.get("timeout", 30000)
+            timeout = aiohttp.ClientTimeout(total=timeout_ms / 1000)
             
-            async with aiohttp.ClientSession() as session:
+            # Build headers from array or dict
+            request_headers = {}
+            headers_data = action_data.get("headers", {})
+            if isinstance(headers_data, list):
+                for h in headers_data:
+                    if h.get("enabled", True) and h.get("key"):
+                        request_headers[h["key"]] = self.substitute_variables(h.get("value", ""))
+            elif isinstance(headers_data, dict):
+                request_headers = {k: self.substitute_variables(v) for k, v in headers_data.items()}
+            elif isinstance(headers_data, str):
+                import json as json_module
+                try:
+                    parsed = json_module.loads(headers_data)
+                    request_headers = {k: self.substitute_variables(v) for k, v in parsed.items()}
+                except:
+                    pass
+            
+            # Handle query parameters
+            query_params = action_data.get("query_params", [])
+            if query_params:
+                params = {}
+                for p in query_params:
+                    if p.get("enabled", True) and p.get("key"):
+                        params[p["key"]] = self.substitute_variables(p.get("value", ""))
+                if params:
+                    separator = "&" if "?" in url else "?"
+                    url = url + separator + urlencode(params)
+            
+            # Handle authentication
+            auth_type = action_data.get("auth_type", "none")
+            if auth_type == "basic":
+                username = self.substitute_variables(action_data.get("auth_basic_username", ""))
+                password = self.substitute_variables(action_data.get("auth_basic_password", ""))
+                credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
+                request_headers["Authorization"] = f"Basic {credentials}"
+            elif auth_type == "bearer":
+                token = self.substitute_variables(action_data.get("auth_bearer_token", ""))
+                request_headers["Authorization"] = f"Bearer {token}"
+            elif auth_type == "api-key":
+                key_name = self.substitute_variables(action_data.get("auth_api_key_key", ""))
+                key_value = self.substitute_variables(action_data.get("auth_api_key_value", ""))
+                add_to = action_data.get("auth_api_key_add_to", "header")
+                if add_to == "header":
+                    request_headers[key_name] = key_value
+                else:
+                    separator = "&" if "?" in url else "?"
+                    url = url + separator + urlencode({key_name: key_value})
+            
+            # Handle body based on body_type
+            body_type = action_data.get("body_type", "none")
+            request_body = None
+            data = None
+            json_body = None
+            
+            if body_type == "raw":
+                raw_type = action_data.get("body_raw_type", "json")
+                raw_body = self.substitute_variables(action_data.get("body", ""))
+                if raw_type == "json":
+                    request_headers.setdefault("Content-Type", "application/json")
+                    import json as json_module
+                    try:
+                        json_body = json_module.loads(raw_body)
+                    except:
+                        request_body = raw_body
+                elif raw_type == "xml":
+                    request_headers.setdefault("Content-Type", "application/xml")
+                    request_body = raw_body
+                elif raw_type == "html":
+                    request_headers.setdefault("Content-Type", "text/html")
+                    request_body = raw_body
+                else:
+                    request_headers.setdefault("Content-Type", "text/plain")
+                    request_body = raw_body
+            elif body_type == "form-data":
+                form_data = aiohttp.FormData()
+                for item in action_data.get("body_form_data", []):
+                    if item.get("enabled", True) and item.get("key"):
+                        key = item["key"]
+                        value = self.substitute_variables(item.get("value", ""))
+                        item_type = item.get("type", "text")
+                        if item_type == "file":
+                            # value is file path
+                            import os
+                            if os.path.exists(value):
+                                form_data.add_field(key, open(value, 'rb'), filename=os.path.basename(value))
+                        else:
+                            form_data.add_field(key, value)
+                data = form_data
+            elif body_type == "x-www-form-urlencoded":
+                request_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+                form_params = {}
+                for item in action_data.get("body_urlencoded", []):
+                    if item.get("enabled", True) and item.get("key"):
+                        form_params[item["key"]] = self.substitute_variables(item.get("value", ""))
+                request_body = urlencode(form_params)
+            elif body_type == "binary":
+                binary_path = self.substitute_variables(action_data.get("body_binary_path", ""))
+                import os
+                if os.path.exists(binary_path):
+                    with open(binary_path, 'rb') as f:
+                        request_body = f.read()
+                    request_headers.setdefault("Content-Type", "application/octet-stream")
+            elif body_type == "graphql":
+                request_headers.setdefault("Content-Type", "application/json")
+                query = self.substitute_variables(action_data.get("body_graphql_query", ""))
+                variables_str = self.substitute_variables(action_data.get("body_graphql_variables", "{}"))
+                import json as json_module
+                try:
+                    variables = json_module.loads(variables_str) if variables_str else {}
+                except:
+                    variables = {}
+                json_body = {"query": query, "variables": variables}
+            
+            # Make the request
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                kwargs = {"headers": request_headers}
+                if json_body is not None:
+                    kwargs["json"] = json_body
+                elif data is not None:
+                    kwargs["data"] = data
+                elif request_body is not None:
+                    kwargs["data"] = request_body
+                
                 if method == "GET":
-                    async with session.get(url, headers=headers) as resp:
+                    async with session.get(url, **kwargs) as resp:
                         response_text = await resp.text()
                         status = resp.status
+                        response_headers = dict(resp.headers)
                 elif method == "POST":
-                    async with session.post(url, headers=headers, json=body) as resp:
+                    async with session.post(url, **kwargs) as resp:
                         response_text = await resp.text()
                         status = resp.status
+                        response_headers = dict(resp.headers)
                 elif method == "PUT":
-                    async with session.put(url, headers=headers, json=body) as resp:
+                    async with session.put(url, **kwargs) as resp:
                         response_text = await resp.text()
                         status = resp.status
+                        response_headers = dict(resp.headers)
+                elif method == "PATCH":
+                    async with session.patch(url, **kwargs) as resp:
+                        response_text = await resp.text()
+                        status = resp.status
+                        response_headers = dict(resp.headers)
                 elif method == "DELETE":
-                    async with session.delete(url, headers=headers) as resp:
+                    async with session.delete(url, **kwargs) as resp:
                         response_text = await resp.text()
                         status = resp.status
+                        response_headers = dict(resp.headers)
                 else:
                     raise Exception(f"Unsupported HTTP method: {method}")
             
+            # Store response in variables
             if variable_name:
-                self.variables[variable_name] = response_text
-                self.variables[f"{variable_name}_status"] = str(status)
+                # Try to parse as JSON for easier access
+                import json as json_module
+                try:
+                    parsed_body = json_module.loads(response_text)
+                except:
+                    parsed_body = response_text
+                
+                # Store as a structured object for easy access
+                self.variables[variable_name] = {
+                    "body": parsed_body,
+                    "status": status,
+                    "headers": response_headers
+                }
+                # Also store individual parts for backward compatibility
+                self.variables[f"{variable_name}.body"] = response_text
+                self.variables[f"{variable_name}.status"] = str(status)
+                self.variables[f"{variable_name}.headers"] = str(response_headers)
 
         # --- Logging/Debugging ---
         elif action_type == "log":
-            message = self.substitute_variables(action_data.get("message", ""))
+            raw_message = action_data.get("message", "")
+            message = self.substitute_variables(raw_message)
             level = action_data.get("level", "info")  # info, warn, error, debug
             
             # Emit log message via live update
-            log_data = {"type": "log", "level": level, "message": message}
-            await self.emit_live_update(log_data)
+            log_data = {"level": level, "message": message}
+            await self.emit_live_update("log", log_data)
             
             # Also store in test execution logs
             if not hasattr(self, 'logs'):

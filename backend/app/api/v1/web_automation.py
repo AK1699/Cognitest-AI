@@ -2065,7 +2065,205 @@ Respond with JSON only:
                                     # ============================================
                                     elif step_type == "log":
                                         message = step_data.get("message") or step.get("message") or step_data.get("value") or step.get("value") or ""
-                                        print(f"[LOG] {message}")
+                                        # Substitute variables in message using execution_variables
+                                        import re
+                                        def substitute_vars(text, variables):
+                                            if not text or not variables:
+                                                return text
+                                            def get_nested_value(var_path, vars_dict):
+                                                parts = var_path.split('.')
+                                                root = parts[0]
+                                                if root not in vars_dict:
+                                                    return None
+                                                value = vars_dict[root]
+                                                for part in parts[1:]:
+                                                    if isinstance(value, dict) and part in value:
+                                                        value = value[part]
+                                                    else:
+                                                        return None
+                                                if isinstance(value, dict):
+                                                    import json
+                                                    return json.dumps(value)
+                                                return str(value) if value is not None else None
+                                            def replace_match(m):
+                                                result = get_nested_value(m.group(1), variables)
+                                                return result if result is not None else m.group(0)
+                                            return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_.]*)\}', replace_match, text)
+                                        
+                                        substituted_message = substitute_vars(message, execution_variables)
+                                        print(f"[LOG] {substituted_message}")
+                                        
+                                        # Also send to websocket for frontend console
+                                        await websocket.send_json({
+                                            "type": "log_message",
+                                            "level": step_data.get("level") or step.get("level") or "info",
+                                            "message": substituted_message,
+                                            "stepIndex": i
+                                        })
+                                    
+                                    elif step_type == "make_api_call":
+                                        import aiohttp
+                                        import base64
+                                        from urllib.parse import urlencode
+                                        
+                                        # Helper to substitute variables
+                                        def sub_var(text):
+                                            if not text or not isinstance(text, str):
+                                                return text
+                                            import re
+                                            def get_val(path):
+                                                parts = path.split('.')
+                                                root = parts[0]
+                                                if root not in execution_variables:
+                                                    return None
+                                                val = execution_variables[root]
+                                                for p in parts[1:]:
+                                                    if isinstance(val, dict) and p in val:
+                                                        val = val[p]
+                                                    else:
+                                                        return None
+                                                return str(val) if val is not None else None
+                                            def repl(m):
+                                                r = get_val(m.group(1))
+                                                return r if r is not None else m.group(0)
+                                            return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_.]*)\}', repl, text)
+                                        
+                                        url = sub_var(step_data.get("url") or step.get("url") or "")
+                                        method = (step_data.get("method") or step.get("method") or "GET").upper()
+                                        variable_name = step_data.get("variable_name") or step.get("variable_name")
+                                        timeout_ms = step_data.get("timeout") or step.get("timeout") or 30000
+                                        timeout = aiohttp.ClientTimeout(total=timeout_ms / 1000)
+                                        
+                                        # Build headers
+                                        request_headers = {}
+                                        headers_data = step_data.get("headers") or step.get("headers") or {}
+                                        if isinstance(headers_data, list):
+                                            for h in headers_data:
+                                                if h.get("enabled", True) and h.get("key"):
+                                                    request_headers[h["key"]] = sub_var(h.get("value", ""))
+                                        elif isinstance(headers_data, dict):
+                                            request_headers = {k: sub_var(v) for k, v in headers_data.items()}
+                                        
+                                        # Handle query params
+                                        query_params = step_data.get("query_params") or step.get("query_params") or []
+                                        if query_params:
+                                            params = {}
+                                            for p in query_params:
+                                                if p.get("enabled", True) and p.get("key"):
+                                                    params[p["key"]] = sub_var(p.get("value", ""))
+                                            if params:
+                                                sep = "&" if "?" in url else "?"
+                                                url = url + sep + urlencode(params)
+                                        
+                                        # Handle auth
+                                        auth_type = step_data.get("auth_type") or step.get("auth_type") or "none"
+                                        if auth_type == "basic":
+                                            username = sub_var(step_data.get("auth_basic_username") or step.get("auth_basic_username") or "")
+                                            password = sub_var(step_data.get("auth_basic_password") or step.get("auth_basic_password") or "")
+                                            creds = base64.b64encode(f"{username}:{password}".encode()).decode()
+                                            request_headers["Authorization"] = f"Basic {creds}"
+                                        elif auth_type == "bearer":
+                                            token = sub_var(step_data.get("auth_bearer_token") or step.get("auth_bearer_token") or "")
+                                            request_headers["Authorization"] = f"Bearer {token}"
+                                        elif auth_type == "api-key":
+                                            key_name = sub_var(step_data.get("auth_api_key_key") or step.get("auth_api_key_key") or "")
+                                            key_val = sub_var(step_data.get("auth_api_key_value") or step.get("auth_api_key_value") or "")
+                                            add_to = step_data.get("auth_api_key_add_to") or step.get("auth_api_key_add_to") or "header"
+                                            if add_to == "header":
+                                                request_headers[key_name] = key_val
+                                            else:
+                                                sep = "&" if "?" in url else "?"
+                                                url = url + sep + urlencode({key_name: key_val})
+                                        
+                                        # Handle body
+                                        body_type = step_data.get("body_type") or step.get("body_type") or "none"
+                                        request_body = None
+                                        json_body = None
+                                        
+                                        if body_type == "raw":
+                                            raw_body = sub_var(step_data.get("body") or step.get("body") or "")
+                                            raw_type = step_data.get("body_raw_type") or step.get("body_raw_type") or "json"
+                                            if raw_type == "json":
+                                                request_headers.setdefault("Content-Type", "application/json")
+                                                try:
+                                                    json_body = json.loads(raw_body)
+                                                except:
+                                                    request_body = raw_body
+                                            else:
+                                                request_body = raw_body
+                                        elif body_type == "x-www-form-urlencoded":
+                                            request_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+                                            form_params = {}
+                                            for item in (step_data.get("body_urlencoded") or step.get("body_urlencoded") or []):
+                                                if item.get("enabled", True) and item.get("key"):
+                                                    form_params[item["key"]] = sub_var(item.get("value", ""))
+                                            request_body = urlencode(form_params)
+                                        elif body_type == "graphql":
+                                            request_headers.setdefault("Content-Type", "application/json")
+                                            query = sub_var(step_data.get("body_graphql_query") or step.get("body_graphql_query") or "")
+                                            vars_str = sub_var(step_data.get("body_graphql_variables") or step.get("body_graphql_variables") or "{}")
+                                            try:
+                                                variables_json = json.loads(vars_str) if vars_str else {}
+                                            except:
+                                                variables_json = {}
+                                            json_body = {"query": query, "variables": variables_json}
+                                        
+                                        # Make request
+                                        async with aiohttp.ClientSession(timeout=timeout) as api_session:
+                                            kwargs = {"headers": request_headers}
+                                            if json_body is not None:
+                                                kwargs["json"] = json_body
+                                            elif request_body is not None:
+                                                kwargs["data"] = request_body
+                                            
+                                            if method == "GET":
+                                                async with api_session.get(url, **kwargs) as resp:
+                                                    response_text = await resp.text()
+                                                    status_code = resp.status
+                                                    resp_headers = dict(resp.headers)
+                                            elif method == "POST":
+                                                async with api_session.post(url, **kwargs) as resp:
+                                                    response_text = await resp.text()
+                                                    status_code = resp.status
+                                                    resp_headers = dict(resp.headers)
+                                            elif method == "PUT":
+                                                async with api_session.put(url, **kwargs) as resp:
+                                                    response_text = await resp.text()
+                                                    status_code = resp.status
+                                                    resp_headers = dict(resp.headers)
+                                            elif method == "PATCH":
+                                                async with api_session.patch(url, **kwargs) as resp:
+                                                    response_text = await resp.text()
+                                                    status_code = resp.status
+                                                    resp_headers = dict(resp.headers)
+                                            elif method == "DELETE":
+                                                async with api_session.delete(url, **kwargs) as resp:
+                                                    response_text = await resp.text()
+                                                    status_code = resp.status
+                                                    resp_headers = dict(resp.headers)
+                                            else:
+                                                raise Exception(f"Unsupported HTTP method: {method}")
+                                        
+                                        # Store response
+                                        if variable_name:
+                                            try:
+                                                parsed_body = json.loads(response_text)
+                                            except:
+                                                parsed_body = response_text
+                                            execution_variables[variable_name] = {
+                                                "body": parsed_body,
+                                                "status": status_code,
+                                                "headers": resp_headers
+                                            }
+                                            print(f"[API] Stored response in {variable_name} - status: {status_code}")
+                                        
+                                        # Send result to frontend
+                                        await websocket.send_json({
+                                            "type": "api_response",
+                                            "stepIndex": i,
+                                            "status": status_code,
+                                            "variableName": variable_name
+                                        })
                                     
                                     elif step_type == "comment":
                                         # No-op, just a comment step

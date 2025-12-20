@@ -135,6 +135,8 @@ export default function LiveBrowserTab({
         variable_name?: string
         key?: string
         cookie_name?: string
+        logMessage?: string
+        apiStatus?: number
         // Snippet-specific fields
         snippetName?: string
         subSteps?: Array<{
@@ -220,12 +222,16 @@ export default function LiveBrowserTab({
         // Store the test to run after browser is launched
         setPendingTestFlowId(testToRun.flowId)
 
-        // Get test flow to find starting URL
+        // Get test flow to find starting URL (only from navigate steps)
         webAutomationApi.getTestFlow(testToRun.flowId).then(testFlow => {
-            const firstStep = testFlow.nodes?.[0]
-            const startUrl = firstStep?.data?.url || ''
+            // Find first navigate step - don't use URLs from API calls
+            const navigateStep = testFlow.nodes?.find((step: any) => {
+                const stepType = step?.data?.action || step?.data?.type || step?.action || step?.type
+                return stepType === 'navigate' && step?.data?.url
+            })
+            const startUrl = navigateStep?.data?.url || ''
 
-            // Pre-fill the URL input
+            // Pre-fill the URL input only if we have a navigate step
             if (startUrl) {
                 setUrlInput(startUrl)
             }
@@ -475,6 +481,32 @@ export default function LiveBrowserTab({
             case 'error':
                 console.error('Browser session error:', data.error)
                 testRunInitiatedRef.current = false
+                break
+
+            case 'log_message':
+                // Store the logged message in the step's state
+                console.log(`[LOG ${data.level}] ${data.message}`)
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? { ...step, logMessage: data.message }
+                        : step
+                ))
+                // Also add to console logs
+                setConsoleLogs(prev => [...prev.slice(-99), {
+                    level: data.level || 'info',
+                    text: data.message,
+                    timestamp: new Date().toISOString()
+                }])
+                break
+
+            case 'api_response':
+                // Store API status in the step
+                console.log(`[API] Status: ${data.status}`)
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? { ...step, apiStatus: data.status }
+                        : step
+                ))
                 break
         }
     }
@@ -1487,6 +1519,27 @@ export default function LiveBrowserTab({
                                                                 </code>
                                                             )}
                                                         </div>
+
+                                                        {/* Log Message Display */}
+                                                        {step.logMessage && (
+                                                            <div className="mt-2 text-xs text-blue-700 font-mono bg-blue-50 px-3 py-2 rounded-md border border-blue-200 flex items-start gap-2">
+                                                                <span className="opacity-60 shrink-0">📝</span>
+                                                                <span className="break-all">{step.logMessage}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* API Status Display */}
+                                                        {step.apiStatus && (
+                                                            <div className="mt-2 text-xs font-mono px-3 py-2 rounded-md border flex items-center gap-2"
+                                                                style={{
+                                                                    backgroundColor: step.apiStatus >= 200 && step.apiStatus < 300 ? '#f0fdf4' : step.apiStatus >= 400 ? '#fef2f2' : '#fffbeb',
+                                                                    borderColor: step.apiStatus >= 200 && step.apiStatus < 300 ? '#86efac' : step.apiStatus >= 400 ? '#fca5a5' : '#fcd34d',
+                                                                    color: step.apiStatus >= 200 && step.apiStatus < 300 ? '#15803d' : step.apiStatus >= 400 ? '#b91c1c' : '#a16207'
+                                                                }}>
+                                                                <span className="opacity-60 shrink-0">📡</span>
+                                                                <span>Status: <strong>{step.apiStatus}</strong></span>
+                                                            </div>
+                                                        )}
 
                                                         {/* Error Message */}
                                                         {step.error && (

@@ -6,6 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { TestStep } from './types'
 import { getActionConfig, browserActions } from './action-configs'
 import { snippetApi, Snippet, SnippetParameter } from '@/lib/api/webAutomation'
@@ -742,36 +749,370 @@ function ActionSpecificFields({ selectedStep, updateStep }: ActionSpecificFields
 
         // API Call
         case 'make_api_call':
-            return (
-                <div className="space-y-3">
-                    <div className="space-y-2">
-                        <Label>URL</Label>
-                        <Input
-                            value={selectedStep.url || ''}
-                            onChange={(e) => updateStep('url', e.target.value)}
-                            placeholder="https://api.example.com/endpoint"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Method</Label>
-                        <select
-                            className="w-full text-sm border rounded-md p-2"
-                            value={selectedStep.method || 'GET'}
-                            onChange={(e) => updateStep('method', e.target.value as 'GET' | 'POST' | 'PUT' | 'DELETE')}
+            const apiTab = (selectedStep as any)._apiTab || 'params'
+            const setApiTab = (tab: string) => updateStep('_apiTab' as keyof TestStep, tab)
+
+            // Helper to manage key-value arrays
+            const getArrayField = (field: string): Array<{ key: string; value: string; description?: string; enabled?: boolean }> => {
+                return (selectedStep as any)[field] || []
+            }
+
+            const updateArrayField = (field: string, index: number, prop: string, value: any) => {
+                const arr = [...getArrayField(field)]
+                if (arr[index]) {
+                    arr[index] = { ...arr[index], [prop]: value }
+                }
+                updateStep(field as keyof TestStep, arr)
+            }
+
+            const addArrayItem = (field: string) => {
+                const arr = [...getArrayField(field), { key: '', value: '', description: '', enabled: true }]
+                updateStep(field as keyof TestStep, arr)
+            }
+
+            const removeArrayItem = (field: string, index: number) => {
+                const arr = getArrayField(field).filter((_, i) => i !== index)
+                updateStep(field as keyof TestStep, arr)
+            }
+
+            const renderKeyValueTable = (field: string) => {
+                const items = getArrayField(field)
+                return (
+                    <div className="space-y-1.5">
+                        {items.map((item, idx) => (
+                            <div key={idx} className="flex gap-1.5 items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={item.enabled !== false}
+                                    onChange={(e) => updateArrayField(field, idx, 'enabled', e.target.checked)}
+                                    className="h-3.5 w-3.5 shrink-0"
+                                />
+                                <Input
+                                    className="h-8 text-xs flex-1"
+                                    value={item.key || ''}
+                                    onChange={(e) => updateArrayField(field, idx, 'key', e.target.value)}
+                                    placeholder="Key"
+                                />
+                                <Input
+                                    className="h-8 text-xs flex-1"
+                                    value={item.value || ''}
+                                    onChange={(e) => updateArrayField(field, idx, 'value', e.target.value)}
+                                    placeholder="Value"
+                                />
+                                <button
+                                    onClick={() => removeArrayItem(field, idx)}
+                                    className="text-gray-400 hover:text-red-500 text-lg px-1"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addArrayItem(field)}
+                            className="text-xs h-7 w-full mt-1"
                         >
-                            <option value="GET">GET</option>
-                            <option value="POST">POST</option>
-                            <option value="PUT">PUT</option>
-                            <option value="DELETE">DELETE</option>
-                        </select>
+                            + Add Parameter
+                        </Button>
                     </div>
+                )
+            }
+
+            return (
+                <div className="space-y-4">
+                    {/* URL and Method */}
                     <div className="space-y-2">
-                        <Label>Store Response In</Label>
-                        <Input
-                            value={selectedStep.variable_name || ''}
-                            onChange={(e) => updateStep('variable_name', e.target.value)}
-                            placeholder="apiResponse"
-                        />
+                        <Label>Request</Label>
+                        <div className="flex gap-2">
+                            <Select value={selectedStep.method || 'GET'} onValueChange={(value) => updateStep('method', value)}>
+                                <SelectTrigger className="w-24 font-medium">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="GET">GET</SelectItem>
+                                    <SelectItem value="POST">POST</SelectItem>
+                                    <SelectItem value="PUT">PUT</SelectItem>
+                                    <SelectItem value="PATCH">PATCH</SelectItem>
+                                    <SelectItem value="DELETE">DELETE</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                className="flex-1"
+                                value={selectedStep.url || ''}
+                                onChange={(e) => updateStep('url', e.target.value)}
+                                placeholder="https://api.example.com/endpoint"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="border rounded-lg overflow-hidden">
+                        <div className="flex bg-gray-50 border-b">
+                            {[
+                                { id: 'params', label: 'Params' },
+                                { id: 'auth', label: 'Auth' },
+                                { id: 'headers', label: 'Headers' },
+                                { id: 'body', label: 'Body' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setApiTab(tab.id)}
+                                    className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${apiTab === tab.id
+                                        ? 'bg-white text-blue-600 border-b-2 border-blue-500'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    {tab.label}
+                                    {tab.id === 'params' && getArrayField('query_params').length > 0 && (
+                                        <span className="ml-1 text-gray-400">({getArrayField('query_params').length})</span>
+                                    )}
+                                    {tab.id === 'headers' && getArrayField('headers').length > 0 && (
+                                        <span className="ml-1 text-gray-400">({getArrayField('headers').length})</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="p-3 min-h-[140px]">
+                            {/* Params Tab */}
+                            {apiTab === 'params' && renderKeyValueTable('query_params')}
+
+                            {/* Authorization Tab */}
+                            {apiTab === 'auth' && (
+                                <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs">Type</Label>
+                                        <Select value={selectedStep.auth_type || 'none'} onValueChange={(value) => updateStep('auth_type', value)}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">No Auth</SelectItem>
+                                                <SelectItem value="basic">Basic Auth</SelectItem>
+                                                <SelectItem value="bearer">Bearer Token</SelectItem>
+                                                <SelectItem value="api-key">API Key</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {selectedStep.auth_type === 'basic' && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Username</Label>
+                                                <Input
+                                                    value={selectedStep.auth_basic_username || ''}
+                                                    onChange={(e) => updateStep('auth_basic_username', e.target.value)}
+                                                    placeholder="username"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Password</Label>
+                                                <Input
+                                                    type="password"
+                                                    value={selectedStep.auth_basic_password || ''}
+                                                    onChange={(e) => updateStep('auth_basic_password', e.target.value)}
+                                                    placeholder="password"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedStep.auth_type === 'bearer' && (
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">Token</Label>
+                                            <Input
+                                                value={selectedStep.auth_bearer_token || ''}
+                                                onChange={(e) => updateStep('auth_bearer_token', e.target.value)}
+                                                placeholder="${token} or paste token"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedStep.auth_type === 'api-key' && (
+                                        <div className="space-y-2">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Key Name</Label>
+                                                    <Input
+                                                        value={selectedStep.auth_api_key_key || ''}
+                                                        onChange={(e) => updateStep('auth_api_key_key', e.target.value)}
+                                                        placeholder="X-API-Key"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Value</Label>
+                                                    <Input
+                                                        value={selectedStep.auth_api_key_value || ''}
+                                                        onChange={(e) => updateStep('auth_api_key_value', e.target.value)}
+                                                        placeholder="${apiKey}"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Add to</Label>
+                                                <Select value={selectedStep.auth_api_key_add_to || 'header'} onValueChange={(value) => updateStep('auth_api_key_add_to', value)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="header">Header</SelectItem>
+                                                        <SelectItem value="query">Query Params</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Headers Tab */}
+                            {apiTab === 'headers' && renderKeyValueTable('headers')}
+
+                            {/* Body Tab */}
+                            {apiTab === 'body' && (
+                                <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs">Content Type</Label>
+                                        <Select value={selectedStep.body_type || 'none'} onValueChange={(value) => updateStep('body_type', value)}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="raw">Raw (JSON/Text/XML)</SelectItem>
+                                                <SelectItem value="form-data">Form Data</SelectItem>
+                                                <SelectItem value="x-www-form-urlencoded">URL Encoded</SelectItem>
+                                                <SelectItem value="binary">Binary</SelectItem>
+                                                <SelectItem value="graphql">GraphQL</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {selectedStep.body_type === 'form-data' && renderKeyValueTable('body_form_data')}
+
+                                    {selectedStep.body_type === 'x-www-form-urlencoded' && renderKeyValueTable('body_urlencoded')}
+
+                                    {selectedStep.body_type === 'raw' && (
+                                        <div className="space-y-2">
+                                            <Select value={selectedStep.body_raw_type || 'json'} onValueChange={(value) => updateStep('body_raw_type', value)}>
+                                                <SelectTrigger className="w-28">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="json">JSON</SelectItem>
+                                                    <SelectItem value="text">Text</SelectItem>
+                                                    <SelectItem value="xml">XML</SelectItem>
+                                                    <SelectItem value="html">HTML</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <textarea
+                                                value={selectedStep.body || ''}
+                                                onChange={(e) => updateStep('body', e.target.value)}
+                                                placeholder={'{\n  "key": "value"\n}'}
+                                                className="w-full h-28 text-xs font-mono border rounded-md p-2"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedStep.body_type === 'binary' && (
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">File Path</Label>
+                                            <Input
+                                                value={selectedStep.body_binary_path || ''}
+                                                onChange={(e) => updateStep('body_binary_path', e.target.value)}
+                                                placeholder="/path/to/file"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedStep.body_type === 'graphql' && (
+                                        <div className="space-y-2">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Query</Label>
+                                                <textarea
+                                                    value={selectedStep.body_graphql_query || ''}
+                                                    onChange={(e) => updateStep('body_graphql_query', e.target.value)}
+                                                    placeholder={'query {\n  users { id name }\n}'}
+                                                    className="w-full h-20 text-xs font-mono border rounded-md p-2"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Variables</Label>
+                                                <textarea
+                                                    value={selectedStep.body_graphql_variables || ''}
+                                                    onChange={(e) => updateStep('body_graphql_variables', e.target.value)}
+                                                    placeholder={'{ "id": "123" }'}
+                                                    className="w-full h-12 text-xs font-mono border rounded-md p-2"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Response Settings */}
+                    <div className="space-y-3">
+                        <Label className="text-xs font-medium text-gray-500">Response Settings</Label>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Timeout (ms)</Label>
+                            <Input
+                                type="number"
+                                value={selectedStep.timeout || 30000}
+                                onChange={(e) => updateStep('timeout', parseInt(e.target.value))}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Store Response In</Label>
+                            <Input
+                                value={selectedStep.variable_name || ''}
+                                onChange={(e) => updateStep('variable_name', e.target.value)}
+                                placeholder="apiResponse"
+                            />
+                            <div className="mt-3 rounded-lg border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-3 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-base">💡</span>
+                                    <span className="font-semibold text-indigo-700 text-sm">Quick Guide</span>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="bg-white/70 rounded-md p-2 border border-indigo-100">
+                                        <p className="text-xs font-medium text-indigo-600 mb-1">📥 Store Response</p>
+                                        <p className="text-xs text-gray-600">Enter a variable name above (e.g., <code className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-[11px]">apiResponse</code>)</p>
+                                    </div>
+
+                                    <div className="bg-white/70 rounded-md p-2 border border-indigo-100">
+                                        <p className="text-xs font-medium text-indigo-600 mb-1.5">📤 Access Response Data</p>
+                                        <div className="space-y-1 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <code className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-[11px]">${'{apiResponse.body}'}</code>
+                                                <span className="text-gray-500">→ JSON response data</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <code className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-[11px]">${'{apiResponse.status}'}</code>
+                                                <span className="text-gray-500">→ HTTP status (200, 404...)</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <code className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-[11px]">${'{apiResponse.headers}'}</code>
+                                                <span className="text-gray-500">→ Response headers</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/70 rounded-md p-2 border border-indigo-100">
+                                        <p className="text-xs font-medium text-indigo-600 mb-1.5">✨ Example Usage</p>
+                                        <div className="space-y-1 text-xs text-gray-600">
+                                            <p>• <strong className="text-gray-700">Assert:</strong> Check if <code className="bg-indigo-100 text-indigo-700 px-1 rounded font-mono text-[11px]">${'{apiResponse.status}'}</code> equals <code className="bg-green-100 text-green-700 px-1 rounded font-mono text-[11px]">200</code></p>
+                                            <p>• <strong className="text-gray-700">Set Variable:</strong> Extract <code className="bg-indigo-100 text-indigo-700 px-1 rounded font-mono text-[11px]">${'{apiResponse.body.userId}'}</code></p>
+                                            <p>• <strong className="text-gray-700">Type:</strong> Use <code className="bg-indigo-100 text-indigo-700 px-1 rounded font-mono text-[11px]">${'{apiResponse.body.name}'}</code> in form</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )

@@ -108,6 +108,10 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
     const [newItemUrl, setNewItemUrl] = useState('') // For test creation
     const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
 
+    // Drag and Drop States
+    const [draggedItem, setDraggedItem] = useState<ExplorerItem | null>(null)
+    const [dropTarget, setDropTarget] = useState<{ id: string; position: 'inside' | 'before' | 'after' } | null>(null)
+
     // Load Data
     const loadData = useCallback(async () => {
         if (!projectId) return
@@ -633,6 +637,215 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
         }
     }
 
+    // ============================================
+    // Drag and Drop Handlers
+    // ============================================
+
+    // Check if an item is a descendant of another (to prevent circular moves)
+    const isDescendant = (parentId: string, childId: string, items: ExplorerItem[]): boolean => {
+        const findInTree = (id: string, nodes: ExplorerItem[]): ExplorerItem | null => {
+            for (const node of nodes) {
+                if (node.id === id) return node
+                if (node.children) {
+                    const found = findInTree(id, node.children)
+                    if (found) return found
+                }
+            }
+            return null
+        }
+
+        const parent = findInTree(parentId, items)
+        if (!parent || !parent.children) return false
+
+        const checkChildren = (children: ExplorerItem[]): boolean => {
+            for (const child of children) {
+                if (child.id === childId) return true
+                if (child.children && checkChildren(child.children)) return true
+            }
+            return false
+        }
+
+        return checkChildren(parent.children)
+    }
+
+    const handleDragStart = (e: React.DragEvent, item: ExplorerItem) => {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', item.id)
+        setDraggedItem(item)
+    }
+
+    const handleDragOver = (e: React.DragEvent, item: ExplorerItem, position: 'inside' | 'before' | 'after') => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (!draggedItem) return
+
+        // Prevent dropping on itself
+        if (draggedItem.id === item.id) {
+            e.dataTransfer.dropEffect = 'none'
+            return
+        }
+
+        // Prevent dropping folder into its own descendant
+        if (draggedItem.type === 'folder' && isDescendant(draggedItem.id, item.id, explorerData)) {
+            e.dataTransfer.dropEffect = 'none'
+            return
+        }
+
+        // Only allow 'inside' for folders
+        const effectivePosition = item.type === 'folder' ? position : (position === 'inside' ? 'after' : position)
+
+        e.dataTransfer.dropEffect = 'move'
+        setDropTarget({ id: item.id, position: effectivePosition })
+    }
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault()
+        // Only clear if leaving the entire drop zone
+        const relatedTarget = e.relatedTarget as HTMLElement
+        if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+            setDropTarget(null)
+        }
+    }
+
+    const handleDragEnd = () => {
+        setDraggedItem(null)
+        setDropTarget(null)
+    }
+
+    const handleDrop = async (e: React.DragEvent, targetItem: ExplorerItem, position: 'inside' | 'before' | 'after') => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (!draggedItem || draggedItem.id === targetItem.id) {
+            handleDragEnd()
+            return
+        }
+
+        // Prevent dropping folder into its own descendant
+        if (draggedItem.type === 'folder' && isDescendant(draggedItem.id, targetItem.id, explorerData)) {
+            toast.error('Cannot move folder into itself')
+            handleDragEnd()
+            return
+        }
+
+        try {
+            const newTree = moveItem(draggedItem, targetItem, position)
+            setExplorerData(newTree)
+            await saveFolderStructure(newTree)
+            toast.success(`Moved "${draggedItem.name}"`)
+        } catch (error) {
+            console.error('Failed to move item:', error)
+            toast.error('Failed to move item')
+        }
+
+        handleDragEnd()
+    }
+
+    const moveItem = (source: ExplorerItem, target: ExplorerItem, position: 'inside' | 'before' | 'after'): ExplorerItem[] => {
+        // Deep clone the tree
+        const cloneTree = (items: ExplorerItem[]): ExplorerItem[] => {
+            return items.map(item => ({
+                ...item,
+                children: item.children ? cloneTree(item.children) : undefined
+            }))
+        }
+
+        let newTree = cloneTree(explorerData)
+
+        // Step 1: Remove source from its current location
+        const removeSource = (items: ExplorerItem[]): ExplorerItem[] => {
+            return items
+                .filter(item => item.id !== source.id)
+                .map(item => ({
+                    ...item,
+                    children: item.children ? removeSource(item.children) : undefined
+                }))
+        }
+
+        newTree = removeSource(newTree)
+
+        // Step 2: Insert source at new location
+        const insertSource = (items: ExplorerItem[], parentId: string | null): ExplorerItem[] => {
+            const movedItem = { ...source, parentId }
+
+            if (position === 'inside' && target.type === 'folder') {
+                // Insert inside folder
+                return items.map(item => {
+                    if (item.id === target.id) {
+                        return {
+                            ...item,
+                            expanded: true,
+                            children: [...(item.children || []), { ...movedItem, parentId: item.id }]
+                        }
+                    }
+                    if (item.children) {
+                        return { ...item, children: insertSource(item.children, item.id) }
+                    }
+                    return item
+                })
+            } else {
+                // Insert before or after target
+                const result: ExplorerItem[] = []
+                for (const item of items) {
+                    if (item.id === target.id) {
+                        if (position === 'before') {
+                            result.push({ ...movedItem, parentId })
+                            result.push(item)
+                        } else {
+                            result.push(item)
+                            result.push({ ...movedItem, parentId })
+                        }
+                    } else {
+                        if (item.children) {
+                            result.push({ ...item, children: insertSource(item.children, item.id) })
+                        } else {
+                            result.push(item)
+                        }
+                    }
+                }
+                return result
+            }
+        }
+
+        newTree = insertSource(newTree, null)
+
+        return newTree
+    }
+
+    // Handle drop on root area (outside all items)
+    const handleRootDrop = async (e: React.DragEvent) => {
+        e.preventDefault()
+        if (!draggedItem) {
+            handleDragEnd()
+            return
+        }
+
+        try {
+            // Move to root level
+            const removeSource = (items: ExplorerItem[]): ExplorerItem[] => {
+                return items
+                    .filter(item => item.id !== draggedItem.id)
+                    .map(item => ({
+                        ...item,
+                        children: item.children ? removeSource(item.children) : undefined
+                    }))
+            }
+
+            let newTree = removeSource(explorerData)
+            newTree.push({ ...draggedItem, parentId: null })
+
+            setExplorerData(newTree)
+            await saveFolderStructure(newTree)
+            toast.success(`Moved "${draggedItem.name}" to root`)
+        } catch (error) {
+            console.error('Failed to move item:', error)
+            toast.error('Failed to move item')
+        }
+
+        handleDragEnd()
+    }
+
     // Render Tree Recursively
     const renderNode = (item: ExplorerItem, level = 0) => {
         // Filter by search
@@ -641,15 +854,39 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
         }
 
         const paddingLeft = level * 16 + 12
+        const isDragging = draggedItem?.id === item.id
+        const isDropTarget = dropTarget?.id === item.id
 
         if (item.type === 'folder') {
             return (
-                <div key={item.id}>
+                <div key={item.id} className="relative">
+                    {/* Drop indicator before */}
+                    {isDropTarget && dropTarget?.position === 'before' && (
+                        <div className="absolute left-0 right-0 h-0.5 bg-blue-500 z-10" style={{ marginLeft: `${paddingLeft}px` }} />
+                    )}
+
                     <div
-                        className={`flex items-center group px-2 py-1.5 hover:bg-gray-100 rounded-md cursor-pointer transition-colors text-sm
-                            ${selectedItem?.id === item.id ? 'bg-gray-100' : ''}`}
+                        className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-all text-sm relative
+                            ${selectedItem?.id === item.id ? 'bg-gray-100' : 'hover:bg-gray-100'}
+                            ${isDragging ? 'opacity-50' : ''}
+                            ${isDropTarget && dropTarget?.position === 'inside' ? 'bg-blue-100 ring-2 ring-blue-400' : ''}`}
                         style={{ paddingLeft: `${paddingLeft}px` }}
                         onClick={() => handleToggleFolder(item.id)}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const y = e.clientY - rect.top
+                            const height = rect.height
+                            let position: 'before' | 'inside' | 'after'
+                            if (y < height * 0.25) position = 'before'
+                            else if (y > height * 0.75) position = 'after'
+                            else position = 'inside'
+                            handleDragOver(e, item, position)
+                        }}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, item, dropTarget?.position || 'inside')}
                     >
                         <span className="mr-1 text-gray-400">
                             {item.expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -701,6 +938,12 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    {/* Drop indicator after */}
+                    {isDropTarget && dropTarget?.position === 'after' && (
+                        <div className="absolute left-0 right-0 h-0.5 bg-blue-500 z-10" style={{ marginLeft: `${paddingLeft}px` }} />
+                    )}
+
                     {item.expanded && item.children && (
                         <div>
                             {item.children.map(child => renderNode(child, level + 1))}
@@ -712,40 +955,63 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
 
         // Render Test Item
         return (
-            <div
-                key={item.id}
-                className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-colors text-sm
-                    ${selectedItem?.id === item.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'}`}
-                style={{ paddingLeft: `${paddingLeft + 16}px` }} // Indent test more
-                onClick={() => setSelectedItem(item)}
-            >
-                <FlaskConical className="w-3.5 h-3.5 mr-2 opacity-70" />
-                <span className="truncate flex-1">{item.name}</span>
+            <div key={item.id} className="relative">
+                {/* Drop indicator before */}
+                {isDropTarget && dropTarget?.position === 'before' && (
+                    <div className="absolute left-0 right-0 h-0.5 bg-blue-500 z-10" style={{ marginLeft: `${paddingLeft + 16}px` }} />
+                )}
 
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-gray-200">
-                                <MoreVertical className="w-3.5 h-3.5 text-gray-500" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation()
-                                openRenameDialog(item)
-                            }}>
-                                Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation()
-                                openDeleteDialog(item)
-                            }}>
-                                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                <div
+                    className={`flex items-center group px-2 py-1.5 rounded-md cursor-pointer transition-all text-sm
+                        ${selectedItem?.id === item.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'}
+                        ${isDragging ? 'opacity-50' : ''}`}
+                    style={{ paddingLeft: `${paddingLeft + 16}px` }}
+                    onClick={() => setSelectedItem(item)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const y = e.clientY - rect.top
+                        const position = y < rect.height / 2 ? 'before' : 'after'
+                        handleDragOver(e, item, position)
+                    }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, item, dropTarget?.position || 'after')}
+                >
+                    <FlaskConical className="w-3.5 h-3.5 mr-2 opacity-70" />
+                    <span className="truncate flex-1">{item.name}</span>
+
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-gray-200">
+                                    <MoreVertical className="w-3.5 h-3.5 text-gray-500" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation()
+                                    openRenameDialog(item)
+                                }}>
+                                    Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600" onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation()
+                                    openDeleteDialog(item)
+                                }}>
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
+
+                {/* Drop indicator after */}
+                {isDropTarget && dropTarget?.position === 'after' && (
+                    <div className="absolute left-0 right-0 h-0.5 bg-blue-500 z-10" style={{ marginLeft: `${paddingLeft + 16}px` }} />
+                )}
             </div>
         )
     }
@@ -803,10 +1069,37 @@ export default function TestExplorerTab({ onEditTest, onRunInBrowser }: TestExpl
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-2">
+                <div
+                    className={`flex-1 overflow-y-auto p-2 ${draggedItem ? 'min-h-[100px]' : ''}`}
+                    onDragOver={(e) => {
+                        e.preventDefault()
+                        if (draggedItem) {
+                            e.dataTransfer.dropEffect = 'move'
+                        }
+                    }}
+                    onDrop={handleRootDrop}
+                >
 
                     {explorerData.map(node => renderNode(node))}
-                    {explorerData.length === 0 && (
+
+                    {/* Root drop zone indicator */}
+                    {draggedItem && (
+                        <div
+                            className="mt-2 border-2 border-dashed border-gray-300 rounded-md p-4 text-center text-xs text-gray-400 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                            onDragOver={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                            }}
+                            onDrop={(e) => {
+                                e.stopPropagation()
+                                handleRootDrop(e)
+                            }}
+                        >
+                            Drop here to move to root
+                        </div>
+                    )}
+
+                    {explorerData.length === 0 && !draggedItem && (
                         <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                             <FlaskConical className="w-12 h-12 mb-3 opacity-30" />
                             <p className="text-sm font-medium">No records found</p>

@@ -73,9 +73,29 @@ export interface TestStep {
     download_path?: string
     min_size?: number
     // API Call
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
-    headers?: Record<string, string>
-    body?: any
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    // Query Params
+    query_params?: Array<{ key: string; value: string; description?: string; enabled?: boolean }>
+    // Authorization
+    auth_type?: 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2'
+    auth_basic_username?: string
+    auth_basic_password?: string
+    auth_bearer_token?: string
+    auth_api_key_key?: string
+    auth_api_key_value?: string
+    auth_api_key_add_to?: 'header' | 'query'
+    // Headers
+    headers?: string | Record<string, string> | Array<{ key: string; value: string; description?: string; enabled?: boolean }>
+    // Body
+    body_type?: 'none' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary' | 'graphql'
+    body?: string
+    body_raw_type?: 'text' | 'json' | 'xml' | 'html' | 'javascript'
+    body_form_data?: Array<{ key: string; value: string; type?: 'text' | 'file'; description?: string; enabled?: boolean }>
+    body_urlencoded?: Array<{ key: string; value: string; description?: string; enabled?: boolean }>
+    body_binary_path?: string
+    body_graphql_query?: string
+    body_graphql_variables?: string
+    expected_status?: number
     // Log
     message?: string
     level?: 'info' | 'warn' | 'error' | 'debug'
