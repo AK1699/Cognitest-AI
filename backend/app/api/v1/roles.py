@@ -43,93 +43,154 @@ from app.schemas.role import (
 
 router = APIRouter()
 
-# Default roles configuration (same as in setup script)
+# Default roles configuration - Enterprise Project Roles (based on role-based.md)
+# Maps to ProjectRoleType enum: project_admin, qa_lead, tester, auto_eng, dev_ro, viewer
 DEFAULT_ROLES = {
-    "owner": {
-        "name": "Owner",
-        "role_type": "owner",
-        "description": "Has full control — can manage billing, delete the organization, assign roles, and configure SSO",
-        "permissions": ["all"]  # Special case - gets all permissions
-    },
-    "admin": {
-        "name": "Admin",
-        "role_type": "admin",
-        "description": "Manages organization settings, users, integrations, and platform operations",
-        "permissions": ["all"]  # Special case - gets all permissions except specific restrictions
-    },
-    "qa_manager": {
-        "name": "QA Manager",
-        "role_type": "qa_manager",
-        "description": "Manages QA teams, assigns testers, oversees test execution, and reviews results",
-        "permissions": [
-            "read_project", "update_project", "manage_project",
-            "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
-            "create_test_suite", "read_test_suite", "update_test_suite", "delete_test_suite",
-            "read_test_case", "read_test_execution",
-            "read_user", "update_user", "manage_user",
-            "read_group", "update_group", "manage_group",
-            "read_role",
-            "read_settings", "manage_settings",
-        ]
+    "project_admin": {
+        "name": "Project Admin",
+        "role_type": "project_admin",
+        "description": "Full project control - manages all test artifacts, approvals, automation, and security scans",
+        "permissions": ["all"],  # Gets all permissions
+        "color": "#DC2626",  # Red
     },
     "qa_lead": {
         "name": "QA Lead",
         "role_type": "qa_lead",
-        "description": "Leads QA engineers, approves test cases, and validates AI-generated fixes",
+        "description": "Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes",
         "permissions": [
-            "read_project",
-            "create_test_plan", "read_test_plan", "update_test_plan",
-            "create_test_suite", "read_test_suite", "update_test_suite",
-            "create_test_case", "read_test_case", "update_test_case", "delete_test_case",
-            "execute_test", "read_test_execution",
-            "read_user", "manage_user",
-            "read_group", "manage_group",
-            "read_role",
-            "read_settings",
-        ]
+            # Test Artifacts
+            "create_test_artifact", "read_test_artifact", "update_test_artifact", "delete_test_artifact",
+            "approve_test_case", "create_test_cycle", "link_requirement",
+            # Automation
+            "create_automation_flow", "read_automation_flow", "update_automation_flow", "delete_automation_flow",
+            "execute_flow_dev", "execute_flow_staging", "execute_flow_prod", "accept_self_heal",
+            # Security
+            "start_scan_staging", "update_finding", "export_sarif",
+            # Performance
+            "create_k6_script", "read_k6_script", "update_k6_script", "delete_k6_script",
+            "execute_load_10k",
+            # Execution
+            "execute_manual_test", "record_evidence",
+            # Dashboards
+            "create_dashboard", "read_dashboard", "update_dashboard", "delete_dashboard", "export_schedule",
+            # Project management
+            "read_project", "update_project",
+        ],
+        "color": "#2563EB",  # Blue
     },
-    "qa_engineer": {
-        "name": "QA Engineer",
-        "role_type": "qa_engineer",
-        "description": "Creates, executes, and maintains automated and manual tests",
+    "tester": {
+        "name": "Tester",
+        "role_type": "tester",
+        "description": "Creates and executes tests, records evidence, runs automation flows",
         "permissions": [
+            # Test Artifacts
+            "create_test_artifact", "read_test_artifact", "update_test_artifact", "delete_test_artifact",
+            "create_test_cycle",  # Can create test cycles
+            "read_requirement",  # Read-only requirement linking
+            # Automation
+            "read_automation_flow", "execute_automation_flow",  # Read + Execute only
+            "execute_flow_dev", "execute_flow_staging",
+            # Prod execution requires 2FA (handled by ABAC)
+            # Execution
+            "execute_manual_test", "record_evidence",
+            # Security
+            "comment_finding",  # Can only comment on findings
+            "export_sarif_non_pii",  # Non-PII exports only
+            # Dashboards
+            "read_dashboard",
             "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "create_test_case", "read_test_case", "update_test_case",
-            "execute_test", "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ]
+        ],
+        "color": "#059669",  # Green
     },
-    "product_owner": {
-        "name": "Product Owner",
-        "role_type": "product_owner",
-        "description": "Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals",
+    "auto_eng": {
+        "name": "Automation Engineer",
+        "role_type": "auto_eng",
+        "description": "Manages automation flows, k6 scripts, accepts self-healing suggestions",
         "permissions": [
+            # Test Artifacts - Update only
+            "update_test_artifact", "read_test_artifact",
+            "link_requirement",
+            # Automation - Full control
+            "create_automation_flow", "read_automation_flow", "update_automation_flow", "delete_automation_flow",
+            "execute_flow_dev", "execute_flow_staging", "execute_flow_prod", "accept_self_heal",
+            # Execution
+            "execute_manual_test", "record_evidence",
+            # Security
+            "update_finding", "export_sarif",
+            # Performance
+            "create_k6_script", "read_k6_script", "update_k6_script", "delete_k6_script",
+            "execute_load_10k", "execute_load_100k",
+            # Dashboards
+            "read_dashboard", "create_dashboard",
             "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "read_test_case",
-            "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ]
+        ],
+        "color": "#7C3AED",  # Purple
+    },
+    "dev_ro": {
+        "name": "Developer",
+        "role_type": "dev_ro",
+        "description": "Read-only access to test artifacts, can record evidence and view dashboards",
+        "permissions": [
+            # Test Artifacts - Read only
+            "read_test_artifact",
+            "link_requirement",
+            # Automation - Read only
+            "read_automation_flow",
+            # Execution - Read only
+            "read_execution",
+            "record_evidence",  # Can record evidence
+            # Security - Read only
+            "read_finding",
+            "export_sarif",
+            # Performance - Read only
+            "read_k6_script",
+            # Dashboards - Read only
+            "read_dashboard",
+            "read_project",
+        ],
+        "color": "#0891B2",  # Cyan
     },
     "viewer": {
         "name": "Viewer",
         "role_type": "viewer",
-        "description": "Has view-only access to dashboards, reports, and analytics",
+        "description": "Read-only access to view tests, results, and dashboards",
         "permissions": [
+            # Test Artifacts - Read only
+            "read_test_artifact",
+            # Automation - Read only
+            "read_automation_flow",
+            # Security - Read only
+            "read_finding",
+            "export_sarif",
+            # Performance - Read only
+            "read_k6_script",
+            # Dashboards - Read only
+            "read_dashboard",
             "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "read_test_case",
-            "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ]
+        ],
+        "color": "#6B7280",  # Gray
     },
+}
+
+# Role hierarchy for project roles (higher number = more privilege)
+PROJECT_ROLE_HIERARCHY = {
+    "project_admin": 100,
+    "qa_lead": 80,
+    "auto_eng": 60,
+    "tester": 50,
+    "dev_ro": 20,
+    "viewer": 10,
+}
+
+# Mapping from legacy roles to new enterprise roles
+LEGACY_ROLE_MAPPING = {
+    "owner": "project_admin",
+    "admin": "project_admin",
+    "qa_manager": "qa_lead",
+    "qa_lead": "qa_lead",
+    "qa_engineer": "tester",
+    "product_owner": "dev_ro",
+    "viewer": "viewer",
 }
 
 
@@ -395,11 +456,13 @@ async def list_roles(
     # Format response with permissions
     roles_with_perms = []
     for role in roles:
+        # Exclude SQLAlchemy internal fields
         role_dict = {
-            **role.__dict__,
-            "permissions": role.permissions,
-            "permission_count": len(role.permissions)
+            k: v for k, v in role.__dict__.items() 
+            if not k.startswith('_')
         }
+        role_dict["permissions"] = role.permissions
+        role_dict["permission_count"] = len(role.permissions)
         roles_with_perms.append(ProjectRoleWithPermissions(**role_dict))
 
     return ProjectRoleList(roles=roles_with_perms, total=total)
@@ -424,11 +487,13 @@ async def get_role(
             detail=f"Role with id {role_id} not found"
         )
 
+    # Exclude SQLAlchemy internal fields
     role_dict = {
-        **role.__dict__,
-        "permissions": role.permissions,
-        "permission_count": len(role.permissions)
+        k: v for k, v in role.__dict__.items() 
+        if not k.startswith('_')
     }
+    role_dict["permissions"] = role.permissions
+    role_dict["permission_count"] = len(role.permissions)
 
     return ProjectRoleWithPermissions(**role_dict)
 

@@ -171,6 +171,8 @@ export default function UsersTeamsPage() {
       // Fetch roles
       try {
         const rolesData = await listRoles(organisationId)
+        console.log('Roles API response:', rolesData)
+        console.log('Roles array:', rolesData.roles)
         setRoles(rolesData.roles || [])
       } catch (e) {
         console.warn('Failed to fetch roles:', e)
@@ -979,7 +981,7 @@ export default function UsersTeamsPage() {
               {/* Permission Matrix View */}
               {rolesView === 'matrix' && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
-                  <PermissionMatrix organisationId={organisationId} isAdmin={isCurrentUserAdmin} />
+                  <PermissionMatrix organisationId={organisationId} />
                 </div>
               )}
             </div>

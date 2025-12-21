@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { StyledSelect } from '@/components/ui/styled-select'
 import { X, Shield, Trash2, Plus, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
@@ -334,18 +335,15 @@ export function RoleAssignmentModal({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Select Role
                     </label>
-                    <select
+                    <StyledSelect
                       value={selectedRoleId}
-                      onChange={(e) => setSelectedRoleId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Choose a role...</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>
-                          {getRoleDisplayWithType(role.role_type)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedRoleId}
+                      placeholder="Choose a role..."
+                      options={roles.map((role) => ({
+                        value: role.id,
+                        label: getRoleDisplayWithType(role.role_type)
+                      }))}
+                    />
                   </div>
 
                   {/* Project Selection for Assignment - Hidden for Admin/Owner Role */}
@@ -386,19 +384,15 @@ export function RoleAssignmentModal({
                             Select Project to Assign To
                           </label>
                           {availableProjects.length > 0 ? (
-                            <select
+                            <StyledSelect
                               value={selectedProjectId}
-                              onChange={(e) => setSelectedProjectId(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                              <option value="">Select a project...</option>
-                              {availableProjects.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                  {project.name}
-                                  {projectsWithRoles.has(project.id) ? ' (already assigned)' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={setSelectedProjectId}
+                              placeholder="Select a project..."
+                              options={availableProjects.map((project) => ({
+                                value: project.id,
+                                label: project.name + (projectsWithRoles.has(project.id) ? ' (already assigned)' : '')
+                              }))}
+                            />
                           ) : (
                             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                               <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -565,23 +559,23 @@ export function RoleAssignmentModal({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       View roles by project (optional)
                     </label>
-                    <select
+                    <StyledSelect
                       value={filterProjectId}
-                      onChange={(e) => {
-                        setFilterProjectId(e.target.value)
-                        if (e.target.value) {
+                      onChange={(value) => {
+                        setFilterProjectId(value)
+                        if (value) {
                           fetchCurrentRoles()
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">All projects</option>
-                      {availableProjects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="All projects"
+                      options={[
+                        { value: '', label: 'All projects' },
+                        ...availableProjects.map((project) => ({
+                          value: project.id,
+                          label: project.name
+                        }))
+                      ]}
+                    />
                   </div>
                 )}
 

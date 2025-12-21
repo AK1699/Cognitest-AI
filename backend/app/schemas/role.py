@@ -69,7 +69,7 @@ class ProjectRoleInDB(ProjectRoleBase):
     organisation_id: UUID
     is_system_role: bool
     is_active: bool
-    meta_data: Dict[str, Any]
+    meta_data: Optional[Dict[str, Any]] = Field(default_factory=dict)
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: str

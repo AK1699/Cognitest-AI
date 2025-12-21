@@ -43,6 +43,81 @@ export interface GroupProjectRoleWithDetails {
   }
 }
 
+// ==================== Enterprise Project Role Types ====================
+
+export type ProjectRoleType = 'project_admin' | 'qa_lead' | 'tester' | 'auto_eng' | 'dev_ro' | 'viewer'
+
+// Role labels for display
+export const PROJECT_ROLE_LABELS: Record<string, string> = {
+  'project_admin': 'Project Admin',
+  'qa_lead': 'QA Lead',
+  'tester': 'Tester',
+  'auto_eng': 'Automation Engineer',
+  'dev_ro': 'Developer',
+  'viewer': 'Viewer',
+  // Legacy role mappings for backwards compatibility
+  'owner': 'Project Admin',
+  'admin': 'Project Admin',
+  'qa_manager': 'QA Lead',
+  'qa_engineer': 'Tester',
+  'product_owner': 'Developer',
+}
+
+// Role colors for badges and UI
+export const PROJECT_ROLE_COLORS: Record<string, string> = {
+  'project_admin': '#DC2626',  // Red
+  'qa_lead': '#2563EB',        // Blue
+  'tester': '#059669',         // Green
+  'auto_eng': '#7C3AED',       // Purple
+  'dev_ro': '#0891B2',         // Cyan
+  'viewer': '#6B7280',         // Gray
+  // Legacy mappings
+  'owner': '#DC2626',
+  'admin': '#DC2626',
+  'qa_manager': '#2563EB',
+  'qa_engineer': '#059669',
+  'product_owner': '#0891B2',
+}
+
+// Role descriptions
+export const PROJECT_ROLE_DESCRIPTIONS: Record<string, string> = {
+  'project_admin': 'Full project control - manages all test artifacts, approvals, automation, and security scans',
+  'qa_lead': 'Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes',
+  'tester': 'Creates and executes tests, records evidence, runs automation flows',
+  'auto_eng': 'Manages automation flows, k6 scripts, accepts self-healing suggestions',
+  'dev_ro': 'Read-only access to test artifacts, can record evidence and view dashboards',
+  'viewer': 'Read-only access to view tests, results, and dashboards',
+}
+
+// Role hierarchy (higher = more privilege)
+export const PROJECT_ROLE_HIERARCHY: Record<string, number> = {
+  'project_admin': 100,
+  'qa_lead': 80,
+  'auto_eng': 60,
+  'tester': 50,
+  'dev_ro': 20,
+  'viewer': 10,
+}
+
+// Helper functions
+export function getProjectRoleLabel(roleType: string): string {
+  return PROJECT_ROLE_LABELS[roleType] || roleType
+}
+
+export function getProjectRoleColor(roleType: string): string {
+  return PROJECT_ROLE_COLORS[roleType] || '#6B7280'
+}
+
+export function getProjectRoleDescription(roleType: string): string {
+  return PROJECT_ROLE_DESCRIPTIONS[roleType] || ''
+}
+
+export function canManageProjectRole(currentRoleType: string, targetRoleType: string): boolean {
+  const currentLevel = PROJECT_ROLE_HIERARCHY[currentRoleType] || 0
+  const targetLevel = PROJECT_ROLE_HIERARCHY[targetRoleType] || 0
+  return currentLevel > targetLevel
+}
+
 export async function listRoles(organisationId: string): Promise<{ roles: ProjectRole[] }> {
   const response = await axios.get(`/api/v1/roles/`, {
     params: { organisation_id: organisationId }

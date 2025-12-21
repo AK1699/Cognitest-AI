@@ -12,42 +12,66 @@ export interface RoleDisplayInfo {
 /**
  * Map from role_type to display information
  * This is the single source of truth for how roles are displayed throughout the application
+ * Updated to Enterprise Project Roles (based on role-based.md)
  */
 export const ROLE_DISPLAY_MAP: Record<string, RoleDisplayInfo> = {
-  owner: {
-    displayName: 'Owner',
-    type: 'Super Administrator',
-    description: 'Has full control — can manage billing, delete the organization, assign roles, and configure SSO'
-  },
-  admin: {
-    displayName: 'Admin',
+  // Enterprise Project Roles
+  project_admin: {
+    displayName: 'Project Admin',
     type: 'Administration',
-    description: 'Manages organization settings, users, integrations, and platform operations'
-  },
-  qa_manager: {
-    displayName: 'QA Manager',
-    type: 'Quality Assurance',
-    description: 'Manages QA teams, assigns testers, oversees test execution, and reviews results'
+    description: 'Full project control - manages all test artifacts, approvals, automation, and security scans'
   },
   qa_lead: {
     displayName: 'QA Lead',
     type: 'Quality Assurance',
-    description: 'Leads QA engineers, approves test cases, and validates AI-generated fixes'
+    description: 'Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes'
   },
-  qa_engineer: {
-    displayName: 'QA Engineer',
+  tester: {
+    displayName: 'Tester',
     type: 'Quality Assurance',
-    description: 'Creates, executes, and maintains automated and manual tests'
+    description: 'Creates and executes tests, records evidence, runs automation flows'
   },
-  product_owner: {
-    displayName: 'Product Owner',
-    type: 'Stakeholder',
-    description: 'Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals'
+  auto_eng: {
+    displayName: 'Automation Engineer',
+    type: 'Engineering',
+    description: 'Manages automation flows, k6 scripts, accepts self-healing suggestions'
+  },
+  dev_ro: {
+    displayName: 'Developer',
+    type: 'Development',
+    description: 'Read-only access to test artifacts, can record evidence and view dashboards'
   },
   viewer: {
     displayName: 'Viewer',
     type: 'Read Only',
-    description: 'Has view-only access to dashboards, reports, and analytics'
+    description: 'Read-only access to view tests, results, and dashboards'
+  },
+
+  // Legacy role mappings for backwards compatibility
+  owner: {
+    displayName: 'Project Admin',
+    type: 'Administration',
+    description: 'Full project control - manages all test artifacts, approvals, automation, and security scans'
+  },
+  admin: {
+    displayName: 'Project Admin',
+    type: 'Administration',
+    description: 'Manages organization settings, users, integrations, and platform operations'
+  },
+  qa_manager: {
+    displayName: 'QA Lead',
+    type: 'Quality Assurance',
+    description: 'Manages QA teams, assigns testers, oversees test execution, and reviews results'
+  },
+  qa_engineer: {
+    displayName: 'Tester',
+    type: 'Quality Assurance',
+    description: 'Creates, executes, and maintains automated and manual tests'
+  },
+  product_owner: {
+    displayName: 'Developer',
+    type: 'Development',
+    description: 'Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals'
   }
 }
 
