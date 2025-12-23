@@ -350,31 +350,55 @@ async def list_org_members(
     db: AsyncSession = Depends(get_db)
 ):
     """List all members of an organization with their roles"""
-    result = await db.execute(
-        select(UserOrganisation)
-        .options(
-            selectinload(UserOrganisation.user),
-            selectinload(UserOrganisation.role_obj)
+    try:
+        result = await db.execute(
+            select(UserOrganisation)
+            .options(
+                selectinload(UserOrganisation.user),
+                selectinload(UserOrganisation.role_obj)
+            )
+            .where(UserOrganisation.organisation_id == organisation_id)
+            .order_by(UserOrganisation.joined_at)
         )
-        .where(UserOrganisation.organisation_id == organisation_id)
-        .order_by(UserOrganisation.joined_at)
-    )
-    memberships = result.scalars().all()
-    
-    return [
-        UserRoleAssignment(
-            user_id=str(m.user_id),
-            email=m.user.email,
-            username=m.user.username,
-            full_name=m.user.full_name,
-            role=m.effective_role_type,
-            role_name=m.role_obj.name if m.role_obj else m.role.title(),
-            role_color=m.role_obj.color if m.role_obj else None,
-            joined_at=m.joined_at.isoformat() if m.joined_at else None,
-            is_active=m.is_active
-        )
-        for m in memberships
-    ]
+        memberships = result.scalars().all()
+        
+        members = []
+        for m in memberships:
+            # Skip if user is not loaded (shouldn't happen, but be safe)
+            if not m.user:
+                print(f"[list_org_members] WARNING: Skipping membership {m.id} - no user loaded")
+                continue
+            
+            # Get role name - fallback to role string title-cased if no role_obj
+            role_name = m.role.title() if m.role else "Member"
+            role_color = None
+            if m.role_obj:
+                role_name = m.role_obj.name
+                role_color = m.role_obj.color
+            
+            # Handle effective_role_type - ensure it's a string
+            effective_role = m.role or "member"
+            if m.role_obj and m.role_obj.role_type:
+                effective_role = str(m.role_obj.role_type)
+            
+            members.append(UserRoleAssignment(
+                user_id=str(m.user_id),
+                email=m.user.email,
+                username=m.user.username,
+                full_name=m.user.full_name,
+                role=effective_role,
+                role_name=role_name,
+                role_color=role_color,
+                joined_at=m.joined_at.isoformat() if m.joined_at else None,
+                is_active=m.is_active
+            ))
+        
+        return members
+    except Exception as e:
+        print(f"[list_org_members] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching members: {str(e)}")
 
 
 @router.put("/{organisation_id}/members/{user_id}/role")

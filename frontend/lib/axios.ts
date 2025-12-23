@@ -52,8 +52,11 @@ api.interceptors.response.use(
           localStorage.removeItem('refresh_token')
         }
 
-        // Only redirect if we're not already on the signin page
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth/signin')) {
+        // Only redirect if we're not already on a public auth page
+        const publicAuthPaths = ['/auth/signin', '/auth/signup', '/auth/accept-invitation', '/auth/forgot-password']
+        const currentPath = window.location.pathname
+        const isPublicAuthPage = publicAuthPaths.some(path => currentPath.includes(path))
+        if (typeof window !== 'undefined' && !isPublicAuthPage) {
           window.location.href = '/auth/signin'
         }
         return Promise.reject(refreshError)

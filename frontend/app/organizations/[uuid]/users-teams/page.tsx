@@ -654,6 +654,36 @@ export default function UsersTeamsPage() {
                           <td className="px-6 py-4">
                             {(() => {
                               const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
+                              const isOrgOwner = organisation && user.id === organisation.owner_id
+
+                              // If user is org owner, always show Owner badge first
+                              if (isOrgOwner) {
+                                return (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
+                                      Owner
+                                    </span>
+                                    {userRolesList.length > 0 && (
+                                      Array.from(
+                                        new Map(
+                                          userRolesList.map(ur => {
+                                            const roleName = (ur as any).role?.name || (ur as any).role_name || 'Unknown Role'
+                                            return [roleName, ur]
+                                          })
+                                        ).values()
+                                      ).map(ur => (
+                                        <span
+                                          key={ur.id}
+                                          className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
+                                        >
+                                          {(ur as any).role?.name || (ur as any).role_name || 'Unknown Role'}
+                                        </span>
+                                      ))
+                                    )}
+                                  </div>
+                                )
+                              }
+
                               if (userRolesList.length === 0) {
                                 return <span className="text-sm text-gray-500 dark:text-gray-400">No roles</span>
                               }
@@ -1052,11 +1082,14 @@ export default function UsersTeamsPage() {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="">Select a role...</option>
-                      {roles.map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
+                      {/* Filter to only show the 6 enterprise project roles */}
+                      {roles
+                        .filter(role => ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'].includes(role.role_type))
+                        .map(role => (
+                          <option key={role.id} value={role.id}>
+                            {role.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
 

@@ -5,8 +5,18 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { acceptInvitation } from '@/lib/api/invitations'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Mail, User, Lock, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Mail, User, Lock, CheckCircle, Shield, Building2 } from 'lucide-react'
 import Logo from '@/components/ui/Logo'
+import api from '@/lib/api'
+
+interface InvitationDetails {
+  email: string
+  full_name: string | null
+  organisation_name: string | null
+  role_name: string | null
+  role_type: string | null
+  expires_at: string | null
+}
 
 function AcceptInvitationContent() {
   const router = useRouter()
@@ -21,12 +31,35 @@ function AcceptInvitationContent() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [invitation, setInvitation] = useState<InvitationDetails | null>(null)
+  const [verifying, setVerifying] = useState(true)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
 
+  // Fetch invitation details on mount
   useEffect(() => {
     if (!token) {
-      toast.error('Invalid invitation link')
-      router.push('/auth/signin')
+      setVerifyError('Invalid invitation link')
+      setVerifying(false)
+      return
     }
+
+    const fetchInvitation = async () => {
+      try {
+        const response = await api.get(`/api/v1/invitations/verify-token?token=${token}`)
+        setInvitation(response.data)
+        // Pre-fill full name if available
+        if (response.data.full_name) {
+          setFormData(prev => ({ ...prev, full_name: response.data.full_name }))
+        }
+      } catch (error: any) {
+        console.error('Failed to verify invitation:', error)
+        setVerifyError(error.response?.data?.detail || 'Invalid or expired invitation')
+      } finally {
+        setVerifying(false)
+      }
+    }
+
+    fetchInvitation()
   }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,8 +104,27 @@ function AcceptInvitationContent() {
     }
   }
 
-  if (!token) {
-    return null
+  // Show loading state while verifying
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // Show error if verification failed
+  if (verifyError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="text-6xl mb-4">😔</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Error</h1>
+          <p className="text-gray-600 mb-6">{verifyError}</p>
+          <Button onClick={() => router.push('/auth/signin')}>Go to Sign In</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -92,15 +144,36 @@ function AcceptInvitationContent() {
             </p>
           </div>
 
-          {/* Success Message */}
+          {/* Invitation Details Box */}
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-green-900">Invitation Accepted</p>
-                <p className="text-xs text-green-700 mt-1">
-                  Your organization is ready. Just create your account below!
-                </p>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-900">Invitation Verified</p>
+
+                {/* Organisation */}
+                {invitation?.organisation_name && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-green-700">
+                    <Building2 className="w-3.5 h-3.5" />
+                    <span>Organization: <strong>{invitation.organisation_name}</strong></span>
+                  </div>
+                )}
+
+                {/* Email */}
+                {invitation?.email && (
+                  <div className="flex items-center gap-2 mt-1 text-xs text-green-700">
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Email: <strong>{invitation.email}</strong></span>
+                  </div>
+                )}
+
+                {/* Role - Read Only */}
+                {invitation?.role_name && (
+                  <div className="flex items-center gap-2 mt-1 text-xs text-green-700">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Role: <strong>{invitation.role_name}</strong></span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

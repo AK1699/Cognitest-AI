@@ -79,7 +79,7 @@ export default function LandingPage() {
 
           {/* CTA Buttons */}
           <div className="flex items-center justify-center space-x-4 flex-wrap gap-4">
-            <Link href="/auth/signup" className="group inline-flex items-center px-10 py-4 text-white text-lg font-medium rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary">
+            <Link href="/auth/signup" className="group inline-flex items-center px-10 py-4 text-white text-lg font-medium rounded-full transition-all shadow-lg hover:shadow-xl hover:opacity-90 bg-primary" suppressHydrationWarning>
               Start Testing Now
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>

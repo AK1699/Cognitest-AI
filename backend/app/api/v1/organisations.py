@@ -25,54 +25,36 @@ async def invalidate_org_caches(org_id: str, user_id: str = None):
     if user_id:
         await invalidate_cache_pattern(f"orgs:user:{user_id}")
 
-# Default roles configuration
-DEFAULT_ROLES = {
-    "owner": {
-        "name": "Owner",
-        "role_type": "owner",
-        "description": "Has full control — can manage billing, delete the organization, assign roles, and configure SSO",
-        "permissions": ["all"]
-    },
-    "admin": {
-        "name": "Admin",
-        "role_type": "admin",
-        "description": "Manages organization settings, users, integrations, and platform operations",
-        "permissions": ["all"]
-    },
-    "qa_manager": {
-        "name": "QA Manager",
-        "role_type": "qa_manager",
-        "description": "Manages QA teams, assigns testers, oversees test execution, and reviews results",
-        "permissions": [
-            "read_project", "update_project", "manage_project",
-            "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
-            "create_test_suite", "read_test_suite", "update_test_suite", "delete_test_suite",
-            "read_test_case", "read_test_execution",
-            "read_user", "update_user", "manage_user",
-            "read_group", "update_group", "manage_group",
-            "read_role",
-            "read_settings", "manage_settings",
-        ]
+# Default PROJECT roles configuration - 6 Enterprise Project Roles
+# These are created for each organization to assign users to projects
+DEFAULT_PROJECT_ROLES = {
+    "project_admin": {
+        "name": "Project Admin",
+        "role_type": "project_admin",
+        "description": "Has full control — can manage billing, delete the project, assign roles, and configure settings",
+        "permissions": ["all"],
+        "color": "#EF4444"  # Red
     },
     "qa_lead": {
         "name": "QA Lead",
         "role_type": "qa_lead",
-        "description": "Leads QA engineers, approves test cases, and validates AI-generated fixes",
+        "description": "Manages QA teams, assigns testers, oversees test execution, and reviews results",
         "permissions": [
-            "read_project",
-            "create_test_plan", "read_test_plan", "update_test_plan",
-            "create_test_suite", "read_test_suite", "update_test_suite",
+            "read_project", "update_project",
+            "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
+            "create_test_suite", "read_test_suite", "update_test_suite", "delete_test_suite",
             "create_test_case", "read_test_case", "update_test_case", "delete_test_case",
             "execute_test", "read_test_execution",
             "read_user", "manage_user",
             "read_group", "manage_group",
             "read_role",
             "read_settings",
-        ]
+        ],
+        "color": "#8B5CF6"  # Purple
     },
-    "qa_engineer": {
-        "name": "QA Engineer",
-        "role_type": "qa_engineer",
+    "tester": {
+        "name": "Tester",
+        "role_type": "tester",
         "description": "Creates, executes, and maintains automated and manual tests",
         "permissions": [
             "read_project",
@@ -82,11 +64,28 @@ DEFAULT_ROLES = {
             "execute_test", "read_test_execution",
             "read_user", "read_group", "read_role",
             "read_settings",
-        ]
+        ],
+        "color": "#10B981"  # Green
     },
-    "product_owner": {
-        "name": "Product Owner",
-        "role_type": "product_owner",
+    "auto_eng": {
+        "name": "Automation Engineer",
+        "role_type": "auto_eng",
+        "description": "Manages automation flows, AI scripts, and continuous testing pipelines",
+        "permissions": [
+            "read_project",
+            "read_test_plan",
+            "read_test_suite",
+            "create_test_case", "read_test_case", "update_test_case",
+            "execute_test", "read_test_execution",
+            "manage_automation",
+            "read_user", "read_group", "read_role",
+            "read_settings",
+        ],
+        "color": "#F59E0B"  # Amber
+    },
+    "dev_ro": {
+        "name": "Developer",
+        "role_type": "dev_ro",
         "description": "Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals",
         "permissions": [
             "read_project",
@@ -96,7 +95,8 @@ DEFAULT_ROLES = {
             "read_test_execution",
             "read_user", "read_group", "read_role",
             "read_settings",
-        ]
+        ],
+        "color": "#06B6D4"  # Cyan
     },
     "viewer": {
         "name": "Viewer",
@@ -110,7 +110,8 @@ DEFAULT_ROLES = {
             "read_test_execution",
             "read_user", "read_group", "read_role",
             "read_settings",
-        ]
+        ],
+        "color": "#6B7280"  # Gray
     },
 }
 
@@ -128,7 +129,7 @@ async def initialize_default_roles_for_org(
     all_permissions = all_permissions_result.scalars().all()
     permissions_map = {p.name: p for p in all_permissions}
 
-    for role_key, role_data in DEFAULT_ROLES.items():
+    for role_key, role_data in DEFAULT_PROJECT_ROLES.items():
         # Check if role already exists
         result = await db.execute(
             select(ProjectRole).where(
@@ -270,40 +271,55 @@ async def create_organisation(
     # Initialize simplified organization roles
     from app.models.organisation import DEFAULT_SYSTEM_ROLES, OrgRoleType, OrganizationRole, DEFAULT_ROLE_PERMISSIONS
     owner_role_id = None
-    for role_data in DEFAULT_SYSTEM_ROLES:
-        role = OrganizationRole(
-            id=uuid.uuid4(),
-            organisation_id=new_organisation.id,
-            name=role_data["name"],
-            role_type=OrgRoleType(role_data["role_type"]),
-            description=role_data.get("description", ""),
-            color=role_data.get("color", "#6B7280"),
-            is_system_role=True,
-            is_default=role_data.get("is_default", False),
-            permissions=DEFAULT_ROLE_PERMISSIONS.get(role_data["role_type"], {})
-        )
-        db.add(role)
-        if role_data["role_type"] == "owner":
-            owner_role_id = role.id
-    
-    await db.flush()
+    try:
+        print(f"[create_organisation] Creating org roles for org {new_organisation.id}")
+        for role_data in DEFAULT_SYSTEM_ROLES:
+            role = OrganizationRole(
+                id=uuid.uuid4(),
+                organisation_id=new_organisation.id,
+                name=role_data["name"],
+                role_type=role_data["role_type"],  # Use string directly
+                description=role_data.get("description", ""),
+                color=role_data.get("color", "#6B7280"),
+                is_system_role=True,
+                is_default=role_data.get("is_default", False),
+                permissions=role_data.get("permissions", {})
+            )
+            db.add(role)
+            if role_data["role_type"] == "owner":
+                owner_role_id = role.id
+                print(f"[create_organisation] Owner role created with id {owner_role_id}")
+        
+        await db.flush()
+        print(f"[create_organisation] Created {len(DEFAULT_SYSTEM_ROLES)} org roles successfully")
+    except Exception as e:
+        print(f"[create_organisation] ERROR creating org roles: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Add owner to user_organisations table with the owner role
     from sqlalchemy import text
-    await db.execute(
-        text(
-            "INSERT INTO user_organisations (user_id, organisation_id, role, role_id, added_by, is_active, joined_at) "
-            "VALUES (:user_id, :org_id, :role, :role_id, :added_by, :is_active, NOW())"
-        ),
-        {
-            "user_id": str(current_user.id),
-            "org_id": str(new_organisation.id),
-            "role": "owner",
-            "role_id": str(owner_role_id) if owner_role_id else None,
-            "added_by": str(current_user.id),
-            "is_active": True
-        }
-    )
+    try:
+        print(f"[create_organisation] Adding user {current_user.id} as owner to org {new_organisation.id}")
+        await db.execute(
+            text(
+                "INSERT INTO user_organisations (user_id, organisation_id, role, role_id, added_by, is_active, joined_at) "
+                "VALUES (:user_id, :org_id, :role, :role_id, :added_by, :is_active, NOW())"
+            ),
+            {
+                "user_id": str(current_user.id),
+                "org_id": str(new_organisation.id),
+                "role": "owner",
+                "role_id": str(owner_role_id) if owner_role_id else None,
+                "added_by": str(current_user.id),
+                "is_active": True
+            }
+        )
+        print(f"[create_organisation] User membership created successfully")
+    except Exception as e:
+        print(f"[create_organisation] ERROR creating user membership: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Initialize free subscription for the new organization
     try:

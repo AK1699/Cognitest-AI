@@ -49,8 +49,8 @@ export default function CreateOrganizationPage() {
 
       toast.success('Organization created successfully!')
 
-      // Redirect to projects with organization UUID
-      router.push(`/organizations/${response.data.id}/projects`)
+      // Redirect to onboarding invite page
+      router.push(`/organizations/${response.data.id}/onboarding/invite`)
     } catch (error: any) {
       console.error('Error creating organization:', error)
 
