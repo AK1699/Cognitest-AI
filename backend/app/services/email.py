@@ -127,7 +127,7 @@ class EmailService:
                     max-width: 600px;
                     margin: 0 auto;
                     padding: 0;
-                    background-color: #f8fafc;
+                    background-color: #f0fdfa;
                 }}
                 .container {{
                     background: #ffffff;
@@ -200,11 +200,11 @@ class EmailService:
                     transition: background-color 0.2s;
                 }}
                 .footer {{
-                    background-color: #f1f5f9;
+                    background-color: #F2FDFA;
                     padding: 30px;
                     text-align: center;
                     font-size: 13px;
-                    color: #64748b;
+                    color: #4a5568;
                 }}
                 .expiry-note {{
                     font-size: 14px;
@@ -215,7 +215,7 @@ class EmailService:
                 .link-fallback {{
                     margin-top: 30px;
                     padding-top: 20px;
-                    border-top: 1px solid #e2e8f0;
+                    border-top: 1px solid #e0f2f1;
                     font-size: 12px;
                     word-break: break-all;
                 }}
