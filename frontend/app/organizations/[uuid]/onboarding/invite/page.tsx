@@ -7,15 +7,19 @@ import { toast } from 'sonner'
 import api from '@/lib/api'
 import { Users, Mail, Plus, X, ArrowRight, ChevronRight, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
-// Project role options for invites - all 6 enterprise project roles
-const PROJECT_ROLES = [
-    { value: 'project_admin', label: 'Project Admin', description: 'Full control over projects' },
-    { value: 'qa_lead', label: 'QA Lead', description: 'Manages QA teams and test execution' },
-    { value: 'tester', label: 'Tester', description: 'Creates and executes tests' },
-    { value: 'auto_eng', label: 'Automation Engineer', description: 'Manages automation flows' },
-    { value: 'dev_ro', label: 'Developer', description: 'Reviews reports and KPIs' },
-    { value: 'viewer', label: 'Viewer', description: 'Read-only access' },
+// Organization role options for invites - 3 tiers (Owner is the creator)
+const ORG_ROLES = [
+    { value: 'admin', label: 'Administrator', description: 'Manage users, settings, and all features except billing' },
+    { value: 'member', label: 'Member', description: 'Standard access to create and run tests' },
+    { value: 'viewer', label: 'Viewer', description: 'Read-only access to view tests and results' },
 ]
 
 interface InviteEntry {
@@ -26,7 +30,7 @@ interface InviteEntry {
 
 export default function OnboardingInvitePage() {
     const [invites, setInvites] = useState<InviteEntry[]>([
-        { id: '1', email: '', role: 'tester' }
+        { id: '1', email: '', role: 'member' }
     ])
     const [loading, setLoading] = useState(false)
     const router = useRouter()
@@ -35,7 +39,7 @@ export default function OnboardingInvitePage() {
     const organisationId = params.uuid as string
 
     const addInviteField = () => {
-        setInvites([...invites, { id: Date.now().toString(), email: '', role: 'tester' }])
+        setInvites([...invites, { id: Date.now().toString(), email: '', role: 'member' }])
     }
 
     const removeInviteField = (id: string) => {
@@ -75,22 +79,31 @@ export default function OnboardingInvitePage() {
                     email: invite.email.trim(),
                     organisation_id: organisationId,
                     expiry_days: 7,
-                    // Note: role will be assigned when user accepts invitation
+                    role: invite.role, // Send the selected organization role
                 }).catch(err => {
-                    console.error(`Failed to invite ${invite.email}:`, err)
-                    return null
+                    const errorDetail = err.response?.data?.detail || err.message
+                    console.error(`Failed to invite ${invite.email}:`, errorDetail)
+                    return { email: invite.email, error: errorDetail }
                 })
             )
 
             const results = await Promise.all(promises)
-            const successCount = results.filter(r => r !== null).length
+            const successes = results.filter(r => r && !(r as any).error)
+            const failures = results.filter(r => r && (r as any).error) as { email: string, error: string }[]
 
-            if (successCount > 0) {
-                toast.success(`${successCount} invitation${successCount > 1 ? 's' : ''} sent successfully!`)
+            if (successes.length > 0) {
+                toast.success(`${successes.length} invitation${successes.length > 1 ? 's' : ''} sent successfully!`)
+
+                // If there are no failures, or if some succeeded, we can proceed
+                // But if there are failures, we might want the user to see them
+                if (failures.length === 0) {
+                    router.push(`/organizations/${organisationId}/projects`)
+                } else {
+                    toast.error(`Failed to invite: ${failures.map(f => f.email).join(', ')}. ${failures[0].error}`)
+                }
+            } else if (failures.length > 0) {
+                toast.error(failures[0].error || 'Failed to send invitations')
             }
-
-            // Navigate to projects
-            router.push(`/organizations/${organisationId}/projects`)
         } catch (error: any) {
             console.error('Error sending invitations:', error)
             toast.error(error.response?.data?.detail || 'Failed to send invitations')
@@ -166,20 +179,21 @@ export default function OnboardingInvitePage() {
                                     </div>
 
                                     {/* Role dropdown */}
-                                    <div className="relative">
-                                        <select
-                                            value={invite.role}
-                                            onChange={(e) => updateRole(invite.id, e.target.value)}
-                                            className="appearance-none w-48 px-3 py-3 pr-8 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary transition-colors bg-white text-gray-900 text-sm"
-                                        >
-                                            {PROJECT_ROLES.map(role => (
-                                                <option key={role.value} value={role.value}>
+                                    <Select
+                                        value={invite.role}
+                                        onValueChange={(value) => updateRole(invite.id, value)}
+                                    >
+                                        <SelectTrigger className="w-48 px-3 py-3 h-auto rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary transition-colors bg-white text-gray-900 text-sm">
+                                            <SelectValue placeholder="Role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ORG_ROLES.map(role => (
+                                                <SelectItem key={role.value} value={role.value} className="focus:bg-primary/10 focus:text-primary">
                                                     {role.label}
-                                                </option>
+                                                </SelectItem>
                                             ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                                    </div>
+                                        </SelectContent>
+                                    </Select>
 
                                     {/* Remove button */}
                                     {invites.length > 1 && (

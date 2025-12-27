@@ -56,6 +56,7 @@ class UserInvitation(Base):
 
     # Optional: Pre-assign role
     role_id = Column(UUID(as_uuid=True), nullable=True)  # Role to assign at organization level
+    role = Column(String(50), nullable=True)  # Organization role (string)
 
     # Relationships
     organisation = relationship("Organisation")

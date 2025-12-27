@@ -49,38 +49,28 @@ DEFAULT_ROLES = {
     "project_admin": {
         "name": "Project Admin",
         "role_type": "project_admin",
-        "description": "Full project control - manages all test artifacts, approvals, automation, and security scans",
+        "description": "Full project control — can manage billing, delete the project, assign roles, and configure settings",
         "permissions": ["all"],  # Gets all permissions
         "color": "#DC2626",  # Red
     },
     "qa_lead": {
         "name": "QA Lead",
         "role_type": "qa_lead",
-        "description": "Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes",
+        "description": "Test strategy owner — designs test plans, manages QA assignments, and reviews technical execution",
         "permissions": [
-            # Test Artifacts
             "create_test_artifact", "read_test_artifact", "update_test_artifact", "delete_test_artifact",
-            "approve_test_case", "create_test_cycle", "link_requirement",
-            # Automation
-            "create_automation_flow", "read_automation_flow", "update_automation_flow", "delete_automation_flow",
-            "execute_flow_dev", "execute_flow_staging", "execute_flow_prod", "accept_self_heal",
-            # Security
-            "start_scan_staging", "update_finding", "export_sarif",
-            # Performance
-            "create_k6_script", "read_k6_script", "update_k6_script", "delete_k6_script",
-            "execute_load_10k",
-            # Execution
+            "create_test_cycle", "read_requirement", "link_requirement",
+            "read_automation_flow", "execute_automation_flow", "execute_flow_dev", "execute_flow_staging",
             "execute_manual_test", "record_evidence",
-            # Dashboards
-            "create_dashboard", "read_dashboard", "update_dashboard", "delete_dashboard", "export_schedule",
-            # Project management
-            "read_project", "update_project",
+            "comment_finding", "export_sarif_non_pii",
+            "read_dashboard", "read_project",
+            "approve_test_artifact", # Authority to approve plans
         ],
-        "color": "#2563EB",  # Blue
+        "color": "#1E40AF",  # Blue
     },
-    "tester": {
-        "name": "Tester",
-        "role_type": "tester",
+    "qa_engineer": {
+        "name": "QA Engineer",
+        "role_type": "qa_engineer",
         "description": "Creates and executes tests, records evidence, runs automation flows",
         "permissions": [
             # Test Artifacts
@@ -90,7 +80,6 @@ DEFAULT_ROLES = {
             # Automation
             "read_automation_flow", "execute_automation_flow",  # Read + Execute only
             "execute_flow_dev", "execute_flow_staging",
-            # Prod execution requires 2FA (handled by ABAC)
             # Execution
             "execute_manual_test", "record_evidence",
             # Security
@@ -126,9 +115,33 @@ DEFAULT_ROLES = {
         ],
         "color": "#7C3AED",  # Purple
     },
-    "dev_ro": {
+    "technical_lead": {
+        "name": "Technical Lead",
+        "role_type": "technical_lead",
+        "description": "Technical reviewer — validates testing approach, environment readiness, and technical strategy",
+        "permissions": [
+            "read_test_artifact", "read_requirement", "link_requirement",
+            "read_automation_flow", "read_execution", "record_evidence",
+            "read_finding", "export_sarif",
+            "read_k6_script", "read_dashboard", "read_project",
+            "approve_test_artifact", # Authority for technical review
+        ],
+        "color": "#92400E",  # Amber/Ochre
+    },
+    "product_owner": {
+        "name": "Product Owner",
+        "role_type": "product_owner",
+        "description": "Business stakeholder — validates scenarios, reviews requirements coverage, and performs business sign-off",
+        "permissions": [
+            "read_test_artifact", "read_requirement",
+            "read_execution", "read_dashboard", "read_project",
+            "approve_test_artifact", # Authority for business sign-off
+        ],
+        "color": "#DB2777",  # Pink
+    },
+    "developer": {
         "name": "Developer",
-        "role_type": "dev_ro",
+        "role_type": "developer",
         "description": "Read-only access to test artifacts, can record evidence and view dashboards",
         "permissions": [
             # Test Artifacts - Read only
@@ -175,10 +188,12 @@ DEFAULT_ROLES = {
 # Role hierarchy for project roles (higher number = more privilege)
 PROJECT_ROLE_HIERARCHY = {
     "project_admin": 100,
-    "qa_lead": 80,
-    "auto_eng": 60,
-    "tester": 50,
-    "dev_ro": 20,
+    "qa_lead": 90,
+    "technical_lead": 85,
+    "auto_eng": 80,
+    "qa_engineer": 70,
+    "product_owner": 60,
+    "developer": 40,
     "viewer": 10,
 }
 
@@ -188,8 +203,10 @@ LEGACY_ROLE_MAPPING = {
     "admin": "project_admin",
     "qa_manager": "qa_lead",
     "qa_lead": "qa_lead",
-    "qa_engineer": "tester",
-    "product_owner": "dev_ro",
+    "qa_engineer": "qa_engineer",
+    "tester": "qa_engineer",
+    "product_owner": "product_owner",
+    "dev_ro": "developer",
     "viewer": "viewer",
 }
 

@@ -24,19 +24,29 @@ export const ROLE_DISPLAY_MAP: Record<string, RoleDisplayInfo> = {
   qa_lead: {
     displayName: 'QA Lead',
     type: 'Quality Assurance',
-    description: 'Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes'
+    description: 'Test strategy owner — designs test plans, manages QA assignments, and reviews technical execution'
   },
-  tester: {
-    displayName: 'Tester',
+  qa_engineer: {
+    displayName: 'QA Engineer',
     type: 'Quality Assurance',
     description: 'Creates and executes tests, records evidence, runs automation flows'
   },
   auto_eng: {
     displayName: 'Automation Engineer',
-    type: 'Engineering',
+    type: 'Quality Assurance',
     description: 'Manages automation flows, k6 scripts, accepts self-healing suggestions'
   },
-  dev_ro: {
+  technical_lead: {
+    displayName: 'Technical Lead',
+    type: 'Development',
+    description: 'Technical reviewer — validates testing approach, environment readiness, and technical strategy'
+  },
+  product_owner: {
+    displayName: 'Product Owner',
+    type: 'Business',
+    description: 'Business stakeholder — validates scenarios, reviews requirements coverage, and performs business sign-off'
+  },
+  developer: {
     displayName: 'Developer',
     type: 'Development',
     description: 'Read-only access to test artifacts, can record evidence and view dashboards'
@@ -48,6 +58,16 @@ export const ROLE_DISPLAY_MAP: Record<string, RoleDisplayInfo> = {
   },
 
   // Legacy role mappings for backwards compatibility
+  tester: {
+    displayName: 'QA Engineer',
+    type: 'Quality Assurance',
+    description: 'Creates and executes tests, records evidence, runs automation flows'
+  },
+  dev_ro: {
+    displayName: 'Developer',
+    type: 'Development',
+    description: 'Read-only access to test artifacts, can record evidence and view dashboards'
+  },
   owner: {
     displayName: 'Project Admin',
     type: 'Administration',
@@ -63,16 +83,6 @@ export const ROLE_DISPLAY_MAP: Record<string, RoleDisplayInfo> = {
     type: 'Quality Assurance',
     description: 'Manages QA teams, assigns testers, oversees test execution, and reviews results'
   },
-  qa_engineer: {
-    displayName: 'Tester',
-    type: 'Quality Assurance',
-    description: 'Creates, executes, and maintains automated and manual tests'
-  },
-  product_owner: {
-    displayName: 'Developer',
-    type: 'Development',
-    description: 'Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals'
-  }
 }
 
 /**

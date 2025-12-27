@@ -389,7 +389,7 @@ class UserOrganisation(Base):
         return ROLE_HIERARCHY.get(self.effective_role_type, 0)
 
 
-# Default system roles to create for each organization
+# Default system roles to create for each organization (4 tiers)
 DEFAULT_SYSTEM_ROLES = [
     {
         "name": "Owner",
@@ -408,33 +408,6 @@ DEFAULT_SYSTEM_ROLES = [
         "is_system_role": True,
         "is_default": False,
         "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.ADMIN.value],
-    },
-    {
-        "name": "Security Officer",
-        "role_type": OrgRoleType.SEC_OFFICER.value,
-        "description": "Separation of duties - manages scan profiles, vulnerability triage, and false-positive marking",
-        "color": "#8B5CF6",  # Purple
-        "is_system_role": True,
-        "is_default": False,
-        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.SEC_OFFICER.value],
-    },
-    {
-        "name": "Auditor",
-        "role_type": OrgRoleType.AUDITOR.value,
-        "description": "Read-only compliance access - view audit logs, invoices, and cost reports",
-        "color": "#06B6D4",  # Cyan
-        "is_system_role": True,
-        "is_default": False,
-        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.AUDITOR.value],
-    },
-    {
-        "name": "Service Account",
-        "role_type": OrgRoleType.SVC_ACCOUNT.value,
-        "description": "CI/CD integration - token auth, IP whitelist, execute flows/scans only",
-        "color": "#64748B",  # Slate
-        "is_system_role": True,
-        "is_default": False,
-        "permissions": DEFAULT_ROLE_PERMISSIONS[OrgRoleType.SVC_ACCOUNT.value],
     },
     {
         "name": "Member",

@@ -34,6 +34,7 @@ export function UserNav() {
     organisations,
     currentOrganisation,
     isOwner,
+    userRole,
     setCurrentOrganisation
   } = useOrganizationStore()
 
@@ -58,7 +59,9 @@ export function UserNav() {
               </span>
             </div>
             {/* Role Badge */}
-            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm border-2 border-white ${isOwner ? 'bg-amber-500' : 'bg-blue-500'
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm border-2 border-white ${userRole === 'owner' ? 'bg-red-500' :
+                userRole === 'admin' ? 'bg-amber-500' :
+                  userRole === 'member' ? 'bg-green-500' : 'bg-gray-500'
               }`}>
               <User className="w-2.5 h-2.5 text-white" />
             </div>
@@ -68,11 +71,15 @@ export function UserNav() {
               {currentOrganisation.name}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isOwner
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-blue-100 text-blue-700'
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${userRole === 'owner' ? 'bg-red-100 text-red-700' :
+                  userRole === 'admin' ? 'bg-amber-100 text-amber-700' :
+                    userRole === 'member' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-700'
                 }`}>
-                {isOwner ? 'Owner' : 'Member'}
+                {userRole === 'owner' ? 'Owner' :
+                  userRole === 'admin' ? 'Administrator' :
+                    userRole === 'member' ? 'Member' :
+                      userRole === 'viewer' ? 'Viewer' : 'Member'}
               </span>
             </div>
           </div>

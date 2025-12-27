@@ -1,8 +1,20 @@
 'use client'
 
 import { useEffect, useState, Fragment } from 'react'
-import { Loader2, Check, X, Shield, ShieldCheck, User, Eye, Wrench, Bug, Code, Crown } from 'lucide-react'
-import { listRoles, type ProjectRole, PROJECT_ROLE_COLORS, PROJECT_ROLE_LABELS } from '@/lib/api/roles'
+import { Loader2, Check, X, Shield, ShieldCheck, User, Eye, Wrench, Bug, Code, Crown, Briefcase } from 'lucide-react'
+import { listRoles, type ProjectRole, PROJECT_ROLE_LABELS } from '@/lib/api/roles'
+
+// Hex colors for permission matrix display
+const ROLE_HEX_COLORS: Record<string, string> = {
+    project_admin: '#DC2626',  // Red
+    qa_lead: '#1E40AF',        // Blue
+    qa_engineer: '#059669',    // Emerald
+    auto_eng: '#7C3AED',       // Purple
+    technical_lead: '#92400E', // Amber
+    product_owner: '#DB2777',  // Pink
+    developer: '#0891B2',      // Cyan
+    viewer: '#6B7280',         // Gray
+}
 
 interface ProjectPermissionMatrixProps {
     organisationId: string
@@ -63,16 +75,18 @@ const PROJECT_PERMISSION_GROUPS = {
 }
 
 // Role order for display (highest to lowest privilege)
-const PROJECT_ROLE_ORDER = ['project_admin', 'qa_lead', 'auto_eng', 'tester', 'dev_ro', 'viewer']
+const PROJECT_ROLE_ORDER = ['project_admin', 'qa_lead', 'technical_lead', 'auto_eng', 'qa_engineer', 'product_owner', 'developer', 'viewer']
 
 // Role icons
 const getRoleIcon = (roleType: string) => {
     switch (roleType) {
         case 'project_admin': return <Crown className="w-4 h-4" />
         case 'qa_lead': return <ShieldCheck className="w-4 h-4" />
-        case 'tester': return <Bug className="w-4 h-4" />
+        case 'qa_engineer': return <Bug className="w-4 h-4" />
         case 'auto_eng': return <Wrench className="w-4 h-4" />
-        case 'dev_ro': return <Code className="w-4 h-4" />
+        case 'technical_lead': return <Shield className="w-4 h-4" />
+        case 'product_owner': return <User className="w-4 h-4" />
+        case 'developer': return <Code className="w-4 h-4" />
         case 'viewer': return <Eye className="w-4 h-4" />
         default: return <User className="w-4 h-4" />
     }
@@ -81,47 +95,47 @@ const getRoleIcon = (roleType: string) => {
 // Permission matrix - defines which roles have which permissions
 const PERMISSION_MATRIX: Record<string, string[]> = {
     // Test Artifacts
-    'create_test_artifact': ['project_admin', 'qa_lead', 'tester'],
-    'read_test_artifact': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
-    'update_test_artifact': ['project_admin', 'qa_lead', 'tester', 'auto_eng'],
-    'delete_test_artifact': ['project_admin', 'qa_lead', 'tester'],
-    'approve_test_case': ['project_admin', 'qa_lead'],
-    'create_test_cycle': ['project_admin', 'qa_lead', 'tester'],
-    'link_requirement': ['project_admin', 'qa_lead', 'auto_eng', 'dev_ro'],
+    'create_test_artifact': ['project_admin', 'qa_lead', 'qa_engineer'],
+    'read_test_artifact': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'product_owner', 'developer', 'viewer'],
+    'update_test_artifact': ['project_admin', 'qa_lead', 'qa_engineer', 'auto_eng'],
+    'delete_test_artifact': ['project_admin', 'qa_lead', 'qa_engineer'],
+    'approve_test_case': ['project_admin', 'qa_lead', 'technical_lead', 'product_owner'],
+    'create_test_cycle': ['project_admin', 'qa_lead', 'qa_engineer'],
+    'link_requirement': ['project_admin', 'qa_lead', 'auto_eng', 'developer', 'product_owner'],
     // Automation Flows
     'create_automation_flow': ['project_admin', 'qa_lead', 'auto_eng'],
-    'read_automation_flow': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
+    'read_automation_flow': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'product_owner', 'developer', 'viewer'],
     'update_automation_flow': ['project_admin', 'qa_lead', 'auto_eng'],
     'delete_automation_flow': ['project_admin', 'qa_lead', 'auto_eng'],
-    'execute_flow_dev': ['project_admin', 'qa_lead', 'tester', 'auto_eng'],
-    'execute_flow_staging': ['project_admin', 'qa_lead', 'tester', 'auto_eng'],
+    'execute_flow_dev': ['project_admin', 'qa_lead', 'qa_engineer', 'auto_eng'],
+    'execute_flow_staging': ['project_admin', 'qa_lead', 'qa_engineer', 'auto_eng'],
     'execute_flow_prod': ['project_admin', 'qa_lead', 'auto_eng'],
     'accept_self_heal': ['project_admin', 'qa_lead', 'auto_eng'],
     // Manual Test Execution
-    'execute_manual_test': ['project_admin', 'qa_lead', 'tester', 'auto_eng'],
-    'record_evidence': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro'],
+    'execute_manual_test': ['project_admin', 'qa_lead', 'qa_engineer', 'auto_eng'],
+    'record_evidence': ['project_admin', 'qa_lead', 'qa_engineer', 'auto_eng', 'developer'],
     // Security Testing
     'start_scan_staging': ['project_admin', 'qa_lead'],
     'update_finding': ['project_admin', 'qa_lead', 'auto_eng'],
-    'comment_finding': ['project_admin', 'qa_lead', 'tester'],
-    'read_finding': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
-    'export_sarif': ['project_admin', 'qa_lead', 'auto_eng', 'dev_ro', 'viewer'],
-    'export_sarif_non_pii': ['project_admin', 'qa_lead', 'tester'],
+    'comment_finding': ['project_admin', 'qa_lead', 'qa_engineer'],
+    'read_finding': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'developer', 'viewer'],
+    'export_sarif': ['project_admin', 'qa_lead', 'technical_lead', 'auto_eng', 'developer', 'viewer'],
+    'export_sarif_non_pii': ['project_admin', 'qa_lead', 'qa_engineer'],
     // Performance Testing
     'create_k6_script': ['project_admin', 'qa_lead', 'auto_eng'],
-    'read_k6_script': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
+    'read_k6_script': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'developer', 'viewer'],
     'update_k6_script': ['project_admin', 'qa_lead', 'auto_eng'],
     'delete_k6_script': ['project_admin', 'qa_lead', 'auto_eng'],
     'execute_load_10k': ['project_admin', 'qa_lead', 'auto_eng'],
     'execute_load_100k': ['project_admin', 'auto_eng'],
     // Dashboards & Reports
     'create_dashboard': ['project_admin', 'qa_lead', 'auto_eng'],
-    'read_dashboard': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
+    'read_dashboard': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'product_owner', 'developer', 'viewer'],
     'update_dashboard': ['project_admin', 'qa_lead'],
     'delete_dashboard': ['project_admin', 'qa_lead'],
     'export_schedule': ['project_admin', 'qa_lead'],
     // Project Settings
-    'read_project': ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'],
+    'read_project': ['project_admin', 'qa_lead', 'technical_lead', 'qa_engineer', 'auto_eng', 'product_owner', 'developer', 'viewer'],
     'update_project': ['project_admin', 'qa_lead'],
 }
 
@@ -192,7 +206,7 @@ export function ProjectPermissionMatrix({ organisationId }: ProjectPermissionMat
                     Project Role Permissions Matrix
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Enterprise RBAC permissions for all 6 project roles
+                    Enterprise RBAC permissions for all 8 project roles
                 </p>
             </div>
 
@@ -202,7 +216,7 @@ export function ProjectPermissionMatrix({ organisationId }: ProjectPermissionMat
                     <div key={role.id} className="flex items-center gap-2">
                         <span
                             className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: PROJECT_ROLE_COLORS[role.role_type] || '#6B7280' }}
+                            style={{ backgroundColor: ROLE_HEX_COLORS[role.role_type] || '#6B7280' }}
                         />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             {role.name}
@@ -230,13 +244,13 @@ export function ProjectPermissionMatrix({ organisationId }: ProjectPermissionMat
                                         <div className="flex flex-col items-center gap-1">
                                             <span
                                                 className="p-1.5 rounded-full"
-                                                style={{ backgroundColor: `${PROJECT_ROLE_COLORS[role.role_type] || '#6B7280'}20` }}
+                                                style={{ backgroundColor: `${ROLE_HEX_COLORS[role.role_type] || '#6B7280'}20` }}
                                             >
                                                 {getRoleIcon(role.role_type)}
                                             </span>
                                             <span
                                                 className="text-xs font-medium"
-                                                style={{ color: PROJECT_ROLE_COLORS[role.role_type] || '#6B7280' }}
+                                                style={{ color: ROLE_HEX_COLORS[role.role_type] || '#6B7280' }}
                                             >
                                                 {role.name}
                                             </span>
@@ -314,7 +328,7 @@ export function ProjectPermissionMatrix({ organisationId }: ProjectPermissionMat
                         <div
                             key={role.id}
                             className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
-                            style={{ borderLeftColor: PROJECT_ROLE_COLORS[role.role_type] || '#6B7280', borderLeftWidth: '4px' }}
+                            style={{ borderLeftColor: ROLE_HEX_COLORS[role.role_type] || '#6B7280', borderLeftWidth: '4px' }}
                         >
                             <div className="flex items-center gap-2 mb-2">
                                 {getRoleIcon(role.role_type)}

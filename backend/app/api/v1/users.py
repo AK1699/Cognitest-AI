@@ -178,45 +178,40 @@ async def delete_user(
             detail="User not found"
         )
 
-    # Don't allow deleting yourself
-    if str(current_user.id) == str(user_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete yourself"
-        )
-
-    # Check authorization
-    if not current_user.is_superuser:
-        # Check if current user is an owner or admin of any organization that the target user belongs to
-        from app.models.organisation import UserOrganisation, Organisation
-        
-        # Get organizations where current user is owner or admin
-        current_user_orgs = await db.execute(
-            select(UserOrganisation).where(
-                UserOrganisation.user_id == current_user.id,
-                UserOrganisation.role.in_(['owner', 'admin'])
+    # Authorization check for others (self-deletion is allowed)
+    if str(current_user.id) != str(user_id):
+        # Check authorization
+        if not current_user.is_superuser:
+            # Check if current user is an owner or admin of any organization that the target user belongs to
+            from app.models.organisation import UserOrganisation, Organisation
+            
+            # Get organizations where current user is owner or admin
+            current_user_orgs = await db.execute(
+                select(UserOrganisation).where(
+                    UserOrganisation.user_id == current_user.id,
+                    UserOrganisation.role.in_(['owner', 'admin'])
+                )
             )
-        )
-        current_user_org_ids = {uo.organisation_id for uo in current_user_orgs.scalars().all()}
-        
-        # Also check if current user owns any organizations
-        owned_orgs = await db.execute(
-            select(Organisation).where(Organisation.owner_id == current_user.id)
-        )
-        current_user_org_ids.update({org.id for org in owned_orgs.scalars().all()})
-        
-        # Get organizations that the target user belongs to
-        target_user_orgs = await db.execute(
-            select(UserOrganisation).where(UserOrganisation.user_id == user_id)
-        )
-        target_user_org_ids = {uo.organisation_id for uo in target_user_orgs.scalars().all()}
-        
-        # Check if there's any overlap (current user manages an org that target user belongs to)
-        if not current_user_org_ids.intersection(target_user_org_ids):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this user. You must be an owner or admin of an organization this user belongs to."
+            current_user_org_ids = {uo.organisation_id for uo in current_user_orgs.scalars().all()}
+            
+            # Also check if current user owns any organizations
+            owned_orgs = await db.execute(
+                select(Organisation).where(Organisation.owner_id == current_user.id)
             )
+            current_user_org_ids.update({org.id for org in owned_orgs.scalars().all()})
+            
+            # Get organizations that the target user belongs to
+            target_user_orgs = await db.execute(
+                select(UserOrganisation).where(UserOrganisation.user_id == user_id)
+            )
+            target_user_org_ids = {uo.organisation_id for uo in target_user_orgs.scalars().all()}
+            
+            # Check if there's any overlap (current user manages an org that target user belongs to)
+            if not current_user_org_ids.intersection(target_user_org_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to delete this user. You must be an owner or admin of an organization this user belongs to."
+                )
 
     # Prevent deleting the only owner of an organization
     from app.models.organisation import UserOrganisation, Organisation, OrgRoleType
@@ -231,22 +226,33 @@ async def delete_user(
     user_owned_orgs = user_owned_orgs_query.scalars().all()
     
     for uo in user_owned_orgs:
-        # Check if there are other owners for this organization
-        other_owners_query = await db.execute(
+        # Check if there are any other members in this organization
+        other_members_query = await db.execute(
             select(UserOrganisation).where(
                 UserOrganisation.organisation_id == uo.organisation_id,
-                UserOrganisation.user_id != user_id,
-                UserOrganisation.role == OrgRoleType.OWNER.value
+                UserOrganisation.user_id != user_id
             )
         )
-        if not other_owners_query.scalars().first():
-            org_query = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
-            org = org_query.scalar_one_or_none()
-            org_name = org.name if org else "Unknown Organization"
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot delete user as they are the only owner of organization '{org_name}'. Please transfer ownership first."
+        has_other_members = other_members_query.scalars().first() is not None
+        
+        if has_other_members:
+            # If there are other members, check if any of them are also owners
+            other_owners_query = await db.execute(
+                select(UserOrganisation).where(
+                    UserOrganisation.organisation_id == uo.organisation_id,
+                    UserOrganisation.user_id != user_id,
+                    UserOrganisation.role == OrgRoleType.OWNER.value
+                )
             )
+            if not other_owners_query.scalars().first():
+                org_query = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
+                org = org_query.scalar_one_or_none()
+                org_name = org.name if org else "Unknown Organization"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot delete user as they are the only owner of organization '{org_name}'. Please promote another member to owner or transfer ownership first."
+                )
+        # If there are no other members, we allow deleting the user (the org will be orphaned but empty)
 
     # Delete the user
     await db.delete(user)

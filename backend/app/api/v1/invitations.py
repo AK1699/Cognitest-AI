@@ -66,15 +66,26 @@ async def create_invitation(
             detail=limit_check.message
         )
 
-    # Check if user already exists
-    existing_user = await db.execute(
+    # Check if user already exists in this organisation
+    existing_user_result = await db.execute(
         select(User).where(User.email == invitation_data.email)
     )
-    if existing_user.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User with email {invitation_data.email} already exists"
+    existing_user = existing_user_result.scalar_one_or_none()
+    if existing_user:
+        from app.models.organisation import UserOrganisation
+        membership_result = await db.execute(
+            select(UserOrganisation).where(
+                and_(
+                    UserOrganisation.user_id == existing_user.id,
+                    UserOrganisation.organisation_id == invitation_data.organisation_id
+                )
+            )
         )
+        if membership_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User with email {invitation_data.email} is already a member of this organisation"
+            )
 
     # Check if there's already a pending invitation
     existing_invitation = await db.execute(
@@ -101,7 +112,8 @@ async def create_invitation(
         expires_at=UserInvitation.calculate_expiry(invitation_data.expiry_days),
         invited_by=current_user.id,
         group_ids=",".join([str(gid) for gid in invitation_data.group_ids]) if invitation_data.group_ids else None,
-        role_id=invitation_data.role_id
+        role_id=invitation_data.role_id,
+        role=invitation_data.role
     )
 
     db.add(invitation)
@@ -338,7 +350,7 @@ async def accept_invitation(
             membership = UserOrganisation(
                 user_id=new_user.id,
                 organisation_id=invitation.organisation_id,
-                role="member",
+                role=invitation.role if invitation.role else "member",
                 invited_by=invitation.invited_by,
                 is_active=True
             )

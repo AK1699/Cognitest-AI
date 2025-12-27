@@ -21,12 +21,14 @@ interface OrganizationState {
     organisations: Organisation[]
     currentOrganisation: Organisation | null
     isOwner: boolean
+    userRole: string | null  // Actual role from user_organisations
     loading: boolean
     initialized: boolean
 
     // Actions
     fetchOrganisations: (userId?: string) => Promise<void>
     setCurrentOrganisation: (org: Organisation, userId?: string) => Promise<void>
+    refreshUserRole: (userId: string) => Promise<void>  // Force-refresh role after changes
     reset: () => void
 }
 
@@ -34,6 +36,7 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
     organisations: [],
     currentOrganisation: null,
     isOwner: false,
+    userRole: null,
     loading: false,
     initialized: false,
 
@@ -67,12 +70,29 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
                 await setSessionOrg(organisations[0].id)
             }
 
-            const isOwner = userId && currentOrg ? currentOrg.owner_id === userId : false
+            // Fetch actual user role from org members API
+            let userRole: string | null = null
+            let isOwner = false
+            if (currentOrg && userId) {
+                try {
+                    const membersRes = await api.get(`/api/v1/organisations/${currentOrg.id}/members/`)
+                    const userMembership = membersRes.data.find((m: any) => m.user_id === userId)
+                    if (userMembership) {
+                        userRole = userMembership.role
+                        isOwner = userRole === 'owner'
+                    }
+                } catch (err) {
+                    // Fallback to owner_id check if members API fails
+                    isOwner = currentOrg.owner_id === userId
+                    userRole = isOwner ? 'owner' : 'member'
+                }
+            }
 
             set({
                 organisations,
                 currentOrganisation: currentOrg,
                 isOwner,
+                userRole,
                 loading: false,
                 initialized: true
             })
@@ -84,9 +104,45 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
 
     setCurrentOrganisation: async (org: Organisation, userId?: string) => {
         await setSessionOrg(org.id)
-        const isOwner = userId ? org.owner_id === userId : false
-        set({ currentOrganisation: org, isOwner })
+
+        // Fetch actual user role for this org
+        let userRole: string | null = null
+        let isOwner = false
+        if (userId) {
+            try {
+                const membersRes = await api.get(`/api/v1/organisations/${org.id}/members/`)
+                const userMembership = membersRes.data.find((m: any) => m.user_id === userId)
+                if (userMembership) {
+                    userRole = userMembership.role
+                    isOwner = userRole === 'owner'
+                }
+            } catch (err) {
+                // Fallback to owner_id check
+                isOwner = org.owner_id === userId
+                userRole = isOwner ? 'owner' : 'member'
+            }
+        }
+
+        set({ currentOrganisation: org, isOwner, userRole })
         window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
+    },
+
+    // Force-refresh user role - call this after any role change
+    refreshUserRole: async (userId: string) => {
+        const state = get()
+        if (!state.currentOrganisation) return
+
+        try {
+            const membersRes = await api.get(`/api/v1/organisations/${state.currentOrganisation.id}/members/`)
+            const userMembership = membersRes.data.find((m: any) => m.user_id === userId)
+            if (userMembership) {
+                const userRole = userMembership.role
+                const isOwner = userRole === 'owner'
+                set({ userRole, isOwner })
+            }
+        } catch (err) {
+            console.error('Failed to refresh user role:', err)
+        }
     },
 
     reset: () => {
@@ -94,6 +150,7 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
             organisations: [],
             currentOrganisation: null,
             isOwner: false,
+            userRole: null,
             loading: false,
             initialized: false
         })

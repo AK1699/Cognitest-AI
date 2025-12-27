@@ -419,9 +419,22 @@ async def assign_member_role(
     """Change a member's role"""
     await check_org_permission(current_user, organisation_id, "can_manage_users", db)
     
-    # Check hierarchy - can only assign roles lower than your own
-    if not await check_role_hierarchy(current_user, organisation_id, request.role_type, db):
-        raise PermissionDenied("You cannot assign a role equal to or higher than your own")
+    # Get current user's role
+    current_user_result = await db.execute(
+        select(UserOrganisation)
+        .where(
+            UserOrganisation.user_id == current_user.id,
+            UserOrganisation.organisation_id == organisation_id
+        )
+    )
+    current_user_membership = current_user_result.scalar_one_or_none()
+    current_user_role = current_user_membership.role if current_user_membership else "member"
+    
+    # Owners can assign any role including owner (for ownership transfer)
+    # Other users can only assign roles lower than their own
+    if current_user_role != "owner":
+        if not await check_role_hierarchy(current_user, organisation_id, request.role_type, db):
+            raise PermissionDenied("You cannot assign a role equal to or higher than your own")
     
     # Get membership
     result = await db.execute(
@@ -479,8 +492,7 @@ async def remove_member(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Remove a member from the organization"""
-    await check_org_permission(current_user, organisation_id, "can_manage_users", db)
+    """Remove a member from the organization (or self-leave)"""
     
     # Get membership
     result = await db.execute(
@@ -495,13 +507,40 @@ async def remove_member(
     if not membership:
         raise HTTPException(status_code=404, detail="User is not a member")
     
-    # Cannot remove owner
-    if membership.role == "owner":
-        raise HTTPException(status_code=400, detail="Cannot remove organization owner")
+    is_self = str(current_user.id) == str(user_id)
     
-    # Check hierarchy
-    if not await check_role_hierarchy(current_user, organisation_id, membership.role, db):
-        raise PermissionDenied("You cannot remove a user with equal or higher role")
+    # Handle owner leaving/removal
+    if membership.role == "owner":
+        if not is_self:
+            # Cannot remove an owner (they must leave themselves)
+            raise HTTPException(status_code=400, detail="Cannot remove an organization owner. They must leave themselves.")
+        
+        # Self-leave: Check if there are other members and if so, require another owner
+        other_members_result = await db.execute(
+            select(UserOrganisation)
+            .where(
+                UserOrganisation.organisation_id == organisation_id,
+                UserOrganisation.user_id != user_id
+            )
+        )
+        other_members = other_members_result.scalars().all()
+        
+        if len(other_members) > 0:
+            # There are other members - check if any are owners
+            other_owners = [m for m in other_members if m.role == "owner"]
+            if not other_owners:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Cannot leave organization as you are the only owner and there are other members. Please promote another member to owner first."
+                )
+        # If no other members, or there are other owners, allow leaving
+    else:
+        # Non-owner: need permission to manage users (or be self)
+        if not is_self:
+            await check_org_permission(current_user, organisation_id, "can_manage_users", db)
+            # Check hierarchy
+            if not await check_role_hierarchy(current_user, organisation_id, membership.role, db):
+                raise PermissionDenied("You cannot remove a user with equal or higher role")
     
     await db.delete(membership)
     await db.commit()

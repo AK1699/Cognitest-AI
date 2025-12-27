@@ -17,10 +17,9 @@ class ApprovalStatus(str, enum.Enum):
 
 class ApprovalRole(str, enum.Enum):
     QA_LEAD = "qa_lead"
-    SENIOR_QA_ENGINEER = "senior_qa_engineer"
-    QA_MANAGER = "qa_manager"
-    PROJECT_MANAGER = "project_manager"
+    TECHNICAL_LEAD = "technical_lead"
     PRODUCT_OWNER = "product_owner"
+    PROJECT_ADMIN = "project_admin"
 
 
 class EscalationStatus(str, enum.Enum):

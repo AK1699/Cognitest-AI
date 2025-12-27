@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus, Crown, Eye, Code2, TestTube, Bot, Settings, AlertTriangle, ArrowUpRight } from 'lucide-react'
-import { useParams } from 'next/navigation'
+import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus, Crown, Eye, Code2, TestTube, Bot, Settings, AlertTriangle, ArrowUpRight, LogOut } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
 import { getRoleType } from '@/lib/role-display-utils'
@@ -35,6 +35,7 @@ import { CreateGroupWithTypeModal } from '@/components/users-teams/create-group-
 import { RolesManager } from '@/components/settings/RolesManager'
 import { listOrgMembers, type UserRoleAssignment } from '@/lib/api/org-roles'
 import { checkResourceLimit, type ResourceLimitCheck } from '@/lib/api/subscription'
+import { useOrganizationStore } from '@/lib/store/organization-store'
 import Link from 'next/link'
 
 type Tab = 'users' | 'teams' | 'roles' | 'org-roles'
@@ -53,8 +54,9 @@ interface Organisation {
 
 export default function UsersTeamsPage() {
   const params = useParams()
+  const router = useRouter()
   const organisationId = params.uuid as string
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, logout } = useAuth()
 
   const [activeTab, setActiveTab] = useState<Tab>('users')
   const [organisation, setOrganisation] = useState<Organisation | null>(null)
@@ -473,21 +475,47 @@ export default function UsersTeamsPage() {
   }
 
   const handleDeleteUser = async (user: UserType) => {
+    const isSelf = user.id === currentUser?.id
+    const actionLabel = isSelf ? 'Leave' : 'Delete'
+    const colorVariant = isSelf ? 'warning' : 'danger'
+
+    // Proactive check for owners leaving an org with other members
+    if (isSelf && orgMembers.length > 1) {
+      const currentMember = orgMembers.find(m => m.user_id === user.id)
+      if (currentMember?.role === 'owner') {
+        const hasOtherOwners = orgMembers.some(m => m.user_id !== user.id && m.role === 'owner')
+        if (!hasOtherOwners) {
+          toast.error(`Cannot leave organization as you are the only owner. Please promote another member to owner or transfer ownership first.`)
+          return
+        }
+      }
+    }
+
     const confirmed = await confirm({
-      message: `Are you sure you want to delete ${user.username}? This action cannot be undone.`,
-      variant: 'danger',
-      confirmText: 'Delete User'
+      message: isSelf
+        ? `Are you sure you want to leave this organization? You will lose access to all its projects.`
+        : `Are you sure you want to delete ${user.username}? This action cannot be undone.`,
+      variant: colorVariant as any,
+      confirmText: `${actionLabel} ${isSelf ? 'Organization' : 'User'}`
     })
 
     if (!confirmed) return
 
     try {
-      await api.delete(`/api/v1/users/${user.id}`)
-      toast.success('User deleted successfully')
-      fetchData()
+      // Remove member from THIS org only, not delete the user entirely
+      await api.delete(`/api/v1/organisations/${organisationId}/members/${user.id}`)
+      if (isSelf) {
+        // Reset org store cache before redirect - ensures fresh data on orgs page
+        useOrganizationStore.getState().reset()
+        toast.success('You have left the organization')
+        window.location.href = '/organizations'
+      } else {
+        toast.success('User removed from organization')
+        fetchData()
+      }
     } catch (error: any) {
-      console.error('Failed to delete user:', error)
-      toast.error(error.response?.data?.detail || 'Failed to delete user')
+      console.error(`Failed to ${isSelf ? 'leave organization' : 'remove user'}:`, error)
+      toast.error(error.response?.data?.detail || `Failed to ${isSelf ? 'leave organization' : 'remove user'}`)
     }
   }
 
@@ -913,10 +941,22 @@ export default function UsersTeamsPage() {
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user)}
-                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
+                              className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${user.id === currentUser?.id
+                                ? "text-amber-600 bg-amber-50 hover:bg-amber-100 dark:text-amber-400 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                                : "text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30"
+                                }`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Delete
+                              {user.id === currentUser?.id ? (
+                                <>
+                                  <LogOut className="w-3.5 h-3.5" />
+                                  Leave
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </>
+                              )}
                             </button>
                           </div>
                         </td>
@@ -1197,30 +1237,40 @@ export default function UsersTeamsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Assign Role (Optional)
+                    Organization Role (Optional)
                   </label>
                   <Select
                     value={userFormData.roleType}
                     onValueChange={(value) => setUserFormData({ ...userFormData, roleType: value })}
                   >
                     <SelectTrigger className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                      <SelectValue placeholder="Select a role..." />
+                      <SelectValue placeholder="Select org role..." />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                      {/* Show all roles - both enterprise and legacy role types */}
-                      {roles
-                        .filter(role => ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer', 'administrator', 'developer', 'project_manager'].includes(role.role_type))
-                        .map(role => (
-                          <SelectItem
-                            key={role.id}
-                            value={role.id}
-                            className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                          >
-                            {role.name}
-                          </SelectItem>
-                        ))}
+                      {/* Organization roles for invitation */}
+                      <SelectItem value="admin" className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Administrator</span>
+                          <span className="text-xs text-gray-500">- Manage users, settings, projects</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="member" className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Member</span>
+                          <span className="text-xs text-gray-500">- Standard org access</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="viewer" className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Viewer</span>
+                          <span className="text-xs text-gray-500">- Read-only access</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Project roles can be assigned after the user joins
+                  </p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">

@@ -20,7 +20,7 @@ class OrganisationUpdate(BaseModel):
 
 class OrganisationResponse(OrganisationBase):
     id: UUID
-    owner_id: UUID
+    owner_id: Optional[UUID] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

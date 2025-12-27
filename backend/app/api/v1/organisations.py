@@ -30,88 +30,51 @@ async def invalidate_org_caches(org_id: str, user_id: str = None):
 DEFAULT_PROJECT_ROLES = {
     "project_admin": {
         "name": "Project Admin",
+        "description": "Full project control — can manage billing, delete the project, assign roles, and configure settings",
         "role_type": "project_admin",
-        "description": "Has full control — can manage billing, delete the project, assign roles, and configure settings",
         "permissions": ["all"],
-        "color": "#EF4444"  # Red
     },
     "qa_lead": {
         "name": "QA Lead",
+        "description": "Test strategy owner — designs test plans, manages QA assignments, and reviews technical execution",
         "role_type": "qa_lead",
-        "description": "Manages QA teams, assigns testers, oversees test execution, and reviews results",
-        "permissions": [
-            "read_project", "update_project",
-            "create_test_plan", "read_test_plan", "update_test_plan", "delete_test_plan",
-            "create_test_suite", "read_test_suite", "update_test_suite", "delete_test_suite",
-            "create_test_case", "read_test_case", "update_test_case", "delete_test_case",
-            "execute_test", "read_test_execution",
-            "read_user", "manage_user",
-            "read_group", "manage_group",
-            "read_role",
-            "read_settings",
-        ],
-        "color": "#8B5CF6"  # Purple
+        "permissions": ["read_test_management", "write_test_management", "execute_test_management", "read_automation_hub", "execute_automation_hub", "read_security_testing", "read_performance_testing", "read_api_testing"],
     },
-    "tester": {
-        "name": "Tester",
-        "role_type": "tester",
-        "description": "Creates, executes, and maintains automated and manual tests",
-        "permissions": [
-            "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "create_test_case", "read_test_case", "update_test_case",
-            "execute_test", "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ],
-        "color": "#10B981"  # Green
+    "qa_engineer": {
+        "name": "QA Engineer",
+        "description": "Creates and executes tests, records evidence, runs automation flows",
+        "role_type": "qa_engineer",
+        "permissions": ["read_test_management", "write_test_management", "execute_test_management", "read_automation_hub", "execute_automation_hub"],
     },
     "auto_eng": {
         "name": "Automation Engineer",
-        "role_type": "auto_eng",
         "description": "Manages automation flows, AI scripts, and continuous testing pipelines",
-        "permissions": [
-            "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "create_test_case", "read_test_case", "update_test_case",
-            "execute_test", "read_test_execution",
-            "manage_automation",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ],
-        "color": "#F59E0B"  # Amber
+        "role_type": "auto_eng",
+        "permissions": ["read_automation_hub", "write_automation_hub", "execute_automation_hub", "manage_automation_hub", "read_test_management", "read_performance_testing", "write_performance_testing", "execute_performance_testing"],
     },
-    "dev_ro": {
+    "technical_lead": {
+        "name": "Technical Lead",
+        "description": "Technical reviewer — validates testing approach, environment readiness, and technical strategy",
+        "role_type": "technical_lead",
+        "permissions": ["read_test_management", "read_automation_hub", "read_security_testing", "read_performance_testing", "read_api_testing"],
+    },
+    "product_owner": {
+        "name": "Product Owner",
+        "description": "Business stakeholder — validates scenarios, reviews requirements coverage, and performs business sign-off",
+        "role_type": "product_owner",
+        "permissions": ["read_test_management", "read_automation_hub"],
+    },
+    "developer": {
         "name": "Developer",
-        "role_type": "dev_ro",
-        "description": "Represents business interests, reviews reports and KPIs, ensures testing aligns with product goals",
-        "permissions": [
-            "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "read_test_case",
-            "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ],
-        "color": "#06B6D4"  # Cyan
+        "description": "Read-only access to test artifacts, record evidence, and view dashboards",
+        "role_type": "developer",
+        "permissions": ["read_test_management", "read_automation_hub", "read_security_testing", "read_performance_testing"],
     },
     "viewer": {
         "name": "Viewer",
-        "role_type": "viewer",
         "description": "Has view-only access to dashboards, reports, and analytics",
-        "permissions": [
-            "read_project",
-            "read_test_plan",
-            "read_test_suite",
-            "read_test_case",
-            "read_test_execution",
-            "read_user", "read_group", "read_role",
-            "read_settings",
-        ],
-        "color": "#6B7280"  # Gray
+        "role_type": "viewer",
+        "permissions": ["read_test_management", "read_automation_hub"],
     },
 }
 
@@ -187,21 +150,31 @@ async def list_organisation_users(
 ):
     """
     List all users in an organisation (owner + members).
-    Only the organisation owner can access this endpoint.
+    Only owners and admins can access this endpoint.
     """
-    # Verify user owns the organisation
-    result = await db.execute(
-        select(Organisation).where(
-            Organisation.id == organisation_id,
-            Organisation.owner_id == current_user.id
+    # Check if user has access to this org (is owner or admin)
+    from app.models.organisation import UserOrganisation
+    
+    # First check if user is member of this org
+    membership_result = await db.execute(
+        select(UserOrganisation).where(
+            UserOrganisation.organisation_id == organisation_id,
+            UserOrganisation.user_id == current_user.id
         )
     )
-    organisation = result.scalar_one_or_none()
-
-    if not organisation:
+    membership = membership_result.scalar_one_or_none()
+    
+    if not membership:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organisation not found or you don't have permission"
+        )
+    
+    # Check role - only owner and admin can list users
+    if membership.role not in ['owner', 'admin']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to list organisation users"
         )
 
     # Get all users in this organisation
@@ -374,33 +347,38 @@ async def list_organisations(
     - Members: See organizations they're members of
     - Admins: Users with administrator role in any project of an organization can see that organization
     """
+    try:
+        # Get organization IDs the user has access to (owner, member, or admin)
+        query = text("""
+            SELECT DISTINCT o.id
+            FROM organisations o
+            LEFT JOIN user_organisations uo ON o.id = uo.organisation_id
+            LEFT JOIN projects p ON o.id = p.organisation_id
+            LEFT JOIN user_project_roles upr ON p.id = upr.project_id
+            LEFT JOIN project_roles pr ON upr.role_id = pr.id
+            WHERE o.owner_id = :user_id
+               OR uo.user_id = :user_id
+               OR (upr.user_id = :user_id AND pr.role_type = 'administrator')
+        """)
 
-    # Get organization IDs the user has access to (owner, member, or admin)
-    query = text("""
-        SELECT DISTINCT o.id
-        FROM organisations o
-        LEFT JOIN user_organisations uo ON o.id = uo.organisation_id
-        LEFT JOIN projects p ON o.id = p.organisation_id
-        LEFT JOIN user_project_roles upr ON p.id = upr.project_id
-        LEFT JOIN project_roles pr ON upr.role_id = pr.id
-        WHERE o.owner_id = :user_id
-           OR uo.user_id = :user_id
-           OR (upr.user_id = :user_id AND pr.role_type = 'administrator')
-    """)
+        result = await db.execute(query, {"user_id": str(current_user.id)})
+        org_ids = [row[0] for row in result.fetchall()]
 
-    result = await db.execute(query, {"user_id": str(current_user.id)})
-    org_ids = [row[0] for row in result.fetchall()]
+        # Fetch full Organisation objects
+        if not org_ids:
+            return []
 
-    # Fetch full Organisation objects
-    if not org_ids:
-        return []
+        orgs_result = await db.execute(
+            select(Organisation).where(Organisation.id.in_(org_ids)).order_by(Organisation.created_at.desc())
+        )
+        organisations = orgs_result.scalars().all()
 
-    orgs_result = await db.execute(
-        select(Organisation).where(Organisation.id.in_(org_ids)).order_by(Organisation.created_at.desc())
-    )
-    organisations = orgs_result.scalars().all()
-
-    return organisations
+        return organisations
+    except Exception as e:
+        print(f"[list_organisations] ERROR for user {current_user.id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error loading organisations: {str(e)}")
 
 @router.get("/{organisation_id}", response_model=OrganisationResponse)
 async def get_organisation(

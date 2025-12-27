@@ -18,6 +18,7 @@ class InvitationCreate(BaseModel):
     group_ids: Optional[List[UUID]] = Field(None, description="Groups to add user to after signup")
     expiry_days: int = Field(7, ge=1, le=30, description="Number of days until invitation expires")
     role_id: Optional[UUID] = Field(None, description="Role ID to assign to user at organization level")
+    role: Optional[str] = Field(None, description="Organization role (e.g., 'admin', 'member', 'viewer')")
 
 
 class InvitationResponse(BaseModel):
@@ -32,6 +33,7 @@ class InvitationResponse(BaseModel):
     created_at: datetime
     expires_at: datetime
     accepted_at: Optional[datetime]
+    role: Optional[str]
 
     class Config:
         from_attributes = True

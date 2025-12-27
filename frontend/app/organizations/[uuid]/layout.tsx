@@ -31,11 +31,13 @@ export default function OrganizationLayout({
     }, [user, initialized, fetchOrganisations])
 
     // Check if we're on a project detail page (has projectId in path)
-    // Pattern: /organizations/[uuid]/projects/[projectId]
     const isProjectDetailPage = pathname.match(/\/organizations\/[^/]+\/projects\/[^/]+/)
 
-    // Project pages have their own sidebar, so don't wrap them
-    if (isProjectDetailPage) {
+    // Check if we're on an onboarding page
+    const isOnboardingPage = pathname.includes('/onboarding/')
+
+    // Project pages and onboarding pages should not show the default organization sidebar
+    if (isProjectDetailPage || isOnboardingPage) {
         return <>{children}</>
     }
 

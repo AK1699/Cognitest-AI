@@ -10,7 +10,6 @@ import { Mail, AlertCircle, CheckCircle2, X, AlertTriangle, ArrowUpRight } from 
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { listGroups, type Group } from '@/lib/api/groups'
-import { listRoles, type ProjectRole } from '@/lib/api/roles'
 import { checkResourceLimit, type ResourceLimitCheck } from '@/lib/api/subscription'
 import Link from 'next/link'
 
@@ -35,20 +34,17 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
   const [selectedRole, setSelectedRole] = useState<string>('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [groups, setGroups] = useState<Group[]>([])
-  const [roles, setRoles] = useState<ProjectRole[]>([])
   const [expiryDays, setExpiryDays] = useState(7)
   const [loading, setLoading] = useState(false)
   const [groupsLoading, setGroupsLoading] = useState(true)
-  const [rolesLoading, setRolesLoading] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [limitCheck, setLimitCheck] = useState<ResourceLimitCheck | null>(null)
   const [isCheckingLimit, setIsCheckingLimit] = useState(false)
 
-  // Load groups, roles, and check limits
+  // Load groups and check limits
   useEffect(() => {
     if (isOpen) {
       loadGroups()
-      loadRoles()
       checkLimit()
     }
   }, [organisationId, isOpen])
@@ -76,19 +72,6 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
       toast.error('Failed to load groups')
     } finally {
       setGroupsLoading(false)
-    }
-  }
-
-  const loadRoles = async () => {
-    try {
-      setRolesLoading(true)
-      const rolesData = await listRoles(organisationId)
-      setRoles(rolesData.roles)
-    } catch (error) {
-      console.error('Error loading roles:', error)
-      toast.error('Failed to load roles')
-    } finally {
-      setRolesLoading(false)
     }
   }
 
@@ -280,31 +263,26 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
             {/* Role Selection */}
             <div className="space-y-2">
               <Label htmlFor="role" className="font-semibold">
-                Assign Role (Optional)
+                Organization Role (Optional)
               </Label>
-              {rolesLoading ? (
-                <div className="text-sm text-gray-600">Loading roles...</div>
-              ) : roles.length === 0 ? (
-                <div className="text-sm text-gray-600">No roles available</div>
-              ) : (
-                <select
-                  id="role"
-                  value={selectedRole}
-                  onChange={e => {
-                    setSelectedRole(e.target.value)
-                    if (errors.role) setErrors({ ...errors, role: '' })
-                  }}
-                  disabled={loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
-                >
-                  <option value="">Select a role...</option>
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={e => {
+                  setSelectedRole(e.target.value)
+                  if (errors.role) setErrors({ ...errors, role: '' })
+                }}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+              >
+                <option value="">Select org role...</option>
+                <option value="admin">Administrator - Manage users, settings, projects</option>
+                <option value="member">Member - Standard org access</option>
+                <option value="viewer">Viewer - Read-only access</option>
+              </select>
+              <p className="text-xs text-gray-500">
+                Project roles can be assigned after the user joins
+              </p>
               {errors.role && (
                 <p className="text-sm text-red-600">{errors.role}</p>
               )}

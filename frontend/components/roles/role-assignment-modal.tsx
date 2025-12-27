@@ -136,7 +136,7 @@ export function RoleAssignmentModal({
 
   const handleAssignRole = async () => {
     const selectedRole = roles.find(r => r.id === selectedRoleId)
-    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
+    const isAdminRole = selectedRole?.role_type === 'project_admin' || selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
 
     // Admin role only needs role selection
     // Other roles require both role and project
@@ -252,36 +252,47 @@ export function RoleAssignmentModal({
       case 'owner':
       case 'admin':
       case 'administrator':
+      case 'project_admin':
         return 'bg-red-100 text-red-800 border-red-200'
-      case 'project_manager':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'developer':
+      case 'qa_lead':
         return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'tester':
+      case 'technical_lead':
+        return 'bg-amber-100 text-amber-800 border-amber-200'
+      case 'auto_eng':
+        return 'bg-purple-100 text-purple-800 border-purple-200'
       case 'qa_engineer':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'viewer':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200'
       case 'product_owner':
+        return 'bg-pink-100 text-pink-800 border-pink-200'
+      case 'developer':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200'
+      case 'viewer':
         return 'bg-gray-100 text-gray-800 border-gray-200'
       default:
-        return 'bg-cyan-100 text-cyan-800 border-cyan-200'
+        return 'bg-slate-100 text-slate-800 border-slate-200'
     }
   }
 
   const getRoleDisplayName = (roleType: string) => {
     switch (roleType) {
       case 'owner':
-        return 'Super Administrator'
+        return 'Super Admin'
       case 'admin':
-        return 'Administrator'
-      case 'qa_manager':
-        return 'Quality Assurance'
+      case 'administrator':
+      case 'project_admin':
+        return 'Admin'
       case 'qa_lead':
-        return 'Quality Assurance'
+        return 'QA Strategy'
       case 'qa_engineer':
-        return 'Quality Assurance'
+        return 'QA Engineering'
+      case 'auto_eng':
+        return 'Automation'
+      case 'technical_lead':
+        return 'Tech Review'
       case 'product_owner':
-        return 'Stakeholder'
+        return 'Business Sign-off'
+      case 'developer':
+        return 'Engineering'
       case 'viewer':
         return 'Read Only'
       default:
@@ -349,7 +360,7 @@ export function RoleAssignmentModal({
                   {/* Project Selection for Assignment - Hidden for Admin/Owner Role */}
                   {selectedRoleId && (() => {
                     const selectedRole = roles.find(r => r.id === selectedRoleId)
-                    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
+                    const isAdminRole = selectedRole?.role_type === 'project_admin' || selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
 
                     if (isAdminRole) {
                       return (
@@ -462,7 +473,7 @@ export function RoleAssignmentModal({
                   {/* Assign Button */}
                   {(() => {
                     const selectedRole = roles.find(r => r.id === selectedRoleId)
-                    const isAdminRole = selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
+                    const isAdminRole = selectedRole?.role_type === 'project_admin' || selectedRole?.role_type === 'administrator' || selectedRole?.role_type === 'owner' || selectedRole?.role_type === 'admin'
                     // Admin role only needs role selection, others need both role and project
                     const isEnabled = selectedRoleId && (isAdminRole || selectedProjectId)
 
@@ -523,13 +534,13 @@ export function RoleAssignmentModal({
                               </span>
                             </div>
                             {/* Only show project for non-org-level roles */}
-                            {!(roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
+                            {!(roleType === 'project_admin' || roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Project: {projectName}
                               </p>
                             )}
                             {/* Show org-level indicator for org roles */}
-                            {(roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
+                            {(roleType === 'project_admin' || roleType === 'owner' || roleType === 'admin' || roleType === 'administrator') && (
                               <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                                 Organization-level access
                               </p>

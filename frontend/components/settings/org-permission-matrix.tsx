@@ -49,16 +49,13 @@ const PERMISSION_GROUPS = {
 }
 
 // Role order for display (highest to lowest privilege)
-const ROLE_ORDER = ['owner', 'admin', 'sec_officer', 'auditor', 'svc_account', 'member', 'viewer']
+const ROLE_ORDER = ['owner', 'admin', 'member', 'viewer']
 
 // Role icons
 const getRoleIcon = (roleType: string) => {
     switch (roleType) {
         case 'owner': return <Crown className="w-4 h-4" />
         case 'admin': return <Settings className="w-4 h-4" />
-        case 'sec_officer': return <ShieldCheck className="w-4 h-4" />
-        case 'auditor': return <ClipboardCheck className="w-4 h-4" />
-        case 'svc_account': return <Bot className="w-4 h-4" />
         case 'member': return <User className="w-4 h-4" />
         case 'viewer': return <Eye className="w-4 h-4" />
         default: return <Shield className="w-4 h-4" />
@@ -122,7 +119,7 @@ export function OrgPermissionMatrix({ organisationId }: OrgPermissionMatrixProps
                     Organization Role Permissions Matrix
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Enterprise RBAC permissions for all 7 organization roles
+                    Enterprise RBAC permissions for all 4 organization roles
                 </p>
             </div>
 

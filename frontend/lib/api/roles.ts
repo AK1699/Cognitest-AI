@@ -45,79 +45,93 @@ export interface GroupProjectRoleWithDetails {
 
 // ==================== Enterprise Project Role Types ====================
 
-export type ProjectRoleType = 'project_admin' | 'qa_lead' | 'tester' | 'auto_eng' | 'dev_ro' | 'viewer'
+export type ProjectRoleType =
+  | 'project_admin'
+  | 'qa_lead'
+  | 'qa_engineer'
+  | 'auto_eng'
+  | 'technical_lead'
+  | 'product_owner'
+  | 'developer'
+  | 'viewer';
 
-// Role labels for display
-export const PROJECT_ROLE_LABELS: Record<string, string> = {
-  'project_admin': 'Project Admin',
-  'qa_lead': 'QA Lead',
-  'tester': 'Tester',
-  'auto_eng': 'Automation Engineer',
-  'dev_ro': 'Developer',
-  'viewer': 'Viewer',
-  // Legacy role mappings for backwards compatibility
-  'owner': 'Project Admin',
-  'admin': 'Project Admin',
-  'qa_manager': 'QA Lead',
-  'qa_engineer': 'Tester',
-  'product_owner': 'Developer',
-}
+export const PROJECT_ROLE_LABELS: Record<ProjectRoleType, string> = {
+  project_admin: 'Project Admin',
+  qa_lead: 'QA Lead',
+  qa_engineer: 'QA Engineer',
+  auto_eng: 'Automation Engineer',
+  technical_lead: 'Technical Lead',
+  product_owner: 'Product Owner',
+  developer: 'Developer',
+  viewer: 'Viewer',
+};
 
-// Role colors for badges and UI
+export const LEGACY_ROLE_MAPPING: Record<string, ProjectRoleType> = {
+  'owner': 'project_admin',
+  'admin': 'project_admin',
+  'qa_manager': 'qa_lead',
+  'qa_lead': 'qa_lead',
+  'qa_engineer': 'qa_engineer',
+  'tester': 'qa_engineer',
+  'product_owner': 'product_owner',
+  'dev_ro': 'developer',
+  'viewer': 'viewer',
+};
+
 export const PROJECT_ROLE_COLORS: Record<string, string> = {
-  'project_admin': '#DC2626',  // Red
-  'qa_lead': '#2563EB',        // Blue
-  'tester': '#059669',         // Green
-  'auto_eng': '#7C3AED',       // Purple
-  'dev_ro': '#0891B2',         // Cyan
-  'viewer': '#6B7280',         // Gray
-  // Alternative/legacy mappings
-  'owner': '#DC2626',
-  'admin': '#DC2626',
-  'administrator': '#DC2626',  // Alternative for project_admin
-  'qa_manager': '#2563EB',
-  'qa_engineer': '#059669',
-  'product_owner': '#0891B2',
-  'project_manager': '#F59E0B', // Amber - for project managers
-  'developer': '#0891B2',       // Cyan - same as dev_ro
-}
+  project_admin: 'text-red-600 bg-red-50 border-red-200',
+  qa_lead: 'text-blue-600 bg-blue-50 border-blue-200',
+  qa_engineer: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+  auto_eng: 'text-purple-600 bg-purple-50 border-purple-200',
+  technical_lead: 'text-amber-600 bg-amber-50 border-amber-200',
+  product_owner: 'text-pink-600 bg-pink-50 border-pink-200',
+  developer: 'text-cyan-600 bg-cyan-50 border-cyan-200',
+  viewer: 'text-slate-600 bg-slate-50 border-slate-200',
+  // Fallbacks
+  'owner': 'text-red-600 bg-red-50 border-red-200',
+  'admin': 'text-red-600 bg-red-50 border-red-200',
+};
 
 // Role descriptions
-export const PROJECT_ROLE_DESCRIPTIONS: Record<string, string> = {
-  'project_admin': 'Full project control - manages all test artifacts, approvals, automation, and security scans',
-  'qa_lead': 'Leads testers, approves test cases, creates test cycles, and validates AI-generated fixes',
-  'tester': 'Creates and executes tests, records evidence, runs automation flows',
-  'auto_eng': 'Manages automation flows, k6 scripts, accepts self-healing suggestions',
-  'dev_ro': 'Read-only access to test artifacts, can record evidence and view dashboards',
-  'viewer': 'Read-only access to view tests, results, and dashboards',
-}
+export const PROJECT_ROLE_DESCRIPTIONS: Record<ProjectRoleType, string> = {
+  project_admin: 'Full project control — manage settings, billing, and members',
+  qa_lead: 'Test strategy owner — designs plans and reviews technical execution',
+  qa_engineer: 'Creates and executes manual and automated tests',
+  auto_eng: 'Manages automation flows, AI scripts, and k6 performance tests',
+  technical_lead: 'Technical reviewer — validates approach and environment readiness',
+  product_owner: 'Business stakeholder — validates scenarios and reviews coverage',
+  developer: 'Read-only access to tests and results for debugging',
+  viewer: 'View-only access to dashboards and reports',
+};
 
 // Role hierarchy (higher = more privilege)
-export const PROJECT_ROLE_HIERARCHY: Record<string, number> = {
-  'project_admin': 100,
-  'qa_lead': 80,
-  'auto_eng': 60,
-  'tester': 50,
-  'dev_ro': 20,
-  'viewer': 10,
-}
+export const PROJECT_ROLE_HIERARCHY: Record<ProjectRoleType, number> = {
+  project_admin: 100,
+  qa_lead: 90,
+  technical_lead: 85,
+  auto_eng: 80,
+  qa_engineer: 70,
+  product_owner: 60,
+  developer: 40,
+  viewer: 10,
+};
 
 // Helper functions
 export function getProjectRoleLabel(roleType: string): string {
-  return PROJECT_ROLE_LABELS[roleType] || roleType
+  return PROJECT_ROLE_LABELS[roleType as ProjectRoleType] || roleType
 }
 
 export function getProjectRoleColor(roleType: string): string {
-  return PROJECT_ROLE_COLORS[roleType] || '#6B7280'
+  return PROJECT_ROLE_COLORS[roleType] || 'text-slate-600 bg-slate-50 border-slate-200'
 }
 
 export function getProjectRoleDescription(roleType: string): string {
-  return PROJECT_ROLE_DESCRIPTIONS[roleType] || ''
+  return PROJECT_ROLE_DESCRIPTIONS[roleType as ProjectRoleType] || ''
 }
 
 export function canManageProjectRole(currentRoleType: string, targetRoleType: string): boolean {
-  const currentLevel = PROJECT_ROLE_HIERARCHY[currentRoleType] || 0
-  const targetLevel = PROJECT_ROLE_HIERARCHY[targetRoleType] || 0
+  const currentLevel = PROJECT_ROLE_HIERARCHY[currentRoleType as ProjectRoleType] || 0
+  const targetLevel = PROJECT_ROLE_HIERARCHY[targetRoleType as ProjectRoleType] || 0
   return currentLevel > targetLevel
 }
 

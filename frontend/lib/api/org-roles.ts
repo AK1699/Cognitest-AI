@@ -175,9 +175,6 @@ export async function initializeRoles(organisationId: string): Promise<{ message
 export const ROLE_COLORS: Record<string, string> = {
     owner: '#EF4444',       // Red
     admin: '#F59E0B',       // Amber
-    sec_officer: '#8B5CF6', // Purple
-    auditor: '#06B6D4',     // Cyan
-    svc_account: '#64748B', // Slate
     member: '#10B981',      // Green
     viewer: '#6B7280'       // Gray
 }
@@ -185,9 +182,6 @@ export const ROLE_COLORS: Record<string, string> = {
 export const ROLE_LABELS: Record<string, string> = {
     owner: 'Owner',
     admin: 'Administrator',
-    sec_officer: 'Security Officer',
-    auditor: 'Auditor',
-    svc_account: 'Service Account',
     member: 'Member',
     viewer: 'Viewer'
 }
@@ -195,14 +189,11 @@ export const ROLE_LABELS: Record<string, string> = {
 export const ROLE_DESCRIPTIONS: Record<string, string> = {
     owner: 'Full control including billing, GDPR deletion, and impersonation',
     admin: 'Manage users, settings, SSO, and all features except billing',
-    sec_officer: 'Security & compliance - scan profiles, vulnerability triage',
-    auditor: 'Read-only compliance - audit logs, invoices, cost reports',
-    svc_account: 'CI/CD integration - token auth, execute flows only',
     member: 'Standard access to create and run tests',
     viewer: 'Read-only access to view tests and results'
 }
 
-export const ROLE_HIERARCHY: OrgRoleType[] = ['viewer', 'svc_account', 'member', 'auditor', 'sec_officer', 'admin', 'owner']
+export const ROLE_HIERARCHY: OrgRoleType[] = ['viewer', 'member', 'admin', 'owner']
 
 /**
  * Get role badge color for UI
