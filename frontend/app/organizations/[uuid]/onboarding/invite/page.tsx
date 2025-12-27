@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import api from '@/lib/api'
 import { Users, Mail, Plus, X, ArrowRight, ChevronRight, ChevronDown } from 'lucide-react'
+import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper'
 import { Button } from '@/components/ui/button'
 import {
     Select,
@@ -119,26 +120,7 @@ export default function OnboardingInvitePage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
             {/* Progress indicator */}
-            <div className="pt-8 px-6">
-                <div className="max-w-xl mx-auto">
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                        <span className="flex items-center gap-1">
-                            <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">✓</span>
-                            <span>Create Account</span>
-                        </span>
-                        <ChevronRight className="w-4 h-4" />
-                        <span className="flex items-center gap-1">
-                            <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">✓</span>
-                            <span>Organization</span>
-                        </span>
-                        <ChevronRight className="w-4 h-4" />
-                        <span className="flex items-center gap-1">
-                            <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">3</span>
-                            <span className="font-medium text-primary">Invite Team</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <OnboardingStepper currentStep={3} />
 
             {/* Main Content */}
             <div className="flex items-center justify-center min-h-[calc(100vh-100px)] px-6 py-12">

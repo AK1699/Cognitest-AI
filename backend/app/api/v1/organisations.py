@@ -19,12 +19,6 @@ ORG_CACHE_TTL = 300  # 5 minutes
 ORG_DETAIL_CACHE_TTL = 600  # 10 minutes
 
 
-async def invalidate_org_caches(org_id: str, user_id: str = None):
-    """Invalidate cache entries for an organization."""
-    await invalidate_cache_pattern(f"org:{org_id}:*")
-    if user_id:
-        await invalidate_cache_pattern(f"orgs:user:{user_id}")
-
 # Default PROJECT roles configuration - 6 Enterprise Project Roles
 # These are created for each organization to assign users to projects
 DEFAULT_PROJECT_ROLES = {

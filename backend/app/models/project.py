@@ -37,6 +37,7 @@ class Project(Base):
 
     # Relationships
     owner = relationship("User", back_populates="projects")
+    organisation = relationship("Organisation", back_populates="projects")
     test_plans = relationship("TestPlan", back_populates="project", cascade="all, delete-orphan")
     test_suites = relationship("TestSuite", back_populates="project", cascade="all, delete-orphan")
     test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")

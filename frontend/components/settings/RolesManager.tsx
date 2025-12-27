@@ -35,6 +35,7 @@ import {
     type UserRoleAssignment
 } from '@/lib/api/org-roles'
 import { useOrganizationStore } from '@/lib/store/organization-store'
+import { toast } from 'sonner'
 
 interface RolesManagerProps {
     organisationId: string
@@ -54,6 +55,8 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingUserData, setEditingUserData] = useState<{
         user_id: string
+        username: string
+        email: string
         full_name: string
         role: string
     } | null>(null)
@@ -126,9 +129,9 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
 
         // Proactive check for owners leaving an org with other members
         if (isSelf && members.length > 1) {
-            const currentMembership = members.find(m => m.user_id === userId)
+            const currentMembership = members.find(m => m.user_id.toString() === userId.toString())
             if (currentMembership?.role === 'owner') {
-                const hasOtherOwners = members.some(m => m.user_id !== userId && m.role === 'owner')
+                const hasOtherOwners = members.some(m => m.user_id.toString() !== userId.toString() && m.role === 'owner')
                 if (!hasOtherOwners) {
                     setError('Cannot leave organization as you are the only owner. Please promote another member to owner or transfer ownership first.')
                     return
@@ -151,9 +154,32 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
             // Remove member from THIS org only, not delete the user entirely
             await api.delete(`/api/v1/organisations/${organisationId}/members/${userId}`)
             if (isSelf) {
-                // Reset org store cache before redirect - ensures fresh data on orgs page
+                // Reset org store cache
                 useOrganizationStore.getState().reset()
-                window.location.href = '/organizations'
+
+                // Check if user has other orgs
+                try {
+                    const orgsResponse = await api.get('/api/v1/organisations/')
+                    const remainingOrgs = orgsResponse.data || []
+
+                    if (remainingOrgs.length === 0) {
+                        // No other orgs - true account termination
+                        try {
+                            await api.delete(`/api/v1/users/${userId}`)
+                            toast.success('Account terminated successfully. Purging data...')
+                        } catch (deleteErr) {
+                            console.error('Failed to terminate user account:', deleteErr)
+                        }
+                        await logout()
+                    } else {
+                        // Has other orgs - redirect to org selection
+                        // Force a full redirect to clear any state
+                        window.location.href = '/organizations'
+                    }
+                } catch {
+                    // Fallback: redirect to orgs page
+                    window.location.href = '/organizations'
+                }
             } else {
                 setMembers(prev => prev.filter(m => m.user_id !== userId))
             }
@@ -167,13 +193,16 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
     }
 
     const openEditModal = (member: UserRoleAssignment) => {
+        const initialFullName = member.full_name || member.username || ''
         setEditingUserData({
             user_id: member.user_id,
+            username: member.username,
+            email: member.email,
             full_name: member.full_name || '',
             role: member.role
         })
         setEditFormData({
-            full_name: member.full_name || '',
+            full_name: initialFullName,
             role: member.role
         })
         setShowEditModal(true)
@@ -482,6 +511,22 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                             >
                                 <X className="w-5 h-5" />
                             </button>
+                        </div>
+
+                        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-6 border border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                                    {editingUserData.username?.charAt(0).toUpperCase() || '?'}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                        {editingUserData.username}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {editingUserData.email}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">

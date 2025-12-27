@@ -185,7 +185,7 @@ export default function SignInPage() {
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-semibold text-center text-gray-900 dark:text-white mb-6">Log in to CogniTest</h2>
+            <h2 className="text-2xl font-semibold text-center text-gray-900 dark:text-white mb-6">Sign in to CogniTest</h2>
 
             {/* Social Logins */}
             <div className="space-y-4 mb-6">
@@ -275,7 +275,7 @@ export default function SignInPage() {
                   disabled={loading}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
-                  {loading ? 'Signing in...' : 'Log in'}
+                  {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </div>
             </form>

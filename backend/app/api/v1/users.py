@@ -226,25 +226,19 @@ async def delete_user(
     user_owned_orgs = user_owned_orgs_query.scalars().all()
     
     for uo in user_owned_orgs:
-        # Check if there are any other members in this organization
-        other_members_query = await db.execute(
+        # Check if there are any other members in this organization (not just owners)
+        other_members_result = await db.execute(
             select(UserOrganisation).where(
                 UserOrganisation.organisation_id == uo.organisation_id,
                 UserOrganisation.user_id != user_id
             )
         )
-        has_other_members = other_members_query.scalars().first() is not None
+        other_members = other_members_result.scalars().all()
         
-        if has_other_members:
+        if len(other_members) > 0:
             # If there are other members, check if any of them are also owners
-            other_owners_query = await db.execute(
-                select(UserOrganisation).where(
-                    UserOrganisation.organisation_id == uo.organisation_id,
-                    UserOrganisation.user_id != user_id,
-                    UserOrganisation.role == OrgRoleType.OWNER.value
-                )
-            )
-            if not other_owners_query.scalars().first():
+            other_owners = [m for m in other_members if m.role == OrgRoleType.OWNER.value]
+            if not other_owners:
                 org_query = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
                 org = org_query.scalar_one_or_none()
                 org_name = org.name if org else "Unknown Organization"
@@ -252,10 +246,31 @@ async def delete_user(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Cannot delete user as they are the only owner of organization '{org_name}'. Please promote another member to owner or transfer ownership first."
                 )
-        # If there are no other members, we allow deleting the user (the org will be orphaned but empty)
+            else:
+                # Transfer primary owner_id to one of the other owners
+                org_query = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
+                org = org_query.scalar_one_or_none()
+                if org and org.owner_id == user_id:
+                    org.owner_id = other_owners[0].user_id
+                    db.add(org)
+                    # We'll commit after the loop or now
+                    await db.flush()
+        else:
+            # If there are NO other members, delete the entire organization
+            org_result = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
+            org = org_result.scalar_one_or_none()
+            if org:
+                await db.delete(org)
+                # Important: commit org deletion to trigger cascade and clear FK pointers
+                await db.commit()
 
-    # Delete the user
-    await db.delete(user)
-    await db.commit()
+    # Refresh user object if it was potentially affected by org deletions (unlikely but safe)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Delete the user
+        await db.delete(user)
+        await db.commit()
 
     return None

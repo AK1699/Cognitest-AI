@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/api'
 import { setCurrentOrganization } from '@/lib/api/session'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Plus, Layout } from 'lucide-react'
+import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper'
 
 interface Organisation {
   id: string
@@ -121,17 +122,29 @@ export default function OrganizationsPage() {
         </div>
 
         {organisations.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You don't have any organisations yet
-            </p>
-            <button
-              onClick={() => router.push('/organizations/new')}
-              className="inline-flex items-center px-6 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Create Organisation
-            </button>
+          <div className="space-y-8">
+            <OnboardingStepper currentStep={1} />
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center border border-teal-100 dark:border-gray-700">
+              <div className="w-20 h-20 rounded-full bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center mx-auto mb-8">
+                <Layout className="w-10 h-10 text-primary" />
+              </div>
+
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Welcome to Cognitest
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-10 max-w-md mx-auto">
+                You're just a few steps away from automating your testing workflow. Let's start by creating your first organization.
+              </p>
+
+              <button
+                onClick={() => router.push('/organizations/new')}
+                className="inline-flex items-center px-8 py-4 rounded-xl bg-primary text-white font-bold text-lg hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-6 h-6 mr-3 stroke-[3px]" />
+                Create Organization
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

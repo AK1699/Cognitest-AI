@@ -79,12 +79,17 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
                     const userMembership = membersRes.data.find((m: any) => m.user_id === userId)
                     if (userMembership) {
                         userRole = userMembership.role
-                        isOwner = userRole === 'owner'
+                    } else {
+                        // Not in members list? Check if they are the owner_id
+                        const isOrgOwner = currentOrg.owner_id === userId
+                        userRole = isOrgOwner ? 'owner' : 'member'
                     }
+                    isOwner = userRole === 'owner'
                 } catch (err) {
                     // Fallback to owner_id check if members API fails
-                    isOwner = currentOrg.owner_id === userId
-                    userRole = isOwner ? 'owner' : 'member'
+                    const isOrgOwner = currentOrg.owner_id === userId
+                    userRole = isOrgOwner ? 'owner' : 'member'
+                    isOwner = isOrgOwner
                 }
             }
 
@@ -135,13 +140,25 @@ export const useOrganizationStore = create<OrganizationState>()((set, get) => ({
         try {
             const membersRes = await api.get(`/api/v1/organisations/${state.currentOrganisation.id}/members/`)
             const userMembership = membersRes.data.find((m: any) => m.user_id === userId)
+
+            let userRole: string | null = null
             if (userMembership) {
-                const userRole = userMembership.role
-                const isOwner = userRole === 'owner'
-                set({ userRole, isOwner })
+                userRole = userMembership.role
+            } else {
+                // Fallback to owner_id check
+                const isOrgOwner = state.currentOrganisation.owner_id === userId
+                userRole = isOrgOwner ? 'owner' : 'member'
             }
+
+            const isOwner = userRole === 'owner'
+
+            set({ userRole, isOwner })
         } catch (err) {
             console.error('Failed to refresh user role:', err)
+            // Fallback to owner_id check if members API fails
+            const isOrgOwner = state.currentOrganisation.owner_id === userId
+            const userRole = isOrgOwner ? 'owner' : 'member'
+            set({ userRole, isOwner: isOrgOwner })
         }
     },
 

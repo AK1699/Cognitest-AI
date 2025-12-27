@@ -27,6 +27,7 @@ class GroupType(Base):
     name = Column(String(100), nullable=False)  # "Administration", "Quality Assurance", etc.
     description = Column(Text, nullable=True)
     organization_id = Column(UUID(as_uuid=True), ForeignKey('organisations.id'), nullable=True)
+    organisation = relationship('Organisation', back_populates='group_types')
     is_system_type = Column(Boolean, default=False)  # System types can't be deleted
     is_active = Column(Boolean, default=True)
     order = Column(Integer, default=0)  # Display order
@@ -78,6 +79,7 @@ class GroupTypeAccess(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     group_type_id = Column(UUID(as_uuid=True), ForeignKey('group_types.id'), nullable=False)
     organization_id = Column(UUID(as_uuid=True), ForeignKey('organisations.id'), nullable=False)
+    organisation = relationship('Organisation', back_populates='group_type_access')
     access_level = Column(String(50), nullable=False)  # 'organization', 'project', 'limited'
     accessible_modules = Column(ARRAY(String), nullable=True)  # If None, all modules
     can_manage_users = Column(Boolean, default=False)

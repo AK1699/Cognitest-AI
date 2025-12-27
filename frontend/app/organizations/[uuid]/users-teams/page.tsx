@@ -481,9 +481,9 @@ export default function UsersTeamsPage() {
 
     // Proactive check for owners leaving an org with other members
     if (isSelf && orgMembers.length > 1) {
-      const currentMember = orgMembers.find(m => m.user_id === user.id)
+      const currentMember = orgMembers.find(m => m.user_id.toString() === user.id.toString())
       if (currentMember?.role === 'owner') {
-        const hasOtherOwners = orgMembers.some(m => m.user_id !== user.id && m.role === 'owner')
+        const hasOtherOwners = orgMembers.some(m => m.user_id.toString() !== user.id.toString() && m.role === 'owner')
         if (!hasOtherOwners) {
           toast.error(`Cannot leave organization as you are the only owner. Please promote another member to owner or transfer ownership first.`)
           return
@@ -505,10 +505,33 @@ export default function UsersTeamsPage() {
       // Remove member from THIS org only, not delete the user entirely
       await api.delete(`/api/v1/organisations/${organisationId}/members/${user.id}`)
       if (isSelf) {
-        // Reset org store cache before redirect - ensures fresh data on orgs page
+        // Reset org store cache
         useOrganizationStore.getState().reset()
-        toast.success('You have left the organization')
-        window.location.href = '/organizations'
+
+        // Check if user has other orgs
+        try {
+          const orgsResponse = await api.get('/api/v1/organisations/')
+          const remainingOrgs = orgsResponse.data || []
+
+          if (remainingOrgs.length === 0) {
+            // No other orgs - true account termination
+            try {
+              await api.delete(`/api/v1/users/${user.id}`)
+              toast.success('Account terminated successfully. Purging data...')
+            } catch (deleteErr) {
+              console.error('Failed to terminate user account:', deleteErr)
+            }
+            await logout()
+          } else {
+            // Has other orgs - redirect to org selection
+            toast.success('You have left the organization')
+            // Force a full redirect to clear any state
+            window.location.href = '/organizations'
+          }
+        } catch {
+          // Fallback: redirect to orgs page
+          window.location.href = '/organizations'
+        }
       } else {
         toast.success('User removed from organization')
         fetchData()

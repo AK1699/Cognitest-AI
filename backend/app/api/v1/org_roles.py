@@ -493,59 +493,115 @@ async def remove_member(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove a member from the organization (or self-leave)"""
-    
-    # Get membership
-    result = await db.execute(
-        select(UserOrganisation)
-        .where(
-            UserOrganisation.user_id == user_id,
-            UserOrganisation.organisation_id == organisation_id
-        )
-    )
-    membership = result.scalar_one_or_none()
-    
-    if not membership:
-        raise HTTPException(status_code=404, detail="User is not a member")
-    
-    is_self = str(current_user.id) == str(user_id)
-    
-    # Handle owner leaving/removal
-    if membership.role == "owner":
-        if not is_self:
-            # Cannot remove an owner (they must leave themselves)
-            raise HTTPException(status_code=400, detail="Cannot remove an organization owner. They must leave themselves.")
-        
-        # Self-leave: Check if there are other members and if so, require another owner
-        other_members_result = await db.execute(
+    try:
+        # Get membership
+        result = await db.execute(
             select(UserOrganisation)
             .where(
-                UserOrganisation.organisation_id == organisation_id,
-                UserOrganisation.user_id != user_id
+                UserOrganisation.user_id == user_id,
+                UserOrganisation.organisation_id == organisation_id
             )
         )
-        other_members = other_members_result.scalars().all()
+        membership = result.scalar_one_or_none()
         
-        if len(other_members) > 0:
-            # There are other members - check if any are owners
-            other_owners = [m for m in other_members if m.role == "owner"]
-            if not other_owners:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Cannot leave organization as you are the only owner and there are other members. Please promote another member to owner first."
+        if not membership:
+            raise HTTPException(status_code=404, detail="User is not a member")
+        
+        is_self = str(current_user.id) == str(user_id)
+        
+        # Handle owner leaving/removal
+        if membership.role == "owner":
+            if not is_self:
+                # Cannot remove an owner (they must leave themselves)
+                raise HTTPException(status_code=400, detail="Cannot remove an organization owner. They must leave themselves.")
+            
+            # Self-leave: Check if there are other members and if so, require another owner
+            other_members_result = await db.execute(
+                select(UserOrganisation)
+                .where(
+                    UserOrganisation.organisation_id == organisation_id,
+                    UserOrganisation.user_id != user_id
                 )
-        # If no other members, or there are other owners, allow leaving
-    else:
-        # Non-owner: need permission to manage users (or be self)
-        if not is_self:
-            await check_org_permission(current_user, organisation_id, "can_manage_users", db)
-            # Check hierarchy
-            if not await check_role_hierarchy(current_user, organisation_id, membership.role, db):
-                raise PermissionDenied("You cannot remove a user with equal or higher role")
-    
-    await db.delete(membership)
-    await db.commit()
-    
-    return {"message": "Member removed successfully"}
+            )
+            other_members = other_members_result.scalars().all()
+            
+            if len(other_members) > 0:
+                # There are other members - check if any are owners
+                other_owners = [m for m in other_members if m.role == "owner"]
+                if not other_owners:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Cannot leave organization as you are the only owner and there are other members. Please promote another member to owner first."
+                    )
+                
+                # --- Ownership Transfer Logic ---
+                # Find the organization object to update the owner_id
+                org_query = await db.execute(select(Organisation).where(Organisation.id == organisation_id))
+                org = org_query.scalar_one_or_none()
+                
+                if org and org.owner_id == user_id:
+                    # Transfer ownership to one of the other owners
+                    new_owner = other_owners[0]
+                    print(f"[remove_member] Transferring ownership of {organisation_id} from {user_id} to {new_owner.user_id}")
+                    org.owner_id = new_owner.user_id
+                    db.add(org)
+            # If no other members, or there are other owners, allow leaving
+        else:
+            # Non-owner: need permission to manage users (or be self)
+            if not is_self:
+                await check_org_permission(current_user, organisation_id, "can_manage_users", db)
+                # Check hierarchy
+                if not await check_role_hierarchy(current_user, organisation_id, membership.role, db):
+                    raise PermissionDenied("You cannot remove a user with equal or higher role")
+        
+        # Delete membership
+        await db.delete(membership)
+        await db.commit()
+
+        # Invalidate caches
+        try:
+            from app.core.cache import invalidate_org_caches
+            await invalidate_org_caches(str(organisation_id), str(user_id))
+        except Exception as cache_err:
+            print(f"[remove_member] WARNING: Cache invalidation failed: {cache_err}")
+
+        # Check if any members belong to this organization now
+        members_count_result = await db.execute(
+            select(func.count(UserOrganisation.id))
+            .where(UserOrganisation.organisation_id == organisation_id)
+        )
+        members_count = members_count_result.scalar()
+
+        if members_count == 0:
+            # No members left - cleanup the entire organization and its data
+            org_result = await db.execute(select(Organisation).where(Organisation.id == organisation_id))
+            org = org_result.scalar_one_or_none()
+            if org:
+                from sqlalchemy import text
+                # Force delete all dependencies
+                # (This matches the logic in organisations.py:delete_organisation)
+                await db.execute(text("DELETE FROM group_type_access WHERE organization_id = :o_id"), {"o_id": organisation_id})
+                await db.execute(text("DELETE FROM group_types WHERE organization_id = :o_id"), {"o_id": organisation_id})
+                await db.execute(text("DELETE FROM organization_roles WHERE organisation_id = :o_id"), {"o_id": organisation_id})
+                
+                await db.delete(org)
+                await db.commit()
+                return {"message": "Member removed and organization deleted as it has no more members"}
+        
+        return {"message": "Member removed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[remove_member] CRITICAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        # Log to a temporary file for the user/us to see
+        with open("remove_member_error.log", "a") as f:
+            f.write(f"\n--- {datetime.now()} ---\n")
+            f.write(f"Error removing member {user_id} from org {organisation_id}: {str(e)}\n")
+            traceback.print_exc(file=f)
+        raise HTTPException(status_code=500, detail=f"Internal error during removal: {str(e)}")
 
 
 # ==================== Role Initialization ====================

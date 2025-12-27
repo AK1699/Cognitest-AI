@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import api from '@/lib/api'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper'
 
 export default function CreateOrganizationPage() {
   const [name, setName] = useState('')
@@ -70,8 +71,12 @@ export default function CreateOrganizationPage() {
 
       toast.success('Organization created successfully!')
 
-      // Redirect to onboarding invite page
-      router.push(`/organizations/${response.data.id}/onboarding/invite`)
+      // Redirect logic: only onboarding users go to the invite page
+      if (isOnboarding) {
+        router.push(`/organizations/${response.data.id}/onboarding/invite`)
+      } else {
+        router.push(`/organizations/${response.data.id}/projects`)
+      }
     } catch (error: any) {
       console.error('Error creating organization:', error)
 
@@ -107,28 +112,7 @@ export default function CreateOrganizationPage() {
   return (
     <div className="min-h-screen bg-teal-50 dark:bg-gray-900">
       {/* Progress indicator - only show during onboarding */}
-      {isOnboarding && (
-        <div className="pt-8 px-6">
-          <div className="max-w-xl mx-auto">
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-              <span className="flex items-center gap-1">
-                <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">✓</span>
-                <span>Create Account</span>
-              </span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="flex items-center gap-1">
-                <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">2</span>
-                <span className="font-medium text-primary">Organization</span>
-              </span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="flex items-center gap-1">
-                <span className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 flex items-center justify-center text-xs font-medium">3</span>
-                <span>Invite Team</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      {isOnboarding && <OnboardingStepper currentStep={2} />}
 
       {/* Back Button - only show when not onboarding */}
       {!isOnboarding && (

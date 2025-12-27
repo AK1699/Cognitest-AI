@@ -195,3 +195,10 @@ async def invalidate_cache_pattern(pattern: str):
         await invalidate_cache_pattern("user:*")
     """
     return await CacheService.delete_pattern(pattern)
+
+
+async def invalidate_org_caches(org_id: str, user_id: str = None):
+    """Invalidate cache entries for an organization."""
+    await invalidate_cache_pattern(f"org:{org_id}:*")
+    if user_id:
+        await invalidate_cache_pattern(f"orgs:user:{user_id}")

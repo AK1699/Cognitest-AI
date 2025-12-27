@@ -275,9 +275,12 @@ class Organisation(Base):
 
     # Relationships
     integrations = relationship("Integration", back_populates="organisation", cascade="all, delete-orphan")
-    subscription = relationship("OrganizationSubscription", back_populates="organisation", uselist=False)
+    subscription = relationship("OrganizationSubscription", back_populates="organisation", cascade="all, delete-orphan", uselist=False)
     roles = relationship("OrganizationRole", back_populates="organisation", cascade="all, delete-orphan")
     user_memberships = relationship("UserOrganisation", back_populates="organisation", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="organisation", cascade="all, delete-orphan")
+    group_types = relationship("GroupType", back_populates="organisation", cascade="all, delete-orphan")
+    group_type_access = relationship("GroupTypeAccess", back_populates="organisation", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Organisation {self.name}>"
