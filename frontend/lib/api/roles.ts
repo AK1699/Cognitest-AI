@@ -71,12 +71,15 @@ export const PROJECT_ROLE_COLORS: Record<string, string> = {
   'auto_eng': '#7C3AED',       // Purple
   'dev_ro': '#0891B2',         // Cyan
   'viewer': '#6B7280',         // Gray
-  // Legacy mappings
+  // Alternative/legacy mappings
   'owner': '#DC2626',
   'admin': '#DC2626',
+  'administrator': '#DC2626',  // Alternative for project_admin
   'qa_manager': '#2563EB',
   'qa_engineer': '#059669',
   'product_owner': '#0891B2',
+  'project_manager': '#F59E0B', // Amber - for project managers
+  'developer': '#0891B2',       // Cyan - same as dev_ro
 }
 
 // Role descriptions
