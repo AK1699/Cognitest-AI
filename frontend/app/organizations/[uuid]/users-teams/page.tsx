@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -1070,21 +1071,28 @@ export default function UsersTeamsPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Assign Role (Optional)
                   </label>
-                  <select
+                  <Select
                     value={userFormData.roleType}
-                    onChange={(e) => setUserFormData({ ...userFormData, roleType: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    onValueChange={(value) => setUserFormData({ ...userFormData, roleType: value })}
                   >
-                    <option value="">Select a role...</option>
-                    {/* Filter to only show the 6 enterprise project roles */}
-                    {roles
-                      .filter(role => ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer'].includes(role.role_type))
-                      .map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
-                  </select>
+                    <SelectTrigger className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                      <SelectValue placeholder="Select a role..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      {/* Show all roles - both enterprise and legacy role types */}
+                      {roles
+                        .filter(role => ['project_admin', 'qa_lead', 'tester', 'auto_eng', 'dev_ro', 'viewer', 'administrator', 'developer', 'project_manager'].includes(role.role_type))
+                        .map(role => (
+                          <SelectItem
+                            key={role.id}
+                            value={role.id}
+                            className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                          >
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">

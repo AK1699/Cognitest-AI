@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
     Crown,
     Shield,
@@ -194,17 +195,25 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                                     <td className="py-3 px-4">
                                         {editingMember === member.user_id ? (
                                             <div className="flex items-center gap-2">
-                                                <select
+                                                <Select
                                                     value={selectedRole}
-                                                    onChange={(e) => setSelectedRole(e.target.value)}
-                                                    className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700"
+                                                    onValueChange={(value) => setSelectedRole(value)}
                                                 >
-                                                    {roles.map(role => (
-                                                        <option key={role.id} value={role.role_type}>
-                                                            {role.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    <SelectTrigger className="w-[140px] h-8 text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                                                        <SelectValue placeholder="Select role..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                                        {roles.map(role => (
+                                                            <SelectItem
+                                                                key={role.id}
+                                                                value={role.role_type}
+                                                                className="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                                            >
+                                                                {role.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                                 <button
                                                     onClick={() => handleRoleChange(member.user_id, selectedRole)}
                                                     className="p-1 text-green-600 hover:bg-green-50 rounded"
