@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus } from 'lucide-react'
+import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus, Crown, Eye, Code2, TestTube, Bot, Settings } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
@@ -33,6 +33,7 @@ import { EditUserModal } from '@/components/users-teams/edit-user-modal'
 import { EditGroupModal } from '@/components/users-teams/edit-group-modal'
 import { CreateGroupWithTypeModal } from '@/components/users-teams/create-group-with-type-modal'
 import { RolesManager } from '@/components/settings/RolesManager'
+import { listOrgMembers, type UserRoleAssignment } from '@/lib/api/org-roles'
 
 type Tab = 'users' | 'teams' | 'roles' | 'org-roles'
 
@@ -64,6 +65,7 @@ export default function UsersTeamsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
   const [userProjects, setUserProjects] = useState<Record<string, Project[]>>({})
+  const [orgMembers, setOrgMembers] = useState<UserRoleAssignment[]>([])
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false)
 
   // Modal states
@@ -181,6 +183,15 @@ export default function UsersTeamsPage() {
 
       // Fetch user roles across all projects (pass projects as parameter)
       await fetchAllUserRoles(usersData, projectsData)
+
+      // Fetch org members (for org role display)
+      try {
+        const orgMembersData = await listOrgMembers(organisationId)
+        setOrgMembers(orgMembersData)
+      } catch (e) {
+        console.warn('Failed to fetch org members:', e)
+        setOrgMembers([])
+      }
 
       // Fetch user projects for each user
       if (usersData.length > 0) {
@@ -578,7 +589,7 @@ export default function UsersTeamsPage() {
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
             >
               <Shield className="w-4 h-4" />
-              Project Roles ({roles.length})
+              Project Roles
             </button>
             <button
               onClick={() => setActiveTab('org-roles')}
@@ -615,7 +626,8 @@ export default function UsersTeamsPage() {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
                     <th scope="col" className="px-6 py-3">User</th>
-                    <th scope="col" className="px-6 py-3">Role</th>
+                    <th scope="col" className="px-6 py-3">Org Role</th>
+                    <th scope="col" className="px-6 py-3">Project Role</th>
                     <th scope="col" className="px-6 py-3">Projects</th>
                     <th scope="col" className="px-6 py-3">Created</th>
                     <th scope="col" className="px-6 py-3 text-center">Actions</th>
@@ -624,7 +636,7 @@ export default function UsersTeamsPage() {
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                         No users found. Invite users to get started.
                       </td>
                     </tr>
@@ -646,44 +658,99 @@ export default function UsersTeamsPage() {
                             </div>
                           </div>
                         </td>
+                        {/* Org Role Column */}
+                        <td className="px-6 py-4">
+                          {(() => {
+                            // Find user's org role from orgMembers data
+                            const orgMember = orgMembers.find(m => m.user_id === user.id)
+                            const isOrgOwner = organisation && user.id === organisation.owner_id
+
+                            // Get org role icon
+                            const getOrgRoleIcon = (roleType: string) => {
+                              switch (roleType) {
+                                case 'owner': return <Crown className="w-3.5 h-3.5" />
+                                case 'admin': return <Shield className="w-3.5 h-3.5" />
+                                case 'viewer': return <Eye className="w-3.5 h-3.5" />
+                                default: return <User className="w-3.5 h-3.5" />
+                              }
+                            }
+
+                            // Get org role badge color
+                            const getOrgRoleBadgeColor = (roleType: string) => {
+                              switch (roleType) {
+                                case 'owner': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                                case 'admin': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                case 'viewer': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                case 'member': return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200'
+                                default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                              }
+                            }
+
+                            if (isOrgOwner) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-full">
+                                  <Crown className="w-3.5 h-3.5" />
+                                  Owner
+                                </span>
+                              )
+                            }
+
+                            if (orgMember) {
+                              const roleType = orgMember.role || 'member'
+                              const roleName = orgMember.role_name || roleType.charAt(0).toUpperCase() + roleType.slice(1)
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${getOrgRoleBadgeColor(roleType)}`}>
+                                  {getOrgRoleIcon(roleType)}
+                                  {roleName}
+                                </span>
+                              )
+                            }
+
+                            // Default if no org member data found
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 rounded-full">
+                                <User className="w-3.5 h-3.5" />
+                                Member
+                              </span>
+                            )
+                          })()}
+                        </td>
+                        {/* Project Role Column */}
                         <td className="px-6 py-4">
                           {(() => {
                             const userRolesList = userRoles.filter(ur => ur.user_id === user.id)
-                            const isOrgOwner = organisation && user.id === organisation.owner_id
-
-                            // If user is org owner, always show Owner badge first
-                            if (isOrgOwner) {
-                              return (
-                                <div className="flex flex-wrap gap-1">
-                                  <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
-                                    Owner
-                                  </span>
-                                  {userRolesList.length > 0 && (
-                                    Array.from(
-                                      new Map(
-                                        userRolesList.map(ur => {
-                                          const roleName = (ur as any).role?.name || (ur as any).role_name || 'Unknown Role'
-                                          return [roleName, ur]
-                                        })
-                                      ).values()
-                                    ).map(ur => (
-                                      <span
-                                        key={ur.id}
-                                        className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
-                                      >
-                                        {(ur as any).role?.name || (ur as any).role_name || 'Unknown Role'}
-                                      </span>
-                                    ))
-                                  )}
-                                </div>
-                              )
-                            }
 
                             if (userRolesList.length === 0) {
                               return <span className="text-sm text-gray-500 dark:text-gray-400">No roles</span>
                             }
 
-                            // Deduplicate roles by name
+                            // Helper function to get icon for role type
+                            const getRoleIcon = (roleType: string) => {
+                              switch (roleType) {
+                                case 'project_admin': return <Settings className="w-3.5 h-3.5" />
+                                case 'qa_lead': return <Crown className="w-3.5 h-3.5" />
+                                case 'tester': return <TestTube className="w-3.5 h-3.5" />
+                                case 'auto_eng': return <Bot className="w-3.5 h-3.5" />
+                                case 'dev_ro': return <Code2 className="w-3.5 h-3.5" />
+                                case 'viewer': return <Eye className="w-3.5 h-3.5" />
+                                default: return <Shield className="w-3.5 h-3.5" />
+                              }
+                            }
+
+                            // Helper function to get badge color for role type
+                            const getRoleBadgeColor = (roleType: string) => {
+                              switch (roleType) {
+                                case 'project_admin': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                case 'qa_lead': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                case 'tester': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                case 'auto_eng': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                case 'dev_ro': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
+                                case 'viewer': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              }
+                            }
+
+                            // Deduplicate project roles by name
                             const uniqueRoles = Array.from(
                               new Map(
                                 userRolesList.map(ur => {
@@ -695,14 +762,19 @@ export default function UsersTeamsPage() {
 
                             return (
                               <div className="flex flex-wrap gap-1">
-                                {uniqueRoles.map(ur => (
-                                  <span
-                                    key={ur.id}
-                                    className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded"
-                                  >
-                                    {(ur as any).role?.name || (ur as any).role_name || 'Unknown Role'}
-                                  </span>
-                                ))}
+                                {uniqueRoles.map(ur => {
+                                  const roleType = (ur as any).role?.role_type || ''
+                                  const roleName = (ur as any).role?.name || (ur as any).role_name || 'Unknown Role'
+                                  return (
+                                    <span
+                                      key={ur.id}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(roleType)}`}
+                                    >
+                                      {getRoleIcon(roleType)}
+                                      {roleName}
+                                    </span>
+                                  )
+                                })}
                               </div>
                             )
                           })()}
@@ -916,7 +988,7 @@ export default function UsersTeamsPage() {
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
               >
-                📋 Roles List
+                📋 Roles List ({roles.length})
               </button>
               <button
                 onClick={() => setRolesView('matrix')}
