@@ -123,15 +123,17 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
     }
 
     const handleRemoveMember = async (userId: string) => {
-        const isSelf = userId === currentUser?.id
-        const member = members.find(m => m.user_id === userId)
+        const isSelf = String(userId) === String(currentUser?.id)
+        const member = members.find(m => String(m.user_id) === String(userId))
         const memberName = member?.full_name || member?.username || 'this member'
+
+        console.log(`[handleRemoveMember] userId: ${userId}, currentUser.id: ${currentUser?.id}, isSelf: ${isSelf}`)
 
         // Proactive check for owners leaving an org with other members
         if (isSelf && members.length > 1) {
-            const currentMembership = members.find(m => m.user_id.toString() === userId.toString())
+            const currentMembership = members.find(m => String(m.user_id) === String(userId))
             if (currentMembership?.role === 'owner') {
-                const hasOtherOwners = members.some(m => m.user_id.toString() !== userId.toString() && m.role === 'owner')
+                const hasOtherOwners = members.some(m => String(m.user_id) !== String(userId) && m.role === 'owner')
                 if (!hasOtherOwners) {
                     setError('Cannot leave organization as you are the only owner. Please promote another member to owner or transfer ownership first.')
                     return
@@ -149,11 +151,15 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
         const { userId, isSelf } = confirmAction
         const actionLabel = isSelf ? 'leave' : 'remove'
 
+        console.log(`[executeRemoveMember] userId: ${userId}, isSelf: ${isSelf}`)
+
         setProcessingRemove(true)
         try {
             // Remove member from THIS org only, not delete the user entirely
             await api.delete(`/api/v1/organisations/${organisationId}/members/${userId}`)
+
             if (isSelf) {
+                console.log('[executeRemoveMember] Self-leave detected, managing redirection/logout...')
                 // Reset org store cache
                 useOrganizationStore.getState().reset()
 
@@ -161,9 +167,11 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                 try {
                     const orgsResponse = await api.get('/api/v1/organisations/')
                     const remainingOrgs = orgsResponse.data || []
+                    console.log(`[executeRemoveMember] Remaining orgs: ${remainingOrgs.length}`)
 
                     if (remainingOrgs.length === 0) {
                         // No other orgs - true account termination
+                        console.log('[executeRemoveMember] No remaining orgs, terminating account...')
                         try {
                             await api.delete(`/api/v1/users/${userId}`)
                             toast.success('Account terminated successfully. Purging data...')
@@ -171,17 +179,21 @@ export function RolesManager({ organisationId, currentUserRole = 'member' }: Rol
                             console.error('Failed to terminate user account:', deleteErr)
                         }
                         await logout()
+                        // Force location to signin just in case logout doesn't redirect
+                        window.location.href = '/auth/signin'
                     } else {
                         // Has other orgs - redirect to org selection
+                        console.log('[executeRemoveMember] Redirecting to /organizations')
                         // Force a full redirect to clear any state
                         window.location.href = '/organizations'
                     }
-                } catch {
+                } catch (fetchOrgsErr) {
+                    console.error('[executeRemoveMember] Error fetching remaining orgs:', fetchOrgsErr)
                     // Fallback: redirect to orgs page
                     window.location.href = '/organizations'
                 }
             } else {
-                setMembers(prev => prev.filter(m => m.user_id !== userId))
+                setMembers(prev => prev.filter(m => String(m.user_id) !== String(userId)))
             }
             setShowConfirmModal(false)
             setConfirmAction(null)

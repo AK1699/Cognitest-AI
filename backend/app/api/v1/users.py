@@ -255,14 +255,54 @@ async def delete_user(
                     db.add(org)
                     # We'll commit after the loop or now
                     await db.flush()
-        else:
-            # If there are NO other members, delete the entire organization
+        if len(other_members) == 0:
+            # If there are NO other members, delete the entire organization with full dependency purge
             org_result = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
             org = org_result.scalar_one_or_none()
             if org:
+                # 1. Delete user organisations
+                await db.execute(text("DELETE FROM user_organisations WHERE organisation_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 2. Delete group type access (US spelling organization_id)
+                await db.execute(text("DELETE FROM group_type_access WHERE organization_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 3. Delete group type roles
+                await db.execute(text("""
+                    DELETE FROM group_type_roles 
+                    WHERE group_type_id IN (SELECT id FROM group_types WHERE organization_id = :org_id)
+                """), {"org_id": str(org.id)})
+                
+                # 4. Delete group types
+                await db.execute(text("DELETE FROM group_types WHERE organization_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 5. Delete groups
+                await db.execute(text("DELETE FROM groups WHERE organisation_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 6. Delete project roles data
+                await db.execute(text("""
+                    DELETE FROM user_project_roles 
+                    WHERE project_id IN (SELECT id FROM projects WHERE organisation_id = :org_id)
+                """), {"org_id": str(org.id)})
+                
+                # 7. Delete projects
+                await db.execute(text("DELETE FROM projects WHERE organisation_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 8. Delete role permissions
+                await db.execute(text("""
+                    DELETE FROM role_permissions 
+                    WHERE role_id IN (SELECT id FROM project_roles WHERE organisation_id = :org_id)
+                """), {"org_id": str(org.id)})
+                
+                # 9. Delete project roles
+                await db.execute(text("DELETE FROM project_roles WHERE organisation_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 10. Delete organization roles
+                await db.execute(text("DELETE FROM organization_roles WHERE organisation_id = :org_id"), {"org_id": str(org.id)})
+                
+                # 11. Finally delete the organisation itself
                 await db.delete(org)
-                # Important: commit org deletion to trigger cascade and clear FK pointers
-                await db.commit()
+                # Flush to clear FK pointers before continue to next org or user deletion
+                await db.flush()
 
     # Refresh user object if it was potentially affected by org deletions (unlikely but safe)
     result = await db.execute(select(User).where(User.id == user_id))

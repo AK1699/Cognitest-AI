@@ -573,20 +573,56 @@ async def remove_member(
         members_count = members_count_result.scalar()
 
         if members_count == 0:
-            # No members left - cleanup the entire organization and its data
+            # No members left - cleanup the entire organization and its data in correct order
+            # (Matches complete deletion logic from organisations.py)
             org_result = await db.execute(select(Organisation).where(Organisation.id == organisation_id))
             org = org_result.scalar_one_or_none()
             if org:
                 from sqlalchemy import text
-                # Force delete all dependencies
-                # (This matches the logic in organisations.py:delete_organisation)
-                await db.execute(text("DELETE FROM group_type_access WHERE organization_id = :o_id"), {"o_id": organisation_id})
-                await db.execute(text("DELETE FROM group_types WHERE organization_id = :o_id"), {"o_id": organisation_id})
-                await db.execute(text("DELETE FROM organization_roles WHERE organisation_id = :o_id"), {"o_id": organisation_id})
                 
+                # 1. Delete user organisations (already handled by membership delete, but let's be safe)
+                await db.execute(text("DELETE FROM user_organisations WHERE organisation_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 2. Delete group type access (US spelling organization_id)
+                await db.execute(text("DELETE FROM group_type_access WHERE organization_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 3. Delete group type roles
+                await db.execute(text("""
+                    DELETE FROM group_type_roles 
+                    WHERE group_type_id IN (SELECT id FROM group_types WHERE organization_id = :org_id)
+                """), {"org_id": str(organisation_id)})
+                
+                # 4. Delete group types
+                await db.execute(text("DELETE FROM group_types WHERE organization_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 5. Delete groups
+                await db.execute(text("DELETE FROM groups WHERE organisation_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 6. Delete project roles data
+                await db.execute(text("""
+                    DELETE FROM user_project_roles 
+                    WHERE project_id IN (SELECT id FROM projects WHERE organisation_id = :org_id)
+                """), {"org_id": str(organisation_id)})
+                
+                # 7. Delete projects
+                await db.execute(text("DELETE FROM projects WHERE organisation_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 8. Delete role permissions
+                await db.execute(text("""
+                    DELETE FROM role_permissions 
+                    WHERE role_id IN (SELECT id FROM project_roles WHERE organisation_id = :org_id)
+                """), {"org_id": str(organisation_id)})
+                
+                # 9. Delete project roles
+                await db.execute(text("DELETE FROM project_roles WHERE organisation_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 10. Delete organization roles
+                await db.execute(text("DELETE FROM organization_roles WHERE organisation_id = :org_id"), {"org_id": str(organisation_id)})
+                
+                # 11. Finally delete the organisation
                 await db.delete(org)
                 await db.commit()
-                return {"message": "Member removed and organization deleted as it has no more members"}
+                return {"message": "Member removed and organization data completely purged"}
         
         return {"message": "Member removed successfully"}
 
