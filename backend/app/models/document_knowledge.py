@@ -48,7 +48,7 @@ class DocumentKnowledge(Base):
 
     # Project context
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Document metadata
     document_name = Column(String(500), nullable=True)

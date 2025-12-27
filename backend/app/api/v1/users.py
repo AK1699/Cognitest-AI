@@ -218,6 +218,36 @@ async def delete_user(
                 detail="Not authorized to delete this user. You must be an owner or admin of an organization this user belongs to."
             )
 
+    # Prevent deleting the only owner of an organization
+    from app.models.organisation import UserOrganisation, Organisation, OrgRoleType
+    
+    # Get all organizations where this user is an owner
+    user_owned_orgs_query = await db.execute(
+        select(UserOrganisation).where(
+            UserOrganisation.user_id == user_id,
+            UserOrganisation.role == OrgRoleType.OWNER.value
+        )
+    )
+    user_owned_orgs = user_owned_orgs_query.scalars().all()
+    
+    for uo in user_owned_orgs:
+        # Check if there are other owners for this organization
+        other_owners_query = await db.execute(
+            select(UserOrganisation).where(
+                UserOrganisation.organisation_id == uo.organisation_id,
+                UserOrganisation.user_id != user_id,
+                UserOrganisation.role == OrgRoleType.OWNER.value
+            )
+        )
+        if not other_owners_query.scalars().first():
+            org_query = await db.execute(select(Organisation).where(Organisation.id == uo.organisation_id))
+            org = org_query.scalar_one_or_none()
+            org_name = org.name if org else "Unknown Organization"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot delete user as they are the only owner of organization '{org_name}'. Please transfer ownership first."
+            )
+
     # Delete the user
     await db.delete(user)
     await db.commit()

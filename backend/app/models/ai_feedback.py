@@ -46,7 +46,7 @@ class AIFeedback(Base):
     modifications = Column(Text, nullable=True)  # User modifications to the output
 
     # Tracking
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     qdrant_point_id = Column(String(255), nullable=True)  # ID in Qdrant vector DB
 
     # Status and timestamps

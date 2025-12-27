@@ -264,7 +264,7 @@ class Organisation(Base):
     logo = Column(Text, nullable=True)
 
     # Owner (legacy - kept for backwards compatibility, use user_memberships instead)
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Settings - stores enabled modules and other org-level settings
     settings = Column(JSON, default=dict)
