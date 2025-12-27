@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus, Crown, Eye, Code2, TestTube, Bot, Settings } from 'lucide-react'
+import { PlusCircle, User, Users, Search, Pencil, Trash2, UserPlus, Shield, Plus, Crown, Eye, Code2, TestTube, Bot, Settings, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatDateHumanReadable } from '@/lib/date-utils'
@@ -34,6 +34,8 @@ import { EditGroupModal } from '@/components/users-teams/edit-group-modal'
 import { CreateGroupWithTypeModal } from '@/components/users-teams/create-group-with-type-modal'
 import { RolesManager } from '@/components/settings/RolesManager'
 import { listOrgMembers, type UserRoleAssignment } from '@/lib/api/org-roles'
+import { checkResourceLimit, type ResourceLimitCheck } from '@/lib/api/subscription'
+import Link from 'next/link'
 
 type Tab = 'users' | 'teams' | 'roles' | 'org-roles'
 
@@ -80,6 +82,8 @@ export default function UsersTeamsPage() {
   const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<ProjectRole | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null)
+  const [limitCheck, setLimitCheck] = useState<ResourceLimitCheck | null>(null)
+  const [isCheckingLimit, setIsCheckingLimit] = useState(false)
 
   // Selected items
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
@@ -139,6 +143,26 @@ export default function UsersTeamsPage() {
     const currentProjects = projects
     await fetchDataWithProjects(currentProjects)
   }
+
+  const checkUserLimit = async () => {
+    setIsCheckingLimit(true)
+    try {
+      const result = await checkResourceLimit(organisationId, 'users')
+      setLimitCheck(result)
+    } catch (error) {
+      console.error('Error checking user limit:', error)
+      setLimitCheck(null)
+    } finally {
+      setIsCheckingLimit(false)
+    }
+  }
+
+  // Effect to check limit when modal opens
+  useEffect(() => {
+    if (showInviteModal) {
+      checkUserLimit()
+    }
+  }, [showInviteModal])
 
   const fetchDataWithProjects = async (projectsData: Project[]) => {
     setLoading(true)
@@ -625,12 +649,12 @@ export default function UsersTeamsPage() {
               <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
-                    <th scope="col" className="px-6 py-3">User</th>
-                    <th scope="col" className="px-6 py-3">Org Role</th>
-                    <th scope="col" className="px-6 py-3">Project Role</th>
-                    <th scope="col" className="px-6 py-3">Projects</th>
-                    <th scope="col" className="px-6 py-3">Created</th>
-                    <th scope="col" className="px-6 py-3 text-center">Actions</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">User</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Org Role</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Project Role</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Projects</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Created</th>
+                    <th scope="col" className="px-6 py-3 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -853,19 +877,19 @@ export default function UsersTeamsPage() {
                             })()}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                           {formatDateHumanReadable(user.created_at)}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex justify-center items-center gap-2">
+                          <div className="flex justify-center items-center gap-1.5">
                             <button
                               onClick={() => {
                                 setSelectedUser(user)
                                 setShowEditUserModal(true)
                               }}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-3.5 h-3.5" />
                               Edit
                             </button>
                             <button
@@ -882,16 +906,16 @@ export default function UsersTeamsPage() {
                                 })
                                 setShowAssignRoleModal(true)
                               }}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-green-600 bg-green-50 hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/30 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/30 transition-colors"
                             >
-                              <Shield className="w-4 h-4" />
+                              <Shield className="w-3.5 h-3.5" />
                               Roles
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user)}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                               Delete
                             </button>
                           </div>
@@ -912,11 +936,11 @@ export default function UsersTeamsPage() {
               <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
-                    <th scope="col" className="px-6 py-3">Team Name</th>
-                    <th scope="col" className="px-6 py-3">Description</th>
-                    <th scope="col" className="px-6 py-3">Status</th>
-                    <th scope="col" className="px-6 py-3">Created</th>
-                    <th scope="col" className="px-6 py-3 text-center">Actions</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Team Name</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Description</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Status</th>
+                    <th scope="col" className="px-6 py-3 whitespace-nowrap">Created</th>
+                    <th scope="col" className="px-6 py-3 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -943,26 +967,26 @@ export default function UsersTeamsPage() {
                             {group.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                           {formatDateHumanReadable(group.created_at)}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex justify-center items-center gap-2">
+                          <div className="flex justify-center items-center gap-1.5">
                             <button
                               onClick={() => {
                                 setSelectedGroup(group)
                                 setShowEditGroupModal(true)
                               }}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-3.5 h-3.5" />
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteGroup(group)}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                               Delete
                             </button>
                           </div>
@@ -1008,13 +1032,13 @@ export default function UsersTeamsPage() {
                   <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                       <tr>
-                        <th scope="col" className="px-6 py-3">Role Name</th>
-                        <th scope="col" className="px-6 py-3">Type</th>
-                        <th scope="col" className="px-6 py-3">Description</th>
-                        <th scope="col" className="px-6 py-3">Status</th>
-                        <th scope="col" className="px-6 py-3">System Role</th>
-                        <th scope="col" className="px-6 py-3">Created</th>
-                        <th scope="col" className="px-6 py-3">Actions</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Role Name</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Type</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Description</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Status</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">System Role</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Created</th>
+                        <th scope="col" className="px-6 py-3 whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1052,17 +1076,17 @@ export default function UsersTeamsPage() {
                                 {role.is_system_role ? 'System' : 'Custom'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">
+                            <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                               {formatDateHumanReadable(role.created_at)}
                             </td>
                             <td className="px-6 py-4 text-sm">
                               <button
                                 onClick={() => handleDeleteRole(role)}
                                 disabled={role.is_system_role || deletingRoleId === role.id}
-                                className="inline-flex items-center gap-2 text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                                 title={role.is_system_role ? 'Cannot delete system roles' : 'Delete role'}
                               >
-                                <Trash2 size={16} />
+                                <Trash2 className="w-3.5 h-3.5" />
                                 {deletingRoleId === role.id ? 'Deleting...' : 'Delete'}
                               </button>
                             </td>
@@ -1090,7 +1114,7 @@ export default function UsersTeamsPage() {
             <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
               <h3 className="font-medium text-gray-900">Organization-Level Roles</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Enterprise role system with 7 tiers: Owner, Admin, Security Officer, Auditor, Service Account, Member, Viewer. These roles apply across the entire organization.
+                Enterprise role system with 4 tiers: Owner, Administrator, Member, Viewer. These roles apply across the entire organization.
               </p>
             </div>
             <RolesManager
@@ -1108,6 +1132,38 @@ export default function UsersTeamsPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                 Send an invitation email. The user will receive a welcome email with a link to create their account and join your organization.
               </p>
+
+              {/* Limit Reached Banner */}
+              {limitCheck?.limit_reached && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-amber-800 mb-1">
+                        User Limit Reached
+                      </h4>
+                      <p className="text-xs text-amber-700 mb-3">
+                        You&apos;ve reached the maximum number of users ({limitCheck.current}/{limitCheck.limit})
+                        allowed on your current plan. Upgrade to invite more users.
+                      </p>
+                      <Link
+                        href={`/organizations/${organisationId}/billing`}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-md hover:opacity-90 transition-opacity text-xs font-medium"
+                      >
+                        Upgrade Plan
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading Limits */}
+              {isCheckingLimit && (
+                <div className="mb-6 p-4 text-center text-sm text-gray-500">
+                  Checking plan limits...
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>
@@ -1186,9 +1242,9 @@ export default function UsersTeamsPage() {
                 </Button>
                 <Button
                   onClick={handleInviteUser}
-                  disabled={!userFormData.email}
+                  disabled={!userFormData.email || limitCheck?.limit_reached || isCheckingLimit}
                 >
-                  Send Invitation
+                  {isCheckingLimit ? 'Checking limits...' : 'Send Invitation'}
                 </Button>
               </div>
             </div>
