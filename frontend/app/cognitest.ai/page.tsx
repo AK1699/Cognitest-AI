@@ -35,10 +35,10 @@ export default function LandingPage() {
 
             {/* CTA Buttons */}
             <div className="flex items-center space-x-4">
-              <Link href="/auth/signin" className="px-8 py-3.5 text-gray-900 font-medium transition-opacity hover:opacity-70 rounded-full">
+              <Link href="/auth/signin" className="px-8 py-3.5 text-gray-900 font-medium transition-opacity hover:opacity-70 rounded-full" suppressHydrationWarning>
                 Sign in
               </Link>
-              <Link href="/auth/signup" className="px-8 py-3.5 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary">
+              <Link href="/auth/signup" className="px-8 py-3.5 text-white font-medium rounded-full transition-all shadow-md hover:shadow-lg hover:opacity-90 bg-primary" suppressHydrationWarning>
                 Sign up
               </Link>
             </div>

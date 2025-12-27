@@ -263,7 +263,7 @@ export default function SignInPage() {
                 </div>
 
                 <div className="text-sm">
-                  <Link href="/auth/forgot-password" className="font-medium text-primary hover:text-primary/90">
+                  <Link href="/auth/forgot-password" className="font-medium text-primary hover:text-primary/90" suppressHydrationWarning>
                     Forgot your password?
                   </Link>
                 </div>
@@ -283,7 +283,7 @@ export default function SignInPage() {
 
           <p className="mt-6 text-center text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link href="/auth/signup" className="font-medium text-primary hover:text-primary/90">
+            <Link href="/auth/signup" className="font-medium text-primary hover:text-primary/90" suppressHydrationWarning>
               Sign up
             </Link>
           </p>

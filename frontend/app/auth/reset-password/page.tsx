@@ -240,6 +240,7 @@ function ResetPasswordContent() {
               <Link
                 href="/auth/forgot-password"
                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                suppressHydrationWarning
               >
                 Didn't receive the code? Request a new one
               </Link>
@@ -250,7 +251,7 @@ function ResetPasswordContent() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Remember your password?{' '}
-              <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90 transition-colors">
+              <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90 transition-colors" suppressHydrationWarning>
                 Sign in
               </Link>
             </p>

@@ -1,7 +1,6 @@
 'use client'
 
 import { use, useState, useEffect } from 'react'
-import { Sidebar } from '@/components/layout/sidebar'
 import { UserNav } from '@/components/layout/user-nav'
 import { CreditCard, Users, FolderKanban, FileText, Activity, Loader2 } from 'lucide-react'
 import { PricingPlans } from '@/components/settings/PricingPlans'
@@ -114,111 +113,109 @@ export default function BillingPage({ params }: { params: Promise<PageParams> })
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar organisationId={uuid} />
-      <main className="flex-1 overflow-auto">
-        {/* Top Bar with Title and Profile */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <CreditCard className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Billing & Usage</h1>
-                <p className="text-xs text-gray-500">Manage your subscription and usage</p>
-              </div>
+    <>
+      {/* Top Bar with Title and Profile */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="h-[80px] px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-5 h-5 text-white" />
             </div>
-            <UserNav />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Billing & Usage</h1>
+              <p className="text-xs text-gray-500">Manage your subscription and usage</p>
+            </div>
           </div>
+          <UserNav />
         </div>
+      </div>
 
-        {/* Page Content */}
-        <div className="px-8 py-8">
-          <Tabs defaultValue="usage" className="w-full">
-            <TabsList className="grid w-full max-w-lg grid-cols-3 bg-gray-100 p-1 rounded-lg mb-8">
-              <TabsTrigger value="usage" className="text-sm font-semibold">Usage</TabsTrigger>
-              <TabsTrigger value="plans" className="text-sm font-semibold">Plans & Pricing</TabsTrigger>
-              <TabsTrigger value="invoices" className="text-sm font-semibold">Invoices</TabsTrigger>
-            </TabsList>
+      {/* Page Content */}
+      <div className="px-8 py-8">
+        <Tabs defaultValue="usage" className="w-full">
+          <TabsList className="grid w-full max-w-lg grid-cols-3 bg-gray-100 p-1 rounded-lg mb-8">
+            <TabsTrigger value="usage" className="text-sm font-semibold">Usage</TabsTrigger>
+            <TabsTrigger value="plans" className="text-sm font-semibold">Plans & Pricing</TabsTrigger>
+            <TabsTrigger value="invoices" className="text-sm font-semibold">Invoices</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="usage" className="mt-0 animate-in fade-in duration-300">
-              {loading ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Current Plan Banner */}
-                  {subscription && (
-                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Current Plan: {subscription.plan_display_name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Billing: {subscription.billing_cycle} • Status: {subscription.status}
-                          </p>
-                        </div>
+          <TabsContent value="usage" className="mt-0 animate-in fade-in duration-300">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Current Plan Banner */}
+                {subscription && (
+                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Current Plan: {subscription.plan_display_name}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Billing: {subscription.billing_cycle} • Status: {subscription.status}
+                        </p>
                       </div>
                     </div>
-                  )}
-
-                  {/* Usage Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {usage.map((u) => (
-                      <UsageCard
-                        key={u.resource}
-                        icon={getUsageIcon(u.resource)}
-                        label={getUsageLabel(u.resource)}
-                        current={u.current}
-                        limit={u.limit}
-                        isUnlimited={u.is_unlimited}
-                        color={getUsageColor(u.resource)}
-                      />
-                    ))}
                   </div>
+                )}
 
-                  {usage.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
-                      No usage data available
-                    </div>
-                  )}
+                {/* Usage Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {usage.map((u) => (
+                    <UsageCard
+                      key={u.resource}
+                      icon={getUsageIcon(u.resource)}
+                      label={getUsageLabel(u.resource)}
+                      current={u.current}
+                      limit={u.limit}
+                      isUnlimited={u.is_unlimited}
+                      color={getUsageColor(u.resource)}
+                    />
+                  ))}
                 </div>
-              )}
-            </TabsContent>
 
-            <TabsContent value="plans" className="mt-0 animate-in fade-in duration-300">
-              <PricingPlans organisationId={uuid} />
-            </TabsContent>
-
-            <TabsContent value="invoices" className="mt-0 animate-in fade-in duration-300">
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Invoice ID</th>
-                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                      <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr className="text-center">
-                      <td colSpan={4} className="py-12 text-gray-500">
-                        No invoices yet. Invoices will appear here after you upgrade to a paid plan.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                {usage.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    No usage data available
+                  </div>
+                )}
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-    </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="plans" className="mt-0 animate-in fade-in duration-300">
+            <PricingPlans organisationId={uuid} />
+          </TabsContent>
+
+          <TabsContent value="invoices" className="mt-0 animate-in fade-in duration-300">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Invoice ID</th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                    <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr className="text-center">
+                    <td colSpan={4} className="py-12 text-gray-500">
+                      No invoices yet. Invoices will appear here after you upgrade to a paid plan.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   )
 }
+
 
 

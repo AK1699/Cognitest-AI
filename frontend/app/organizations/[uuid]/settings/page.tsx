@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sidebar } from '@/components/layout/sidebar'
 import { UserNav } from '@/components/layout/user-nav'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import api from '@/lib/api'
@@ -86,13 +85,10 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar organisationId={uuid} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
-          </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
         </div>
       </div>
     )
@@ -100,84 +96,76 @@ export default function SettingsPage({ params }: { params: Promise<PageParams> }
 
   if (!organisation) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar organisationId={uuid} />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-600 dark:text-gray-400">Organisation not found</p>
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-gray-600 dark:text-gray-400">Organisation not found</p>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar organisationId={uuid} />
-      <main className="flex-1 overflow-auto">
-        {/* Top Bar with Title and Profile */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-                <p className="text-xs text-gray-500">Manage your organization settings</p>
-              </div>
+    <>
+      {/* Top Bar with Title and Profile */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="h-[80px] px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
             </div>
-            <UserNav />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+              <p className="text-xs text-gray-500">Manage your organization settings</p>
+            </div>
           </div>
+          <UserNav />
         </div>
+      </div>
 
-        {/* Page Content */}
-        <div className="px-8 py-8">
-          {/* Tabs Navigation */}
-          <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full max-w-3xl grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-8">
-              <TabsTrigger value="general" className="text-sm font-semibold">General</TabsTrigger>
-              <TabsTrigger value="logo" className="text-sm font-semibold">Logo</TabsTrigger>
-              <TabsTrigger value="security" className="text-sm font-semibold">Security</TabsTrigger>
-              <TabsTrigger value="danger" className="text-sm font-semibold">Danger</TabsTrigger>
-            </TabsList>
+      {/* Page Content */}
+      <div className="px-8 py-8">
+        {/* Tabs Navigation */}
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full max-w-3xl grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-8">
+            <TabsTrigger value="general" className="text-sm font-semibold">General</TabsTrigger>
+            <TabsTrigger value="logo" className="text-sm font-semibold">Logo</TabsTrigger>
+            <TabsTrigger value="security" className="text-sm font-semibold">Security</TabsTrigger>
+            <TabsTrigger value="danger" className="text-sm font-semibold">Danger</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="general" className="mt-8 animate-in fade-in duration-300">
-              <GeneralSettings
-                organisation={organisation}
-                onUpdate={updateOrganisation}
-                isSaving={isSaving}
-              />
-            </TabsContent>
+          <TabsContent value="general" className="mt-8 animate-in fade-in duration-300">
+            <GeneralSettings
+              organisation={organisation}
+              onUpdate={updateOrganisation}
+              isSaving={isSaving}
+            />
+          </TabsContent>
 
-            <TabsContent value="logo" className="mt-8 animate-in fade-in duration-300">
-              <LogoSettings
-                logo={(organisation.logo as string | null)}
-                organisationName={organisation.name}
-                onLogoChange={(logo) => updateOrganisation({ logo: logo as string | undefined })}
-                isSaving={isSaving}
-              />
-            </TabsContent>
+          <TabsContent value="logo" className="mt-8 animate-in fade-in duration-300">
+            <LogoSettings
+              logo={(organisation.logo as string | null)}
+              organisationName={organisation.name}
+              onLogoChange={(logo) => updateOrganisation({ logo: logo as string | undefined })}
+              isSaving={isSaving}
+            />
+          </TabsContent>
 
-            <TabsContent value="security" className="mt-8 animate-in fade-in duration-300">
-              <div className="max-w-2xl">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Account Security</h2>
-                <MFASettings />
-              </div>
-            </TabsContent>
+          <TabsContent value="security" className="mt-8 animate-in fade-in duration-300">
+            <div className="max-w-2xl">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Account Security</h2>
+              <MFASettings />
+            </div>
+          </TabsContent>
 
-            <TabsContent value="danger" className="mt-8 animate-in fade-in duration-300">
-              <DeleteOrganization
-                organisationName={organisation.name}
-                onDelete={deleteOrganisation}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-    </div>
+          <TabsContent value="danger" className="mt-8 animate-in fade-in duration-300">
+            <DeleteOrganization
+              organisationName={organisation.name}
+              onDelete={deleteOrganisation}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   )
 }
-
-

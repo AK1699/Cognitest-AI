@@ -139,51 +139,58 @@ async def list_org_roles(
     db: AsyncSession = Depends(get_db)
 ):
     """List all roles for an organization"""
-    # Get all roles for this organization
-    result = await db.execute(
-        select(OrganizationRole)
-        .where(OrganizationRole.organisation_id == organisation_id)
-        .order_by(OrganizationRole.role_type.desc())
-    )
-    roles = result.scalars().all()
-    
-    # Get user counts by role (both by role_id and by role string match)
-    # This handles both new assignments (role_id) and legacy assignments (role string)
-    user_counts = {}
-    for role in roles:
-        # Count users assigned via role_id
-        result_by_id = await db.execute(
-            select(func.count(UserOrganisation.id))
-            .where(UserOrganisation.organisation_id == organisation_id)
-            .where(UserOrganisation.role_id == role.id)
+    try:
+        # Get all roles for this organization
+        result = await db.execute(
+            select(OrganizationRole)
+            .where(OrganizationRole.organisation_id == organisation_id)
+            .order_by(OrganizationRole.role_type.desc())
         )
-        count_by_id = result_by_id.scalar() or 0
+        roles = result.scalars().all()
         
-        # Count users assigned via role string (legacy/current)
-        result_by_string = await db.execute(
-            select(func.count(UserOrganisation.id))
-            .where(UserOrganisation.organisation_id == organisation_id)
-            .where(UserOrganisation.role == role.role_type)
-            .where(UserOrganisation.role_id == None)  # Only count if not already linked
-        )
-        count_by_string = result_by_string.scalar() or 0
+        # Get user counts by role (both by role_id and by role string match)
+        # This handles both new assignments (role_id) and legacy assignments (role string)
+        user_counts = {}
+        for role in roles:
+            # Count users assigned via role_id
+            result_by_id = await db.execute(
+                select(func.count(UserOrganisation.id))
+                .where(UserOrganisation.organisation_id == organisation_id)
+                .where(UserOrganisation.role_id == role.id)
+            )
+            count_by_id = result_by_id.scalar() or 0
+            
+            # Count users assigned via role string (legacy/current)
+            result_by_string = await db.execute(
+                select(func.count(UserOrganisation.id))
+                .where(UserOrganisation.organisation_id == organisation_id)
+                .where(UserOrganisation.role == role.role_type)
+                .where(UserOrganisation.role_id == None)  # Only count if not already linked
+            )
+            count_by_string = result_by_string.scalar() or 0
+            
+            user_counts[str(role.id)] = count_by_id + count_by_string
         
-        user_counts[str(role.id)] = count_by_id + count_by_string
-    
-    return [
-        RoleResponse(
-            id=str(role.id),
-            name=role.name,
-            role_type=role.role_type,
-            description=role.description,
-            color=role.color,
-            is_system_role=role.is_system_role,
-            is_default=role.is_default,
-            permissions=role.permissions or {},
-            user_count=user_counts.get(str(role.id), 0)
-        )
-        for role in roles
-    ]
+        return [
+            RoleResponse(
+                id=str(role.id),
+                name=role.name,
+                role_type=role.role_type,
+                description=role.description,
+                color=role.color,
+                is_system_role=role.is_system_role,
+                is_default=role.is_default,
+                permissions=role.permissions or {},
+                user_count=user_counts.get(str(role.id), 0)
+            )
+            for role in roles
+        ]
+    except Exception as e:
+        print(f"[list_org_roles] ERROR for org {organisation_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching org roles: {str(e)}")
+
 
 
 @router.post("/{organisation_id}/org-roles", response_model=RoleResponse)

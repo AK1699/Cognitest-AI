@@ -19,12 +19,10 @@ import {
   Settings,
   BrainCircuit
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import api from '@/lib/api'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { useOrganizationStore } from '@/lib/store/organization-store'
 
 interface SidebarProps {
   organisationId?: string
@@ -141,64 +139,15 @@ const getMainMenuItems = (organisationId?: string, isOwner?: boolean) => {
 
 const otherMenuItems = []
 
-interface Organisation {
-  id: string
-  name: string
-  website?: string
-  description?: string
-  owner_id: string
-  created_at: string
-  updated_at?: string
-}
-
 export function Sidebar({ organisationId, projectId }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
-  const [organisations, setOrganisations] = useState<Organisation[]>([])
-  const [isOwner, setIsOwner] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchOrganisations()
-    }
-  }, [user])
-
-  // Check if current user is the owner of the organization
-  useEffect(() => {
-    if (user && currentOrganisation) {
-      setIsOwner(currentOrganisation.owner_id === user.id)
-    }
-  }, [user, currentOrganisation])
-
-  const fetchOrganisations = async () => {
-    if (!user) return
-    try {
-      const response = await api.get('/api/v1/organisations/')
-      setOrganisations(response.data)
-
-      // Get current org from Redis session
-      const { getSession } = await import('@/lib/api/session')
-      const session = await getSession()
-      const currentOrgId = session.current_organization_id
-
-      if (currentOrgId && response.data.length > 0) {
-        const org = response.data.find((o: Organisation) => o.id === currentOrgId)
-        if (org) {
-          setCurrentOrganisation(org)
-        } else {
-          setCurrentOrganisation(response.data[0])
-        }
-      } else if (response.data.length > 0) {
-        setCurrentOrganisation(response.data[0])
-      }
-    } catch (error) {
-      console.error('Failed to fetch organisations:', error)
-    }
-  }
+  // Use organization store instead of local state
+  const { currentOrganisation, isOwner } = useOrganizationStore()
 
   return (
     <>

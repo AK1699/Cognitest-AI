@@ -58,6 +58,15 @@ export interface UsageLimit {
     percentage_used: number
 }
 
+export interface ResourceLimitCheck {
+    limit_reached: boolean
+    current: number
+    limit: number
+    is_unlimited: boolean
+    message: string
+    upgrade_url: string | null
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -101,6 +110,20 @@ export async function getUsageLimits(organisationId: string): Promise<UsageLimit
 export async function getOrgFeatures(organisationId: string): Promise<string[]> {
     const response = await api.get(`/api/v1/subscription/features/${organisationId}`)
     return response.data.features
+}
+
+/**
+ * Check if a specific resource limit is reached for an organization
+ * @param organisationId - The organization ID
+ * @param resource - The resource to check: 'users', 'projects', or 'test_cases'
+ * @returns ResourceLimitCheck with limit status and upgrade information
+ */
+export async function checkResourceLimit(
+    organisationId: string,
+    resource: 'users' | 'projects' | 'test_cases'
+): Promise<ResourceLimitCheck> {
+    const response = await api.get(`/api/v1/subscription/check-limit/${organisationId}/${resource}`)
+    return response.data
 }
 
 // ==================== Feature Constants ====================

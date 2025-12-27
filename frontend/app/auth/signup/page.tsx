@@ -66,7 +66,7 @@ export default function SignUpPage() {
             <defs>
               <pattern id="circuit" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
                 <path d="M 10 50 L 30 50 L 30 30 M 30 70 L 30 50 M 50 10 L 50 30 L 70 30 M 70 50 L 50 50 L 50 70 M 50 90 L 50 70"
-                      stroke="currentColor" strokeWidth="1" fill="none" className="text-teal-300" />
+                  stroke="currentColor" strokeWidth="1" fill="none" className="text-teal-300" />
                 <circle cx="30" cy="30" r="2" fill="currentColor" className="text-teal-400" />
                 <circle cx="70" cy="30" r="2" fill="currentColor" className="text-cyan-400" />
                 <circle cx="50" cy="70" r="2" fill="currentColor" className="text-emerald-400" />
@@ -96,7 +96,7 @@ export default function SignUpPage() {
         <div className="w-full max-w-md">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
             <h2 className="text-2xl font-semibold text-center text-gray-900 dark:text-white mb-6">Create your CogniTest account</h2>
-            
+
             {/* Social Logins */}
             <div className="space-y-4 mb-6">
               <GoogleSignInButton />
@@ -124,7 +124,7 @@ export default function SignUpPage() {
 
           <p className="mt-6 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90">
+            <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90" suppressHydrationWarning>
               Log in
             </Link>
           </p>

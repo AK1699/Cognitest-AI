@@ -5,20 +5,41 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import api from '@/lib/api'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 
 export default function CreateOrganizationPage() {
   const [name, setName] = useState('')
   const [website, setWebsite] = useState('')
   const [nameError, setNameError] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [isOnboarding, setIsOnboarding] = useState(false)
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true)
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated and check if this is onboarding
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/signin')
+      return
+    }
+
+    // Check if user already has organizations (to determine if this is onboarding)
+    if (user) {
+      const checkOrganizations = async () => {
+        try {
+          const response = await api.get('/api/v1/organisations/')
+          const organisations = response.data
+          setIsOnboarding(organisations.length === 0)
+        } catch (error) {
+          console.error('Error checking organizations:', error)
+          // Default to onboarding view if we can't check
+          setIsOnboarding(true)
+        } finally {
+          setCheckingOnboarding(false)
+        }
+      }
+      checkOrganizations()
     }
   }, [user, authLoading, router])
 
@@ -67,7 +88,7 @@ export default function CreateOrganizationPage() {
   }
 
   // Show loading while checking authentication
-  if (authLoading) {
+  if (authLoading || checkingOnboarding) {
     return (
       <div className="min-h-screen bg-teal-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -85,18 +106,44 @@ export default function CreateOrganizationPage() {
 
   return (
     <div className="min-h-screen bg-teal-50 dark:bg-gray-900">
-      {/* Back Button */}
-      <div className="pt-6 px-6 sm:px-12">
-        <button
-          onClick={() => router.back()}
-          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </button>
-      </div>
+      {/* Progress indicator - only show during onboarding */}
+      {isOnboarding && (
+        <div className="pt-8 px-6">
+          <div className="max-w-xl mx-auto">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+              <span className="flex items-center gap-1">
+                <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">✓</span>
+                <span>Create Account</span>
+              </span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="flex items-center gap-1">
+                <span className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">2</span>
+                <span className="font-medium text-primary">Organization</span>
+              </span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="flex items-center gap-1">
+                <span className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 flex items-center justify-center text-xs font-medium">3</span>
+                <span>Invite Team</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Back Button - only show when not onboarding */}
+      {!isOnboarding && (
+        <div className="pt-6 px-6 sm:px-12">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-6 py-12">
+      <div className={`flex items-center justify-center ${isOnboarding ? 'min-h-[calc(100vh-100px)]' : 'min-h-[calc(100vh-80px)]'} px-6 py-12`}>
         <div className="w-full max-w-xl">
           {/* Card Container */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 sm:p-12">
@@ -173,15 +220,17 @@ export default function CreateOrganizationPage() {
             </p>
           </div>
 
-          {/* Back Link */}
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => router.push('/organizations')}
-              className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 text-sm font-medium"
-            >
-              Back to your organization list
-            </button>
-          </div>
+          {/* Back Link - only show when not onboarding */}
+          {!isOnboarding && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => router.push('/organizations')}
+                className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 text-sm font-medium"
+              >
+                Back to your organization list
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

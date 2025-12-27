@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DropdownMenu,
@@ -12,11 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/lib/auth-context"
 import { Building2, Plus, LogOut, Check, User, Settings, HelpCircle, ChevronDown } from 'lucide-react'
-import api from '@/lib/api'
-import { getSession, setCurrentOrganization } from '@/lib/api/session'
-import { toast } from 'sonner'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { useOrganizationStore } from '@/lib/store/organization-store'
+import { useState } from 'react'
 
 interface Organisation {
   id: string
@@ -31,59 +27,18 @@ interface Organisation {
 export function UserNav() {
   const { user, logout } = useAuth()
   const router = useRouter()
-  const [organisations, setOrganisations] = useState<Organisation[]>([])
-  const [currentOrganisation, setCurrentOrganisation] = useState<Organisation | null>(null)
-  const [isOwner, setIsOwner] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchOrganisations()
-    }
-  }, [user])
-
-  // Check if current user is the owner of the organization
-  useEffect(() => {
-    if (user && currentOrganisation) {
-      setIsOwner(currentOrganisation.owner_id === user.id)
-    }
-  }, [user, currentOrganisation])
-
-  const fetchOrganisations = async () => {
-    if (!user) return
-
-    try {
-      const response = await api.get('/api/v1/organisations/')
-      setOrganisations(response.data)
-
-      // Get current org ID from Redis session
-      const session = await getSession()
-      const currentOrgId = session.current_organization_id
-
-      if (currentOrgId) {
-        // Find the org in the fetched list
-        const orgExists = response.data.find((org: Organisation) => org.id === currentOrgId)
-        if (orgExists) {
-          setCurrentOrganisation(orgExists)
-        } else if (response.data.length > 0) {
-          // Set first org as current if the stored one doesn't exist
-          setCurrentOrganisation(response.data[0])
-          await setCurrentOrganization(response.data[0].id)
-        }
-      } else if (response.data.length > 0) {
-        // Set first org as current if none is set
-        setCurrentOrganisation(response.data[0])
-        await setCurrentOrganization(response.data[0].id)
-      }
-    } catch (error) {
-      console.error('Failed to fetch organisations:', error)
-    }
-  }
+  // Use organization store instead of local state
+  const {
+    organisations,
+    currentOrganisation,
+    isOwner,
+    setCurrentOrganisation
+  } = useOrganizationStore()
 
   const switchOrganisation = async (org: Organisation) => {
-    setCurrentOrganisation(org)
-    await setCurrentOrganization(org.id)
-    window.dispatchEvent(new CustomEvent('organisationChanged', { detail: org }))
+    await setCurrentOrganisation(org, user?.id)
     setIsOpen(false)
     router.push(`/organizations/${org.id}/projects`)
   }

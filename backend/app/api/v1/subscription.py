@@ -92,7 +92,142 @@ class UsageLimitResponse(BaseModel):
     percentage_used: float
 
 
+class ResourceLimitCheckResponse(BaseModel):
+    """Response for checking if a resource limit is reached"""
+    limit_reached: bool
+    current: int
+    limit: int
+    is_unlimited: bool
+    message: str
+    upgrade_url: Optional[str] = None
+
+
+# ==================== Helper Functions ====================
+
+async def check_organisation_limit(
+    db: AsyncSession,
+    organisation_id: UUID,
+    resource: str
+) -> ResourceLimitCheckResponse:
+    """
+    Helper function to check if an organisation has reached a resource limit.
+    
+    Args:
+        db: Database session
+        organisation_id: The organisation UUID
+        resource: The resource to check ('users', 'projects', 'test_cases')
+    
+    Returns:
+        ResourceLimitCheckResponse with limit status
+    """
+    from app.models.organisation import UserOrganisation
+    from app.models.project import Project
+    
+    # Get subscription with plan
+    result = await db.execute(
+        select(OrganizationSubscription)
+        .options(selectinload(OrganizationSubscription.plan))
+        .where(OrganizationSubscription.organisation_id == organisation_id)
+    )
+    subscription = result.scalar_one_or_none()
+    
+    if not subscription:
+        # No subscription - assume free tier limits
+        return ResourceLimitCheckResponse(
+            limit_reached=True,
+            current=0,
+            limit=0,
+            is_unlimited=False,
+            message="No active subscription found. Please set up a subscription.",
+            upgrade_url=f"/organizations/{organisation_id}/billing"
+        )
+    
+    plan = subscription.plan
+    
+    # Get current count and limit based on resource type
+    if resource == "users":
+        count_result = await db.execute(
+            select(UserOrganisation)
+            .where(UserOrganisation.organisation_id == organisation_id)
+        )
+        current_count = len(count_result.scalars().all())
+        max_limit = plan.max_users
+    elif resource == "projects":
+        count_result = await db.execute(
+            select(Project)
+            .where(Project.organisation_id == organisation_id)
+        )
+        current_count = len(count_result.scalars().all())
+        max_limit = plan.max_projects
+    elif resource == "test_cases":
+        # TODO: Add proper test case counting when needed
+        current_count = 0
+        max_limit = plan.max_test_cases
+    else:
+        return ResourceLimitCheckResponse(
+            limit_reached=False,
+            current=0,
+            limit=0,
+            is_unlimited=True,
+            message=f"Unknown resource type: {resource}"
+        )
+    
+    # Check if unlimited (-1 means unlimited)
+    is_unlimited = max_limit == -1
+    
+    if is_unlimited:
+        return ResourceLimitCheckResponse(
+            limit_reached=False,
+            current=current_count,
+            limit=max_limit,
+            is_unlimited=True,
+            message="Unlimited"
+        )
+    
+    # Check if limit is reached
+    limit_reached = current_count >= max_limit
+    
+    if limit_reached:
+        resource_name = resource.replace("_", " ").title()
+        return ResourceLimitCheckResponse(
+            limit_reached=True,
+            current=current_count,
+            limit=max_limit,
+            is_unlimited=False,
+            message=f"{resource_name} limit reached ({current_count}/{max_limit}). Please upgrade your plan.",
+            upgrade_url=f"/organizations/{organisation_id}/billing"
+        )
+    
+    return ResourceLimitCheckResponse(
+        limit_reached=False,
+        current=current_count,
+        limit=max_limit,
+        is_unlimited=False,
+        message=f"{current_count}/{max_limit} used"
+    )
+
+
 # ==================== Endpoints ====================
+
+@router.get("/check-limit/{organisation_id}/{resource}", response_model=ResourceLimitCheckResponse)
+async def check_limit(
+    organisation_id: UUID,
+    resource: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check if an organization has reached a specific resource limit.
+    
+    Args:
+        organisation_id: The organization UUID
+        resource: The resource to check ('users', 'projects', 'test_cases')
+    
+    Returns:
+        ResourceLimitCheckResponse with limit status
+    """
+    return await check_organisation_limit(db, organisation_id, resource)
+
 
 @router.get("/plans", response_model=List[PlanResponse])
 async def list_plans(

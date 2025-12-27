@@ -57,6 +57,15 @@ async def create_invitation(
             detail="Organisation not found"
         )
 
+    # Check if user limit is reached
+    from app.api.v1.subscription import check_organisation_limit
+    limit_check = await check_organisation_limit(db, invitation_data.organisation_id, "users")
+    if limit_check.limit_reached:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=limit_check.message
+        )
+
     # Check if user already exists
     existing_user = await db.execute(
         select(User).where(User.email == invitation_data.email)

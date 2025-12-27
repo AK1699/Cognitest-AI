@@ -3,7 +3,6 @@
 import { use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Sidebar } from '@/components/layout/sidebar'
 import { UserNav } from '@/components/layout/user-nav'
 import { Puzzle } from 'lucide-react'
 
@@ -54,45 +53,42 @@ export default function IntegrationsPage({ params }: { params: Promise<PageParam
   const { uuid } = use(params)
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar organisationId={uuid} />
-      <main className="flex-1 overflow-auto">
-        {/* Top Bar with Title and Profile */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="h-[80px] px-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <Puzzle className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Integrations</h1>
-                <p className="text-xs text-gray-500">Connect your favorite tools</p>
-              </div>
+    <>
+      {/* Top Bar with Title and Profile */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="h-[80px] px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+              <Puzzle className="w-5 h-5 text-white" />
             </div>
-            <UserNav />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Integrations</h1>
+              <p className="text-xs text-gray-500">Connect your favorite tools</p>
+            </div>
           </div>
+          <UserNav />
         </div>
+      </div>
 
-        {/* Page Content */}
-        <div className="px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {integrationsData.map((integration) => (
-              <Card key={integration.name}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>{integration.name}</CardTitle>
-                  <img src={integration.logo} alt={`${integration.name} logo`} className="h-8 w-8" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500 mb-4">{integration.description}</p>
-                  <Button className="w-full" variant={integration.connected ? 'secondary' : 'default'}>
-                    {integration.connected ? 'Manage' : 'Connect'}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      {/* Page Content */}
+      <div className="px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {integrationsData.map((integration) => (
+            <Card key={integration.name}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{integration.name}</CardTitle>
+                <img src={integration.logo} alt={`${integration.name} logo`} className="h-8 w-8" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500 mb-4">{integration.description}</p>
+                <Button className="w-full" variant={integration.connected ? 'secondary' : 'default'}>
+                  {integration.connected ? 'Manage' : 'Connect'}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   )
 }

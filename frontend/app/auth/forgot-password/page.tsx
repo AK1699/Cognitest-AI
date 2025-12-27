@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Remember your password?{' '}
-              <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90 transition-colors">
+              <Link href="/auth/signin" className="font-medium text-primary hover:text-primary/90 transition-colors" suppressHydrationWarning>
                 Sign in
               </Link>
             </p>

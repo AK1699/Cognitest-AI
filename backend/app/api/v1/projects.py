@@ -54,6 +54,15 @@ async def create_project(
             detail="Organisation not found or you don't have permission"
         )
 
+    # Check if project limit is reached
+    from app.api.v1.subscription import check_organisation_limit
+    limit_check = await check_organisation_limit(db, project_data.organisation_id, "projects")
+    if limit_check.limit_reached:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=limit_check.message
+        )
+
     # Create project
     project = Project(**project_data.model_dump())
     db.add(project)
@@ -308,8 +317,40 @@ async def delete_project(
             detail="You don't have permission to delete this project"
         )
 
-    await db.delete(project)
-    await db.commit()
+    try:
+        # Clean up tables without CASCADE - use raw connection for independent transactions
+        cleanup_queries = [
+            "DELETE FROM user_projects WHERE project_id = :project_id",
+            "DELETE FROM agent_performance WHERE project_id = :project_id",
+            "DELETE FROM ai_feedback WHERE project_id = :project_id",
+            "DELETE FROM document_chunks WHERE document_id IN (SELECT id FROM document_knowledge WHERE project_id = :project_id)",
+            "DELETE FROM document_knowledge WHERE project_id = :project_id",
+            "DELETE FROM organisation_memory WHERE project_id = :project_id",
+        ]
+        
+        for query in cleanup_queries:
+            try:
+                await db.execute(text(query), {"project_id": str(project_id)})
+            except Exception:
+                # Rollback this specific query error but continue
+                await db.rollback()
+                # Re-fetch the project since we rolled back
+                result = await db.execute(
+                    select(Project).where(Project.id == project_id)
+                )
+                project = result.scalar_one_or_none()
+                if not project:
+                    return None  # Already deleted somehow
+
+        # Now delete the project (CASCADE will handle the rest)
+        await db.delete(project)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete project: {str(e)}"
+        )
 
     return None
 
