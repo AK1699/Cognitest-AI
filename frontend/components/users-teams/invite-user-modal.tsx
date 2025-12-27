@@ -111,13 +111,18 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
       setLoading(true)
 
       // Create invitation
-      const invitationData = {
+      const invitationData: any = {
         email: email.trim(),
         full_name: fullName.trim() || undefined,
         organisation_id: organisationId,
         expiry_days: expiryDays,
         group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
-        role_id: selectedRole || undefined,
+      }
+
+      // If selectedRole is a string (admin/member/viewer), send as 'role'
+      // If it were a UUID, we'd send as 'role_id'
+      if (selectedRole) {
+        invitationData.role = selectedRole
       }
 
       const response = await api.post('/api/v1/invitations/', invitationData)
@@ -150,8 +155,24 @@ export function InviteUserModal({ isOpen, onClose, organisationId, onSuccess }: 
           description: 'This email is already registered in the system',
         })
       } else {
+        // Safely extract error message to prevent React "Objects are not valid as a React child" error
+        let errorMessage = 'Failed to send invitation'
+
+        if (error.response?.data?.detail) {
+          const detail = error.response.data.detail
+          if (Array.isArray(detail)) {
+            errorMessage = detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ')
+          } else if (typeof detail === 'string') {
+            errorMessage = detail
+          } else {
+            errorMessage = JSON.stringify(detail)
+          }
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+
         toast.error('Failed to send invitation', {
-          description: error.response?.data?.detail || 'Please try again',
+          description: errorMessage,
         })
       }
     } finally {

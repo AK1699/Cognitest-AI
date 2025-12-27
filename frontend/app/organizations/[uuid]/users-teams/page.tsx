@@ -353,13 +353,21 @@ export default function UsersTeamsPage() {
     }
 
     try {
-      await createInvitation({
+      // Role selection logic: if it's one of the standard org roles, send as 'role'
+      // If we had UUIDs for roles here, we'd send 'role_id', but the dropdown currently uses strings
+      const invitationPayload: any = {
         email: userFormData.email,
         full_name: userFormData.full_name || undefined,
         organisation_id: organisationId,
-        expiry_days: 7,
-        role_id: userFormData.roleType || undefined
-      })
+        expiry_days: 7
+      }
+
+      // In this specific view, the dropdown uses strings like 'admin', 'member', 'viewer'
+      if (userFormData.roleType) {
+        invitationPayload.role = userFormData.roleType
+      }
+
+      await createInvitation(invitationPayload)
 
       toast.success(`Invitation sent to ${userFormData.email}`)
       setShowInviteModal(false)
@@ -369,7 +377,25 @@ export default function UsersTeamsPage() {
       fetchData()
     } catch (error: any) {
       console.error('Failed to send invitation:', error)
-      toast.error(error.response?.data?.detail || 'Failed to send invitation')
+
+      // Safely extract error message to prevent React "Objects are not valid as a React child" error
+      let errorMessage = 'Failed to send invitation'
+
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail
+        // If detail is an array (FastAPI validation error), extract the first error message
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ')
+        } else if (typeof detail === 'string') {
+          errorMessage = detail
+        } else {
+          errorMessage = JSON.stringify(detail)
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
+      toast.error(errorMessage)
     }
   }
 

@@ -121,96 +121,149 @@ class EmailService:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+                    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
                     line-height: 1.6;
-                    color: #333;
+                    color: #1a1a1a;
                     max-width: 600px;
                     margin: 0 auto;
-                    padding: 20px;
+                    padding: 0;
+                    background-color: #f8fafc;
+                }}
+                .container {{
+                    background: #ffffff;
+                    margin: 20px auto;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
                 }}
                 .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background-color: #007780;
+                    background-image: linear-gradient(135deg, #007780 0%, #006670 100%);
                     color: white;
-                    padding: 30px;
-                    border-radius: 10px 10px 0 0;
+                    padding: 40px 30px;
                     text-align: center;
                 }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 28px;
+                    font-weight: 700;
+                    letter-spacing: -0.025em;
+                }}
                 .content {{
-                    background: #ffffff;
-                    padding: 30px;
-                    border: 1px solid #e0e0e0;
-                    border-top: none;
+                    padding: 40px 30px;
+                }}
+                .welcome-text {{
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #007780;
+                    margin-bottom: 20px;
+                }}
+                .invitation-text {{
+                    font-size: 16px;
+                    color: #4a5568;
+                    margin-bottom: 30px;
+                }}
+                .info-box {{
+                    background-color: #F2FDFA;
+                    padding: 24px;
+                    border-radius: 8px;
+                    border-left: 4px solid #007780;
+                    margin: 30px 0;
+                }}
+                .info-box strong {{
+                    color: #005560;
+                    font-size: 16px;
+                    display: block;
+                    margin-bottom: 12px;
+                }}
+                .info-box ul {{
+                    margin: 0;
+                    padding-left: 20px;
+                    color: #334e4e;
+                }}
+                .info-box li {{
+                    margin-bottom: 8px;
+                }}
+                .button-container {{
+                    text-align: center;
+                    margin: 35px 0;
                 }}
                 .button {{
                     display: inline-block;
-                    padding: 12px 30px;
-                    background: #667eea;
-                    color: white;
+                    padding: 14px 36px;
+                    background-color: #007780;
+                    color: #ffffff !important;
                     text-decoration: none;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     font-weight: 600;
-                    margin: 20px 0;
+                    font-size: 16px;
+                    transition: background-color 0.2s;
                 }}
                 .footer {{
-                    background: #f5f5f5;
-                    padding: 20px;
+                    background-color: #f1f5f9;
+                    padding: 30px;
                     text-align: center;
-                    font-size: 12px;
-                    color: #666;
-                    border-radius: 0 0 10px 10px;
+                    font-size: 13px;
+                    color: #64748b;
                 }}
-                .info-box {{
-                    background: #f0f4ff;
-                    padding: 15px;
-                    border-left: 4px solid #667eea;
-                    margin: 20px 0;
+                .expiry-note {{
+                    font-size: 14px;
+                    color: #718096;
+                    text-align: center;
+                    margin-top: 20px;
+                }}
+                .link-fallback {{
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e2e8f0;
+                    font-size: 12px;
+                    word-break: break-all;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>🎉 Welcome to CogniTest!</h1>
-            </div>
-
-            <div class="content">
-                <p>Hi{f' {full_name}' if full_name else ''},</p>
-
-                <p><strong>{inviter_name}</strong> has invited you to join <strong>{organisation_name}</strong> on <strong>CogniTest</strong>, an AI-powered testing platform.</p>
-
-                <div class="info-box">
-                    <strong>What is CogniTest?</strong><br>
-                    CogniTest is a comprehensive testing platform with modules for:
-                    <ul>
-                        <li>🤖 Automation Hub - Automate your testing workflows</li>
-                        <li>🔌 API Testing - Test and validate APIs</li>
-                        <li>📋 Test Management - Organize test cases and suites</li>
-                        <li>🔒 Security Testing - Security scanning and compliance</li>
-                        <li>⚡ Performance Testing - Load and stress testing</li>
-                        <li>📱 Mobile Testing - Mobile app testing</li>
-                    </ul>
+            <div class="container">
+                <div class="header">
+                    <h1>CogniTest</h1>
                 </div>
 
-                <p>Click the button below to create your account and get started:</p>
+                <div class="content">
+                    <p class="welcome-text">Hi{f' {full_name}' if full_name else ''},</p>
 
-                <div style="text-align: center;">
-                    <a href="{invitation_url}" class="button">Accept Invitation & Sign Up</a>
+                    <p class="invitation-text">
+                        <strong>{inviter_name}</strong> has invited you to join <strong>{organisation_name}</strong> on <strong>CogniTest</strong>, the next-generation AI-powered testing platform.
+                    </p>
+
+                    <div class="info-box">
+                        <strong>What can you do with CogniTest?</strong>
+                        <ul>
+                            <li><strong>Automation Hub:</strong> Effortlessly automate your testing workflows</li>
+                            <li><strong>API Testing:</strong> Comprehensive validation for all your endpoints</li>
+                            <li><strong>Test Management:</strong> Organize cases and suites with ease</li>
+                            <li><strong>Security & Performance:</strong> Scalable scanning and stress testing</li>
+                        </ul>
+                    </div>
+
+                    <p style="text-align: center; color: #4a5568;">Ready to dive in? Click below to set up your account:</p>
+
+                    <div class="button-container">
+                        <a href="{invitation_url}" class="button">Accept Invitation</a>
+                    </div>
+
+                    <p class="expiry-note">
+                        This invitation will expire in <strong>{expires_in_days} days</strong>.
+                    </p>
+
+                    <div class="link-fallback">
+                        If the button above doesn't work, copy and paste this URL into your browser:<br>
+                        <a href="{invitation_url}" style="color: #007780;">{invitation_url}</a>
+                    </div>
                 </div>
 
-                <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                    <strong>Note:</strong> This invitation will expire in <strong>{expires_in_days} days</strong>.
-                </p>
-
-                <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
-
-                <p style="font-size: 12px; color: #666;">
-                    If the button doesn't work, copy and paste this link into your browser:<br>
-                    <a href="{invitation_url}" style="color: #667eea;">{invitation_url}</a>
-                </p>
-            </div>
-
-            <div class="footer">
-                <p>This is an automated email from CogniTest. Please do not reply to this email.</p>
-                <p>&copy; {organisation_name} • Powered by CogniTest</p>
+                <div class="footer">
+                    <p>You received this email because you were invited to CogniTest.</p>
+                    <p><strong>&copy; {organisation_name}</strong> • Built with ❤️ by CogniTest</p>
+                </div>
             </div>
         </body>
         </html>
