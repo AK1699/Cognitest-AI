@@ -92,6 +92,22 @@ from app.models.workflow import (
     StepStatus as WorkflowStepStatus,
     CredentialType,
 )
+from app.models.security_scan import (
+    SecurityScan,
+    ScanTarget,
+    Vulnerability,
+    ComplianceCheck,
+    ScanSchedule,
+    SecurityAsset,
+    ScanType,
+    ScanStatus,
+    SeverityLevel,
+    VulnerabilityCategory,
+    ComplianceFramework,
+    ComplianceStatus,
+    TargetType,
+    ScheduleFrequency,
+)
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -171,6 +187,21 @@ __all__ = [
     "WorkflowExecutionStatus",
     "WorkflowStepStatus",
     "CredentialType",
+    # Security Testing Models
+    "SecurityScan",
+    "ScanTarget",
+    "Vulnerability",
+    "ComplianceCheck",
+    "ScanSchedule",
+    "SecurityAsset",
+    "ScanType",
+    "ScanStatus",
+    "SeverityLevel",
+    "VulnerabilityCategory",
+    "ComplianceFramework",
+    "ComplianceStatus",
+    "TargetType",
+    "ScheduleFrequency",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",

@@ -53,6 +53,13 @@ const getProjectMenuItems = (organisationId: string, projectId: string) => {
       bgColor: 'bg-purple-100',
     },
     {
+      name: 'Security Testing',
+      href: `/organizations/${organisationId}/projects/${projectId}/security-testing`,
+      icon: Shield,
+      iconColor: 'text-teal-600',
+      bgColor: 'bg-teal-100',
+    },
+    {
       name: 'Reports & Analytics',
       href: `/organizations/${organisationId}/projects/${projectId}/reports`,
       icon: BarChart3,

@@ -44,4 +44,6 @@ from app.api.v1 import workflow, webhooks
 api_router.include_router(workflow.router, prefix="/workflows", tags=["workflows"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
-
+# Security Testing Module - Enterprise security scanning and compliance
+from app.api.v1 import security
+api_router.include_router(security.router, prefix="/security", tags=["security"])
