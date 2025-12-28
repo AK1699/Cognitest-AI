@@ -327,7 +327,6 @@ export default function AIPromptBuilder({ projectId, onSave }: AIPromptBuilderPr
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-5 h-5 mr-2" />
                       Generate Test with AI
                     </>
                   )}
@@ -383,8 +382,8 @@ export default function AIPromptBuilder({ projectId, onSave }: AIPromptBuilderPr
                       <div
                         key={step.id}
                         className={`p-4 rounded-lg border-2 transition-all ${selectedStep === index
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-purple-200'
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-gray-200 hover:border-purple-200'
                           }`}
                         onClick={() => setSelectedStep(index)}
                       >

@@ -6,6 +6,7 @@ import { testPlansAPI } from '@/lib/api/test-management'
 import { documentsAPI } from '@/lib/api/documents'
 import { organisationMemoryAPI } from '@/lib/api/organisation-memory'
 import JiraLikeEditor from './JiraLikeEditor'
+import MagnifierLoader from '@/components/ui/MagnifierLoader'
 
 interface AITestPlanGeneratorProps {
   projectId: string
@@ -287,12 +288,10 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-[#05757f] px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-6 h-6 text-white" />
             <div>
               <h2 className="text-xl font-semibold text-white">AI-Powered Test Plan Generator</h2>
-              <p className="text-purple-100 text-sm">IEEE 829 Compliant • Comprehensive Coverage</p>
             </div>
           </div>
           <button
@@ -308,12 +307,12 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
         {step === 'form' && (
           <>
             {/* Info Card */}
-            <div className="mx-6 mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+            <div className="mx-6 mt-6 p-4 bg-[#05757f]/5 border border-[#05757f]/20 rounded-lg">
               <div className="flex gap-3">
-                <Info className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-[#05757f] flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="text-sm font-medium text-purple-900">What You'll Get</h3>
-                  <ul className="text-sm text-purple-700 mt-2 space-y-1">
+                  <h3 className="text-sm font-medium text-[#05757f]">What You'll Get</h3>
+                  <ul className="text-sm text-[#05757f]/80 mt-2 space-y-1">
                     <li>✓ <strong>IEEE 829 Compliant Test Plan</strong> with all sections</li>
                     <li>✓ <strong>5-7 Test Suites</strong> automatically created and organized</li>
                     <li>✓ <strong>30-70 Test Cases</strong> with detailed steps and expected results</li>
@@ -331,18 +330,17 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 type="button"
                 onClick={() => setMode('manual')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'manual'
-                  ? 'bg-white text-purple-700 shadow-sm'
+                  ? 'bg-white text-[#05757f] shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
-                <Sparkles className="w-4 h-4" />
                 Manual Input
               </button>
               <button
                 type="button"
                 onClick={() => setMode('document')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'document'
-                  ? 'bg-white text-purple-700 shadow-sm'
+                  ? 'bg-white text-[#05757f] shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
@@ -365,7 +363,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g., E-Commerce Platform Test Plan"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                   />
                 </div>
 
@@ -378,7 +376,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     required
                     value={formData.project_type}
                     onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                   >
                     {PROJECT_TYPES.map(type => (
                       <option key={type.value} value={type.value}>{type.label}</option>
@@ -416,7 +414,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                           value={feature}
                           onChange={(e) => updateFeature(index, e.target.value)}
                           placeholder={`Feature ${index + 1} (e.g., User Authentication, Payment Processing)`}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                         />
                         {formData.features.length > 1 && (
                           <button
@@ -433,7 +431,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   <button
                     type="button"
                     onClick={addFeature}
-                    className="mt-2 flex items-center gap-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                    className="mt-2 flex items-center gap-2 text-[#05757f] hover:text-[#046169] text-sm font-medium"
                   >
                     <Plus className="w-4 h-4" />
                     Add Another Feature
@@ -452,7 +450,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                         type="button"
                         onClick={() => togglePlatform(platform)}
                         className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.platforms.includes(platform)
-                          ? 'border-purple-600 bg-purple-50 text-purple-700 font-medium'
+                          ? 'border-[#05757f] bg-[#05757f]/5 text-[#05757f] font-medium'
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                           }`}
                       >
@@ -472,7 +470,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                       required
                       value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                     >
                       {PRIORITIES.map(p => (
                         <option key={p.value} value={p.value}>{p.label}</option>
@@ -488,7 +486,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                       required
                       value={formData.complexity}
                       onChange={(e) => setFormData({ ...formData, complexity: e.target.value as any })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                     >
                       {COMPLEXITIES.map(c => (
                         <option key={c.value} value={c.value}>
@@ -509,7 +507,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     value={formData.timeframe}
                     onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
                     placeholder="e.g., 4 weeks, 2 months, Q1 2025"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Auto-generated based on complexity if not provided
@@ -538,9 +536,8 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-[#05757f] text-white rounded-lg hover:bg-[#046169] transition-colors font-medium flex items-center justify-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4" />
                     Generate Comprehensive Test Plan
                   </button>
                 </div>
@@ -551,15 +548,15 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
             {mode === 'document' && (
               <div className="p-6 space-y-6">
                 {/* File Upload Info */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="text-sm font-medium text-blue-900 mb-2">Supported File Types</h3>
-                  <div className="flex flex-wrap gap-2 text-sm text-blue-700">
-                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📄 PDF</span>
-                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📝 Word (DOC, DOCX)</span>
-                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📃 Text (TXT)</span>
-                    <span className="px-3 py-1 bg-white rounded-full border border-blue-200">📋 Markdown (MD)</span>
+                <div className="p-4 bg-[#05757f]/5 border border-[#05757f]/20 rounded-lg">
+                  <h3 className="text-sm font-medium text-[#05757f] mb-2">Supported File Types</h3>
+                  <div className="flex flex-wrap gap-2 text-sm text-[#05757f]/80">
+                    <span className="px-3 py-1 bg-white rounded-full border border-[#05757f]/20">📄 PDF</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-[#05757f]/20">📝 Word (DOC, DOCX)</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-[#05757f]/20">📃 Text (TXT)</span>
+                    <span className="px-3 py-1 bg-white rounded-full border border-[#05757f]/20">📋 Markdown (MD)</span>
                   </div>
-                  <p className="text-xs text-blue-600 mt-2">Maximum file size: 50MB</p>
+                  <p className="text-xs text-[#05757f]/60 mt-2">Maximum file size: 50MB</p>
                 </div>
 
                 {/* Title Field */}
@@ -572,7 +569,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     value={documentTitle}
                     onChange={(e) => setDocumentTitle(e.target.value)}
                     placeholder="e.g., E-Commerce Platform Test Plan"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                   />
                 </div>
 
@@ -581,7 +578,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upload Requirements Document <span className="text-red-500">*</span>
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#05757f]/50 transition-colors">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -592,7 +589,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                     {selectedFile ? (
                       <div className="flex items-center justify-center gap-3">
-                        <FileText className="w-8 h-8 text-purple-600" />
+                        <FileText className="w-8 h-8 text-[#05757f]" />
                         <div className="text-left">
                           <div className="font-medium text-gray-900">{selectedFile.name}</div>
                           <div className="text-sm text-gray-500">
@@ -617,7 +614,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                          className="px-6 py-2 bg-[#05757f] text-white rounded-lg hover:bg-[#046169] transition-colors font-medium"
                         >
                           Choose File
                         </button>
@@ -636,7 +633,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     onChange={(e) => setDocumentContext(e.target.value)}
                     placeholder="Provide any additional information that might help the AI generate better test cases...&#10;Example: Focus on security testing, include edge cases, prioritize user workflows"
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent"
                   />
                 </div>
 
@@ -650,7 +647,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     onChange={(e) => setDocumentObjectives(e.target.value)}
                     placeholder="Enter specific objectives, one per line:&#10;Verify login functionality&#10;Test password reset flow&#10;Validate session management"
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#05757f] focus:border-transparent font-mono text-sm"
                   />
                 </div>
 
@@ -678,9 +675,8 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                     type="button"
                     onClick={handleDocumentUpload}
                     disabled={!selectedFile || !documentTitle.trim()}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-[#05757f] text-white rounded-lg hover:bg-[#046169] transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Sparkles className="w-4 h-4" />
                     Generate from Document
                   </button>
                 </div>
@@ -695,10 +691,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
             <div className="max-w-md mx-auto text-center">
               {/* Animated Icon */}
               <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-purple-600"></div>
-                  <Sparkles className="w-8 h-8 text-purple-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-                </div>
+                <MagnifierLoader />
               </div>
 
               {/* Title */}
@@ -712,7 +705,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               </p>
 
               {/* Progress Steps */}
-              <div className="space-y-3 text-left bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6">
+              <div className="space-y-3 text-left bg-[#05757f]/5 rounded-lg p-6">
                 {mode === 'document' ? (
                   <>
                     <div className="flex items-center gap-3 text-sm">
@@ -728,7 +721,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                       <span className="text-gray-700">Identifying test scenarios</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                      <Loader2 className="w-5 h-5 text-[#05757f] animate-spin" />
                       <span className="text-gray-700 font-medium">Generating comprehensive test plan...</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm opacity-50">
@@ -751,7 +744,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                       <span className="text-gray-700">Creating test strategy and approach</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                      <Loader2 className="w-5 h-5 text-[#05757f] animate-spin" />
                       <span className="text-gray-700 font-medium">Generating test suites and cases...</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm opacity-50">
@@ -775,8 +768,8 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
             <div className="max-w-3xl mx-auto">
               {/* Review Header */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Eye className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-[#05757f]/10 rounded-full flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#05757f]" />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Review AI-Generated Test Plan</h3>
@@ -785,9 +778,9 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               </div>
 
               {/* Preview Content */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 mb-6">
+              <div className="bg-[#05757f]/5 border border-[#05757f]/20 rounded-lg p-6 mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <Sparkles className="w-5 h-5 text-[#05757f]" />
                   Generated Test Plan Preview
                 </h4>
 
@@ -802,7 +795,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                 <div className="space-y-4 text-sm">
                   {/* Test Plan Name */}
                   {previewData.name && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-xs font-medium text-gray-500 uppercase mb-1">Test Plan Name</div>
                       <div className="text-lg font-bold text-gray-900">{previewData.name}</div>
                     </div>
@@ -811,13 +804,13 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {previewData.confidence_score && (
-                      <div className="bg-white rounded-lg p-3 border border-purple-100 text-center">
+                      <div className="bg-white rounded-lg p-3 border border-[#05757f]/20 text-center">
                         <div className="text-2xl font-bold text-green-600 capitalize">{previewData.confidence_score}</div>
                         <div className="text-xs text-gray-600">Confidence</div>
                       </div>
                     )}
                     {previewData.id && (
-                      <div className="bg-white rounded-lg p-3 border border-purple-100 text-center col-span-2">
+                      <div className="bg-white rounded-lg p-3 border border-[#05757f]/20 text-center col-span-2">
                         <div className="text-xs font-mono text-gray-900">{previewData.id}</div>
                         <div className="text-xs text-gray-600">Plan ID</div>
                       </div>
@@ -826,12 +819,12 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                   {/* Test Objectives */}
                   {previewData.test_objectives && previewData.test_objectives.length > 0 && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-xs font-medium text-gray-500 uppercase mb-2">Test Objectives</div>
                       <ul className="text-sm text-gray-700 space-y-1">
                         {previewData.test_objectives.slice(0, 3).map((obj: any, idx: number) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-purple-600">•</span>
+                            <span className="text-[#05757f]">•</span>
                             <span>{obj.title || obj.objective || obj}</span>
                           </li>
                         ))}
@@ -844,7 +837,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                   {/* Scope */}
                   {previewData.scope_of_testing && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-xs font-medium text-gray-500 uppercase mb-2">Scope of Testing</div>
                       <div className="grid grid-cols-2 gap-4">
                         {previewData.scope_of_testing.in_scope && (
@@ -862,7 +855,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                         )}
                         {previewData.scope_of_testing.testing_types && (
                           <div>
-                            <div className="text-xs font-medium text-blue-700 mb-1">Testing Types</div>
+                            <div className="text-xs font-medium text-[#05757f] mb-1">Testing Types</div>
                             <ul className="text-xs text-gray-600 space-y-1">
                               {previewData.scope_of_testing.testing_types.slice(0, 2).map((type: string, idx: number) => (
                                 <li key={idx}>• {type}</li>
@@ -879,7 +872,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                   {/* Description */}
                   {previewData.description && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-xs font-medium text-gray-500 uppercase mb-2">Description</div>
                       <div className="text-sm text-gray-700 line-clamp-3">{previewData.description}</div>
                     </div>
@@ -887,20 +880,20 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                   {/* Test Suites */}
                   {previewData.test_suites && previewData.test_suites.length > 0 && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-xs font-medium text-gray-500 uppercase mb-2">Test Suites & Cases</div>
                       <div className="space-y-3">
                         {previewData.test_suites.slice(0, 3).map((suite: any, idx: number) => {
                           const totalCases = suite.test_cases?.length || 0;
                           return (
-                            <div key={idx} className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-100">
+                            <div key={idx} className="bg-[#05757f]/5 rounded-lg p-3 border border-[#05757f]/20">
                               <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex-1">
                                   <div className="font-semibold text-sm text-gray-900">{suite.name}</div>
                                   <div className="text-xs text-gray-600 mt-1">{suite.description}</div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                                  <span className="px-2 py-0.5 bg-[#05757f]/10 text-[#05757f] text-xs rounded-full font-medium">
                                     {suite.category}
                                   </span>
                                   <span className="text-xs text-gray-600">{totalCases} test{totalCases !== 1 ? 's' : ''}</span>
@@ -910,7 +903,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                                 <div className="mt-2 space-y-1">
                                   {suite.test_cases.slice(0, 2).map((testCase: any, tcIdx: number) => (
                                     <div key={tcIdx} className="text-xs text-gray-700 flex items-start gap-1">
-                                      <span className="text-purple-500">▸</span>
+                                      <span className="text-[#05757f]/80">▸</span>
                                       <span className="flex-1">{testCase.name}</span>
                                       <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${testCase.priority === 'critical' ? 'bg-red-100 text-red-700' :
                                         testCase.priority === 'high' ? 'bg-orange-100 text-orange-700' :
@@ -937,12 +930,12 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                           </div>
                         )}
                       </div>
-                      <div className="mt-3 pt-3 border-t border-purple-100 flex items-center justify-between text-xs">
+                      <div className="mt-3 pt-3 border-t border-[#05757f]/20 flex items-center justify-between text-xs">
                         <span className="text-gray-600">
-                          Total: <strong className="text-purple-700">{previewData.test_suites.length}</strong> test suite{previewData.test_suites.length !== 1 ? 's' : ''}
+                          Total: <strong className="text-[#05757f]">{previewData.test_suites.length}</strong> test suite{previewData.test_suites.length !== 1 ? 's' : ''}
                         </span>
                         <span className="text-gray-600">
-                          <strong className="text-purple-700">
+                          <strong className="text-[#05757f]">
                             {previewData.test_suites.reduce((sum: number, suite: any) => sum + (suite.test_cases?.length || 0), 0)}
                           </strong> total test case{previewData.test_suites.reduce((sum: number, suite: any) => sum + (suite.test_cases?.length || 0), 0) !== 1 ? 's' : ''}
                         </span>
@@ -952,7 +945,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
 
                   {/* Fallback: Show minimal info if specific fields are missing */}
                   {!previewData.name && !previewData.test_objectives && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="bg-white rounded-lg p-4 border border-[#05757f]/20">
                       <div className="text-sm text-gray-700">
                         <p className="font-medium mb-2">✅ Test Plan Generated Successfully!</p>
                         <p className="text-gray-600">
@@ -969,15 +962,15 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               </div>
 
               {/* Info Box */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+              <div className="p-4 bg-[#05757f]/5 border border-[#05757f]/20 rounded-lg mb-6">
                 <div className="flex gap-3">
-                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-900">
+                  <Info className="w-5 h-5 text-[#05757f] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-[#05757f]">
                     <strong>Review Your Test Plan</strong>
-                    <p className="mt-2 text-blue-800">
+                    <p className="mt-2 text-[#05757f]/90">
                       AI has generated a comprehensive test plan based on your requirements. Review the details above and choose an action:
                     </p>
-                    <ul className="mt-2 space-y-1 text-blue-800">
+                    <ul className="mt-2 space-y-1 text-[#05757f]/90">
                       <li>• <strong>"Accept & Create Test Plan"</strong> - Finalize and add to your project</li>
                       <li>• <strong>"Back to Edit"</strong> - Modify requirements and regenerate</li>
                     </ul>
@@ -1011,7 +1004,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   type="button"
                   onClick={handleAccept}
                   disabled={false}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-6 py-3 bg-[#05757f] text-white rounded-lg hover:bg-[#046169] transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {false ? (
                     <>
@@ -1050,7 +1043,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
               </p>
 
               {/* Summary */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 text-left mb-6">
+              <div className="bg-[#05757f]/5 rounded-lg p-6 text-left mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Generated Content:</h4>
                 <div className="space-y-2 text-sm text-gray-700">
                   {generatedPlan.id && (
@@ -1091,7 +1084,7 @@ export default function AITestPlanGenerator({ projectId, organisationId, onClose
                   if (onSuccess) onSuccess()
                   onClose()
                 }}
-                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+                className="w-full px-6 py-3 bg-[#05757f] text-white rounded-lg hover:bg-[#046169] transition-colors font-medium"
               >
                 View Test Plan
               </button>

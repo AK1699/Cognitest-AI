@@ -262,7 +262,7 @@ class EmailService:
 
                 <div class="footer">
                     <p>You received this email because you were invited to CogniTest.</p>
-                    <p><strong>&copy; {organisation_name}</strong> • Built with ❤️ by CogniTest</p>
+                    <p><strong>&copy; CogniTest</strong></p>
                 </div>
             </div>
         </body>

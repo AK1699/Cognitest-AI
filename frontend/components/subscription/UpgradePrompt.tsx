@@ -178,7 +178,6 @@ export function UpgradeBadge({ plan = 'pro', onClick }: UpgradeBadgeProps) {
             onClick={onClick}
             className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-full hover:from-purple-600 hover:to-purple-700 transition-colors"
         >
-            <Sparkles className="w-3 h-3" />
             {plan.charAt(0).toUpperCase() + plan.slice(1)}
         </button>
     )
@@ -213,7 +212,6 @@ export function FeatureLockOverlay({ feature, organisationId, requiredPlan = 'pr
                         onClick={() => router.push(`/organizations/${organisationId}/billing`)}
                         className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors inline-flex items-center gap-2"
                     >
-                        <Sparkles className="w-4 h-4" />
                         Upgrade Now
                     </button>
                 </div>

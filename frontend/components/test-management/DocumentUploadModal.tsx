@@ -213,21 +213,19 @@ export default function DocumentUploadModal({ projectId, onClose, onUploadSucces
           <div className="flex gap-4">
             <button
               onClick={() => setStep('list')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                step === 'list'
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${step === 'list'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               Documents ({documents.length})
             </button>
             <button
               onClick={() => setStep('upload')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                step === 'upload'
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${step === 'upload'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               Upload New
             </button>
@@ -393,10 +391,7 @@ export default function DocumentUploadModal({ projectId, onClose, onUploadSucces
                               Generating...
                             </>
                           ) : (
-                            <>
-                              <Sparkles className="w-4 h-4" />
-                              Generate Plan
-                            </>
+                            'Generate Plan'
                           )}
                         </button>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight, BrainCircuit } from 'lucide-react'
+import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight, BrainCircuit, ClipboardList, FolderTree, ListChecks, Bug, TrendingUp, Link2 } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -427,7 +427,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
-                <FileText className="w-4 h-4" />
+                <ClipboardList className="w-4 h-4" />
                 Test Plans
               </button>
               <button
@@ -437,7 +437,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
-                <FileText className="w-4 h-4" />
+                <FolderTree className="w-4 h-4" />
                 Test Suites
               </button>
               <button
@@ -447,7 +447,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                   : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
-                <FileText className="w-4 h-4" />
+                <ListChecks className="w-4 h-4" />
                 Test Cases
               </button>
             </div>
@@ -459,14 +459,14 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                 onClick={() => setShowIssues(true)}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
               >
-                <AlertCircle className="w-4 h-4" />
+                <Bug className="w-4 h-4" />
                 All Issues
               </button>
               <button
                 onClick={() => setShowDefectDashboard(true)}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
               >
-                <BarChart3 className="w-4 h-4" />
+                <TrendingUp className="w-4 h-4" />
                 Analytics
               </button>
             </div>
@@ -478,7 +478,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                 onClick={() => setShowIntegrations(true)}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
               >
-                <Zap className="w-4 h-4" />
+                <Link2 className="w-4 h-4" />
                 External Tools
               </button>
             </div>
@@ -548,7 +548,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                     onClick={() => setShowAIGenerator(true)}
                     className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-all flex items-center gap-2 text-sm"
                   >
-                    <Sparkles className="w-4 h-4" />
                     Generate with AI
                   </button>
                 </>
@@ -603,7 +602,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
                       onClick={() => setShowAIGenerator(true)}
                       className="px-6 py-3 bg-primary hover:opacity-90 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4" />
                       Generate with AI
                     </button>
                   </div>
