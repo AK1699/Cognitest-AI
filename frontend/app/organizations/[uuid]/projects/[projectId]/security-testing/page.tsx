@@ -135,7 +135,7 @@ export default function SecurityTestingPage() {
     const fetchDashboardData = async () => {
         setLoading(true)
         try {
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('access_token')
 
             const statsResponse = await fetch(`${API_URL}/api/v1/security/dashboard/${projectId}/stats`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -174,7 +174,7 @@ export default function SecurityTestingPage() {
         setScanResult(null)
 
         try {
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/url/scan?project_id=${projectId}`, {
                 method: 'POST',
                 headers: {
@@ -234,7 +234,7 @@ export default function SecurityTestingPage() {
         setRepoScanResult(null)
 
         try {
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/repo/scan?project_id=${projectId}`, {
                 method: 'POST',
                 headers: {
@@ -293,7 +293,7 @@ export default function SecurityTestingPage() {
         setVaptResult(null)
 
         try {
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/vapt/scan?project_id=${projectId}`, {
                 method: 'POST',
                 headers: {
@@ -351,7 +351,7 @@ export default function SecurityTestingPage() {
         setComplianceResult(null)
 
         try {
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/compliance/${projectId}/report?framework=${selectedFramework}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
@@ -475,8 +475,8 @@ export default function SecurityTestingPage() {
                                 key={tab.id}
                                 onClick={() => setActiveModule(tab.id as any)}
                                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeModule === tab.id
-                                        ? 'text-teal-700 bg-white border-b-2 border-teal-700 shadow-sm'
-                                        : 'text-gray-600 hover:text-teal-700 hover:bg-white/50'
+                                    ? 'text-teal-700 bg-white border-b-2 border-teal-700 shadow-sm'
+                                    : 'text-gray-600 hover:text-teal-700 hover:bg-white/50'
                                     }`}
                             >
                                 <tab.icon className="w-4 h-4" />

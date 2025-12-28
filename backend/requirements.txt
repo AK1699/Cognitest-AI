@@ -42,6 +42,9 @@ celery[sqlalchemy]==5.3.6
 redis==5.0.1
 hiredis==2.3.2
 
+# Rate limiting
+slowapi==0.1.9
+
 # HTTP Client
 httpx==0.26.0
 aiohttp==3.9.3

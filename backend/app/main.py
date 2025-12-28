@@ -10,6 +10,14 @@ from app.core.database import AsyncSessionLocal
 from app.models.role import Permission
 from app.api.v1 import api_router
 
+# Rate limiting (optional - graceful fallback if Redis unavailable)
+try:
+    from app.core.rate_limiter import setup_rate_limiting, limiter
+    RATE_LIMITING_AVAILABLE = True
+except ImportError:
+    RATE_LIMITING_AVAILABLE = False
+    limiter = None
+
 # Module-based permission definitions
 MODULE_PERMISSIONS = {
     "automation_hub": [
@@ -133,6 +141,14 @@ app.add_middleware(
 
 # GZip Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Rate Limiting Setup (optional)
+if RATE_LIMITING_AVAILABLE:
+    try:
+        setup_rate_limiting(app)
+        print("✅ Rate limiting configured")
+    except Exception as e:
+        print(f"⚠️  Rate limiting setup failed: {e}")
 
 # Custom exception handlers to ensure CORS headers are included in error responses
 # This is necessary because FastAPI's CORS middleware doesn't handle exceptions
