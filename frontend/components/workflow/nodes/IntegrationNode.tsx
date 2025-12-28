@@ -2,9 +2,9 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
-import { MessageSquare, FileText, GitBranch, Database, Mail, Globe } from 'lucide-react'
+import { MessageSquare, FileText, GitBranch, Database, Mail, Globe, Circle } from 'lucide-react'
 
-// Integration icons - in production would use actual brand icons
+// Integration icons
 const iconMap: Record<string, React.ComponentType<any>> = {
     'slack': MessageSquare,
     'jira': FileText,
@@ -16,96 +16,23 @@ const iconMap: Record<string, React.ComponentType<any>> = {
     'email': Mail,
     'google-sheets': FileText,
     'webhook': Globe,
+    'send-email': Mail,
 }
 
-// Integration colors
-const colorMap: Record<string, string> = {
-    'slack': '#4A154B',
-    'jira': '#0052CC',
-    'github': '#24292e',
-    'gitlab': '#FC6D26',
-    'postgresql': '#336791',
-    'mysql': '#4479A1',
-    'mongodb': '#47A248',
-    'email': '#EA4335',
-    'google-sheets': '#34A853',
-    'webhook': '#ec4899',
+// Integration colors (for the ring)
+const colorMap: Record<string, { ring: string, text: string }> = {
+    'slack': { ring: 'border-purple-400', text: 'text-purple-400' },
+    'jira': { ring: 'border-blue-500', text: 'text-blue-500' },
+    'github': { ring: 'border-slate-400', text: 'text-slate-400' },
+    'gitlab': { ring: 'border-orange-400', text: 'text-orange-400' },
+    'postgresql': { ring: 'border-blue-400', text: 'text-blue-400' },
+    'mysql': { ring: 'border-sky-400', text: 'text-sky-400' },
+    'mongodb': { ring: 'border-green-400', text: 'text-green-400' },
+    'email': { ring: 'border-red-400', text: 'text-red-400' },
+    'send-email': { ring: 'border-blue-400', text: 'text-blue-400' },
+    'google-sheets': { ring: 'border-green-500', text: 'text-green-500' },
+    'webhook': { ring: 'border-pink-400', text: 'text-pink-400' },
 }
-
-export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) => {
-    const integrationType = data.type || 'webhook'
-    const Icon = iconMap[integrationType] || Globe
-    const color = colorMap[integrationType] || '#ec4899'
-
-    return (
-        <div
-            className={`
-        relative px-4 py-3 rounded-lg border-2 min-w-[180px]
-        bg-white shadow-sm
-        transition-all duration-200
-      `}
-            style={{
-                borderColor: selected ? color : `${color}80`,
-                boxShadow: selected ? `0 10px 25px -5px ${color}30` : '0 1px 3px rgba(0,0,0,0.1)',
-            }}
-        >
-            {/* Input handle */}
-            <Handle
-                type="target"
-                position={Position.Top}
-                className="!w-3 !h-3 !border-2 !border-white"
-                style={{ backgroundColor: color }}
-            />
-
-            {/* Header with icon and label */}
-            <div className="flex items-center gap-2 mb-2">
-                <div
-                    className="p-1.5 rounded"
-                    style={{ backgroundColor: `${color}15` }}
-                >
-                    <Icon className="h-4 w-4" style={{ color }} />
-                </div>
-                <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                        {data.label || getIntegrationName(integrationType)}
-                    </div>
-                    <div className="text-xs text-gray-400 truncate">
-                        {integrationType}
-                    </div>
-                </div>
-            </div>
-
-            {/* Config preview based on integration type */}
-            {data.config && Object.keys(data.config).length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                    {renderConfigPreview(integrationType, data.config)}
-                </div>
-            )}
-
-            {/* Description if exists */}
-            {data.description && (
-                <p className="text-xs text-gray-500 mt-1 truncate">
-                    {data.description}
-                </p>
-            )}
-
-            {/* Disabled overlay */}
-            {data.disabled && (
-                <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-gray-400">Disabled</span>
-                </div>
-            )}
-
-            {/* Output handle */}
-            <Handle
-                type="source"
-                position={Position.Bottom}
-                className="!w-3 !h-3 !border-2 !border-white"
-                style={{ backgroundColor: color }}
-            />
-        </div>
-    )
-})
 
 function getIntegrationName(type: string): string {
     const names: Record<string, string> = {
@@ -117,58 +44,79 @@ function getIntegrationName(type: string): string {
         'mysql': 'MySQL',
         'mongodb': 'MongoDB',
         'email': 'Email',
+        'send-email': 'Send Email',
         'google-sheets': 'Google Sheets',
         'webhook': 'Webhook',
     }
-    return names[type] || type.charAt(0).toUpperCase() + type.slice(1)
+    return names[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/-/g, ' ')
 }
 
-function renderConfigPreview(type: string, config: Record<string, any>): React.ReactNode {
-    switch (type) {
-        case 'slack':
-            return config.channel ? (
-                <div className="text-xs text-gray-500 truncate">
-                    Channel: <span className="text-pink-600">{config.channel}</span>
-                </div>
-            ) : null
+export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) => {
+    const integrationType = data.type || 'webhook'
+    const Icon = iconMap[integrationType] || Circle
+    const colors = colorMap[integrationType] || { ring: 'border-pink-400', text: 'text-pink-400' }
 
-        case 'jira':
-            return (
-                <div className="text-xs text-gray-500 truncate">
-                    {config.action && <span className="text-blue-600">{config.action}</span>}
-                    {config.project && <span> in {config.project}</span>}
+    return (
+        <div className="flex flex-col items-center">
+            {/* Main Node - Square with centered icon */}
+            <div
+                className={`
+                    relative w-14 h-14 rounded-xl
+                    bg-slate-800 border-2
+                    flex items-center justify-center
+                    transition-all duration-200
+                    ${selected
+                        ? `${colors.ring} shadow-lg shadow-pink-500/30`
+                        : 'border-slate-600 hover:border-slate-500'
+                    }
+                `}
+            >
+                {/* Icon with colored ring */}
+                <div className={`w-9 h-9 rounded-full border-2 ${colors.ring} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${colors.text}`} />
                 </div>
-            )
 
-        case 'github':
-            return (
-                <div className="text-xs text-gray-500 truncate">
-                    {config.owner && config.repo && (
-                        <span>{config.owner}/{config.repo}</span>
-                    )}
+                {/* "+" indicator for the last node (n8n style) */}
+                <div className="absolute -right-6 top-1/2 -translate-y-1/2 hidden group-hover:flex">
+                    <div className="w-4 h-4 bg-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-600 cursor-pointer">
+                        <span className="text-xs leading-none">+</span>
+                    </div>
                 </div>
-            )
 
-        case 'postgresql':
-        case 'mysql':
-        case 'mongodb':
-            return config.query ? (
-                <div className="text-xs text-gray-500 font-mono truncate">
-                    {config.query.substring(0, 30)}...
+                {/* Disabled overlay */}
+                {data.disabled && (
+                    <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
+                        <span className="text-[10px] text-slate-500">Off</span>
+                    </div>
+                )}
+
+                {/* Input handle - LEFT side */}
+                <Handle
+                    type="target"
+                    position={Position.Left}
+                    className={`!w-3 !h-3 !border-2 !border-slate-800 !-left-1.5 !bg-pink-400`}
+                />
+
+                {/* Output handle - RIGHT side */}
+                <Handle
+                    type="source"
+                    position={Position.Right}
+                    className={`!w-3 !h-3 !border-2 !border-slate-800 !-right-1.5 !bg-pink-400`}
+                />
+            </div>
+
+            {/* Label below the node */}
+            <div className="mt-2 text-center max-w-28">
+                <div className="text-xs font-medium text-slate-700 truncate">
+                    {data.label || getIntegrationName(integrationType)}
                 </div>
-            ) : null
-
-        case 'email':
-            return config.to ? (
-                <div className="text-xs text-gray-500 truncate">
-                    To: {config.to}
+                <div className="text-[10px] text-slate-400 truncate">
+                    {data.description || integrationType.replace(/-/g, ' ')}
                 </div>
-            ) : null
-
-        default:
-            return null
-    }
-}
+            </div>
+        </div>
+    )
+})
 
 IntegrationNode.displayName = 'IntegrationNode'
 

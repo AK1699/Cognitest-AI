@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
-import { Globe, Play, Mail, Shuffle, Variable, Filter } from 'lucide-react'
+import { Globe, Play, Mail, Shuffle, Variable, Filter, Circle } from 'lucide-react'
 
 const iconMap: Record<string, React.ComponentType<any>> = {
     'http-request': Globe,
@@ -14,75 +14,66 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 }
 
 export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
-    const Icon = iconMap[data.type] || Play
+    const Icon = iconMap[data.type] || Circle
 
     return (
-        <div
-            className={`
-        relative px-4 py-3 rounded-lg border-2 min-w-[180px]
-        bg-white shadow-sm
-        ${selected ? 'border-blue-500 shadow-lg shadow-blue-200' : 'border-blue-400'}
-        transition-all duration-200
-      `}
-        >
-            {/* Input handle */}
-            <Handle
-                type="target"
-                position={Position.Top}
-                className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
-            />
-
-            {/* Header with icon and label */}
-            <div className="flex items-center gap-2 mb-2">
-                <div className="p-1.5 rounded bg-blue-100">
-                    <Icon className="h-4 w-4 text-blue-600" />
+        <div className="flex flex-col items-center">
+            {/* Main Node - Square with centered icon */}
+            <div
+                className={`
+                    relative w-14 h-14 rounded-xl
+                    bg-slate-800 border-2
+                    flex items-center justify-center
+                    transition-all duration-200
+                    ${selected
+                        ? 'border-blue-400 shadow-lg shadow-blue-500/30'
+                        : 'border-slate-600 hover:border-slate-500'
+                    }
+                `}
+            >
+                {/* Icon with ring */}
+                <div className="w-9 h-9 rounded-full border-2 border-blue-400 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-blue-400" />
                 </div>
-                <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                        {data.label || 'Action'}
+
+                {/* Disabled overlay */}
+                {data.disabled && (
+                    <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
+                        <span className="text-[10px] text-slate-500">Off</span>
                     </div>
-                    <div className="text-xs text-gray-400 truncate">
-                        {data.type}
+                )}
+
+                {/* Input handle - LEFT side */}
+                <Handle
+                    type="target"
+                    position={Position.Left}
+                    className="!w-3 !h-3 !bg-blue-400 !border-2 !border-slate-800 !-left-1.5"
+                />
+
+                {/* Output handle - RIGHT side */}
+                <Handle
+                    type="source"
+                    position={Position.Right}
+                    className="!w-3 !h-3 !bg-blue-400 !border-2 !border-slate-800 !-right-1.5"
+                />
+
+                {/* Add button indicator (n8n style) */}
+                <div className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-4 h-4 bg-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-600 cursor-pointer">
+                        <span className="text-xs">+</span>
                     </div>
                 </div>
             </div>
 
-            {/* Description if exists */}
-            {data.description && (
-                <p className="text-xs text-gray-500 mt-1 truncate">
-                    {data.description}
-                </p>
-            )}
-
-            {/* Config preview */}
-            {data.config && Object.keys(data.config).length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                    {data.type === 'http-request' && data.config.url && (
-                        <div className="text-xs text-gray-500 truncate">
-                            <span className="text-blue-600">{data.config.method || 'GET'}</span> {data.config.url}
-                        </div>
-                    )}
-                    {data.type === 'run-test' && data.config.test_flow_id && (
-                        <div className="text-xs text-gray-500 truncate">
-                            Test: {data.config.test_flow_id}
-                        </div>
-                    )}
+            {/* Label below the node */}
+            <div className="mt-2 text-center max-w-28">
+                <div className="text-xs font-medium text-slate-700 truncate">
+                    {data.label || 'Action'}
                 </div>
-            )}
-
-            {/* Disabled overlay */}
-            {data.disabled && (
-                <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-gray-400">Disabled</span>
+                <div className="text-[10px] text-slate-400 truncate">
+                    {data.description || data.type?.replace(/-/g, ' ')}
                 </div>
-            )}
-
-            {/* Output handle */}
-            <Handle
-                type="source"
-                position={Position.Bottom}
-                className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white"
-            />
+            </div>
         </div>
     )
 })

@@ -48,7 +48,7 @@ import {
 
 import { workflowAPI, WorkflowDetail, WorkflowNode, WorkflowEdge } from '@/lib/api/workflow'
 import { NodePalette } from './NodePalette'
-import { NodePropertiesPanel } from './NodePropertiesPanel'
+import { NodePropertiesModal } from './NodePropertiesModal'
 import { ExecutionMonitor } from './ExecutionMonitor'
 
 // Import custom node types
@@ -84,6 +84,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     const [workflow, setWorkflow] = useState<WorkflowDetail | null>(null)
     const [workflowName, setWorkflowName] = useState('New Workflow')
     const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+    const [showNodeModal, setShowNodeModal] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [isExecuting, setIsExecuting] = useState(false)
     const [executionId, setExecutionId] = useState<string | null>(null)
@@ -99,16 +100,17 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
         if (workflowId) {
             loadWorkflow(workflowId)
         } else {
-            // Initialize with a manual trigger node
+            // Initialize with a manual trigger node (positioned for horizontal flow)
             const triggerId = `trigger-${Date.now()}`
             setNodes([
                 {
                     id: triggerId,
                     type: 'trigger',
-                    position: { x: 250, y: 50 },
+                    position: { x: 100, y: 200 },
                     data: {
-                        label: 'Manual Trigger',
+                        label: 'Execute',
                         type: 'manual-trigger',
+                        description: 'Run test to execute',
                         config: {},
                     },
                 },
@@ -140,9 +142,10 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                 sourceHandle: e.sourceHandle,
                 targetHandle: e.targetHandle,
                 label: e.label,
-                type: e.type || 'smoothstep',
+                type: 'bezier',
                 animated: e.animated,
-                markerEnd: { type: MarkerType.ArrowClosed },
+                style: { stroke: '#64748b', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
             }))
 
             setNodes(rfNodes)
@@ -166,18 +169,25 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
             const newEdge = {
                 ...connection,
                 id: `edge-${Date.now()}`,
-                type: 'smoothstep',
+                type: 'bezier',
                 animated: false,
-                markerEnd: { type: MarkerType.ArrowClosed },
+                style: { stroke: '#64748b', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
             }
             setEdges((eds) => addEdge(newEdge, eds))
         },
         [setEdges]
     )
 
-    // Handle node selection
+    // Handle node selection - open modal on double click
     const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
         setSelectedNode(node)
+    }, [])
+
+    // Handle node double click - open properties modal
+    const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+        setSelectedNode(node)
+        setShowNodeModal(true)
     }, [])
 
     // Handle node deselection
@@ -323,7 +333,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex flex-col h-full w-full bg-gray-50">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
                 <div className="flex items-center gap-4">
@@ -425,7 +435,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                 {/* Left Sidebar - Node Palette */}
                 <NodePalette />
 
-                {/* Center - Canvas */}
+                {/* Center - Canvas (now takes full remaining width) */}
                 <div className="flex-1 relative" ref={reactFlowWrapper}>
                     <ReactFlow
                         nodes={nodes}
@@ -434,6 +444,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
                         onNodeClick={onNodeClick}
+                        onNodeDoubleClick={onNodeDoubleClick}
                         onPaneClick={onPaneClick}
                         onDragOver={onDragOver}
                         onDrop={onDrop}
@@ -441,8 +452,9 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         fitView
                         className="bg-gray-100"
                         defaultEdgeOptions={{
-                            type: 'smoothstep',
-                            markerEnd: { type: MarkerType.ArrowClosed },
+                            type: 'bezier',
+                            style: { stroke: '#64748b', strokeWidth: 2 },
+                            markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
                         }}
                     >
                         <Controls
@@ -476,16 +488,25 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                                 </div>
                             </Card>
                         </Panel>
+
+                        {/* Hint Panel */}
+                        <Panel position="bottom-right" className="m-4">
+                            <div className="text-xs text-gray-400 bg-white/80 px-3 py-2 rounded-md shadow-sm">
+                                Double-click a node to edit properties
+                            </div>
+                        </Panel>
                     </ReactFlow>
                 </div>
-
-                {/* Right Sidebar - Properties Panel */}
-                <NodePropertiesPanel
-                    selectedNode={selectedNode}
-                    onUpdate={onNodeUpdate}
-                    onDelete={onNodeDelete}
-                />
             </div>
+
+            {/* Node Properties Modal */}
+            <NodePropertiesModal
+                open={showNodeModal}
+                onOpenChange={setShowNodeModal}
+                selectedNode={selectedNode}
+                onUpdate={onNodeUpdate}
+                onDelete={onNodeDelete}
+            />
 
             {/* Bottom - Execution Monitor */}
             {executionId && (
@@ -499,3 +520,4 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
 }
 
 export default WorkflowBuilder
+

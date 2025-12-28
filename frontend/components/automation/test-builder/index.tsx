@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Save, CheckSquare, Puzzle } from 'lucide-react'
+import { Save, CheckSquare, Puzzle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { webAutomationApi } from '@/lib/api/webAutomation'
 import { CreateSnippetDialog } from './CreateSnippetDialog'
@@ -16,6 +16,7 @@ import { useAIGenerator } from './hooks/use-ai-generator'
 
 // Components
 import { ActionPalette, ActionPaletteHeader } from './ActionPalette'
+import { actionCategories } from './action-configs'
 import { RecordingPanel } from './RecordingPanel'
 import { AIGeneratorPanel } from './AIGeneratorPanel'
 import { StepList } from './StepList'
@@ -35,6 +36,7 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
     const [showCreateSnippetDialog, setShowCreateSnippetDialog] = useState(false)
     const [showSnippetManager, setShowSnippetManager] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [isActionLibraryCollapsed, setIsActionLibraryCollapsed] = useState(false)
 
     // WebSocket ref for cleanup
     const wsRef = useRef<WebSocket | null>(null)
@@ -185,76 +187,121 @@ export default function TestBuilderTab({ selectedEnvironment, flowId, projectId 
         <>
             <div className="flex h-full bg-gray-50 overflow-hidden w-full">
                 {/* Left Panel - Actions Library */}
-                <div className="w-72 min-w-[288px] bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                    {/* Method Selector */}
-                    <div className="p-4 border-b border-gray-200">
-                        <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
-                            <button
-                                onClick={() => setBuilderMethod('visual')}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'visual'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
+                {isActionLibraryCollapsed ? (
+                    <div className="w-14 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+                        <div className="p-2 border-b border-gray-200">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsActionLibraryCollapsed(false)}
+                                className="w-full h-8"
                             >
-                                Visual
-                            </button>
-                            <button
-                                onClick={() => setBuilderMethod('recorder')}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'recorder'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                Recorder
-                            </button>
-                            <button
-                                onClick={() => setBuilderMethod('ai')}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'ai'
-                                    ? 'bg-white shadow text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                AI
-                            </button>
+                                <PanelLeftOpen className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        {/* Collapsed Action Icons */}
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                            {actionCategories.map((category) =>
+                                category.actions.map((action) => {
+                                    const Icon = action.icon
+                                    return (
+                                        <button
+                                            key={action.id}
+                                            onClick={() => addStep(action.id)}
+                                            title={`${action.name}: ${action.description}`}
+                                            className="w-full p-2 rounded hover:bg-gray-100 flex items-center justify-center transition-colors"
+                                        >
+                                            <div className={`${action.color} p-1.5 rounded text-white`}>
+                                                <Icon className="w-3.5 h-3.5" />
+                                            </div>
+                                        </button>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-72 min-w-[288px] bg-white border-r border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+                        {/* Method Selector */}
+                        <div className="p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex bg-gray-100 p-1 rounded-lg flex-1">
+                                    <button
+                                        onClick={() => setBuilderMethod('visual')}
+                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'visual'
+                                            ? 'bg-white shadow text-gray-900'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Visual
+                                    </button>
+                                    <button
+                                        onClick={() => setBuilderMethod('recorder')}
+                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'recorder'
+                                            ? 'bg-white shadow text-gray-900'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Recorder
+                                    </button>
+                                    <button
+                                        onClick={() => setBuilderMethod('ai')}
+                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${builderMethod === 'ai'
+                                            ? 'bg-white shadow text-gray-900'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        AI
+                                    </button>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setIsActionLibraryCollapsed(true)}
+                                    className="h-8 w-8 ml-2"
+                                >
+                                    <PanelLeftClose className="h-4 w-4" />
+                                </Button>
+                            </div>
+
+                            {builderMethod === 'visual' && (
+                                <ActionPaletteHeader
+                                    onSnippetManagerClick={() => setShowSnippetManager(true)}
+                                    searchQuery={searchQuery}
+                                    onSearchChange={setSearchQuery}
+                                />
+                            )}
                         </div>
 
-                        {builderMethod === 'visual' && (
-                            <ActionPaletteHeader
-                                onSnippetManagerClick={() => setShowSnippetManager(true)}
+                        {builderMethod === 'visual' ? (
+                            <ActionPalette
+                                onAddStep={addStep}
+                                projectId={projectId}
+                                showSnippetManager={showSnippetManager}
+                                onSnippetManagerChange={setShowSnippetManager}
                                 searchQuery={searchQuery}
-                                onSearchChange={setSearchQuery}
+                            />
+                        ) : builderMethod === 'recorder' ? (
+                            <RecordingPanel
+                                isRecording={isRecording}
+                                recordingUrl={recordingUrl}
+                                onUrlChange={setRecordingUrl}
+                                onStartRecording={handleStartRecording}
+                                onStopRecording={handleStopRecording}
+                            />
+                        ) : (
+                            <AIGeneratorPanel
+                                aiPrompt={aiPrompt}
+                                onPromptChange={setAiPrompt}
+                                isGenerating={isGenerating}
+                                generatedSteps={generatedSteps}
+                                generateError={generateError}
+                                onGenerateSteps={handleGenerateSteps}
+                                onAddGeneratedSteps={handleAddGeneratedSteps}
                             />
                         )}
                     </div>
-
-                    {builderMethod === 'visual' ? (
-                        <ActionPalette
-                            onAddStep={addStep}
-                            projectId={projectId}
-                            showSnippetManager={showSnippetManager}
-                            onSnippetManagerChange={setShowSnippetManager}
-                            searchQuery={searchQuery}
-                        />
-                    ) : builderMethod === 'recorder' ? (
-                        <RecordingPanel
-                            isRecording={isRecording}
-                            recordingUrl={recordingUrl}
-                            onUrlChange={setRecordingUrl}
-                            onStartRecording={handleStartRecording}
-                            onStopRecording={handleStopRecording}
-                        />
-                    ) : (
-                        <AIGeneratorPanel
-                            aiPrompt={aiPrompt}
-                            onPromptChange={setAiPrompt}
-                            isGenerating={isGenerating}
-                            generatedSteps={generatedSteps}
-                            generateError={generateError}
-                            onGenerateSteps={handleGenerateSteps}
-                            onAddGeneratedSteps={handleAddGeneratedSteps}
-                        />
-                    )}
-                </div>
+                )}
 
                 {/* Center Panel - Test Canvas */}
                 <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50/50">

@@ -23,9 +23,12 @@ import {
     ChevronDown,
     ChevronRight,
     Zap,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
 
 // Node definitions organized by category
 const nodeCategories = [
@@ -86,12 +89,13 @@ const nodeCategories = [
 
 export const NodePalette: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('')
+    const [isCollapsed, setIsCollapsed] = useState(false)
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
         'Triggers': true,
         'Logic': true,
-        'Data': true,
-        'Actions': true,
-        'Integrations': true,
+        'Data': false,
+        'Actions': false,
+        'Integrations': false,
     })
 
     const toggleCategory = (categoryName: string) => {
@@ -119,61 +123,116 @@ export const NodePalette: React.FC = () => {
         ),
     })).filter(category => category.nodes.length > 0)
 
+    // Collapsed view - icons only
+    if (isCollapsed) {
+        return (
+            <div className="w-14 bg-white border-r border-gray-200 flex flex-col">
+                {/* Toggle Button */}
+                <div className="p-2 border-b border-gray-200">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsCollapsed(false)}
+                        className="w-full h-8"
+                    >
+                        <PanelLeftOpen className="h-4 w-4" />
+                    </Button>
+                </div>
+
+                {/* Collapsed Categories */}
+                <ScrollArea className="flex-1">
+                    <div className="p-2 space-y-1">
+                        {nodeCategories.map((category) => (
+                            <div key={category.name} className="space-y-1">
+                                {category.nodes.map((node) => (
+                                    <div
+                                        key={node.type}
+                                        draggable
+                                        onDragStart={(e) => onDragStart(e, node.type, node.label)}
+                                        title={`${node.label}: ${node.description}`}
+                                        className="p-2 rounded cursor-grab active:cursor-grabbing hover:bg-gray-100 flex items-center justify-center"
+                                        style={{ backgroundColor: `${category.color}08` }}
+                                    >
+                                        <node.icon
+                                            className="h-4 w-4"
+                                            style={{ color: category.color }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+        )
+    }
+
+    // Expanded view
     return (
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-52 bg-white border-r border-gray-200 flex flex-col">
             {/* Header */}
-            <div className="p-3 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900 mb-2">Node Palette</h3>
+            <div className="p-2 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-medium text-gray-900">Node Palette</h3>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsCollapsed(true)}
+                        className="h-6 w-6"
+                    >
+                        <PanelLeftClose className="h-3 w-3" />
+                    </Button>
+                </div>
                 <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search nodes..."
-                        className="pl-8 bg-gray-50 border-gray-300 text-sm"
+                        placeholder="Search..."
+                        className="pl-7 h-7 bg-gray-50 border-gray-300 text-xs"
                     />
                 </div>
             </div>
 
             {/* Categories */}
             <ScrollArea className="flex-1">
-                <div className="p-2">
+                <div className="p-1.5">
                     {filteredCategories.map((category) => (
-                        <div key={category.name} className="mb-2">
+                        <div key={category.name} className="mb-1">
                             {/* Category Header */}
                             <button
                                 onClick={() => toggleCategory(category.name)}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-gray-100 rounded transition-colors"
+                                className="w-full flex items-center gap-1.5 px-1.5 py-1 text-left hover:bg-gray-100 rounded transition-colors"
                             >
                                 {expandedCategories[category.name] ? (
-                                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
                                 ) : (
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                                    <ChevronRight className="h-3 w-3 text-gray-400" />
                                 )}
                                 <category.icon
-                                    className="h-4 w-4"
+                                    className="h-3 w-3"
                                     style={{ color: category.color }}
                                 />
-                                <span className="text-sm font-medium text-gray-700">
+                                <span className="text-xs font-medium text-gray-700">
                                     {category.name}
                                 </span>
-                                <span className="ml-auto text-xs text-gray-400">
+                                <span className="ml-auto text-[10px] text-gray-400">
                                     {category.nodes.length}
                                 </span>
                             </button>
 
                             {/* Category Nodes */}
                             {expandedCategories[category.name] && (
-                                <div className="ml-4 mt-1 space-y-1">
+                                <div className="ml-1 mt-1 space-y-1">
                                     {category.nodes.map((node) => (
                                         <div
                                             key={node.type}
                                             draggable
                                             onDragStart={(e) => onDragStart(e, node.type, node.label)}
-                                            className="flex items-center gap-2 px-2 py-2 bg-gray-50 hover:bg-gray-100 rounded cursor-grab active:cursor-grabbing transition-colors group border border-transparent hover:border-gray-200"
+                                            className="flex items-center gap-2.5 px-2 py-2 bg-white hover:bg-gray-50 rounded-lg cursor-grab active:cursor-grabbing transition-all border border-gray-100 hover:border-gray-200 hover:shadow-sm"
                                         >
                                             <div
-                                                className="p-1.5 rounded"
+                                                className="p-2 rounded-lg shrink-0"
                                                 style={{ backgroundColor: `${category.color}15` }}
                                             >
                                                 <node.icon
@@ -182,10 +241,10 @@ export const NodePalette: React.FC = () => {
                                                 />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm text-gray-700 truncate">
+                                                <div className="text-xs font-medium text-gray-800 truncate">
                                                     {node.label}
                                                 </div>
-                                                <div className="text-xs text-gray-400 truncate">
+                                                <div className="text-[10px] text-gray-500 truncate">
                                                     {node.description}
                                                 </div>
                                             </div>
@@ -197,15 +256,9 @@ export const NodePalette: React.FC = () => {
                     ))}
                 </div>
             </ScrollArea>
-
-            {/* Footer Help */}
-            <div className="p-3 border-t border-gray-200">
-                <p className="text-xs text-gray-400 text-center">
-                    Drag nodes to the canvas to add them to your workflow
-                </p>
-            </div>
         </div>
     )
 }
 
 export default NodePalette
+
