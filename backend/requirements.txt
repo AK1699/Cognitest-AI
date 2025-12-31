@@ -14,7 +14,7 @@ asyncpg==0.29.0
 pydantic==2.6.1
 pydantic-settings==2.1.0
 email-validator==2.3.0
-greenlet==3.2.4
+greenlet==3.0.3
 
 # Authentication
 python-jose[cryptography]==3.3.0
@@ -84,3 +84,14 @@ google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 google-auth==2.26.2
 requests==2.31.0
+
+# Security Scanning Tools
+semgrep>=1.50.0
+bandit>=1.7.5
+pip-audit>=2.6.0
+safety>=2.3.0
+cyclonedx-python-lib>=5.0.0
+
+# Report Generation
+reportlab>=4.0.0
+matplotlib>=3.8.0

@@ -7,8 +7,16 @@ import {
     Shield, Globe, GitBranch, ShieldAlert, ClipboardCheck, RefreshCw,
     Plus, Play, ChevronRight, Clock, AlertTriangle, Activity, Home, Settings,
     Lock, FileWarning, Scale, CheckCircle2, XCircle, AlertOctagon, Eye,
-    Download, ExternalLink, Search, Filter, Check, Copy, Terminal
+    Download, ExternalLink, Search, Filter, Check, Copy, Terminal,
+    Code2, Package, FileJson, HelpCircle, Info
 } from 'lucide-react'
+import { PolicyPanel } from '@/components/security'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -79,7 +87,7 @@ export default function SecurityTestingPage() {
     const projectId = params.projectId as string
     const uuid = params.uuid as string
 
-    const [activeModule, setActiveModule] = useState<'overview' | 'url' | 'repo' | 'vapt' | 'compliance'>('overview')
+    const [activeModule, setActiveModule] = useState<'overview' | 'url' | 'repo' | 'vapt' | 'compliance' | 'policy'>('overview')
     const [stats, setStats] = useState<SecurityStats | null>(null)
     const [recentScans, setRecentScans] = useState<SecurityScan[]>([])
     const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([])
@@ -469,6 +477,7 @@ export default function SecurityTestingPage() {
                             { id: 'url', label: 'URL Security', icon: Globe },
                             { id: 'repo', label: 'Repo Security', icon: GitBranch },
                             { id: 'vapt', label: 'VAPT', icon: ShieldAlert },
+                            { id: 'policy', label: 'Policy', icon: Shield },
                             { id: 'compliance', label: 'Compliance', icon: ClipboardCheck },
                         ].map((tab) => (
                             <button
@@ -872,29 +881,63 @@ export default function SecurityTestingPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-4">
-                                    {[
-                                        { id: 'scanSecrets', label: 'Secret Detection', icon: Lock, desc: 'API keys, tokens, passwords' },
-                                        { id: 'scanDependencies', label: 'Dependencies', icon: AlertTriangle, desc: 'Vulnerability scanning' },
-                                        { id: 'scanLicenses', label: 'Licenses', icon: Scale, desc: 'Compliance check' },
-                                        { id: 'scanCode', label: 'Code Quality', icon: Terminal, desc: 'Security patterns' }
-                                    ].map((opt) => (
-                                        <div key={opt.id} className="flex flex-col p-4 rounded-lg border">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <opt.icon className="w-4 h-4 text-purple-600" />
-                                                    <Label htmlFor={opt.id} className="font-medium">{opt.label}</Label>
+                                <TooltipProvider>
+                                    <div className="grid grid-cols-4 gap-4">
+                                        {[
+                                            {
+                                                id: 'scanSecrets',
+                                                label: 'Secret Detection',
+                                                icon: Lock,
+                                                desc: 'API keys, tokens, passwords',
+                                                tooltip: 'Uses TruffleHog with entropy analysis to detect exposed secrets including API keys, AWS credentials, database passwords, OAuth tokens, and private keys. Identifies high-entropy strings that may be leaked credentials.'
+                                            },
+                                            {
+                                                id: 'scanDependencies',
+                                                label: 'SCA / Dependencies',
+                                                icon: Package,
+                                                desc: 'pip-audit, npm audit, OSV',
+                                                tooltip: 'Software Composition Analysis (SCA): Scans package.json, requirements.txt, and go.mod for known CVEs using pip-audit, npm audit, Trivy, and the OSV vulnerability database. Includes transitive dependency analysis and upgrade path recommendations.'
+                                            },
+                                            {
+                                                id: 'scanLicenses',
+                                                label: 'Licenses / SBOM',
+                                                icon: FileJson,
+                                                desc: 'Compliance + CycloneDX export',
+                                                tooltip: 'License Compliance & SBOM: Detects GPL, LGPL, AGPL and copyleft licenses. Generates Software Bill of Materials (SBOM) in CycloneDX/SPDX format for supply chain compliance (NIST, CISA). Exportable for audits and regulatory requirements.'
+                                            },
+                                            {
+                                                id: 'scanCode',
+                                                label: 'SAST / Code',
+                                                icon: Code2,
+                                                desc: 'Semgrep, Bandit, ESLint',
+                                                tooltip: 'Static Application Security Testing (SAST): Deep code analysis using Semgrep for 30+ languages, Bandit for Python, and ESLint security plugins for JS/TS. Detects SQL injection, XSS, command injection, path traversal, and more with AI-powered fix suggestions.'
+                                            }
+                                        ].map((opt) => (
+                                            <div key={opt.id} className="flex flex-col p-4 rounded-lg border hover:border-purple-300 transition-colors">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <opt.icon className="w-4 h-4 text-purple-600" />
+                                                        <Label htmlFor={opt.id} className="font-medium">{opt.label}</Label>
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-purple-600 cursor-help" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-sm" side="bottom">
+                                                                <p className="text-sm">{opt.tooltip}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
+                                                    <Switch
+                                                        id={opt.id}
+                                                        checked={repoConfig[opt.id as keyof typeof repoConfig]}
+                                                        onCheckedChange={(checked) => setRepoConfig({ ...repoConfig, [opt.id]: checked })}
+                                                    />
                                                 </div>
-                                                <Switch
-                                                    id={opt.id}
-                                                    checked={repoConfig[opt.id as keyof typeof repoConfig]}
-                                                    onCheckedChange={(checked) => setRepoConfig({ ...repoConfig, [opt.id]: checked })}
-                                                />
+                                                <p className="text-xs text-gray-500">{opt.desc}</p>
                                             </div>
-                                            <p className="text-xs text-gray-500">{opt.desc}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                </TooltipProvider>
 
                                 <Button
                                     className="w-full bg-purple-600 hover:bg-purple-700"
@@ -1232,6 +1275,11 @@ export default function SecurityTestingPage() {
                             </Card>
                         )}
                     </div>
+                )}
+
+                {/* Policy Tab */}
+                {activeModule === 'policy' && (
+                    <PolicyPanel projectId={projectId} apiUrl={API_URL} />
                 )}
             </div>
         </div>

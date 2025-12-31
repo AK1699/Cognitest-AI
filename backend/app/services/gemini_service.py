@@ -72,14 +72,34 @@ class GeminiService:
         if max_tokens:
             generation_config["max_output_tokens"] = max_tokens
 
-        # Force JSON mode to eliminate markdown wrapping issues
+        # Force JSON mode for compatible models (gemini-1.5+, gemini-2.0+)
+        # Note: response_mime_type requires specific models and SDK version
         if json_mode:
-            generation_config["response_mime_type"] = "application/json"
+            # Only add response_mime_type for models that support it
+            model_lower = self.model_name.lower()
+            if any(v in model_lower for v in ["gemini-1.5", "gemini-2.0", "gemini-2.5", "gemini-pro-1.5"]):
+                try:
+                    generation_config["response_mime_type"] = "application/json"
+                except Exception as e:
+                    logger.warning(f"response_mime_type not supported: {e}")
+            else:
+                logger.info(f"Model {self.model_name} may not support response_mime_type, skipping")
 
-        return genai.GenerativeModel(
-            model_name=self.model_name,
-            generation_config=generation_config,
-        )
+        try:
+            return genai.GenerativeModel(
+                model_name=self.model_name,
+                generation_config=generation_config,
+            )
+        except TypeError as e:
+            # If response_mime_type is not supported, retry without it
+            if "response_mime_type" in str(e):
+                logger.warning("response_mime_type not supported by SDK, retrying without it")
+                generation_config.pop("response_mime_type", None)
+                return genai.GenerativeModel(
+                    model_name=self.model_name,
+                    generation_config=generation_config,
+                )
+            raise
 
     async def generate_completion(
         self,

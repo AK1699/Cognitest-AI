@@ -47,3 +47,7 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"]
 # Security Testing Module - Enterprise security scanning and compliance
 from app.api.v1 import security
 api_router.include_router(security.router, prefix="/security", tags=["security"])
+
+# Security Advanced Module - SAST, SCA, IAST, RASP, SBOM, Policy, CI/CD
+from app.api.v1 import security_advanced
+api_router.include_router(security_advanced.router, tags=["security-advanced"])
