@@ -103,8 +103,11 @@ export default function SecurityTestingPage() {
         checkHeaders: true,
         checkSubdomains: true,
         checkPorts: true,
-        scanDepth: 'standard'
+        scanDepth: 'standard',
+        enableActiveScanning: false
     })
+    const [scanVulnerabilities, setScanVulnerabilities] = useState<Vulnerability[]>([])
+    const [loadingVulnerabilities, setLoadingVulnerabilities] = useState(false)
 
     // Repo Scan state
     const [repoUrl, setRepoUrl] = useState('')
@@ -144,16 +147,19 @@ export default function SecurityTestingPage() {
         setLoading(true)
         try {
             const token = localStorage.getItem('access_token')
+            const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
             const statsResponse = await fetch(`${API_URL}/api/v1/security/dashboard/${projectId}/stats`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include',
+                headers
             })
             if (statsResponse.ok) {
                 setStats(await statsResponse.json())
             }
 
             const scansResponse = await fetch(`${API_URL}/api/v1/security/scans?project_id=${projectId}&page_size=5`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include',
+                headers
             })
             if (scansResponse.ok) {
                 const data = await scansResponse.json()
@@ -161,7 +167,8 @@ export default function SecurityTestingPage() {
             }
 
             const vulnResponse = await fetch(`${API_URL}/api/v1/security/vulnerabilities?project_id=${projectId}&page_size=10`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include',
+                headers
             })
             if (vulnResponse.ok) {
                 const data = await vulnResponse.json()
@@ -171,6 +178,43 @@ export default function SecurityTestingPage() {
             console.error('Failed to fetch security data:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchScanVulnerabilities = async (scanId: string, severity?: string) => {
+        setLoadingVulnerabilities(true)
+        try {
+            const token = localStorage.getItem('access_token')
+            const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+
+            const severityParam = severity ? `&severity=${severity}` : ''
+            const response = await fetch(`${API_URL}/api/v1/security/vulnerabilities?scan_id=${scanId}${severityParam}`, {
+                credentials: 'include',
+                headers
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setScanVulnerabilities(data.items || [])
+            }
+        } catch (error) {
+            console.error('Failed to fetch vulnerabilities:', error)
+        } finally {
+            setLoadingVulnerabilities(false)
+        }
+    }
+
+    const handleSeverityCardClick = (severity: string, count: number) => {
+        if (count === 0) return
+
+        if (selectedSeverity === severity) {
+            setSelectedSeverity(null)
+            setScanVulnerabilities([])
+        } else {
+            setSelectedSeverity(severity)
+            if (scanResult?.id) {
+                fetchScanVulnerabilities(scanResult.id, severity)
+            }
         }
     }
 
@@ -185,9 +229,10 @@ export default function SecurityTestingPage() {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/url/scan?project_id=${projectId}`, {
                 method: 'POST',
+                credentials: 'include', // Send cookies for httpOnly auth
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    ...(token && { 'Authorization': `Bearer ${token}` }) // Only add if token exists
                 },
                 body: JSON.stringify({
                     target_url: targetUrl,
@@ -195,7 +240,8 @@ export default function SecurityTestingPage() {
                     check_ssl: scanConfig.checkSsl,
                     check_headers: scanConfig.checkHeaders,
                     check_subdomains: scanConfig.checkSubdomains,
-                    check_ports: scanConfig.checkPorts
+                    check_ports: scanConfig.checkPorts,
+                    enable_active_scanning: scanConfig.enableActiveScanning
                 })
             })
 
@@ -205,7 +251,8 @@ export default function SecurityTestingPage() {
 
                 const pollProgress = setInterval(async () => {
                     const statusResponse = await fetch(`${API_URL}/api/v1/security/scans/${data.id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include',
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                     })
 
                     if (statusResponse.ok) {
@@ -218,6 +265,8 @@ export default function SecurityTestingPage() {
                             setScanResult(statusData)
                             if (statusData.status === 'completed') {
                                 toast.success('URL scan completed')
+                                // Auto-fetch all vulnerabilities
+                                fetchScanVulnerabilities(data.id)
                             } else {
                                 toast.error('URL scan failed')
                             }
@@ -225,12 +274,19 @@ export default function SecurityTestingPage() {
                         }
                     }
                 }, 2000)
+            } else if (response.status === 401) {
+                // Token expired or invalid - prompt re-login
+                toast.error('Session expired. Please log in again.')
+                setScanning(false)
+                // Redirect to login
+                window.location.href = '/auth/signin'
             } else {
-                throw new Error('Failed to start scan')
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.detail || `Scan failed with status ${response.status}`)
             }
         } catch (error) {
             console.error('Scan failed:', error)
-            toast.error('Failed to start URL scan')
+            toast.error(error instanceof Error ? error.message : 'Failed to start URL scan')
             setScanning(false)
         }
     }
@@ -245,9 +301,10 @@ export default function SecurityTestingPage() {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/repo/scan?project_id=${projectId}`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
                     repo_url: repoUrl,
@@ -265,7 +322,8 @@ export default function SecurityTestingPage() {
 
                 const pollProgress = setInterval(async () => {
                     const statusResponse = await fetch(`${API_URL}/api/v1/security/scans/${data.id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include',
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                     })
 
                     if (statusResponse.ok) {
@@ -304,9 +362,10 @@ export default function SecurityTestingPage() {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/vapt/scan?project_id=${projectId}`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
                     target_url: vaptTarget,
@@ -325,7 +384,8 @@ export default function SecurityTestingPage() {
 
                 const pollProgress = setInterval(async () => {
                     const statusResponse = await fetch(`${API_URL}/api/v1/security/scans/${data.id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include',
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                     })
 
                     if (statusResponse.ok) {
@@ -361,7 +421,8 @@ export default function SecurityTestingPage() {
         try {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/security/compliance/${projectId}/report?framework=${selectedFramework}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             })
 
             if (response.ok) {
@@ -474,8 +535,8 @@ export default function SecurityTestingPage() {
                     <div className="flex items-center gap-4">
                         {[
                             { id: 'overview', label: 'Overview', icon: Shield },
-                            { id: 'url', label: 'URL Security', icon: Globe },
-                            { id: 'repo', label: 'Repo Security', icon: GitBranch },
+                            { id: 'url', label: 'URL Scanner', icon: Globe },
+                            { id: 'repo', label: 'Repo Scanner', icon: GitBranch },
                             { id: 'vapt', label: 'VAPT', icon: ShieldAlert },
                             { id: 'policy', label: 'Policy', icon: Shield },
                             { id: 'compliance', label: 'Compliance', icon: ClipboardCheck },
@@ -770,6 +831,26 @@ export default function SecurityTestingPage() {
                                     ))}
                                 </div>
 
+                                {/* Active Scanning Toggle with Warning */}
+                                <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <ShieldAlert className="w-4 h-4 text-orange-600" />
+                                            <Label htmlFor="enableActiveScanning" className="font-semibold text-orange-900">
+                                                Active Penetration Testing
+                                            </Label>
+                                        </div>
+                                        <Switch
+                                            id="enableActiveScanning"
+                                            checked={scanConfig.enableActiveScanning}
+                                            onCheckedChange={(checked) => setScanConfig({ ...scanConfig, enableActiveScanning: checked })}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-orange-700">
+                                        ⚠️ Sends potentially malicious payloads (XSS, SQLi, CSRF). Only enable for systems you own or have permission to test.
+                                    </p>
+                                </div>
+
                                 <div className="space-y-2">
                                     <Label>Scan Depth</Label>
                                     <div className="flex gap-2">
@@ -821,25 +902,76 @@ export default function SecurityTestingPage() {
                                         </Badge>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="space-y-6">
                                     <div className="grid grid-cols-4 gap-4">
-                                        <div className="text-center p-6 rounded-lg bg-red-50">
-                                            <p className="text-3xl font-bold text-red-600">{scanResult.critical_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Critical</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-orange-50">
-                                            <p className="text-3xl font-bold text-orange-600">{scanResult.high_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">High</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-yellow-50">
-                                            <p className="text-3xl font-bold text-yellow-600">{scanResult.medium_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Medium</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-blue-50">
-                                            <p className="text-3xl font-bold text-blue-600">{scanResult.low_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Low</p>
-                                        </div>
+                                        {[
+                                            { severity: 'critical', count: scanResult.critical_count || 0, label: 'Critical', bg: 'bg-red-50', text: 'text-red-600' },
+                                            { severity: 'high', count: scanResult.high_count || 0, label: 'High', bg: 'bg-orange-50', text: 'text-orange-600' },
+                                            { severity: 'medium', count: scanResult.medium_count || 0, label: 'Medium', bg: 'bg-yellow-50', text: 'text-yellow-600' },
+                                            { severity: 'low', count: scanResult.low_count || 0, label: 'Low', bg: 'bg-blue-50', text: 'text-blue-600' }
+                                        ].map((item) => (
+                                            <div
+                                                key={item.severity}
+                                                className={`text-center p-6 rounded-lg ${item.bg}`}
+                                            >
+                                                <p className={`text-3xl font-bold ${item.text}`}>{item.count}</p>
+                                                <p className="text-sm text-gray-600 mt-1">{item.label}</p>
+                                            </div>
+                                        ))}
                                     </div>
+
+                                    {/* All Vulnerabilities Grouped by Severity */}
+                                    {loadingVulnerabilities ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
+                                            <span className="ml-2 text-gray-600">Loading vulnerability details...</span>
+                                        </div>
+                                    ) : scanVulnerabilities.length > 0 ? (
+                                        <div className="space-y-6 mt-6">
+                                            {['critical', 'high', 'medium', 'low', 'info'].map((severity) => {
+                                                const severityVulns = scanVulnerabilities.filter(v => v.severity === severity)
+                                                if (severityVulns.length === 0) return null
+
+                                                const severityColors = {
+                                                    critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800' },
+                                                    high: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800' },
+                                                    medium: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800' },
+                                                    low: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800' },
+                                                    info: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800' }
+                                                }
+                                                const colors = severityColors[severity as keyof typeof severityColors]
+
+                                                return (
+                                                    <div key={severity} className="border-t pt-4">
+                                                        <h4 className={`font-semibold capitalize mb-3 ${colors.text}`}>
+                                                            {severity} Vulnerabilities ({severityVulns.length})
+                                                        </h4>
+                                                        <div className="space-y-3">
+                                                            {severityVulns.map((vuln) => (
+                                                                <div key={vuln.id} className={`p-4 rounded-lg border ${colors.bg} ${colors.border}`}>
+                                                                    <div className="flex items-start justify-between">
+                                                                        <div className="flex-1">
+                                                                            <h5 className="font-medium text-gray-900 mb-1">{vuln.title}</h5>
+                                                                            <p className="text-sm text-gray-600 mb-2">{vuln.description}</p>
+                                                                            {vuln.remediation && (
+                                                                                <div className="mt-2 p-2 bg-teal-50 rounded border border-teal-200">
+                                                                                    <p className="text-xs font-medium text-teal-800 mb-1">🔧 Remediation:</p>
+                                                                                    <p className="text-xs text-teal-700">{vuln.remediation}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <Badge className={vuln.is_resolved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                                                            {vuln.is_resolved ? '✓ Resolved' : 'Open'}
+                                                                        </Badge>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : null}
                                 </CardContent>
                             </Card>
                         )}

@@ -14,7 +14,7 @@ from uuid import UUID
 import urllib.parse
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, Integer
 
 from app.models.security_scan import (
     SecurityScan, ScanTarget, Vulnerability, ComplianceCheck, ScanSchedule, SecurityAsset,
@@ -280,6 +280,10 @@ class SecurityScanningService:
                     if scan.config.get("check_subdomains", True):
                         await self._discover_subdomains(scan, target)
                     
+                    # Active Scanning (requires explicit enable)
+                    if scan.config.get("enable_active_scanning", False):
+                        await self._run_active_scan(scan, target)
+                    
                     # Mark target complete
                     target.status = ScanStatus.COMPLETED
                     target.scanned_at = datetime.utcnow()
@@ -395,13 +399,43 @@ class SecurityScanningService:
                     cvss_score=9.1
                 )
                 
+            # TLS Cipher Suite Analysis
+            from app.services.tls_analyzer import TLSAnalyzer
+            
+            try:
+                tls_analyzer = TLSAnalyzer()
+                tls_results = await tls_analyzer.analyze_tls(hostname, port)
+                
+                # Create vulnerabilities for TLS weaknesses
+                for vuln in tls_results.get("vulnerabilities", []):
+                    severity_map = {
+                        "critical": SeverityLevel.CRITICAL,
+                        "high": SeverityLevel.HIGH,
+                        "medium": SeverityLevel.MEDIUM,
+                        "low": SeverityLevel.LOW
+                    }
+                    
+                    await self._create_vulnerability(
+                        scan=scan, target=target,
+                        title=f"TLS Weakness: {vuln['type'].replace('_', ' ').title()}",
+                        description=vuln["description"],
+                        category=VulnerabilityCategory.SSL_TLS,
+                        severity=severity_map.get(vuln["severity"], SeverityLevel.MEDIUM),
+                        remediation="Disable weak protocols/ciphers and use TLS 1.2 or higher with strong cipher suites"
+                    )
+                    
+            except Exception as e:
+                print(f"TLS analysis failed: {e}")
+                
         except Exception as e:
             target.ssl_certificate = {"error": str(e)}
             target.ssl_grade = "F"
     
     async def _check_security_headers(self, scan: SecurityScan, target: ScanTarget):
-        """Check HTTP security headers"""
+        """Check HTTP security headers and detect CVEs"""
         import aiohttp
+        import os
+        from app.services.cve_scanner import CVEScannerService
         
         try:
             url = target.target_value
@@ -432,21 +466,63 @@ class SecurityScanningService:
                                 remediation=f"Add the {header_info['name']} header to your HTTP responses"
                             )
                     
+                    # CVE Detection from Server Headers
+                    nvd_api_key = os.getenv("NVD_API_KEY")
+                    cve_scanner = CVEScannerService(nvd_api_key)
+                    
+                    service_info = await cve_scanner.detect_service_version(headers)
+                    if service_info and service_info.get("version"):
+                        software = service_info["software"]
+                        version = service_info["version"]
+                        
+                        # Query CVE database
+                        cves = await cve_scanner.search_cves(software, version)
+                        
+                        for cve in cves:
+                            await self._create_vulnerability(
+                                scan=scan, target=target,
+                                title=f"Known Vulnerability: {cve['cve_id']}",
+                                description=f"{software}/{version}: {cve['description']}",
+                                category=VulnerabilityCategory.VULNERABILITY_DISCLOSURE,
+                                severity=cve["severity"],
+                                cvss_score=cve["cvss_score"],
+                                cve_id=cve["cve_id"],
+                                remediation=f"Update {software} to the latest patched version"
+                            )
+                    
         except Exception as e:
             target.http_headers = {"error": str(e)}
     
     async def _check_open_ports(self, scan: SecurityScan, target: ScanTarget):
-        """Scan for open ports"""
+        """Scan for open ports based on scan depth"""
         try:
             url = target.target_value
             parsed = urllib.parse.urlparse(url if url.startswith("http") else f"https://{url}")
             hostname = parsed.hostname or url
             
-            open_ports = []
-            dangerous_ports = {21: "FTP", 23: "Telnet", 3389: "RDP", 5900: "VNC"}
+            # Adjust port range based on scan depth
+            scan_depth = scan.config.get("scan_depth", "standard")
             
-            # Use common ports or custom
-            ports_to_scan = scan.config.get("custom_ports", COMMON_PORTS)
+            if scan_depth == "quick":
+                # Quick: Only common web and secure ports
+                ports_to_scan = [21, 22, 80, 443, 3306, 5432, 8080, 8443]
+            elif scan_depth == "deep":
+                # Deep: Extended common ports
+                ports_to_scan = [
+                    21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 993, 995,
+                    3306, 3389, 5432, 5900, 6379, 8080, 8443, 27017, 3000, 5000, 8000, 9000
+                ]
+            else:  # standard
+                # Standard: Common services
+                ports_to_scan = [21, 22, 23, 25, 80, 110, 143, 443, 3306, 3389, 5432, 8080, 8443]
+            
+            dangerous_ports = {
+                21: "FTP", 23: "Telnet", 3389: "RDP",
+                3306: "MySQL", 5432: "PostgreSQL", 27017: "MongoDB",
+                6379: "Redis", 9200: "Elasticsearch"
+            }
+            
+            open_ports = []
             
             for port in ports_to_scan:
                 try:
@@ -482,8 +558,10 @@ class SecurityScanningService:
             target.open_ports = [{"error": str(e)}]
     
     async def _discover_subdomains(self, scan: SecurityScan, target: ScanTarget):
-        """Discover subdomains (basic implementation)"""
+        """Discover subdomains using multiple methods"""
         try:
+            from app.services.certificate_transparency import CertificateTransparencyService
+            
             url = target.target_value
             parsed = urllib.parse.urlparse(url if url.startswith("http") else f"https://{url}")
             domain = parsed.hostname or url
@@ -492,23 +570,48 @@ class SecurityScanningService:
             if domain.startswith("www."):
                 domain = domain[4:]
             
-            # Common subdomain prefixes to check
-            common_subdomains = [
-                "www", "mail", "ftp", "admin", "api", "dev", "staging",
-                "test", "beta", "app", "portal", "vpn", "remote", "cdn",
-                "assets", "static", "media", "blog", "shop", "store"
-            ]
+            discovered = set()
             
-            discovered = []
+            # Method 1: Certificate Transparency Logs (more comprehensive)
+            try:
+                ct_service = CertificateTransparencyService()
+                ct_subdomains = await ct_service.discover_subdomains(domain)
+                discovered.update(ct_subdomains)
+            except Exception as e:
+                print(f"CT log query failed: {e}")
+            
+            # Method 2: Common subdomain DNS bruteforce (fallback/supplement)
+            # Adjust subdomain list based on scan depth
+            scan_depth = scan.config.get("scan_depth", "standard")
+            
+            if scan_depth == "quick":
+                # Quick: Only most common subdomains
+                common_subdomains = ["www", "mail", "api", "admin"]
+            elif scan_depth == "deep":
+                # Deep: Extended subdomain list
+                common_subdomains = [
+                    "www", "mail", "ftp", "admin", "api", "dev", "staging",
+                    "test", "beta", "app", "portal", "vpn", "remote", "cdn",
+                    "assets", "static", "media", "blog", "shop", "store",
+                    "mobile", "m", "dashboard", "secure", "login", "support"
+                ]
+            else:  # standard
+                # Standard: Common subdomains
+                common_subdomains = [
+                    "www", "mail", "ftp", "admin", "api", "dev", "staging",
+                    "test", "beta", "app", "portal", "vpn", "remote", "cdn",
+                    "assets", "static", "media", "blog", "shop", "store"
+                ]
+            
             for subdomain in common_subdomains:
                 full_domain = f"{subdomain}.{domain}"
                 try:
                     socket.gethostbyname(full_domain)
-                    discovered.append(full_domain)
+                    discovered.add(full_domain)
                 except socket.gaierror:
                     pass
             
-            target.subdomains_discovered = discovered
+            target.subdomains_discovered = list(discovered)
             
             # Flag if too many subdomains (potential attack surface)
             if len(discovered) > 10:
@@ -1028,3 +1131,57 @@ Keep response concise and actionable."""
             scan.error_message = f"Unsupported scan type: {scan.scan_type}"
             await self.db.commit()
             return scan
+
+
+    async def _run_active_scan(self, scan: SecurityScan, target: ScanTarget):
+        """Run active penetration testing scans"""
+        from app.services.active_scanner import ActiveScanner
+        
+        try:
+            url = target.target_value
+            if not url.startswith("http"):
+                url = f"https://{url}"
+            
+            scanner = ActiveScanner()
+            
+            # XSS Scanning
+            xss_vulns = await scanner.scan_xss(url)
+            for vuln in xss_vulns:
+                await self._create_vulnerability(
+                    scan=scan, target=target,
+                    title=f"XSS Vulnerability: {vuln['parameter']}",
+                    description=vuln["description"],
+                    category=VulnerabilityCategory.XSS,
+                    severity=SeverityLevel.HIGH,
+                    cvss_score=7.3,
+                    remediation=f"Sanitize input in parameter '{vuln['parameter']}' and encode output"
+                )
+            
+            # SQL Injection Scanning
+            sqli_vulns = await scanner.scan_sqli(url)
+            for vuln in sqli_vulns:
+                await self._create_vulnerability(
+                    scan=scan, target=target,
+                    title=f"SQL Injection: {vuln['parameter']}",
+                    description=vuln["description"],
+                    category=VulnerabilityCategory.SQL_INJECTION,
+                    severity=SeverityLevel.CRITICAL,
+                    cvss_score=9.8,
+                    remediation=f"Use parameterized queries for '{vuln['parameter']}' parameter"
+                )
+            
+            # CSRF Scanning
+            csrf_vulns = await scanner.check_csrf(url)
+            for vuln in csrf_vulns:
+                await self._create_vulnerability(
+                    scan=scan, target=target,
+                    title="CSRF Protection Missing",
+                    description=vuln["description"],
+                    category=VulnerabilityCategory.CSRF,
+                    severity=SeverityLevel.MEDIUM,
+                    cvss_score=6.5,
+                    remediation="Implement CSRF tokens and/or SameSite cookie attributes"
+                )
+                
+        except Exception as e:
+            print(f"Active scan failed: {e}")

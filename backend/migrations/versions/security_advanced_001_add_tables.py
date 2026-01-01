@@ -15,7 +15,7 @@ from datetime import datetime
 
 # revision identifiers
 revision = 'security_advanced_001'
-down_revision = None  # Update this to your latest migration if needed
+down_revision = 'da9c2e5a1202'
 branch_labels = None
 depends_on = None
 
