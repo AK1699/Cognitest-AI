@@ -51,3 +51,7 @@ api_router.include_router(security.router, prefix="/security", tags=["security"]
 # Security Advanced Module - SAST, SCA, IAST, RASP, SBOM, Policy, CI/CD
 from app.api.v1 import security_advanced
 api_router.include_router(security_advanced.router, tags=["security-advanced"])
+
+# Performance Testing Module - Load testing, Lighthouse, k6, BlazeMeter competitor
+from app.api.v1 import performance
+api_router.include_router(performance.router, prefix="/performance", tags=["performance-testing"])
