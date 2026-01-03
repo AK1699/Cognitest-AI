@@ -173,30 +173,30 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
     }
 
     return (
-        <div className="bg-white rounded-xl border shadow-lg overflow-hidden max-w-2xl mx-auto">
+        <div className="bg-white w-full">
             {/* Header */}
-            <div className="bg-gradient-to-r from-teal-500 to-teal-600 px-6 py-4">
+            <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-4">
                 <h2 className="text-xl font-semibold text-white">Create Performance Test</h2>
-                <p className="text-teal-100 text-sm">Configure your test in a few simple steps</p>
+                <p className="text-brand-50 text-sm">Configure your test in a few simple steps</p>
             </div>
 
             {/* Progress Steps */}
             <div className="px-6 py-4 border-b bg-gray-50">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center w-full">
                     {Array.from({ length: totalSteps }).map((_, i) => (
-                        <div key={i} className="flex items-center">
+                        <div key={i} className={cn("flex items-center", i < totalSteps - 1 ? "flex-1" : "")}>
                             <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                                step > i + 1 ? "bg-teal-500 text-white" :
-                                    step === i + 1 ? "bg-teal-500 text-white" :
+                                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors relative z-10",
+                                step > i + 1 ? "bg-brand-500 text-white" :
+                                    step === i + 1 ? "bg-brand-500 text-white" :
                                         "bg-gray-200 text-gray-500"
                             )}>
                                 {step > i + 1 ? <Check className="w-4 h-4" /> : i + 1}
                             </div>
                             {i < totalSteps - 1 && (
                                 <div className={cn(
-                                    "w-16 h-1 mx-2",
-                                    step > i + 1 ? "bg-teal-500" : "bg-gray-200"
+                                    "h-1 mx-2 flex-1",
+                                    step > i + 1 ? "bg-brand-500" : "bg-gray-200"
                                 )} />
                             )}
                         </div>
@@ -227,14 +227,14 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                         className={cn(
                                             "p-4 rounded-lg border-2 cursor-pointer transition-all",
                                             isSelected
-                                                ? "border-teal-500 bg-teal-50"
-                                                : "border-gray-200 hover:border-teal-300"
+                                                ? "border-brand-500 bg-brand-50"
+                                                : "border-gray-200 hover:border-brand-300"
                                         )}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
                                                 "w-12 h-12 rounded-lg flex items-center justify-center",
-                                                isSelected ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"
+                                                isSelected ? "bg-brand-500 text-white" : "bg-gray-100 text-gray-500"
                                             )}>
                                                 <Icon className="w-6 h-6" />
                                             </div>
@@ -242,7 +242,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                                 <h4 className="font-medium text-gray-900">{info.name}</h4>
                                                 <p className="text-sm text-gray-500">{info.description}</p>
                                             </div>
-                                            {isSelected && <Check className="w-5 h-5 text-teal-500" />}
+                                            {isSelected && <Check className="w-5 h-5 text-brand-500" />}
                                         </div>
                                     </div>
                                 )
@@ -325,13 +325,13 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                     className={cn(
                                         "p-6 rounded-lg border-2 cursor-pointer text-center transition-all",
                                         config.deviceType === 'mobile'
-                                            ? "border-teal-500 bg-teal-50"
-                                            : "border-gray-200 hover:border-teal-300"
+                                            ? "border-brand-500 bg-brand-50"
+                                            : "border-gray-200 hover:border-brand-300"
                                     )}
                                 >
                                     <Smartphone className={cn(
                                         "w-12 h-12 mx-auto mb-3",
-                                        config.deviceType === 'mobile' ? "text-teal-500" : "text-gray-400"
+                                        config.deviceType === 'mobile' ? "text-brand-500" : "text-gray-400"
                                     )} />
                                     <h4 className="font-medium text-gray-900">Mobile</h4>
                                     <p className="text-xs text-gray-500 mt-1">Simulates 4G network</p>
@@ -341,13 +341,13 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                     className={cn(
                                         "p-6 rounded-lg border-2 cursor-pointer text-center transition-all",
                                         config.deviceType === 'desktop'
-                                            ? "border-teal-500 bg-teal-50"
-                                            : "border-gray-200 hover:border-teal-300"
+                                            ? "border-brand-500 bg-brand-50"
+                                            : "border-gray-200 hover:border-brand-300"
                                     )}
                                 >
                                     <Monitor className={cn(
                                         "w-12 h-12 mx-auto mb-3",
-                                        config.deviceType === 'desktop' ? "text-teal-500" : "text-gray-400"
+                                        config.deviceType === 'desktop' ? "text-brand-500" : "text-gray-400"
                                     )} />
                                     <h4 className="font-medium text-gray-900">Desktop</h4>
                                     <p className="text-xs text-gray-500 mt-1">Fast connection</p>
@@ -364,7 +364,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                         <div>
                             <Label className="flex justify-between">
                                 <span>Virtual Users</span>
-                                <span className="text-teal-600 font-semibold">{config.virtualUsers}</span>
+                                <span className="text-brand-600 font-semibold">{config.virtualUsers}</span>
                             </Label>
                             <Slider
                                 value={[config.virtualUsers]}
@@ -382,7 +382,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                         <div>
                             <Label className="flex justify-between">
                                 <span>Duration (seconds)</span>
-                                <span className="text-teal-600 font-semibold">{config.durationSeconds}s</span>
+                                <span className="text-brand-600 font-semibold">{config.durationSeconds}s</span>
                             </Label>
                             <Slider
                                 value={[config.durationSeconds]}
@@ -397,7 +397,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                         <div>
                             <Label className="flex justify-between">
                                 <span>Ramp-up Time (seconds)</span>
-                                <span className="text-teal-600 font-semibold">{config.rampUpSeconds}s</span>
+                                <span className="text-brand-600 font-semibold">{config.rampUpSeconds}s</span>
                             </Label>
                             <Slider
                                 value={[config.rampUpSeconds]}
@@ -481,14 +481,13 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 </Button>
 
                 {step < totalSteps ? (
-                    <Button onClick={handleNext} disabled={!canProceed()} className="bg-teal-600 hover:bg-teal-700">
+                    <Button onClick={handleNext} disabled={!canProceed()}>
                         Next <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                 ) : (
                     <Button
                         onClick={handleSubmit}
                         disabled={isSubmitting || !canProceed()}
-                        className="bg-teal-600 hover:bg-teal-700"
                     >
                         {isSubmitting ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>

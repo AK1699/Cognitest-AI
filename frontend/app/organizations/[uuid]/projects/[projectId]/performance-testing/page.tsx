@@ -243,10 +243,6 @@ export default function PerformanceTestingPage() {
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Button onClick={() => setShowWizard(true)} className="bg-teal-600 hover:bg-teal-700">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Test
-                            </Button>
                         </div>
                         <UserNav />
                     </div>
@@ -293,6 +289,14 @@ export default function PerformanceTestingPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <Button
+                            onClick={() => setShowWizard(true)}
+                            size="sm"
+                            className="h-8 gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Create Test
+                        </Button>
                         <Button
                             variant="outline"
                             size="sm"
@@ -421,17 +425,24 @@ export default function PerformanceTestingPage() {
                         </div>
 
                         {/* Get Started Banner */}
-                        <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl p-8 text-white">
+                        <div className="bg-gradient-to-r from-brand-700 to-brand-600 rounded-xl p-8 text-white shadow-lg">
                             <h2 className="text-2xl font-bold mb-2">Enterprise Performance Testing</h2>
-                            <p className="text-teal-100 mb-4">
+                            <p className="text-teal-50 mb-4 max-w-2xl">
                                 Outperform JMeter, k6, and BlazeMeter with AI-powered performance testing, beautiful dashboards, and zero configuration.
                             </p>
                             <div className="flex gap-4">
-                                <Button className="bg-white text-teal-600 hover:bg-teal-50" onClick={() => setActiveModule('lighthouse')}>
+                                <Button
+                                    className="bg-white bg-none text-brand-700 hover:bg-gray-50 border-0 shadow-md"
+                                    onClick={() => setActiveModule('lighthouse')}
+                                >
                                     <Zap className="w-4 h-4 mr-2" />
                                     Run Lighthouse Audit
                                 </Button>
-                                <Button variant="outline" className="border-white text-white hover:bg-white/10" onClick={() => setActiveModule('load')}>
+                                <Button
+                                    variant="outline"
+                                    className="bg-transparent border-white text-white hover:bg-white/10 hover:text-white"
+                                    onClick={() => setActiveModule('load')}
+                                >
                                     <TrendingUp className="w-4 h-4 mr-2" />
                                     Start Load Test
                                 </Button>

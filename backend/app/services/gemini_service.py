@@ -19,11 +19,7 @@ class GeminiService(SharedGeminiService):
     """
 
     def __init__(self):
-        super().__init__(
-            api_key=settings.GOOGLE_API_KEY,
-            model_name=settings.GEMINI_MODEL,
-            embedding_model=settings.GEMINI_EMBEDDING_MODEL
-        )
+        super().__init__(settings)
 
     async def generate_with_prompt(
         self,
