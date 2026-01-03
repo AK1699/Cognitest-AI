@@ -174,8 +174,8 @@ export default function WorkflowExplorerTab({ onEditWorkflow, onSelectWorkflow }
                                     key={workflow.id}
                                     onClick={() => handleSelectWorkflow(workflow)}
                                     className={`group flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors ${selectedWorkflowId === workflow.id
-                                            ? 'bg-purple-50 text-purple-700'
-                                            : 'hover:bg-gray-100 text-gray-700'
+                                        ? 'bg-purple-50 text-purple-700'
+                                        : 'hover:bg-gray-100 text-gray-700'
                                         }`}
                                 >
                                     <Zap
@@ -202,20 +202,20 @@ export default function WorkflowExplorerTab({ onEditWorkflow, onSelectWorkflow }
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={(e) => {
+                                            <DropdownMenuItem onClick={(e: Event) => {
                                                 e.stopPropagation()
                                                 onEditWorkflow?.(workflow.id)
                                             }}>
                                                 <Settings className="h-4 w-4 mr-2" />
                                                 Edit
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => handleDuplicate(workflow.id, e as unknown as React.MouseEvent)}>
+                                            <DropdownMenuItem onClick={(e: Event) => handleDuplicate(workflow.id, e as unknown as React.MouseEvent)}>
                                                 <Copy className="h-4 w-4 mr-2" />
                                                 Duplicate
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem
-                                                onClick={(e) => handleDelete(workflow.id, e as unknown as React.MouseEvent)}
+                                                onClick={(e: Event) => handleDelete(workflow.id, e as unknown as React.MouseEvent)}
                                                 className="text-red-600"
                                             >
                                                 <Trash2 className="h-4 w-4 mr-2" />

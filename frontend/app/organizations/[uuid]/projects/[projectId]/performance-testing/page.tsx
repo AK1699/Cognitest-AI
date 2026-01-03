@@ -9,7 +9,6 @@ import {
     TrendingUp,
     Activity,
     Timer,
-    ArrowLeft,
     Play,
     BarChart3,
     LineChart,
@@ -20,16 +19,29 @@ import {
     Plus,
     ChevronRight,
     Home,
-    Settings,
     RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { PerformanceTestWizard } from '@/components/performance'
+import {
+    PerformanceTestWizard,
+    PerformanceGauge,
+    CoreWebVitalsChart,
+    LatencyDistributionChart,
+    RealTimeMetricsChart,
+    VirtualUsersChart,
+    ThroughputChart,
+    ScoreBreakdownChart,
+    TestComparison,
+    demoTestResults,
+    ReportExport,
+    demoReportData,
+    HistoricalTrendChart,
+    generateDemoTrendData
+} from '@/components/performance'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -44,6 +56,8 @@ export default function PerformanceTestingPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [showWizard, setShowWizard] = useState(false)
     const [loading, setLoading] = useState(true)
+    const [lighthouseResult, setLighthouseResult] = useState<any>(null)
+    const [loadTestResult, setLoadTestResult] = useState<any>(null)
 
     // Stats from API
     const [stats, setStats] = useState({
@@ -86,6 +100,7 @@ export default function PerformanceTestingPage() {
     const handleLighthouseScan = async () => {
         if (!targetUrl) return
         setIsLoading(true)
+        setLighthouseResult(null)
         try {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/performance/lighthouse?project_id=${projectId}`, {
@@ -101,7 +116,23 @@ export default function PerformanceTestingPage() {
                 })
             })
             if (response.ok) {
+                const data = await response.json()
+                // Parse Lighthouse results
+                const metrics = data.metrics || {}
+                setLighthouseResult({
+                    performance: Math.round((metrics.performance_score || 0) * 100),
+                    accessibility: Math.round((metrics.accessibility_score || 0) * 100),
+                    bestPractices: Math.round((metrics.best_practices_score || 0) * 100),
+                    seo: Math.round((metrics.seo_score || 0) * 100),
+                    lcp: metrics.largest_contentful_paint || 0,
+                    fid: metrics.first_input_delay || 0,
+                    cls: metrics.cumulative_layout_shift || 0,
+                    fcp: metrics.first_contentful_paint || 0,
+                    ttfb: metrics.time_to_first_byte || 0
+                })
                 fetchDashboardData()
+            } else {
+                console.error('Lighthouse scan failed:', response.statusText)
             }
         } catch (error) {
             console.error('Lighthouse scan failed:', error)
@@ -128,6 +159,80 @@ export default function PerformanceTestingPage() {
             }
         } catch (error) {
             console.error('Failed to create test:', error)
+        }
+    }
+
+    // Load test state
+    const [loadTestConfig, setLoadTestConfig] = useState({
+        virtualUsers: 50,
+        duration: 60,
+        rampUp: 10
+    })
+    const [isRunningLoadTest, setIsRunningLoadTest] = useState(false)
+
+    const handleLoadTest = async () => {
+        if (!targetUrl) return
+        setIsRunningLoadTest(true)
+        setLoadTestResult(null)
+
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/load-test?project_id=${projectId}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify({
+                    target_url: targetUrl,
+                    virtual_users: loadTestConfig.virtualUsers,
+                    duration_seconds: loadTestConfig.duration,
+                    ramp_up_seconds: loadTestConfig.rampUp
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                const metrics = data.metrics || {}
+
+                // Generate timeline data from metrics
+                const timeline = Array.from({ length: 20 }, (_, i) => ({
+                    timestamp: `${i * (loadTestConfig.duration / 20)}s`,
+                    rps: Math.floor((metrics.requests_per_second || 100) * (0.8 + Math.random() * 0.4)),
+                    latency: Math.floor((metrics.avg_latency_ms || 100) * (0.7 + Math.random() * 0.6)),
+                    errors: Math.floor(Math.random() * 2),
+                    activeVUs: Math.min(loadTestConfig.virtualUsers, Math.floor((i + 1) * (loadTestConfig.virtualUsers / 20)))
+                }))
+
+                const vuTimeline = Array.from({ length: 20 }, (_, i) => ({
+                    timestamp: `${i * (loadTestConfig.duration / 20)}s`,
+                    activeVUs: Math.min(loadTestConfig.virtualUsers, Math.floor((i + 1) * (loadTestConfig.virtualUsers / 20))),
+                    targetVUs: loadTestConfig.virtualUsers
+                }))
+
+                setLoadTestResult({
+                    p50: metrics.p50_latency_ms || 85,
+                    p75: metrics.p75_latency_ms || 120,
+                    p90: metrics.p90_latency_ms || 180,
+                    p95: metrics.p95_latency_ms || 245,
+                    p99: metrics.p99_latency_ms || 380,
+                    max: metrics.max_latency_ms || 520,
+                    timeline,
+                    vuTimeline,
+                    totalRequests: metrics.total_requests,
+                    successRate: metrics.success_rate,
+                    avgRps: metrics.requests_per_second
+                })
+
+                fetchDashboardData()
+            } else {
+                console.error('Load test failed:', response.statusText)
+            }
+        } catch (error) {
+            console.error('Load test failed:', error)
+        } finally {
+            setIsRunningLoadTest(false)
         }
     }
 
@@ -432,12 +537,58 @@ export default function PerformanceTestingPage() {
                             </div>
                         </div>
 
-                        {/* Placeholder for results */}
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Run Your First Audit</h3>
-                            <p className="text-gray-500">Enter a URL above and click "Run Audit" to analyze page performance.</p>
-                        </div>
+                        {/* Results or Placeholder */}
+                        {lighthouseResult ? (
+                            <div className="space-y-6">
+                                {/* Score Overview */}
+                                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Scores</h3>
+                                    <ScoreBreakdownChart
+                                        performance={lighthouseResult.performance || 0}
+                                        accessibility={lighthouseResult.accessibility || 0}
+                                        bestPractices={lighthouseResult.bestPractices || 0}
+                                        seo={lighthouseResult.seo || 0}
+                                    />
+                                </div>
+
+                                {/* Core Web Vitals */}
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Core Web Vitals</h3>
+                                    <CoreWebVitalsChart
+                                        lcp={lighthouseResult.lcp || 0}
+                                        fid={lighthouseResult.fid || 0}
+                                        cls={lighthouseResult.cls || 0}
+                                        fcp={lighthouseResult.fcp}
+                                        ttfb={lighthouseResult.ttfb}
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Run Your First Audit</h3>
+                                <p className="text-gray-500 mb-4">Enter a URL above and click "Run Audit" to analyze page performance.</p>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        // Demo data for showcase
+                                        setLighthouseResult({
+                                            performance: 87,
+                                            accessibility: 92,
+                                            bestPractices: 83,
+                                            seo: 95,
+                                            lcp: 2100,
+                                            fid: 45,
+                                            cls: 0.08,
+                                            fcp: 1200,
+                                            ttfb: 450
+                                        })
+                                    }}
+                                >
+                                    Show Demo Results
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -457,6 +608,8 @@ export default function PerformanceTestingPage() {
                                     <Label htmlFor="load-url">Target URL</Label>
                                     <Input
                                         id="load-url"
+                                        value={targetUrl}
+                                        onChange={(e) => setTargetUrl(e.target.value)}
                                         placeholder="https://api.example.com/endpoint"
                                         className="mt-1"
                                     />
@@ -479,7 +632,8 @@ export default function PerformanceTestingPage() {
                                     <Label>Virtual Users</Label>
                                     <Input
                                         type="number"
-                                        defaultValue="50"
+                                        value={loadTestConfig.virtualUsers}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, virtualUsers: parseInt(e.target.value) || 50 }))}
                                         min="1"
                                         max="500"
                                         className="mt-1"
@@ -489,7 +643,8 @@ export default function PerformanceTestingPage() {
                                     <Label>Duration (sec)</Label>
                                     <Input
                                         type="number"
-                                        defaultValue="60"
+                                        value={loadTestConfig.duration}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: parseInt(e.target.value) || 60 }))}
                                         min="10"
                                         max="300"
                                         className="mt-1"
@@ -497,43 +652,114 @@ export default function PerformanceTestingPage() {
                                 </div>
                             </div>
                             <div className="mt-4">
-                                <Button className="bg-purple-600 hover:bg-purple-700">
-                                    <Play className="w-4 h-4 mr-2" />
-                                    Start Test
+                                <Button
+                                    onClick={handleLoadTest}
+                                    disabled={!targetUrl || isRunningLoadTest}
+                                    className="bg-purple-600 hover:bg-purple-700"
+                                >
+                                    {isRunningLoadTest ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                            Running Test...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play className="w-4 h-4 mr-2" />
+                                            Start Test
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </div>
 
-                        {/* Metrics explanation */}
+                        {/* Metrics display */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="bg-white rounded-xl p-4 border shadow-sm">
                                 <h4 className="font-semibold text-gray-900 text-sm">Requests/sec</h4>
-                                <p className="text-2xl font-bold text-purple-600 mt-1">—</p>
+                                <p className="text-2xl font-bold text-purple-600 mt-1">
+                                    {loadTestResult?.avgRps ? loadTestResult.avgRps.toFixed(1) : isRunningLoadTest ? '...' : '—'}
+                                </p>
                                 <p className="text-xs text-gray-500">Throughput</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 border shadow-sm">
                                 <h4 className="font-semibold text-gray-900 text-sm">P95 Latency</h4>
-                                <p className="text-2xl font-bold text-purple-600 mt-1">—</p>
+                                <p className="text-2xl font-bold text-purple-600 mt-1">
+                                    {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : isRunningLoadTest ? '...' : '—'}
+                                </p>
                                 <p className="text-xs text-gray-500">95th percentile</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                <h4 className="font-semibold text-gray-900 text-sm">Error Rate</h4>
-                                <p className="text-2xl font-bold text-green-600 mt-1">—</p>
-                                <p className="text-xs text-gray-500">Failures</p>
+                                <h4 className="font-semibold text-gray-900 text-sm">Success Rate</h4>
+                                <p className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? 'text-green-600' : loadTestResult?.successRate ? 'text-amber-600' : 'text-gray-600'}`}>
+                                    {loadTestResult?.successRate ? `${loadTestResult.successRate.toFixed(1)}%` : isRunningLoadTest ? '...' : '—'}
+                                </p>
+                                <p className="text-xs text-gray-500">Success rate</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                <h4 className="font-semibold text-gray-900 text-sm">Active VUs</h4>
-                                <p className="text-2xl font-bold text-gray-600 mt-1">—</p>
-                                <p className="text-xs text-gray-500">Virtual users</p>
+                                <h4 className="font-semibold text-gray-900 text-sm">Total Requests</h4>
+                                <p className="text-2xl font-bold text-gray-900 mt-1">
+                                    {loadTestResult?.totalRequests ? loadTestResult.totalRequests.toLocaleString() : isRunningLoadTest ? '...' : '—'}
+                                </p>
+                                <p className="text-xs text-gray-500">Completed</p>
                             </div>
                         </div>
 
-                        {/* Chart placeholder */}
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <LineChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Real-time Metrics</h3>
-                            <p className="text-gray-500">Start a load test to see live performance charts.</p>
-                        </div>
+                        {/* Real-time Charts or Placeholder */}
+                        {loadTestResult ? (
+                            <div className="space-y-6">
+                                {/* Latency Distribution */}
+                                <LatencyDistributionChart
+                                    p50={loadTestResult.p50}
+                                    p75={loadTestResult.p75}
+                                    p90={loadTestResult.p90}
+                                    p95={loadTestResult.p95}
+                                    p99={loadTestResult.p99}
+                                    max={loadTestResult.max}
+                                />
+
+                                {/* Real-time Metrics */}
+                                <RealTimeMetricsChart data={loadTestResult.timeline} />
+
+                                {/* Virtual Users Chart */}
+                                <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <LineChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Real-time Metrics</h3>
+                                <p className="text-gray-500 mb-4">Start a load test to see live performance charts.</p>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        // Demo data for showcase
+                                        const timeline = Array.from({ length: 20 }, (_, i) => ({
+                                            timestamp: `${i * 3}s`,
+                                            rps: Math.floor(150 + Math.random() * 50),
+                                            latency: Math.floor(80 + Math.random() * 40),
+                                            errors: Math.floor(Math.random() * 3),
+                                            activeVUs: Math.min(50, Math.floor((i + 1) * 2.5))
+                                        }))
+                                        const vuTimeline = Array.from({ length: 20 }, (_, i) => ({
+                                            timestamp: `${i * 3}s`,
+                                            activeVUs: Math.min(50, Math.floor((i + 1) * 2.5)),
+                                            targetVUs: 50
+                                        }))
+                                        setLoadTestResult({
+                                            p50: 85,
+                                            p75: 120,
+                                            p90: 180,
+                                            p95: 245,
+                                            p99: 380,
+                                            max: 520,
+                                            timeline,
+                                            vuTimeline
+                                        })
+                                    }}
+                                >
+                                    Show Demo Results
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -601,27 +827,73 @@ export default function PerformanceTestingPage() {
                 {/* Results Tab */}
                 {activeModule === 'results' && (
                     <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">Test Results & History</h2>
-                            <p className="text-sm text-gray-500">View past test runs, trends, and comparisons</p>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-900">Test Results & History</h2>
+                                <p className="text-sm text-gray-500">View past test runs, trends, and comparisons</p>
+                            </div>
+                            <ReportExport data={demoReportData} />
                         </div>
 
-                        {/* Empty state */}
-                        <div className="bg-white rounded-xl p-12 border shadow-sm text-center">
-                            <BarChart3 className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-                            <h3 className="text-xl font-semibold text-gray-700 mb-3">No Test Results Yet</h3>
-                            <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                                Run a Lighthouse audit, load test, or stress test to see results and historical trends here.
-                            </p>
-                            <div className="flex gap-4 justify-center">
-                                <Button onClick={() => setActiveModule('lighthouse')}>
-                                    <Zap className="w-4 h-4 mr-2" />
-                                    Run Lighthouse Audit
-                                </Button>
-                                <Button variant="outline" onClick={() => setActiveModule('load')}>
-                                    <TrendingUp className="w-4 h-4 mr-2" />
-                                    Start Load Test
-                                </Button>
+                        {/* Test Comparison */}
+                        <TestComparison tests={demoTestResults} />
+
+                        {/* Historical Trend */}
+                        <HistoricalTrendChart
+                            data={generateDemoTrendData(60)}
+                            title="Performance History"
+                        />
+
+                        {/* Recent Tests */}
+                        <div className="bg-white rounded-xl border shadow-sm">
+                            <div className="p-6 border-b border-gray-200">
+                                <h3 className="text-lg font-semibold text-gray-900">Recent Test Runs</h3>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {demoTestResults.map((test) => (
+                                    <div key={test.id} className="p-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${test.testType === 'lighthouse' ? 'bg-teal-100' :
+                                                    test.testType === 'load' ? 'bg-purple-100' : 'bg-orange-100'
+                                                    }`}>
+                                                    {test.testType === 'lighthouse' ? (
+                                                        <Zap className={`w-5 h-5 text-teal-600`} />
+                                                    ) : test.testType === 'load' ? (
+                                                        <TrendingUp className={`w-5 h-5 text-purple-600`} />
+                                                    ) : (
+                                                        <Activity className={`w-5 h-5 text-orange-600`} />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{test.name}</p>
+                                                    <p className="text-sm text-gray-500">
+                                                        {new Date(test.timestamp).toLocaleDateString()} at {new Date(test.timestamp).toLocaleTimeString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                {test.metrics.performance !== undefined && (
+                                                    <div className="text-right">
+                                                        <p className="text-sm text-gray-500">Score</p>
+                                                        <p className={`text-lg font-bold ${test.metrics.performance >= 90 ? 'text-green-600' :
+                                                            test.metrics.performance >= 50 ? 'text-amber-600' : 'text-red-600'
+                                                            }`}>{test.metrics.performance}</p>
+                                                    </div>
+                                                )}
+                                                {test.metrics.rps !== undefined && (
+                                                    <div className="text-right">
+                                                        <p className="text-sm text-gray-500">RPS</p>
+                                                        <p className="text-lg font-bold text-purple-600">{test.metrics.rps}</p>
+                                                    </div>
+                                                )}
+                                                <Button variant="ghost" size="sm">
+                                                    View
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>

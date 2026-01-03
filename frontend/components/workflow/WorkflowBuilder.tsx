@@ -270,8 +270,8 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                     type: n.type || 'action',
                     position: n.position,
                     data: n.data,
-                    width: n.width,
-                    height: n.height,
+                    width: n.width ?? undefined,
+                    height: n.height ?? undefined,
                 })),
                 edges: edges.map((e) => ({
                     id: e.id,

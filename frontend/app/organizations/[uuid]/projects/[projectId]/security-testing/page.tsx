@@ -108,6 +108,7 @@ export default function SecurityTestingPage() {
     })
     const [scanVulnerabilities, setScanVulnerabilities] = useState<Vulnerability[]>([])
     const [loadingVulnerabilities, setLoadingVulnerabilities] = useState(false)
+    const [selectedSeverity, setSelectedSeverity] = useState<string | null>(null)
 
     // Repo Scan state
     const [repoUrl, setRepoUrl] = useState('')
