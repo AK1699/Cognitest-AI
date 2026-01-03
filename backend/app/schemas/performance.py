@@ -7,10 +7,72 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
 
-from app.models.performance_test import (
-    TestType, TestStatus, LoadProfile, DeviceType, 
-    ConnectionType, TestProvider, ScheduleFrequency, AlertSeverity
-)
+import enum
+
+class TestType(str, enum.Enum):
+    """Type of performance test"""
+    LIGHTHOUSE = "lighthouse"
+    LOAD = "load"
+    STRESS = "stress"
+    SPIKE = "spike"
+    ENDURANCE = "endurance"
+    API = "api"
+
+class TestStatus(str, enum.Enum):
+    """Status of a performance test"""
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class LoadProfile(str, enum.Enum):
+    """Load profile patterns for load testing"""
+    CONSTANT = "constant"
+    RAMP_UP = "ramp_up"
+    RAMP_DOWN = "ramp_down"
+    SPIKE = "spike"
+    STEP = "step"
+    CUSTOM = "custom"
+
+class DeviceType(str, enum.Enum):
+    """Device type for Lighthouse testing"""
+    MOBILE = "mobile"
+    DESKTOP = "desktop"
+
+class ConnectionType(str, enum.Enum):
+    """Connection throttling for testing"""
+    CABLE = "cable"
+    DSL = "dsl"
+    SLOW_3G = "slow_3g"
+    FAST_3G = "fast_3g"
+    LTE = "lte"
+    NO_THROTTLE = "no_throttle"
+
+class TestProvider(str, enum.Enum):
+    """External test provider/service used"""
+    PAGESPEED_INSIGHTS = "pagespeed_insights"
+    WEBPAGETEST = "webpagetest"
+    GTMETRIX = "gtmetrix"
+    LOADER_IO = "loader_io"
+    K6_CLOUD = "k6_cloud"
+    ARTILLERY = "artillery"
+
+class ScheduleFrequency(str, enum.Enum):
+    """Test schedule frequency"""
+    ONCE = "once"
+    HOURLY = "hourly"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    CUSTOM = "custom"
+
+class AlertSeverity(str, enum.Enum):
+    """Performance alert severity"""
+    CRITICAL = "critical"
+    WARNING = "warning"
+    INFO = "info"
 
 
 # ============================================================================

@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 
-from app.services.gemini_service import get_gemini_service, GeminiService
+from cognitest_common.gemini_service import get_gemini_service, GeminiService
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +18,10 @@ class PerformanceAIAnalyzer:
     Provides bottleneck detection, recommendations, and risk assessment
     """
     
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None):
         self.gemini: Optional[GeminiService] = None
         try:
-            self.gemini = get_gemini_service()
+            self.gemini = get_gemini_service(api_key=api_key)
         except Exception as e:
             logger.warning(f"Gemini service not available: {e}")
     
@@ -47,7 +47,7 @@ class PerformanceAIAnalyzer:
         prompt = self._build_lighthouse_prompt(metrics, url)
         
         try:
-            response = self.gemini.generate_completion(
+            response = await self.gemini.generate_completion(
                 messages=[
                     {"role": "system", "content": self._get_performance_expert_prompt()},
                     {"role": "user", "content": prompt}
@@ -91,7 +91,7 @@ class PerformanceAIAnalyzer:
         prompt = self._build_load_test_prompt(metrics, config)
         
         try:
-            response = self.gemini.generate_completion(
+            response = await self.gemini.generate_completion(
                 messages=[
                     {"role": "system", "content": self._get_load_test_expert_prompt()},
                     {"role": "user", "content": prompt}
@@ -358,9 +358,9 @@ Analyze the performance characteristics, identify bottlenecks, and provide scali
 _performance_ai_analyzer: Optional[PerformanceAIAnalyzer] = None
 
 
-def get_performance_ai_analyzer() -> PerformanceAIAnalyzer:
+def get_performance_ai_analyzer(api_key: Optional[str] = None) -> PerformanceAIAnalyzer:
     """Get or create performance AI analyzer instance"""
     global _performance_ai_analyzer
     if _performance_ai_analyzer is None:
-        _performance_ai_analyzer = PerformanceAIAnalyzer()
+        _performance_ai_analyzer = PerformanceAIAnalyzer(api_key=api_key)
     return _performance_ai_analyzer

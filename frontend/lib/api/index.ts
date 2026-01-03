@@ -59,9 +59,9 @@ api.interceptors.response.use(
         }
 
         // Only redirect if we're not already on a public auth page
-        const publicAuthPaths = ['/auth/signin', '/auth/signup', '/auth/accept-invitation', '/auth/forgot-password']
+        const publicAuthPaths = ['/', '/cognitest.ai', '/auth/signin', '/auth/signup', '/auth/accept-invitation', '/auth/forgot-password']
         const currentPath = window.location.pathname
-        const isPublicAuthPage = publicAuthPaths.some(path => currentPath.includes(path))
+        const isPublicAuthPage = publicAuthPaths.some(path => currentPath === path || currentPath.startsWith(path + '/') || (path !== '/' && currentPath.includes(path)))
         if (typeof window !== 'undefined' && !isPublicAuthPage) {
           console.warn('Session expired. Redirecting to login...')
           window.location.href = '/auth/signin'

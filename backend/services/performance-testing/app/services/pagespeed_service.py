@@ -5,7 +5,6 @@ Integration with Google PageSpeed Insights API for web performance testing
 import aiohttp
 import logging
 from typing import Dict, Any, Optional, List
-from uuid import UUID
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -197,7 +196,7 @@ class PageSpeedInsightsService:
             "efficient-animated-content",
             "duplicated-javascript",
             "legacy-javascript",
-            "total-byte-weight",
+            "total-byte_weight",
         ]
         
         for audit_id in opportunity_audits:

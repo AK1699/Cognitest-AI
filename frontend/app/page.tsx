@@ -16,8 +16,8 @@ export default function RootPage() {
       // Authenticated users go to organizations
       router.replace('/organizations')
     } else {
-      // Unauthenticated users go to signin
-      router.replace('/auth/signin')
+      // Unauthenticated users go to landing page
+      router.replace('/cognitest.ai')
     }
   }, [user, loading, router])
 

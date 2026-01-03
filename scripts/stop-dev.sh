@@ -28,6 +28,11 @@ if lsof -ti:3000 > /dev/null 2>&1; then
     echo -e "   ${GREEN}✓${NC} Frontend stopped"
 fi
 
+# Microservices (8001-8005)
+echo "   Stopping Microservices..."
+bash scripts/stop-services.sh > /dev/null 2>&1
+echo -e "   ${GREEN}✓${NC} Microservices stopped"
+
 echo ""
 echo "📊 Stopping database services..."
 

@@ -9,7 +9,7 @@ from sqlalchemy.sql import func
 import uuid
 import enum
 
-from app.core.database import Base
+from .base import Base
 
 
 # ============================================================================
@@ -184,9 +184,6 @@ class PerformanceTest(Base):
         Index('ix_performance_tests_created_at', 'created_at'),
     )
 
-    def __repr__(self):
-        return f"<PerformanceTest {self.name} - {self.test_type}>"
-
 
 class PerformanceMetrics(Base):
     """
@@ -281,9 +278,6 @@ class PerformanceMetrics(Base):
     # Relationships
     test = relationship("PerformanceTest", back_populates="metrics")
 
-    def __repr__(self):
-        return f"<PerformanceMetrics for test {self.test_id}>"
-
 
 class TestExecution(Base):
     """
@@ -345,9 +339,6 @@ class TestExecution(Base):
         Index('ix_test_executions_created_at', 'created_at'),
     )
 
-    def __repr__(self):
-        return f"<TestExecution {self.human_id} - Run #{self.run_number}>"
-
 
 class PerformanceAlert(Base):
     """
@@ -388,9 +379,6 @@ class PerformanceAlert(Base):
         Index('ix_performance_alerts_project_id', 'project_id'),
         Index('ix_performance_alerts_severity', 'severity'),
     )
-
-    def __repr__(self):
-        return f"<PerformanceAlert {self.severity} - {self.title}>"
 
 
 class PerformanceSchedule(Base):
@@ -446,9 +434,6 @@ class PerformanceSchedule(Base):
     creator = relationship("User", foreign_keys=[created_by])
     last_test = relationship("PerformanceTest", foreign_keys=[last_test_id])
 
-    def __repr__(self):
-        return f"<PerformanceSchedule {self.name}>"
-
 
 class PerformanceReport(Base):
     """
@@ -487,6 +472,3 @@ class PerformanceReport(Base):
     test = relationship("PerformanceTest")
     project = relationship("Project")
     generated_by_user = relationship("User", foreign_keys=[generated_by])
-
-    def __repr__(self):
-        return f"<PerformanceReport {self.title}>"

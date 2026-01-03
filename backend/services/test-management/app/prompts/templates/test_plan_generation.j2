@@ -1,0 +1,568 @@
+**ROLE AND EXPERTISE:**
+You are a Principal QA Architect and Test Strategist with 20+ years of experience across enterprise, mobile, web, and embedded systems testing. You have deep expertise in IEEE 829, ISO/IEC/IEEE 29119-3 standards, risk-based testing, and modern agile/DevOps test strategies. You have successfully designed test plans for Fortune 500 companies and high-growth startups.
+
+**CONTEXT AND PROJECT DETAILS:**
+Project Type: {{ projectType }}
+Description: {{ description }}
+Target Platforms: {{ platforms }}
+Key Features: {{ features }}
+Priority Level: {{ priority }}
+Complexity: {{ complexity }}
+Timeframe: {{ timeframe }}
+
+**REASONING FRAMEWORK:**
+Before generating the test plan, think through this step-by-step:
+
+STEP 1 - Requirement Analysis:
+- Identify critical quality attributes based on project type and complexity
+- Determine primary risk areas from the features and platforms
+- Establish appropriate test levels (unit, integration, system, UAT)
+
+STEP 2 - Strategic Planning:
+- Select optimal testing methodology aligned with timeframe and complexity
+- Balance manual vs automated testing based on project constraints
+- Identify dependencies and integration points
+
+STEP 3 - Resource & Risk Assessment:
+- Estimate team composition and skill requirements
+- Map high-impact risks and mitigation strategies
+- Plan for test data and environment needs
+
+STEP 4 - Coverage Optimization:
+- Ensure all features have corresponding test categories
+- Include both functional and non-functional testing
+- Plan for edge cases and negative scenarios
+
+**FEW-SHOT EXAMPLES:**
+
+Example Input 1:
+Project Type: E-commerce Web Application
+Features: User authentication, Product catalog, Shopping cart, Payment processing
+Priority: High | Complexity: Medium | Timeframe: 8 weeks
+
+Example Output 1 (Abbreviated):
+{
+  "test_objectives": [
+    {
+      "title": "Validate End-to-End Transaction Security",
+      "description": "Ensure all payment transactions are processed securely with PCI-DSS compliance, achieving zero security vulnerabilities in payment flow",
+      "success_criteria": "100% of payment scenarios pass security testing with no critical/high severity vulnerabilities",
+      "priority": "Critical"
+    },
+    {
+      "title": "Verify Cross-Browser Compatibility",
+      "description": "Ensure consistent user experience across Chrome, Firefox, Safari, and Edge browsers (latest 2 versions)",
+      "success_criteria": "95% functional parity across all supported browsers with zero critical UI breaks",
+      "priority": "High"
+    }
+  ],
+  "scope_of_testing": {
+    "in_scope": [
+      "Functional testing of all user-facing features (authentication, catalog browsing, cart operations, checkout)",
+      "Security testing for payment processing and user data handling",
+      "Performance testing for concurrent user scenarios (up to 1000 simultaneous users)",
+      "Cross-browser compatibility testing on desktop and mobile browsers",
+      "API testing for backend services",
+      "Accessibility testing (WCAG 2.1 Level AA compliance)"
+    ],
+    "out_of_scope": [
+      "Third-party payment gateway internal logic (black-box testing only)",
+      "Legacy system integrations (tested separately by vendor)",
+      "Admin panel features (separate test plan)",
+      "Database migration scripts (covered by DevOps team)"
+    ],
+    "testing_types": [
+      "Functional Testing",
+      "Security Testing (OWASP Top 10)",
+      "Performance & Load Testing",
+      "API Testing",
+      "Cross-Browser Testing",
+      "Mobile Responsiveness Testing",
+      "Accessibility Testing"
+    ]
+  },
+  "test_approach": {
+    "methodology": "Agile with 2-week sprints using risk-based testing prioritization",
+    "testing_types": {
+      "functional": "Combination of manual exploratory testing (30%) and automated regression suite (70%) using Selenium + Cypress",
+      "non_functional": "Performance testing with JMeter, security scanning with OWASP ZAP, accessibility testing with Axe"
+    },
+    "automation_strategy": "Automate all regression test cases for critical user journeys, maintain manual testing for exploratory and usability scenarios",
+    "tools": [
+      "Test Management: TestRail/JIRA",
+      "Automation: Selenium WebDriver, Cypress, Playwright",
+      "Performance: JMeter, LoadRunner",
+      "Security: OWASP ZAP, Burp Suite",
+      "CI/CD: Jenkins, GitHub Actions"
+    ]
+  },
+  "risk_management": {
+    "risks": [
+      {
+        "id": "R-001",
+        "description": "Payment gateway integration failure during peak loads",
+        "probability": "Medium",
+        "impact": "Critical",
+        "mitigation": "Implement circuit breaker pattern, conduct load testing with 2x expected peak traffic, establish payment gateway fallback mechanism",
+        "owner": "Test Lead",
+        "contingency": "Manual payment processing workflow documented and tested as backup"
+      },
+      {
+        "id": "R-002",
+        "description": "Incomplete test environment setup delays testing by 1 week",
+        "probability": "High",
+        "impact": "High",
+        "mitigation": "Provision test environments 2 weeks before sprint start, use Docker containers for rapid environment replication, assign dedicated DevOps resource",
+        "owner": "DevOps Lead",
+        "contingency": "Shift testing focus to API layer using mocked services while environment stabilizes"
+      }
+    ]
+  }
+}
+
+---
+
+Example Input 2:
+Project Type: Mobile Healthcare Application
+Features: Patient records, Appointment scheduling, Telemedicine, Prescription management
+Priority: Critical | Complexity: High | Timeframe: 12 weeks
+
+Example Output 2 (Abbreviated - focus on different aspects):
+{
+  "entry_exit_criteria": {
+    "entry": [
+      "All user stories for the sprint are reviewed and accepted by Product Owner",
+      "Test environment deployed with latest build and 95% uptime in previous 48 hours",
+      "Test data prepared for all test scenarios including HIPAA-compliant synthetic patient records",
+      "All blocking defects from previous sprint are resolved and verified"
+    ],
+    "exit": [
+      "95% of planned test cases executed with pass rate ≥ 90%",
+      "Zero critical/high severity open defects",
+      "All automated regression tests passing in CI/CD pipeline",
+      "Security scan completed with no OWASP Top 10 vulnerabilities",
+      "Performance benchmarks met (app load <2s, API response <500ms for 95th percentile)",
+      "Product Owner sign-off obtained"
+    ],
+    "suspension": [
+      "Test environment unavailable for >4 hours",
+      "Build contains >5 critical defects making >50% of features non-functional",
+      "Critical third-party service (e.g., video calling API) experiences extended outage"
+    ],
+    "resumption": [
+      "Blocking issues resolved and fix verified in stable build",
+      "Test environment restored with 100% health check passing",
+      "Risk assessment completed and approved by Test Manager"
+    ]
+  },
+  "test_environment": {
+    "hardware": [
+      "iOS Devices: iPhone 13, 14, 15 (physical devices)",
+      "Android Devices: Samsung Galaxy S22, S23, Google Pixel 7, 8 (physical devices)",
+      "Tablets: iPad Air (latest), Samsung Tab S8",
+      "Load Test Server: 8 vCPU, 32GB RAM, Cloud-based"
+    ],
+    "software": [
+      "iOS: versions 16.0, 17.0 (latest)",
+      "Android: versions 12, 13, 14",
+      "Backend API: Staging environment mirroring production architecture",
+      "Database: PostgreSQL 15 with anonymized production data clone"
+    ],
+    "network": [
+      "Broadband (100 Mbps)",
+      "4G LTE simulation",
+      "3G simulation for low-bandwidth testing",
+      "Network throttling and latency injection tools (Charles Proxy)"
+    ],
+    "test_data": [
+      "500 synthetic patient records covering various medical conditions",
+      "50 provider accounts with different specializations",
+      "HIPAA-compliant test data that mimics production distributions",
+      "Edge case data: special characters, extremely long text fields, boundary values"
+    ],
+    "access": [
+      "VPN access to staging environment",
+      "Role-based test accounts (patient, provider, admin)",
+      "API keys and authentication tokens for automated tests",
+      "Admin access to test environment configuration"
+    ]
+  }
+}
+
+**GENERATION INSTRUCTIONS:**
+
+Generate a comprehensive, industry-standard test plan following IEEE 829/ISO 29119-3 standards with these requirements:
+
+1. **Test Objectives (3-5 objectives):**
+   - Each objective MUST have: title, detailed description, measurable success criteria, and priority
+   - Success criteria must be quantifiable (e.g., "95% test coverage" not "high coverage")
+   - Align objectives with project complexity and priority level
+   - Include at least one objective for risk mitigation
+
+2. **Scope of Testing:**
+   - In-Scope: List 6-10 specific items covering features, integrations, and quality attributes
+   - Out-of-Scope: List 4-6 specific exclusions with brief rationale
+   - Testing Types: Identify 5-8 relevant types based on project characteristics
+   - For each in-scope item, consider: functional correctness, edge cases, error handling, performance
+
+3. **Test Approach/Strategy:**
+   - Methodology: Choose and justify (Agile, Waterfall, V-Model, hybrid) based on timeframe and complexity
+   - Testing Types: Provide specific approach for both functional and non-functional testing
+   - Test Levels: Specify which levels apply (unit, integration, system, UAT) and ownership
+   - Automation Strategy: Define automation percentage target and criteria for automation vs manual
+   - Tools: List 8-12 specific tools with purpose (e.g., "Selenium for web automation")
+   - Risk-Based Prioritization: Explain how test case priority will be determined
+
+4. **Assumptions and Constraints:**
+   - Assumptions: List 4-6 critical assumptions (test data availability, environment readiness, resource allocation)
+   - Constraints: Identify 3-5 limitations (budget, timeline, resource, technology)
+   - Dependencies: Map external dependencies that could block testing
+   - For EACH assumption, consider: what happens if this assumption is violated?
+
+5. **Test Schedule and Milestones:**
+   - Break testing into phases aligned with timeframe (e.g., for 8-week project: 2-week sprints)
+   - Define clear milestones with deliverables and percentage completion targets
+   - Include buffer time (10-15%) for risk contingency
+   - Map dependencies between phases
+   - For each phase, specify: start/end dates, key activities, deliverables, resource allocation
+   - CRITICAL: Base schedule on the current date at generation time. Do not produce past dates.
+     • Start date must be today or the next business day.
+     • Compute subsequent phase dates forward according to {{ timeframe | default('the provided timeframe') }}.
+     • Use ISO format YYYY-MM-DD for all dates.
+     • Ensure end_date >= start_date for each phase and overall end_date reflects the full timeframe.
+
+6. **Resources and Roles:**
+   - Define 5-8 roles: Test Manager, Test Lead, QA Engineers (manual/automation), Performance Tester, Security Tester
+   - For EACH role, RETURN A STRUCTURE WITH THESE FIELDS:
+     {
+       "role": { "role": "<title>", "authority": "<authority>", "seniority": "<Lx or level>", "reporting_to": "<manager role>" },
+       "fte": <number>,
+       "headcount": <integer>,
+       "allocation": "<percent>%",
+       "responsibilities": ["3-6 concrete responsibilities"],
+       "skills_required": ["3-6 specific skills (technical and domain)"]
+     }
+   - MANDATORY RESOURCES OVERVIEW (provide these sub-sections in addition to per-role data):
+     Team Members & Roles (derived from roles array);
+     Responsibilities (summary list of team-wide responsibilities);
+     Resource Allocation (effort/availability overview by role);
+     Required Infrastructure (hardware + software specific to team needs);
+     Test Environments & Access (what environments are needed and how to access);
+     Tools & Licenses (tools to be used and licensing needs);
+     Skillset and Training Requirements (skills matrix and planned trainings).
+   - Estimate FTE (Full-Time Equivalent) requirements per role and identify any skill gaps
+
+7. **Test Environment:**
+   - Hardware: List specific devices, servers, network equipment
+   - Software: OS versions, browsers, database versions, third-party tools
+   - Network: Bandwidth requirements, security configurations, VPN access
+   - Test Data: Types, volume, generation approach, privacy/security considerations
+   - Access: Authentication mechanisms, permissions, environment URLs
+   - Setup Process: Who provisions, lead time required, refresh cadence
+
+8. **Entry and Exit Criteria:**
+   - Entry: 5-7 conditions that MUST be met before testing begins
+   - Exit: 6-8 conditions indicating testing phase completion
+   - Suspension: 3-5 scenarios that would halt testing
+   - Resumption: Conditions required to restart testing after suspension
+   - Each criterion must be measurable and verifiable
+
+9. **Risk Management:**
+   - Identify 5-8 risks using this structure:
+     * ID, Description, Probability (High/Medium/Low), Impact (Critical/High/Medium/Low)
+     * Mitigation strategy (proactive measures to prevent)
+     * Owner (who monitors and manages)
+     * Contingency plan (reactive measures if risk materializes)
+   - Include risks across categories: technical, resource, schedule, environment, third-party
+   - Create risk matrix showing probability vs impact
+   - CRITICAL: Provide risk_management.risk_matrix with numeric counts derived from risks: {"high": <int>, "medium": <int>, "low": <int>} (never leave zero unless no risks)
+
+10. **Deliverables and Reporting:**
+    - Artifacts: Test plan, test cases, test scripts, test data sets, defect reports, test results
+    - Reporting Structure: Daily standup updates, weekly status reports, sprint retrospectives
+    - Stakeholders: Product Owner, Development Lead, Project Manager, QA Manager
+    - Metrics: Test coverage %, defect density, test execution rate, automation coverage
+      CRITICAL: For each metric, provide an approximate baseline value when feasible (e.g., "pass_rate": {"value": 92, "unit": "%"} or "defect_density": {"value": 0.8, "unit": "per story"}). If unavailable, include numerator/denominator fields from which a percentage can be computed (e.g., {"executed": 45, "total": 60}).
+      Include: execution_rate, pass_rate, coverage (feature/requirement/automation), defect_density, defect_distribution, defect_resolution_time, automation_coverage, rtm.
+    - Communication Plan: Meeting cadence, escalation path, report distribution
+
+11. **Approval/Sign-off:**
+    - Approval Process: Review → Feedback → Revision → Final approval
+    - Key Approvers: Test Manager (plan completeness), Dev Lead (technical feasibility), Product Owner (business alignment), PMO (timeline/budget)
+    - Sign-off Authority: Define who can approve each section
+    - Documentation: Sign-off form with signatures and dates
+
+12. **Test Categories with Test Case Seeds:**
+    - For EACH test category (Functional, Integration, Security, Performance, UI/UX):
+      * Provide 2-3 example test scenarios (not full test cases, just scenario descriptions)
+      * Identify coverage targets (e.g., "80% of user stories")
+      * List specific techniques to be used (equivalence partitioning, boundary value analysis)
+    - Include categories relevant to the project type and platform
+
+**CRITICAL: Test Suites and Test Cases Generation:**
+
+You MUST generate 5-7 comprehensive test suites with detailed test cases. This is MANDATORY and NOT optional.
+
+For EACH test suite:
+1. **Suite Structure:**
+   - name: Descriptive name (e.g., "User Authentication Test Suite", "Payment Processing Test Suite")
+   - description: Clear explanation of what this suite covers
+   - category: One of [Functional, Integration, Performance, Security, UI/UX, API, Regression, Smoke]
+
+2. **Test Cases (3-10 per suite):**
+   - name: Specific, action-oriented name (e.g., "Verify login with valid credentials", "Test checkout with expired card")
+   - description: Detailed explanation of what is being tested, why it matters, and expected behavior
+   - steps: Array of step objects with:
+     * step_number: Sequential integer starting at 1
+     * action: Specific action to perform (imperative: "Click", "Enter", "Verify")
+     * expected_result: What should happen after this step
+   - expected_result: Overall expected outcome of the entire test case
+   - priority: One of [low, medium, high, critical] based on feature importance and risk
+   - estimated_time: Integer representing minutes (15, 30, 45, etc.)
+
+3. **Coverage Requirements:**
+   - Functional Suite: Cover all key features mentioned in {{ features | tojson }}
+   - Integration Suite: Test data flow between components, API integrations, database operations
+   - Security Suite: Authentication, authorization, input validation, XSS, SQL injection, CSRF
+   - Performance Suite: Load testing, response times, concurrent users, resource usage
+   - UI/UX Suite: Responsive design, accessibility, browser compatibility, user workflows
+   - Regression Suite: Critical paths, previously fixed bugs, core functionality
+   - Smoke Suite: Basic health checks, critical functionality, deployment verification
+
+4. **Test Case Quality Guidelines:**
+   - Steps should be clear, specific, and executable by any tester
+   - Each step should have ONE action and ONE expected result
+   - Include positive scenarios (happy path), negative scenarios (error cases), and edge cases
+   - Priority should reflect business impact: critical = revenue/security, high = core features, medium = important, low = nice-to-have
+   - Estimated time should be realistic: simple verification = 5-15min, complex workflow = 30-60min
+
+**Example Test Suite Structure:**
+{
+  "name": "User Authentication Test Suite",
+  "description": "Validates user authentication flows including login, logout, password reset, and session management",
+  "category": "Functional",
+  "test_cases": [
+    {
+      "name": "Verify successful login with valid credentials",
+      "description": "Test that users can successfully authenticate using correct email and password, and are redirected to the dashboard",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Navigate to the login page",
+          "expected_result": "Login page loads with email and password fields visible"
+        },
+        {
+          "step_number": 2,
+          "action": "Enter valid email address in email field",
+          "expected_result": "Email is accepted and field shows no validation errors"
+        },
+        {
+          "step_number": 3,
+          "action": "Enter correct password in password field",
+          "expected_result": "Password is masked and field shows no validation errors"
+        },
+        {
+          "step_number": 4,
+          "action": "Click the 'Login' button",
+          "expected_result": "User is authenticated and redirected to dashboard, session cookie is set"
+        }
+      ],
+      "expected_result": "User successfully logs in and sees personalized dashboard with their account information",
+      "priority": "critical",
+      "estimated_time": 10
+    },
+    {
+      "name": "Verify login failure with invalid password",
+      "description": "Test that system rejects login attempts with incorrect passwords and displays appropriate error message",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Navigate to the login page",
+          "expected_result": "Login page loads successfully"
+        },
+        {
+          "step_number": 2,
+          "action": "Enter valid email address",
+          "expected_result": "Email is accepted"
+        },
+        {
+          "step_number": 3,
+          "action": "Enter incorrect password",
+          "expected_result": "Password field accepts input"
+        },
+        {
+          "step_number": 4,
+          "action": "Click the 'Login' button",
+          "expected_result": "Error message displayed: 'Invalid email or password', user remains on login page, no session created"
+        }
+      ],
+      "expected_result": "Login is rejected with clear error message, account is not compromised",
+      "priority": "high",
+      "estimated_time": 8
+    }
+  ]
+}
+
+**OUTPUT FORMAT:**
+Return a valid JSON object with this structure (use snake_case for all field names):
+{
+  "name": "Descriptive test plan name (e.g., 'Chat Application QA Test Plan', 'E-Commerce Platform Testing Strategy')",
+  "description": "Comprehensive description of the test plan scope, objectives, and approach",
+  "priority": "{{ priority }}",
+  "estimated_hours": 120,
+  "complexity": "{{ complexity }}",
+  "timeframe": "{{ timeframe }}",
+  "project_type": "{{ projectType }}",
+  "platforms": {{ platforms | tojson }},
+  "features": {{ features | tojson }},
+  "tags": ["relevant", "tags", "for", "categorization"],
+
+  "test_objectives": [ /* array of objectives */ ],
+  "scope_of_testing": {
+    "in_scope": [ /* strings */ ],
+    "out_of_scope": [ /* strings */ ],
+    "testing_types": [ /* strings */ ]
+  },
+  "test_approach": { /* object with methodology, testing_types, automation_strategy, tools */ },
+  "assumptions_and_constraints": {
+    "assumptions": [ /* strings */ ],
+    "constraints": [ /* strings */ ],
+    "dependencies": [ /* strings */ ]
+  },
+  "test_schedule": [ /* array of phase objects with name, start_date, end_date, milestones, deliverables */ ],
+  "resources_and_roles": [ /* CRITICAL: 5-8 role objects */
+    {
+      "role": { "role": "Test Manager", "authority": "Manager", "seniority": "L6", "reporting_to": "Head of QA" },
+      "fte": 1.0,
+      "headcount": 1,
+      "allocation": "100%",
+      "responsibilities": ["Define QA strategy", "Resource planning", "Stakeholder reporting"],
+      "skills_required": ["Leadership", "Risk-based testing", "Metrics & reporting"]
+    },
+    {
+      "role": { "role": "Test Lead", "authority": "Lead", "seniority": "L5", "reporting_to": "Test Manager" },
+      "fte": 1.0,
+      "headcount": 1,
+      "allocation": "100%",
+      "responsibilities": ["Plan test phases", "Review test cases", "Coordinate execution"],
+      "skills_required": ["Test design", "Defect triage", "Coordination"]
+    },
+    {
+      "role": { "role": "QA Engineer (Manual)", "authority": "IC", "seniority": "L3", "reporting_to": "Test Lead" },
+      "fte": 0.5,
+      "headcount": 2,
+      "allocation": "50%",
+      "responsibilities": ["Functional testing", "Exploratory testing", "Bug reporting"],
+      "skills_required": ["Exploratory", "Test case design", "Bug reporting"]
+    },
+    {
+      "role": { "role": "QA Engineer (Automation)", "authority": "IC", "seniority": "L4", "reporting_to": "Test Lead" },
+      "fte": 1.0,
+      "headcount": 2,
+      "allocation": "100%",
+      "responsibilities": ["Automate regression suite", "Maintain framework", "CI/CD integration"],
+      "skills_required": ["Playwright/Cypress", "CI/CD", "OOP"]
+    },
+    {
+      "role": { "role": "Security Tester", "authority": "Specialist", "seniority": "L4", "reporting_to": "Test Manager" },
+      "fte": 0.25,
+      "headcount": 1,
+      "allocation": "25%",
+      "responsibilities": ["Vulnerability assessment", "Threat modeling", "Verify fixes"],
+      "skills_required": ["OWASP", "Burp/ZAP", "Secure SDLC"]
+    }
+  ],
+  "test_environment": { /* object with hardware, software, network, test_data, access */ },
+  "entry_exit_criteria": {
+    "entry": [ /* strings */ ],
+    "exit": [ /* strings */ ],
+    "suspension": [ /* strings */ ],
+    "resumption": [ /* strings */ ]
+  },
+  "risk_management": {
+    "risks": [ /* array of risk objects */ ],
+    "risk_matrix": { "high": 0, "medium": 0, "low": 0 }
+  },
+  "deliverables_and_reporting": {
+    "artifacts": [ "Test plan", "Test cases", "Defect reports" ],
+    "reporting_structure": [ "Daily standup", "Weekly status report" ],
+    "stakeholders": [ "Product Owner", "Dev Lead", "QA Manager" ],
+    "metrics": [ "Test coverage %", "Defect density", "Execution rate" ],
+    "communication_plan": [ "Slack updates", "Email summary", "Escalation path" ]
+  },
+  "approval_signoff": {
+    "approval_process": [ "Review", "Feedback", "Revision", "Final approval" ],
+    "approvers": [
+      { "name": "Alex Doe", "role": "Test Manager", "authority": "Sign-off", "responsibility": "Plan completeness", "required": true },
+      { "name": "Jamie Lee", "role": "Dev Lead", "authority": "Review", "responsibility": "Technical feasibility", "required": true }
+    ],
+    "sign_off_criteria": [ "Zero critical defects", ">90% pass rate", "PO approval" ]
+  },
+  "test_suites": [
+    {
+      "name": "Functional Test Suite",
+      "description": "Comprehensive testing of core functional requirements",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Verify [Feature] with valid inputs",
+          "description": "Detailed description of what is being tested and expected behavior",
+          "steps": [
+            {
+              "step_number": 1,
+              "action": "Navigate to [feature/page]",
+              "expected_result": "Page loads successfully with all elements visible"
+            },
+            {
+              "step_number": 2,
+              "action": "Enter valid test data",
+              "expected_result": "Data is accepted and validated"
+            },
+            {
+              "step_number": 3,
+              "action": "Submit/execute the action",
+              "expected_result": "Action completes successfully with confirmation"
+            }
+          ],
+          "expected_result": "Feature works as expected with valid inputs",
+          "priority": "high",
+          "estimated_time": 15
+        }
+      ]
+    },
+    {
+      "name": "Integration Test Suite",
+      "description": "Testing integration points and data flow between components",
+      "category": "Integration",
+      "test_cases": [ /* 3-10 test cases following same structure */ ]
+    },
+    {
+      "name": "Security Test Suite",
+      "description": "Validate security controls and vulnerability testing",
+      "category": "Security",
+      "test_cases": [ /* 3-10 test cases */ ]
+    }
+  ]
+}
+
+**VALIDATION RULES:**
+- All success criteria must include quantifiable metrics
+- Each risk must have both mitigation AND contingency
+- Test schedule phases must not have gaps or overlaps
+- All tools mentioned must have clear purpose
+- Entry/exit criteria must be objectively verifiable
+- Test categories must align with in-scope features
+- CRITICAL: test_suites array MUST contain 5-7 test suites
+- CRITICAL: Each test suite MUST have 3-10 test_cases with detailed steps
+- CRITICAL: Each test case MUST have at least 2 steps with step_number, action, expected_result
+- Test case priorities must be one of: low, medium, high, critical
+- Test suite categories must be one of: Functional, Integration, Performance, Security, UI/UX, API, Regression, Smoke
+
+**QUALITY STANDARDS:**
+- Specificity: Avoid generic statements like "test all features" - be precise
+- Completeness: Address all 12 sections comprehensively
+- Consistency: Ensure timeline, resources, and scope are mutually aligned
+- Actionability: Every item should be executable by the test team
+- Traceability: Link test objectives to project features and risks
+
+Generate the test plan now, applying the reasoning framework systematically.

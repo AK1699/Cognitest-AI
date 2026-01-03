@@ -6,25 +6,28 @@ import logging
 import asyncio
 import random
 import string
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from uuid import UUID
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
-from app.models.performance_test import (
+from ..models.performance import (
     PerformanceTest, PerformanceMetrics, TestExecution, 
     PerformanceAlert, TestType, TestStatus, TestProvider,
     AlertSeverity, DeviceType, ConnectionType, LoadProfile
 )
-from app.services.pagespeed_service import PageSpeedInsightsService, get_pagespeed_service
-from app.services.loader_service import LoaderIOService, get_loader_service, LoadTestType
+from .pagespeed_service import PageSpeedInsightsService, get_pagespeed_service
+from .loader_service import LoaderIOService, get_loader_service, LoadTestType
+from .webpagetest_service import WebPageTestService, WebPageTestConfig
+from .performance_ai_analyzer import PerformanceAIAnalyzer, get_performance_ai_analyzer
 
 logger = logging.getLogger(__name__)
 
 
 async def generate_human_id(prefix: str, db: AsyncSession) -> str:
     """Generate a human-readable ID like PERF-A1B2C or EXEC-X9Y8Z"""
+    # Simple implementation for now, in production this should be more robust
     suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
     return f"{prefix}-{suffix}"
 
@@ -40,10 +43,14 @@ class PerformanceTestingService:
         db: AsyncSession,
         pagespeed_api_key: Optional[str] = None,
         loader_api_key: Optional[str] = None,
+        wpt_api_key: Optional[str] = None,
+        google_api_key: Optional[str] = None,
     ):
         self.db = db
         self.pagespeed_service = get_pagespeed_service(pagespeed_api_key)
         self.loader_service = get_loader_service(loader_api_key) if loader_api_key else None
+        self.wpt_service = WebPageTestService(wpt_api_key) if wpt_api_key else None
+        self.ai_analyzer = get_performance_ai_analyzer(api_key=google_api_key)
     
     # =========================================================================
     # Test CRUD Operations
@@ -53,7 +60,7 @@ class PerformanceTestingService:
         self,
         project_id: UUID,
         organisation_id: UUID,
-        user_id: UUID,
+        user_id: Optional[UUID],
         name: str,
         test_type: TestType,
         target_url: str,
@@ -122,7 +129,7 @@ class PerformanceTestingService:
         page_size: int = 20,
         test_type: Optional[TestType] = None,
         status: Optional[TestStatus] = None
-    ) -> tuple[List[PerformanceTest], int]:
+    ) -> Tuple[List[PerformanceTest], int]:
         """List performance tests for a project with pagination"""
         query = select(PerformanceTest).where(
             PerformanceTest.project_id == project_id
@@ -185,6 +192,32 @@ class PerformanceTestingService:
             else:
                 raise ValueError(f"Unsupported test type: {test.test_type}")
             
+            # AI Analysis if results available
+            try:
+                # Need to fetch metrics first
+                metrics_result = await self.db.execute(
+                    select(PerformanceMetrics).where(PerformanceMetrics.test_id == test.id)
+                )
+                metrics = metrics_result.scalar_one_or_none()
+                
+                if metrics:
+                    if test.test_type == TestType.LIGHTHOUSE:
+                        analysis = await self.ai_analyzer.analyze_lighthouse_results(
+                            metrics=metrics.__dict__, # Convert to dict for analyzer
+                            url=test.target_url
+                        )
+                    else:
+                        analysis = await self.ai_analyzer.analyze_load_test_results(
+                            metrics=metrics.__dict__,
+                            config={"target_url": test.target_url, "virtual_users": test.virtual_users, "duration_seconds": test.duration_seconds}
+                        )
+                    
+                    test.ai_analysis = analysis.get("summary")
+                    test.ai_recommendations = analysis.get("recommendations", [])
+                    test.ai_risk_level = analysis.get("risk_level")
+            except Exception as ai_err:
+                logger.warning(f"AI analysis failed for test {test.id}: {ai_err}")
+
             # Mark complete
             test.status = TestStatus.COMPLETED
             test.completed_at = datetime.utcnow()
@@ -270,7 +303,6 @@ class PerformanceTestingService:
     async def _execute_api_test(self, test: PerformanceTest):
         """Execute simple API performance test"""
         # For API tests, we use PageSpeed for now (simpler single-request timing)
-        # In a full implementation, this could use a lightweight HTTP client
         await self._execute_lighthouse_test(test)
     
     async def _store_lighthouse_metrics(self, test: PerformanceTest, result: Dict[str, Any]):
@@ -390,11 +422,11 @@ class PerformanceTestingService:
             # Check if threshold is breached
             breached = False
             if metric_name in ["error_rate"]:
-                breached = actual_value > threshold_value
+                breached = float(actual_value) > float(threshold_value)
             elif metric_name in ["performance_score"]:
-                breached = actual_value < threshold_value
+                breached = float(actual_value) < float(threshold_value)
             elif "latency" in metric_name:
-                breached = actual_value > threshold_value
+                breached = float(actual_value) > float(threshold_value)
             
             if breached:
                 test.threshold_passed = False
@@ -402,8 +434,8 @@ class PerformanceTestingService:
                 await self._create_alert(
                     test=test,
                     metric_name=metric_name,
-                    threshold_value=threshold_value,
-                    actual_value=actual_value
+                    threshold_value=float(threshold_value),
+                    actual_value=float(actual_value)
                 )
     
     async def _create_alert(
@@ -473,46 +505,22 @@ class PerformanceTestingService:
             error_message=test.error_message,
             triggered_by=test.triggered_by,
             trigger_source=test.trigger_source,
+            
+            # Store metrics snapshot
+            metrics_snapshot=metrics.__dict__ if metrics else {}
         )
         
         self.db.add(execution)
         await self.db.commit()
     
     # =========================================================================
-    # Quick Scans
-    # =========================================================================
-    
-    async def quick_lighthouse_scan(
-        self,
-        project_id: UUID,
-        organisation_id: UUID,
-        user_id: UUID,
-        target_url: str,
-        device_type: DeviceType = DeviceType.MOBILE
-    ) -> PerformanceTest:
-        """Run a quick Lighthouse scan (no persistent test record)"""
-        test = await self.create_test(
-            project_id=project_id,
-            organisation_id=organisation_id,
-            user_id=user_id,
-            name=f"Quick Scan - {target_url[:50]}",
-            test_type=TestType.LIGHTHOUSE,
-            target_url=target_url,
-            device_type=device_type,
-            trigger_source="quick_scan"
-        )
-        
-        return await self.execute_test(test.id)
-    
-    # =========================================================================
-    # Dashboard & Statistics
+    # Dashboards & Statistics
     # =========================================================================
     
     async def get_dashboard_stats(self, project_id: UUID) -> Dict[str, Any]:
         """Get dashboard statistics for a project"""
         now = datetime.utcnow()
         last_7_days = now - timedelta(days=7)
-        last_30_days = now - timedelta(days=30)
         
         # Total tests
         total_result = await self.db.execute(
@@ -585,6 +593,7 @@ class PerformanceTestingService:
         active_alerts = alerts_result.scalar() or 0
         
         return {
+            "project_id": project_id,
             "total_tests": total_tests,
             "tests_last_7_days": tests_last_7_days,
             "pass_rate": round(pass_rate, 1),

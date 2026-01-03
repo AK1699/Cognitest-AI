@@ -22,10 +22,13 @@ CELERY_RESULT_BACKEND = os.getenv(
 # Celery App
 # ============================================================================
 
-celery_app = Celery(
-    "cognitest_security",
-    broker=CELERY_BROKER_URL,
-    backend=CELERY_RESULT_BACKEND,
+from cognitest_common import create_celery_app
+from .config import settings
+
+celery_app = create_celery_app(
+    service_name="monolith",
+    broker_url=getattr(settings, "CELERY_BROKER_URL", "redis://localhost:6379/0"),
+    result_backend=getattr(settings, "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
     include=[
         "app.tasks.security_tasks"
     ]
@@ -83,25 +86,16 @@ celery_app.conf.update(
 # ============================================================================
 
 celery_app.conf.task_queues = {
-    "security_scans": {
-        "exchange": "security_scans",
-        "routing_key": "security.scan.#",
-    },
-    "security_reports": {
-        "exchange": "security_reports",
-        "routing_key": "security.report.#",
-    },
-    "default": {
-        "exchange": "default",
-        "routing_key": "default",
-    },
+    "security": {"exchange": "security", "routing_key": "security.#"},
+    "ai": {"exchange": "ai", "routing_key": "ai.#"},
+    "workflow": {"exchange": "workflow", "routing_key": "workflow.#"},
+    "default": {"exchange": "default", "routing_key": "default"},
 }
 
 celery_app.conf.task_routes = {
-    "app.tasks.security_tasks.run_url_scan": {"queue": "security_scans"},
-    "app.tasks.security_tasks.run_repo_scan": {"queue": "security_scans"},
-    "app.tasks.security_tasks.run_vapt_scan": {"queue": "security_scans"},
-    "app.tasks.security_tasks.generate_compliance_report": {"queue": "security_reports"},
+    "app.tasks.security_tasks.*": {"queue": "security"},
+    "ai.*": {"queue": "ai"},
+    "workflows.*": {"queue": "workflow"},
 }
 
 
