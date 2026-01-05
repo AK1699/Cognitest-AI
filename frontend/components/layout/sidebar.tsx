@@ -12,7 +12,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Menu,
-  BrainCircuit,
   LogOut,
   FolderOpen,
   BarChart3,
@@ -23,6 +22,7 @@ import {
   Zap,
   Workflow
 } from 'lucide-react'
+import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -200,8 +200,8 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
           {/* Logo Section */}
           <div className="p-4 flex items-center gap-3 border-b border-gray-200">
             {/* Logo Icon */}
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-              <BrainCircuit className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 flex items-center justify-center">
+              <CircuitLogoIcon className="w-8 h-8" />
             </div>
 
             {/* CogniTest Text - Hidden when collapsed */}

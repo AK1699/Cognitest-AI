@@ -2,7 +2,8 @@
 
 import React from 'react'
 import { UserNav } from '@/components/layout/user-nav'
-import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, ChevronRight, FolderOpen, BarChart3, BrainCircuit } from 'lucide-react'
+import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, ChevronRight, FolderOpen, BarChart3 } from 'lucide-react'
+import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 
@@ -117,8 +118,8 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
 
         {/* Logo Section */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
-          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-            <BrainCircuit className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <CircuitLogoIcon className="w-8 h-8" />
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">

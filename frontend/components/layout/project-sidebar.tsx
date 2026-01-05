@@ -4,7 +4,6 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
-    BrainCircuit,
     ChevronLeft,
     ChevronRight,
     FolderOpen,
@@ -27,6 +26,7 @@ import {
     Link2,
     FileText
 } from 'lucide-react'
+import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 
 interface ProjectSidebarProps {
     organisationId: string
@@ -135,8 +135,8 @@ export function ProjectSidebar({
 
             {/* Logo Section */}
             <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
-                <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                    <BrainCircuit className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                    <CircuitLogoIcon className="w-8 h-8" />
                 </div>
                 {!isCollapsed && (
                     <div className="flex-1 min-w-0">
