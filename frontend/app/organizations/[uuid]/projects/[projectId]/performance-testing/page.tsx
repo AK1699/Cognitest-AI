@@ -404,9 +404,15 @@ export default function PerformanceTestingPage() {
 
     return (
         <div className="flex flex-col min-h-screen bg-white">
-            {/* Top Bar with Profile */}
+            {/* Top Bar with Logo and Profile */}
             <div className="border-b border-gray-200 bg-white">
-                <div className="px-6 py-4 flex items-center justify-end">
+                <div className="px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <CircuitLogoIcon className="w-8 h-8" />
+                        <h1 className="text-lg font-bold text-gray-800 tracking-tight">
+                            Cogni<span className="text-primary">Test</span>
+                        </h1>
+                    </div>
                     <UserNav />
                 </div>
             </div>

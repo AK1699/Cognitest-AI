@@ -15,6 +15,7 @@ import {
     Camera,
     Wand2,
 } from 'lucide-react'
+import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 import { useRouter, useParams } from 'next/navigation'
 import {
     DropdownMenu,
@@ -188,12 +189,16 @@ export default function WorkflowAutomationWorkspace({ projectId, workflowId }: W
 
     return (
         <div className="flex flex-col h-screen bg-white w-full">
-            {/* Top Bar with Profile */}
+            {/* Top Bar with Logo and Profile */}
             <div className="border-b border-gray-200 bg-white">
-                <div className="px-6 py-4">
-                    <div className="flex items-center justify-end">
-                        <UserNav />
+                <div className="px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <CircuitLogoIcon className="w-8 h-8" />
+                        <h1 className="text-lg font-bold text-gray-800 tracking-tight">
+                            Cogni<span className="text-primary">Test</span>
+                        </h1>
                     </div>
+                    <UserNav />
                 </div>
             </div>
 

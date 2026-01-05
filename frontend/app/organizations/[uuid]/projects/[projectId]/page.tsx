@@ -352,7 +352,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold truncate text-gray-900">{project.name}</h3>
+                <h3 className="text-base font-semibold truncate text-gray-900">{project?.name}</h3>
               </div>
             )}
           </div>
@@ -495,7 +495,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
             <div className="space-y-6">
               {/* Quick Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {project.settings?.enabled_modules?.map(moduleId => {
+                {project?.settings?.enabled_modules?.map(moduleId => {
                   switch (moduleId) {
                     case 'test-management':
                       return <TestManagementOverview key={moduleId} />
@@ -599,7 +599,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                         <h3 className="text-base font-semibold text-gray-900">Project Created</h3>
                         <p className="text-sm text-gray-600 mb-1">The date your project joined CogniTest</p>
                         <p className="text-base font-semibold text-primary">
-                          {project.created_at
+                          {project?.created_at
                             ? formatDateHumanReadable(project.created_at)
                             : 'Just now'}
                         </p>
@@ -655,14 +655,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          value={project.id}
+                          value={project?.id || ''}
                           readOnly
                           className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-700 font-mono"
                         />
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(project.id)
-                            toast.success('Project ID copied to clipboard')
+                            if (project?.id) {
+                              navigator.clipboard.writeText(project.id)
+                              toast.success('Project ID copied to clipboard')
+                            }
                           }}
                           className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
