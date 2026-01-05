@@ -32,9 +32,10 @@ export default function NewWorkflowPage() {
                 <div className="flex items-center gap-2 text-sm">
                     <button
                         onClick={() => router.push(`/organizations/${orgId}/projects/${projectId}`)}
-                        className="text-gray-500 hover:text-gray-900 transition-colors"
+                        className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
                     >
                         <Home className="w-4 h-4" />
+                        <span>Home</span>
                     </button>
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                     <button

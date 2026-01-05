@@ -416,9 +416,10 @@ export default function PerformanceTestingPage() {
                 <div className="flex items-center gap-2 text-sm">
                     <button
                         onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-                        className="text-gray-500 hover:text-gray-900 transition-colors"
+                        className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
                     >
                         <Home className="w-4 h-4" />
+                        <span>Home</span>
                     </button>
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-900 font-semibold">Performance Testing</span>

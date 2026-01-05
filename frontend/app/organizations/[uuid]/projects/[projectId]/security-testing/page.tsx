@@ -521,9 +521,10 @@ export default function SecurityTestingPage() {
                 <div className="flex items-center gap-2 text-sm">
                     <button
                         onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-                        className="text-gray-500 hover:text-gray-900 transition-colors"
+                        className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
                     >
                         <Home className="w-4 h-4" />
+                        <span>Home</span>
                     </button>
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-900 font-semibold">Security Testing</span>
@@ -1073,7 +1074,7 @@ export default function SecurityTestingPage() {
                                 </TooltipProvider>
 
                                 <Button
-                                    className="w-full bg-purple-600 hover:bg-purple-700"
+                                    className="w-full !bg-none !bg-purple-600 hover:!bg-purple-700 !text-white shadow-lg"
                                     onClick={handleStartRepoScan}
                                     disabled={repoScanning || !repoUrl}
                                 >
@@ -1179,7 +1180,9 @@ export default function SecurityTestingPage() {
                                         <Button
                                             variant={vaptConfig.scanMode === 'passive' ? 'default' : 'outline'}
                                             onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'passive' })}
-                                            className={vaptConfig.scanMode === 'passive' ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                                            className={vaptConfig.scanMode === 'passive'
+                                                ? '!bg-none !bg-orange-600 !text-white hover:!bg-orange-700 shadow-md'
+                                                : '!text-orange-600 !border-orange-400 hover:!bg-orange-50'}
                                         >
                                             <Eye className="w-4 h-4 mr-2" />
                                             Passive (Safe)
@@ -1187,7 +1190,9 @@ export default function SecurityTestingPage() {
                                         <Button
                                             variant={vaptConfig.scanMode === 'active' ? 'default' : 'outline'}
                                             onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'active' })}
-                                            className={vaptConfig.scanMode === 'active' ? 'bg-red-600 hover:bg-red-700' : ''}
+                                            className={vaptConfig.scanMode === 'active'
+                                                ? '!bg-none !bg-red-600 !text-white hover:!bg-red-700 shadow-md'
+                                                : '!text-red-600 !border-red-400 hover:!bg-red-50'}
                                         >
                                             <ShieldAlert className="w-4 h-4 mr-2" />
                                             Active (Aggressive)
@@ -1220,7 +1225,7 @@ export default function SecurityTestingPage() {
                                 </div>
 
                                 <Button
-                                    className="w-full bg-orange-600 hover:bg-orange-700"
+                                    className="w-full !bg-none !bg-orange-600 hover:!bg-orange-700 !text-white shadow-lg"
                                     onClick={handleStartVAPTScan}
                                     disabled={vaptScanning || !vaptTarget}
                                 >
@@ -1321,7 +1326,7 @@ export default function SecurityTestingPage() {
                                 </div>
 
                                 <Button
-                                    className="w-full bg-blue-600 hover:bg-blue-700"
+                                    className="w-full !bg-none !bg-blue-600 hover:!bg-blue-700 !text-white shadow-lg"
                                     onClick={handleGenerateComplianceReport}
                                     disabled={generatingReport}
                                 >
