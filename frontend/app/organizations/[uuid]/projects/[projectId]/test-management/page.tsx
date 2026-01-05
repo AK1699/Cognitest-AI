@@ -2,8 +2,8 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Settings, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, FileText, Search, Filter, Sparkles, Upload, Zap, AlertCircle, BarChart3, Home, ChevronRight, ClipboardList, FolderTree, ListChecks, Bug, TrendingUp, Link2 } from 'lucide-react'
-import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
+import { FolderOpen, Plus, FileText, Search, Filter, Home, ChevronRight, ClipboardList, FolderTree, ListChecks, Bug, TrendingUp, Link2 } from 'lucide-react'
+
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
@@ -20,9 +20,9 @@ import EditTestPlanModal from '@/components/test-management/EditTestPlanModal'
 import EditTestSuiteModal from '@/components/test-management/EditTestSuiteModal'
 import TestCaseList from '@/components/test-management/TestCaseList'
 import CreateTestCaseModal from '@/components/test-management/CreateTestCaseModal'
-import IntegrationsManager from '@/components/integrations/IntegrationsManager'
-import IssuesManager from '@/components/issues/IssuesManager'
-import DefectDashboard from '@/components/issues/DefectDashboard'
+import IssuesTab from '@/components/test-management/tabs/IssuesTab'
+import AnalyticsTab from '@/components/test-management/tabs/AnalyticsTab'
+import IntegrationsTab from '@/components/test-management/tabs/IntegrationsTab'
 import { Pagination } from '@/components/ui/pagination'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -77,7 +77,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [editingSuite, setEditingSuite] = useState<TestSuite | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchHint, setSearchHint] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'plans' | 'suites' | 'cases'>('plans')
+  const [activeTab, setActiveTab] = useState<'plans' | 'suites' | 'cases' | 'issues' | 'analytics' | 'integrations'>('plans')
 
   // Pagination State
   const [plansPage, setPlansPage] = useState(1)
@@ -389,169 +389,97 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Left Sidebar */}
-      <aside
-        className={`flex flex-col transition-all duration-300 relative border-r border-gray-200 ${isCollapsed ? 'w-20' : 'w-60'}`}
-        style={{ backgroundColor: '#f0fefa' }}
-      >
-        {/* Collapse Toggle */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50 transition-transform"
-        >
-          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-        </button>
-
-        {/* Logo Section - CogniTest branding */}
-        <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
-          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-            <CircuitLogoIcon className="w-8 h-8" />
-          </div>
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-gray-800 tracking-tight whitespace-nowrap">
-                Cogni<span className="text-primary">Test</span>
-              </h1>
-            </div>
-          )}
+    <div className="flex flex-col min-h-screen bg-white">
+      {/* Top Bar with Profile */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="px-6 py-4 flex items-center justify-end">
+          <UserNav />
         </div>
+      </div>
 
-        {/* Project Header */}
-        <div className="p-4 border-b border-gray-200 overflow-hidden">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4 text-primary" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold truncate text-gray-900">Test Management</h3>
-                <p className="text-[10px] text-gray-500 truncate">{project.name}</p>
-              </div>
-            )}
-          </div>
-          {!isCollapsed && (
-            <button
-              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-              className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              <ChevronLeft className="w-3 h-3" />
-              Project Home
-            </button>
-          )}
+      {/* Breadcrumbs Bar */}
+      <div className="px-6 py-3 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-2 text-sm">
+          <button
+            onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
+            className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </button>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <span className="text-gray-900 font-semibold">Test Management</span>
         </div>
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 overflow-y-auto overflow-x-hidden">
-          <div className="space-y-6">
-            {/* Test Management Section */}
-            <div className="space-y-1">
-              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Test Management</div>}
-              <button
-                onClick={() => setActiveTab('plans')}
-                title={isCollapsed ? 'Test Plans' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'plans'
-                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
-                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
-                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <ClipboardList className={`w-5 h-5 flex-shrink-0 ${activeTab === 'plans' ? 'scale-110' : ''}`} />
-                {!isCollapsed && <span className="truncate">Test Plans</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab('suites')}
-                title={isCollapsed ? 'Test Suites' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'suites'
-                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
-                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
-                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <FolderTree className={`w-5 h-5 flex-shrink-0 ${activeTab === 'suites' ? 'scale-110' : ''}`} />
-                {!isCollapsed && <span className="truncate">Test Suites</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab('cases')}
-                title={isCollapsed ? 'Test Cases' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'cases'
-                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
-                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
-                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <ListChecks className={`w-5 h-5 flex-shrink-0 ${activeTab === 'cases' ? 'scale-110' : ''}`} />
-                {!isCollapsed && <span className="truncate">Test Cases</span>}
-              </button>
-            </div>
-
-            {/* Issues & Defects Section */}
-            <div className="space-y-1">
-              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Issues & Defects</div>}
-              <button
-                onClick={() => setShowIssues(true)}
-                title={isCollapsed ? 'All Issues' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <Bug className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="truncate">All Issues</span>}
-              </button>
-              <button
-                onClick={() => setShowDefectDashboard(true)}
-                title={isCollapsed ? 'Analytics' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <TrendingUp className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="truncate">Analytics</span>}
-              </button>
-            </div>
-
-            {/* Integrations Section */}
-            <div className="space-y-1">
-              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Integrations</div>}
-              <button
-                onClick={() => setShowIntegrations(true)}
-                title={isCollapsed ? 'External Tools' : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <Link2 className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="truncate">External Tools</span>}
-              </button>
-            </div>
-          </div>
-        </nav>
-      </aside>
+      {/* Horizontal Tab Navigation */}
+      <div className="border-b border-gray-300 bg-gradient-to-r from-slate-50 via-gray-50 to-stone-50">
+        <div className="px-6 py-3 flex items-center gap-4">
+          <button
+            onClick={() => setActiveTab('plans')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'plans'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            Test Plans
+          </button>
+          <button
+            onClick={() => setActiveTab('suites')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'suites'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <FolderTree className="w-4 h-4" />
+            Test Suites
+          </button>
+          <button
+            onClick={() => setActiveTab('cases')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'cases'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <ListChecks className="w-4 h-4" />
+            Test Cases
+          </button>
+          <button
+            onClick={() => setActiveTab('issues')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'issues'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <Bug className="w-4 h-4" />
+            Issues
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'analytics'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('integrations')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === 'integrations'
+              ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+              : 'text-gray-600 hover:text-primary hover:bg-white/50'
+              }`}
+          >
+            <Link2 className="w-4 h-4" />
+            Integrations
+          </button>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        {/* Top Bar with Profile */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-          <div className="px-8 py-4 flex items-center justify-end">
-            {/* Profile and Notifications */}
-            <div className="flex items-center gap-3">
-              <UserNav />
-            </div>
-          </div>
-        </div>
-
-        {/* Breadcrumbs Bar */}
-        <div className="px-8 py-3 bg-white border-b border-gray-200">
-          <div className="flex items-center gap-2 text-sm">
-            <button
-              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-              className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
-            >
-              <Home className="w-4 h-4" />
-              <span>Home</span>
-            </button>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <button
-              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              {project.name}
-            </button>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-900 font-semibold">Test Management</span>
-          </div>
-        </div>
 
         {/* Action Buttons Bar */}
         <div className="px-8 py-4 bg-gray-50 border-b border-gray-200">
@@ -807,6 +735,18 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
               )}
             </>
           )}
+
+          {activeTab === 'issues' && (
+            <IssuesTab projectId={projectId} />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsTab projectId={projectId} />
+          )}
+
+          {activeTab === 'integrations' && (
+            <IntegrationsTab projectId={projectId} organisationId={uuid} />
+          )}
         </div>
       </main>
 
@@ -850,28 +790,6 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
         />
       )}
 
-      {/* New Feature Modals */}
-      {showIntegrations && organisation && (
-        <IntegrationsManager
-          organisationId={organisation.id}
-          projectId={projectId}
-          onClose={() => setShowIntegrations(false)}
-        />
-      )}
-
-      {showIssues && (
-        <IssuesManager
-          projectId={projectId}
-          onClose={() => setShowIssues(false)}
-        />
-      )}
-
-      {showDefectDashboard && (
-        <DefectDashboard
-          projectId={projectId}
-          onClose={() => setShowDefectDashboard(false)}
-        />
-      )}
 
       {/* Test Plan Details Modal */}
       <TestPlanDetailsModal
