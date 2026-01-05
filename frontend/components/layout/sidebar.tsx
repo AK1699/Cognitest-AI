@@ -7,17 +7,21 @@ import {
   ClipboardList,
   Code,
   Shield,
-  Zap,
-  Workflow,
+  Plus,
+  ArrowRight,
+  ChevronRight,
   ChevronLeft,
   Menu,
+  BrainCircuit,
+  LogOut,
   FolderOpen,
   BarChart3,
   CreditCard,
   Users,
   Puzzle,
   Settings,
-  BrainCircuit
+  Zap,
+  Workflow
 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -178,13 +182,20 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300
-          ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
-          ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
+          ${isCollapsed ? 'lg:w-20' : 'lg:w-60'}
+          ${isMobileOpen ? 'translate-x-0 w-60' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
           backgroundColor: '#f0fefa'
         }}
       >
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden lg:flex absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50 transition-transform"
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
         <div className="flex flex-col h-full">
           {/* Logo Section */}
           <div className="p-4 flex items-center gap-3 border-b border-gray-200">
@@ -222,17 +233,18 @@ export function Sidebar({ organisationId, projectId }: SidebarProps) {
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
                       ${isActive
-                        ? `${item.bgColor} text-gray-900 shadow-lg border-2 border-gray-400`
-                        : 'text-gray-700 hover:bg-white/30 border-2 border-transparent'
+                        ? `${item.bgColor} text-gray-900 shadow-lg border-2 border-gray-400 font-semibold`
+                        : 'text-gray-700 hover:bg-white/50 border-2 border-transparent hover:border-gray-200'
                       }
                       ${isCollapsed ? 'justify-center' : ''}
                     `}
+                    title={isCollapsed ? item.name : ''}
                   >
                     <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${item.iconColor}`}
+                      className={`w-5 h-5 flex-shrink-0 ${item.iconColor} ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}
                     />
                     {!isCollapsed && (
-                      <span className="font-medium text-sm">{item.name}</span>
+                      <span className="font-medium text-sm truncate">{item.name}</span>
                     )}
                   </Link>
                 )

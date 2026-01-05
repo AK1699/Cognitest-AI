@@ -23,6 +23,7 @@ import IntegrationsManager from '@/components/integrations/IntegrationsManager'
 import IssuesManager from '@/components/issues/IssuesManager'
 import DefectDashboard from '@/components/issues/DefectDashboard'
 import { Pagination } from '@/components/ui/pagination'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -63,6 +64,7 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   const [organisations, setOrganisations] = useState<Organisation[]>([])
   const [loading, setLoading] = useState(true)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   // Test Management State
   const [testPlans, setTestPlans] = useState<TestPlan[]>([])
@@ -388,98 +390,128 @@ export default function TestManagementPage({ params }: { params: Promise<PagePar
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
+      <aside
+        className={`flex flex-col transition-all duration-300 relative border-r border-gray-200 ${isCollapsed ? 'w-20' : 'w-60'}`}
+        style={{ backgroundColor: '#f0fefa' }}
+      >
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50 transition-transform"
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
+
         {/* Logo Section - CogniTest branding */}
-        <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+        <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
           <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
             <BrainCircuit className="w-6 h-6 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-800 tracking-tight">
-              Cogni<span className="text-primary">Test</span>
-            </h1>
-          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-gray-800 tracking-tight whitespace-nowrap">
+                Cogni<span className="text-primary">Test</span>
+              </h1>
+            </div>
+          )}
         </div>
 
         {/* Project Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 overflow-hidden">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 text-primary" />
+            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold truncate text-gray-900">Test Management</h3>
-              <p className="text-xs text-gray-500">{project.name}</p>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold truncate text-gray-900">Test Management</h3>
+                <p className="text-[10px] text-gray-500 truncate">{project.name}</p>
+              </div>
+            )}
           </div>
+          {!isCollapsed && (
+            <button
+              onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
+              className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft className="w-3 h-3" />
+              Project Home
+            </button>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 p-3 overflow-y-auto overflow-x-hidden">
           <div className="space-y-6">
             {/* Test Management Section */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Test Management</div>
+              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Test Management</div>}
               <button
                 onClick={() => setActiveTab('plans')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'plans'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                title={isCollapsed ? 'Test Plans' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'plans'
+                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <ClipboardList className="w-4 h-4" />
-                Test Plans
+                <ClipboardList className={`w-5 h-5 flex-shrink-0 ${activeTab === 'plans' ? 'scale-110' : ''}`} />
+                {!isCollapsed && <span className="truncate">Test Plans</span>}
               </button>
               <button
                 onClick={() => setActiveTab('suites')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'suites'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                title={isCollapsed ? 'Test Suites' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'suites'
+                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <FolderTree className="w-4 h-4" />
-                Test Suites
+                <FolderTree className={`w-5 h-5 flex-shrink-0 ${activeTab === 'suites' ? 'scale-110' : ''}`} />
+                {!isCollapsed && <span className="truncate">Test Suites</span>}
               </button>
               <button
                 onClick={() => setActiveTab('cases')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === 'cases'
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                title={isCollapsed ? 'Test Cases' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeTab === 'cases'
+                  ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                  : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <ListChecks className="w-4 h-4" />
-                Test Cases
+                <ListChecks className={`w-5 h-5 flex-shrink-0 ${activeTab === 'cases' ? 'scale-110' : ''}`} />
+                {!isCollapsed && <span className="truncate">Test Cases</span>}
               </button>
             </div>
 
             {/* Issues & Defects Section */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Issues & Defects</div>
+              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Issues & Defects</div>}
               <button
                 onClick={() => setShowIssues(true)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+                title={isCollapsed ? 'All Issues' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Bug className="w-4 h-4" />
-                All Issues
+                <Bug className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">All Issues</span>}
               </button>
               <button
                 onClick={() => setShowDefectDashboard(true)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+                title={isCollapsed ? 'Analytics' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <TrendingUp className="w-4 h-4" />
-                Analytics
+                <TrendingUp className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">Analytics</span>}
               </button>
             </div>
 
             {/* Integrations Section */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Integrations</div>
+              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Integrations</div>}
               <button
                 onClick={() => setShowIntegrations(true)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+                title={isCollapsed ? 'External Tools' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Link2 className="w-4 h-4" />
-                External Tools
+                <Link2 className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">External Tools</span>}
               </button>
             </div>
           </div>

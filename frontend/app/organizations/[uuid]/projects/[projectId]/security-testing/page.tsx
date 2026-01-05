@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { UserNav } from '@/components/layout/user-nav'
 import {
     Shield, Globe, GitBranch, ShieldAlert, ClipboardCheck, RefreshCw,
-    Plus, Play, ChevronRight, Clock, AlertTriangle, Activity, Home, Settings,
+    Plus, Play, ChevronRight, ChevronLeft, BrainCircuit, Clock, AlertTriangle, Activity, Home, Settings,
     Lock, FileWarning, Scale, CheckCircle2, XCircle, AlertOctagon, Eye,
     Download, ExternalLink, Search, Filter, Check, Copy, Terminal,
     Code2, Package, FileJson, HelpCircle, Info
@@ -92,6 +92,7 @@ export default function SecurityTestingPage() {
     const [recentScans, setRecentScans] = useState<SecurityScan[]>([])
     const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([])
     const [loading, setLoading] = useState(true)
+    const [isCollapsed, setIsCollapsed] = useState(false)
 
     // URL Scan state
     const [targetUrl, setTargetUrl] = useState('')
@@ -506,919 +507,989 @@ export default function SecurityTestingPage() {
     ]
 
     return (
-        <div className="flex flex-col h-screen bg-white w-full">
-            {/* Top Bar with Profile */}
-            <div className="border-b border-gray-200 bg-white">
-                <div className="px-6 py-4">
-                    <div className="flex items-center justify-end">
-                        <UserNav />
+        <div className="flex min-h-screen bg-white">
+            {/* Left Sidebar */}
+            <aside
+                className={`flex flex-col transition-all duration-300 relative border-r border-gray-200 ${isCollapsed ? 'w-20' : 'w-60'}`}
+                style={{ backgroundColor: '#f0fefa' }}
+            >
+                {/* Collapse Toggle */}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50 transition-transform"
+                >
+                    {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+                </button>
+
+                {/* Logo Section */}
+                <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
+                    <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                        <BrainCircuit className="w-6 h-6 text-white" />
                     </div>
+                    {!isCollapsed && (
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-lg font-bold text-gray-800 tracking-tight whitespace-nowrap">
+                                Cogni<span className="text-primary">Test</span>
+                            </h1>
+                        </div>
+                    )}
                 </div>
-            </div>
 
-            {/* Breadcrumbs Bar */}
-            <div className="px-6 py-3 bg-white border-b border-gray-200">
-                <div className="flex items-center gap-2 text-sm">
-                    <button
-                        onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
-                        className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
-                    >
-                        <Home className="w-4 h-4" />
-                        <span>Home</span>
-                    </button>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-900 font-semibold">Security Testing</span>
-                </div>
-            </div>
-
-            {/* Tab Navigation Bar */}
-            <div className="border-b border-gray-300 bg-gradient-to-r from-slate-50 via-gray-50 to-stone-50">
-                <div className="px-6 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {[
-                            { id: 'overview', label: 'Overview', icon: Shield },
-                            { id: 'url', label: 'URL Scanner', icon: Globe },
-                            { id: 'repo', label: 'Repo Scanner', icon: GitBranch },
-                            { id: 'vapt', label: 'VAPT', icon: ShieldAlert },
-                            { id: 'policy', label: 'Policy', icon: Shield },
-                            { id: 'compliance', label: 'Compliance', icon: ClipboardCheck },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveModule(tab.id as any)}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeModule === tab.id
-                                    ? 'text-teal-700 bg-white border-b-2 border-teal-700 shadow-sm'
-                                    : 'text-gray-600 hover:text-teal-700 hover:bg-white/50'
-                                    }`}
-                            >
-                                <tab.icon className="w-4 h-4" />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-
+                {/* Project Header */}
+                <div className="p-4 border-b border-gray-200 overflow-hidden">
                     <div className="flex items-center gap-3">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-2 border-gray-200 hover:bg-gray-50"
-                            onClick={fetchDashboardData}
+                        <div className="w-8 h-8 rounded bg-teal-600 flex items-center justify-center flex-shrink-0">
+                            <Shield className="w-4 h-4 text-white" />
+                        </div>
+                        {!isCollapsed && (
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-semibold truncate text-gray-900">Security Testing</h3>
+                            </div>
+                        )}
+                    </div>
+                    {!isCollapsed && (
+                        <button
+                            onClick={() => router.push(`/organizations/${uuid}/projects/${projectId}`)}
+                            className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-gray-500 hover:text-gray-900 transition-colors"
                         >
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-2 border-gray-200 hover:bg-gray-50"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Settings
-                        </Button>
+                            <ChevronLeft className="w-3 h-3" />
+                            Project Home
+                        </button>
+                    )}
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 p-3 overflow-y-auto overflow-x-hidden">
+                    <div className="space-y-6">
+                        {/* Testing Scopes */}
+                        <div className="space-y-1">
+                            {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Testing Scopes</div>}
+                            <button
+                                onClick={() => setActiveModule('overview')}
+                                title={isCollapsed ? 'Overview' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'overview'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <Shield className={`w-5 h-5 flex-shrink-0 ${activeModule === 'overview' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">Overview</span>}
+                            </button>
+                            <button
+                                onClick={() => setActiveModule('url')}
+                                title={isCollapsed ? 'URL Scanner' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'url'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <Globe className={`w-5 h-5 flex-shrink-0 ${activeModule === 'url' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">URL Scanner</span>}
+                            </button>
+                            <button
+                                onClick={() => setActiveModule('repo')}
+                                title={isCollapsed ? 'Repo Scanner' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'repo'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <GitBranch className={`w-5 h-5 flex-shrink-0 ${activeModule === 'repo' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">Repo Scanner</span>}
+                            </button>
+                            <button
+                                onClick={() => setActiveModule('vapt')}
+                                title={isCollapsed ? 'VAPT' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'vapt'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <ShieldAlert className={`w-5 h-5 flex-shrink-0 ${activeModule === 'vapt' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">VAPT</span>}
+                            </button>
+                        </div>
+
+                        {/* Governance */}
+                        <div className="space-y-1">
+                            {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Governance</div>}
+                            <button
+                                onClick={() => setActiveModule('policy')}
+                                title={isCollapsed ? 'Security Policy' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'policy'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <Lock className={`w-5 h-5 flex-shrink-0 ${activeModule === 'policy' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">Security Policy</span>}
+                            </button>
+                            <button
+                                onClick={() => setActiveModule('compliance')}
+                                title={isCollapsed ? 'Compliance' : ''}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 ${activeModule === 'compliance'
+                                    ? 'bg-primary/10 text-primary font-semibold border-gray-400 shadow-sm'
+                                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                            >
+                                <ClipboardCheck className={`w-5 h-5 flex-shrink-0 ${activeModule === 'compliance' ? 'scale-110' : ''}`} />
+                                {!isCollapsed && <span className="truncate">Compliance</span>}
+                            </button>
+                        </div>
+                    </div>
+                </nav>
+            </aside>
+
+            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                {/* Top Bar with Profile */}
+                <div className="border-b border-gray-200 bg-white">
+                    <div className="px-6 py-4">
+                        <div className="flex items-center justify-end">
+                            <UserNav />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-auto p-6">
-                {/* Overview Tab */}
-                {activeModule === 'overview' && (
-                    <div className="space-y-6">
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-4 gap-4">
-                            <Card className="bg-gradient-to-br from-teal-50 to-white border-teal-100">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Risk Score</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-4xl font-bold px-3 py-1 rounded-lg ${getRiskColor(defaultStats.risk_grade)}`}>
-                                                    {defaultStats.risk_grade}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">Score: {defaultStats.overall_risk_score.toFixed(1)}/100</p>
-                                        </div>
-                                        <Shield className="w-12 h-12 text-teal-600 opacity-40" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Open Vulnerabilities</p>
-                                            <p className="text-3xl font-bold text-gray-900 mt-1">{defaultStats.open_vulnerabilities}</p>
-                                            <p className="text-xs text-gray-500 mt-2">{defaultStats.resolved_vulnerabilities} resolved</p>
-                                        </div>
-                                        <ShieldAlert className="w-10 h-10 text-orange-500 opacity-60" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Critical Issues</p>
-                                            <p className={`text-3xl font-bold mt-1 ${defaultStats.severity_breakdown.critical > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                                {defaultStats.severity_breakdown.critical}
-                                            </p>
-                                            <p className="text-xs text-gray-500 mt-2">{defaultStats.severity_breakdown.high} high severity</p>
-                                        </div>
-                                        <AlertTriangle className="w-10 h-10 text-red-500 opacity-60" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Total Scans</p>
-                                            <p className="text-3xl font-bold text-gray-900 mt-1">{defaultStats.total_scans}</p>
-                                            <p className="text-xs text-gray-500 mt-2">{defaultStats.scans_last_7_days} in last 7 days</p>
-                                        </div>
-                                        <Activity className="w-10 h-10 text-teal-500 opacity-60" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Severity Breakdown */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Severity Breakdown</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-5 gap-4">
-                                    {[
-                                        { label: 'Critical', value: defaultStats.severity_breakdown.critical, color: 'bg-red-600' },
-                                        { label: 'High', value: defaultStats.severity_breakdown.high, color: 'bg-orange-500' },
-                                        { label: 'Medium', value: defaultStats.severity_breakdown.medium, color: 'bg-yellow-500' },
-                                        { label: 'Low', value: defaultStats.severity_breakdown.low, color: 'bg-blue-500' },
-                                        { label: 'Info', value: defaultStats.severity_breakdown.info, color: 'bg-gray-400' }
-                                    ].map((item) => (
-                                        <div key={item.label} className="text-center p-4 rounded-lg bg-gray-50">
-                                            <div className={`w-4 h-4 ${item.color} rounded-full mx-auto mb-2`} />
-                                            <p className="text-2xl font-bold text-gray-900">{item.value}</p>
-                                            <p className="text-sm text-gray-500">{item.label}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Quick Actions */}
-                        <div className="grid grid-cols-4 gap-4">
-                            {[
-                                { module: 'url', icon: Globe, bgColor: 'bg-teal-100', iconColor: 'text-teal-600', title: 'URL Security', desc: 'SSL, Headers, Ports' },
-                                { module: 'repo', icon: GitBranch, bgColor: 'bg-purple-100', iconColor: 'text-purple-600', title: 'Repo Security', desc: 'Secrets, Dependencies' },
-                                { module: 'vapt', icon: ShieldAlert, bgColor: 'bg-orange-100', iconColor: 'text-orange-600', title: 'VAPT', desc: 'OWASP Top 10' },
-                                { module: 'compliance', icon: ClipboardCheck, bgColor: 'bg-blue-100', iconColor: 'text-blue-600', title: 'Compliance', desc: 'ISO, SOC 2, GDPR' }
-                            ].map((item) => (
-                                <Card
-                                    key={item.module}
-                                    className="cursor-pointer hover:shadow-md transition-all hover:border-gray-300"
-                                    onClick={() => setActiveModule(item.module as any)}
-                                >
+                <div className="flex-1 overflow-auto">
+                    {/* Overview Tab */}
+                    {activeModule === 'overview' && (
+                        <div className="space-y-6">
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-4 gap-4">
+                                <Card className="bg-gradient-to-br from-teal-50 to-white border-teal-100">
                                     <CardContent className="pt-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-lg ${item.bgColor} flex items-center justify-center`}>
-                                                <item.icon className={`w-6 h-6 ${item.iconColor}`} />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                                                <p className="text-sm text-gray-500">{item.desc}</p>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-
-                        {/* Recent Scans */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Recent Scans</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {recentScans.length === 0 ? (
-                                    <div className="text-center py-16">
-                                        <Shield className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                                        <p className="text-gray-500 mb-4">No security scans yet</p>
-                                        <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => setActiveModule('url')}>
-                                            <Play className="w-4 h-4 mr-2" />
-                                            Start First Scan
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {recentScans.map((scan) => (
-                                            <div key={scan.id} className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors">
-                                                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                    {getScanTypeIcon(scan.scan_type)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-medium text-gray-900 truncate">{scan.name}</h4>
-                                                    <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
-                                                        <Clock className="w-3 h-3" />
-                                                        <span>{new Date(scan.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </div>
-                                                <Badge className={scan.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                                                    {scan.status}
-                                                </Badge>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Recent Vulnerabilities */}
-                        {vulnerabilities.length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Recent Vulnerabilities</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {vulnerabilities.slice(0, 5).map((vuln) => (
-                                            <div key={vuln.id} className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors">
-                                                <Badge className={getSeverityColor(vuln.severity)}>
-                                                    {vuln.severity}
-                                                </Badge>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-medium text-gray-900 truncate">{vuln.title}</h4>
-                                                    <p className="text-sm text-gray-500 truncate">{vuln.description}</p>
-                                                </div>
-                                                {vuln.is_resolved ? (
-                                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                                ) : (
-                                                    <AlertOctagon className="w-5 h-5 text-red-500" />
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                )}
-
-                {/* URL Security Tab */}
-                {activeModule === 'url' && (
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Globe className="w-5 h-5 text-teal-600" />
-                                    URL Security Scanner
-                                </CardTitle>
-                                <CardDescription>
-                                    Analyze SSL/TLS certificates, security headers, open ports, and subdomains
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="target-url">Target URL</Label>
-                                    <div className="flex gap-3">
-                                        <Input
-                                            id="target-url"
-                                            placeholder="https://example.com"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
-                                            className="flex-1"
-                                        />
-                                        <Button
-                                            className="bg-teal-600 hover:bg-teal-700"
-                                            onClick={handleStartURLScan}
-                                            disabled={scanning || !targetUrl}
-                                        >
-                                            {scanning ? (
-                                                <>
-                                                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                                    Scanning...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Play className="w-4 h-4 mr-2" />
-                                                    Start Scan
-                                                </>
-                                            )}
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-4 gap-4">
-                                    {[
-                                        { id: 'checkSsl', label: 'SSL/TLS', icon: Lock },
-                                        { id: 'checkHeaders', label: 'Headers', icon: FileWarning },
-                                        { id: 'checkSubdomains', label: 'Subdomains', icon: Globe },
-                                        { id: 'checkPorts', label: 'Ports', icon: Terminal }
-                                    ].map((opt) => (
-                                        <div key={opt.id} className="flex items-center justify-between p-4 rounded-lg border">
-                                            <div className="flex items-center gap-2">
-                                                <opt.icon className="w-4 h-4 text-gray-500" />
-                                                <Label htmlFor={opt.id}>{opt.label}</Label>
-                                            </div>
-                                            <Switch
-                                                id={opt.id}
-                                                checked={scanConfig[opt.id as keyof typeof scanConfig] as boolean}
-                                                onCheckedChange={(checked) => setScanConfig({ ...scanConfig, [opt.id]: checked })}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Active Scanning Toggle with Warning */}
-                                <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <ShieldAlert className="w-4 h-4 text-orange-600" />
-                                            <Label htmlFor="enableActiveScanning" className="font-semibold text-orange-900">
-                                                Active Penetration Testing
-                                            </Label>
-                                        </div>
-                                        <Switch
-                                            id="enableActiveScanning"
-                                            checked={scanConfig.enableActiveScanning}
-                                            onCheckedChange={(checked) => setScanConfig({ ...scanConfig, enableActiveScanning: checked })}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-orange-700">
-                                        ⚠️ Sends potentially malicious payloads (XSS, SQLi, CSRF). Only enable for systems you own or have permission to test.
-                                    </p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Scan Depth</Label>
-                                    <div className="flex gap-2">
-                                        {['quick', 'standard', 'deep'].map((depth) => (
-                                            <Button
-                                                key={depth}
-                                                variant={scanConfig.scanDepth === depth ? 'default' : 'outline'}
-                                                onClick={() => setScanConfig({ ...scanConfig, scanDepth: depth })}
-                                                className={scanConfig.scanDepth === depth ? 'bg-teal-600 hover:bg-teal-700' : ''}
-                                            >
-                                                {depth.charAt(0).toUpperCase() + depth.slice(1)}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {scanning && (
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <span className="font-medium text-gray-600">Scanning in progress...</span>
-                                            <span className="font-bold text-teal-600">{scanProgress}%</span>
-                                        </div>
-                                        <Progress value={scanProgress} className="h-2" />
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                            <span>Analyzing {targetUrl}</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {scanResult && (
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>Scan Results</CardTitle>
-                                        <Badge className={scanResult.risk_grade === 'A' || scanResult.risk_grade === 'A+'
-                                            ? 'bg-green-100 text-green-700'
-                                            : scanResult.risk_grade === 'F'
-                                                ? 'bg-red-100 text-red-700'
-                                                : 'bg-yellow-100 text-yellow-700'
-                                        }>
-                                            Grade: {scanResult.risk_grade}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {[
-                                            { severity: 'critical', count: scanResult.critical_count || 0, label: 'Critical', bg: 'bg-red-50', text: 'text-red-600' },
-                                            { severity: 'high', count: scanResult.high_count || 0, label: 'High', bg: 'bg-orange-50', text: 'text-orange-600' },
-                                            { severity: 'medium', count: scanResult.medium_count || 0, label: 'Medium', bg: 'bg-yellow-50', text: 'text-yellow-600' },
-                                            { severity: 'low', count: scanResult.low_count || 0, label: 'Low', bg: 'bg-blue-50', text: 'text-blue-600' }
-                                        ].map((item) => (
-                                            <div
-                                                key={item.severity}
-                                                className={`text-center p-6 rounded-lg ${item.bg}`}
-                                            >
-                                                <p className={`text-3xl font-bold ${item.text}`}>{item.count}</p>
-                                                <p className="text-sm text-gray-600 mt-1">{item.label}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* All Vulnerabilities Grouped by Severity */}
-                                    {loadingVulnerabilities ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
-                                            <span className="ml-2 text-gray-600">Loading vulnerability details...</span>
-                                        </div>
-                                    ) : scanVulnerabilities.length > 0 ? (
-                                        <div className="space-y-6 mt-6">
-                                            {['critical', 'high', 'medium', 'low', 'info'].map((severity) => {
-                                                const severityVulns = scanVulnerabilities.filter(v => v.severity === severity)
-                                                if (severityVulns.length === 0) return null
-
-                                                const severityColors = {
-                                                    critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800' },
-                                                    high: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800' },
-                                                    medium: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800' },
-                                                    low: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800' },
-                                                    info: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800' }
-                                                }
-                                                const colors = severityColors[severity as keyof typeof severityColors]
-
-                                                return (
-                                                    <div key={severity} className="border-t pt-4">
-                                                        <h4 className={`font-semibold capitalize mb-3 ${colors.text}`}>
-                                                            {severity} Vulnerabilities ({severityVulns.length})
-                                                        </h4>
-                                                        <div className="space-y-3">
-                                                            {severityVulns.map((vuln) => (
-                                                                <div key={vuln.id} className={`p-4 rounded-lg border ${colors.bg} ${colors.border}`}>
-                                                                    <div className="flex items-start justify-between">
-                                                                        <div className="flex-1">
-                                                                            <h5 className="font-medium text-gray-900 mb-1">{vuln.title}</h5>
-                                                                            <p className="text-sm text-gray-600 mb-2">{vuln.description}</p>
-                                                                            {vuln.remediation && (
-                                                                                <div className="mt-2 p-2 bg-teal-50 rounded border border-teal-200">
-                                                                                    <p className="text-xs font-medium text-teal-800 mb-1">🔧 Remediation:</p>
-                                                                                    <p className="text-xs text-teal-700">{vuln.remediation}</p>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <Badge className={vuln.is_resolved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                                                                            {vuln.is_resolved ? '✓ Resolved' : 'Open'}
-                                                                        </Badge>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    ) : null}
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                )}
-
-                {/* Repo Security Tab */}
-                {activeModule === 'repo' && (
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <GitBranch className="w-5 h-5 text-purple-600" />
-                                    Repository Security Scanner
-                                </CardTitle>
-                                <CardDescription>
-                                    Detect secrets, scan dependencies for vulnerabilities, and check license compliance
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="repo-url">Repository URL</Label>
-                                        <Input
-                                            id="repo-url"
-                                            placeholder="https://github.com/owner/repo"
-                                            value={repoUrl}
-                                            onChange={(e) => setRepoUrl(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="repo-branch">Branch</Label>
-                                        <Input
-                                            id="repo-branch"
-                                            placeholder="main"
-                                            value={repoBranch}
-                                            onChange={(e) => setRepoBranch(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <TooltipProvider>
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {[
-                                            {
-                                                id: 'scanSecrets',
-                                                label: 'Secret Detection',
-                                                icon: Lock,
-                                                desc: 'API keys, tokens, passwords',
-                                                tooltip: 'Uses TruffleHog with entropy analysis to detect exposed secrets including API keys, AWS credentials, database passwords, OAuth tokens, and private keys. Identifies high-entropy strings that may be leaked credentials.'
-                                            },
-                                            {
-                                                id: 'scanDependencies',
-                                                label: 'SCA / Dependencies',
-                                                icon: Package,
-                                                desc: 'pip-audit, npm audit, OSV',
-                                                tooltip: 'Software Composition Analysis (SCA): Scans package.json, requirements.txt, and go.mod for known CVEs using pip-audit, npm audit, Trivy, and the OSV vulnerability database. Includes transitive dependency analysis and upgrade path recommendations.'
-                                            },
-                                            {
-                                                id: 'scanLicenses',
-                                                label: 'Licenses / SBOM',
-                                                icon: FileJson,
-                                                desc: 'Compliance + CycloneDX export',
-                                                tooltip: 'License Compliance & SBOM: Detects GPL, LGPL, AGPL and copyleft licenses. Generates Software Bill of Materials (SBOM) in CycloneDX/SPDX format for supply chain compliance (NIST, CISA). Exportable for audits and regulatory requirements.'
-                                            },
-                                            {
-                                                id: 'scanCode',
-                                                label: 'SAST / Code',
-                                                icon: Code2,
-                                                desc: 'Semgrep, Bandit, ESLint',
-                                                tooltip: 'Static Application Security Testing (SAST): Deep code analysis using Semgrep for 30+ languages, Bandit for Python, and ESLint security plugins for JS/TS. Detects SQL injection, XSS, command injection, path traversal, and more with AI-powered fix suggestions.'
-                                            }
-                                        ].map((opt) => (
-                                            <div key={opt.id} className="flex flex-col p-4 rounded-lg border hover:border-purple-300 transition-colors">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <opt.icon className="w-4 h-4 text-purple-600" />
-                                                        <Label htmlFor={opt.id} className="font-medium">{opt.label}</Label>
-                                                        <Tooltip>
-                                                            <TooltipTrigger>
-                                                                <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-purple-600 cursor-help" />
-                                                            </TooltipTrigger>
-                                                            <TooltipContent className="max-w-sm" side="bottom">
-                                                                <p className="text-sm">{opt.tooltip}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <Switch
-                                                        id={opt.id}
-                                                        checked={repoConfig[opt.id as keyof typeof repoConfig]}
-                                                        onCheckedChange={(checked) => setRepoConfig({ ...repoConfig, [opt.id]: checked })}
-                                                    />
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-600">Risk Score</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className={`text-4xl font-bold px-3 py-1 rounded-lg ${getRiskColor(defaultStats.risk_grade)}`}>
+                                                        {defaultStats.risk_grade}
+                                                    </span>
                                                 </div>
-                                                <p className="text-xs text-gray-500">{opt.desc}</p>
+                                                <p className="text-xs text-gray-500 mt-2">Score: {defaultStats.overall_risk_score.toFixed(1)}/100</p>
                                             </div>
-                                        ))}
-                                    </div>
-                                </TooltipProvider>
-
-                                <Button
-                                    className="w-full !bg-none !bg-purple-600 hover:!bg-purple-700 !text-white shadow-lg"
-                                    onClick={handleStartRepoScan}
-                                    disabled={repoScanning || !repoUrl}
-                                >
-                                    {repoScanning ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Scanning Repository...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-4 h-4 mr-2" />
-                                            Start Repository Scan
-                                        </>
-                                    )}
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        {repoScanResult && (
-                            <div className="grid grid-cols-3 gap-4">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <Lock className="w-4 h-4 text-red-500" />
-                                            Secrets Detected
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-3xl font-bold text-red-600">{repoScanResult.secrets_count || 0}</p>
-                                        <p className="text-sm text-gray-500 mt-2">Exposed credentials found</p>
+                                            <Shield className="w-12 h-12 text-teal-600 opacity-40" />
+                                        </div>
                                     </CardContent>
                                 </Card>
 
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <AlertTriangle className="w-4 h-4 text-orange-500" />
-                                            Vulnerable Dependencies
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-3xl font-bold text-orange-600">{repoScanResult.vulnerable_deps || 0}</p>
-                                        <p className="text-sm text-gray-500 mt-2">Out of {repoScanResult.total_deps || 0} total</p>
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-600">Open Vulnerabilities</p>
+                                                <p className="text-3xl font-bold text-gray-900 mt-1">{defaultStats.open_vulnerabilities}</p>
+                                                <p className="text-xs text-gray-500 mt-2">{defaultStats.resolved_vulnerabilities} resolved</p>
+                                            </div>
+                                            <ShieldAlert className="w-10 h-10 text-orange-500 opacity-60" />
+                                        </div>
                                     </CardContent>
                                 </Card>
 
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <Scale className="w-4 h-4 text-blue-500" />
-                                            License Issues
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-3xl font-bold text-blue-600">{repoScanResult.license_issues || 0}</p>
-                                        <p className="text-sm text-gray-500 mt-2">Compliance warnings</p>
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-600">Critical Issues</p>
+                                                <p className={`text-3xl font-bold mt-1 ${defaultStats.severity_breakdown.critical > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                    {defaultStats.severity_breakdown.critical}
+                                                </p>
+                                                <p className="text-xs text-gray-500 mt-2">{defaultStats.severity_breakdown.high} high severity</p>
+                                            </div>
+                                            <AlertTriangle className="w-10 h-10 text-red-500 opacity-60" />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-600">Total Scans</p>
+                                                <p className="text-3xl font-bold text-gray-900 mt-1">{defaultStats.total_scans}</p>
+                                                <p className="text-xs text-gray-500 mt-2">{defaultStats.scans_last_7_days} in last 7 days</p>
+                                            </div>
+                                            <Activity className="w-10 h-10 text-teal-500 opacity-60" />
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </div>
-                        )}
 
-                        {!repoScanResult && !repoScanning && (
-                            <Card>
-                                <CardContent className="py-12 text-center">
-                                    <GitBranch className="w-16 h-16 text-purple-200 mx-auto mb-4" />
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Repository Scans Yet</h3>
-                                    <p className="text-gray-500 max-w-md mx-auto">
-                                        Enter a repository URL above to scan for exposed secrets, vulnerable dependencies, and license compliance issues.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                )}
-
-                {/* VAPT Tab */}
-                {activeModule === 'vapt' && (
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ShieldAlert className="w-5 h-5 text-orange-600" />
-                                    Vulnerability Assessment & Penetration Testing
-                                </CardTitle>
-                                <CardDescription>
-                                    OWASP Top 10 vulnerability detection with AI-powered remediation suggestions
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="vapt-target">Target Application URL</Label>
-                                    <Input
-                                        id="vapt-target"
-                                        placeholder="https://app.example.com"
-                                        value={vaptTarget}
-                                        onChange={(e) => setVaptTarget(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Scan Mode</Label>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant={vaptConfig.scanMode === 'passive' ? 'default' : 'outline'}
-                                            onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'passive' })}
-                                            className={vaptConfig.scanMode === 'passive'
-                                                ? '!bg-none !bg-orange-600 !text-white hover:!bg-orange-700 shadow-md'
-                                                : '!text-orange-600 !border-orange-400 hover:!bg-orange-50'}
-                                        >
-                                            <Eye className="w-4 h-4 mr-2" />
-                                            Passive (Safe)
-                                        </Button>
-                                        <Button
-                                            variant={vaptConfig.scanMode === 'active' ? 'default' : 'outline'}
-                                            onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'active' })}
-                                            className={vaptConfig.scanMode === 'active'
-                                                ? '!bg-none !bg-red-600 !text-white hover:!bg-red-700 shadow-md'
-                                                : '!text-red-600 !border-red-400 hover:!bg-red-50'}
-                                        >
-                                            <ShieldAlert className="w-4 h-4 mr-2" />
-                                            Active (Aggressive)
-                                        </Button>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {vaptConfig.scanMode === 'passive'
-                                            ? 'Passive mode analyzes responses without modifying requests'
-                                            : 'Active mode sends test payloads - use only on authorized targets'}
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-5 gap-3">
-                                    {[
-                                        { id: 'testSqlInjection', label: 'SQL Injection' },
-                                        { id: 'testXss', label: 'XSS' },
-                                        { id: 'testCsrf', label: 'CSRF' },
-                                        { id: 'testHeaders', label: 'Headers' },
-                                        { id: 'testAuthentication', label: 'Auth' }
-                                    ].map((test) => (
-                                        <div key={test.id} className="flex items-center gap-2 p-3 rounded-lg border">
-                                            <Switch
-                                                id={test.id}
-                                                checked={vaptConfig[test.id as keyof typeof vaptConfig] as boolean}
-                                                onCheckedChange={(checked) => setVaptConfig({ ...vaptConfig, [test.id]: checked })}
-                                            />
-                                            <Label htmlFor={test.id} className="text-sm">{test.label}</Label>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <Button
-                                    className="w-full !bg-none !bg-orange-600 hover:!bg-orange-700 !text-white shadow-lg"
-                                    onClick={handleStartVAPTScan}
-                                    disabled={vaptScanning || !vaptTarget}
-                                >
-                                    {vaptScanning ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Running VAPT Scan...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-4 h-4 mr-2" />
-                                            Start VAPT Scan
-                                        </>
-                                    )}
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        {/* OWASP Top 10 Categories */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">OWASP Top 10 (2021)</CardTitle>
-                                <CardDescription>Common web application security risks</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-5 gap-3">
-                                    {owaspCategories.map((cat) => (
-                                        <div key={cat.id} className={`p-3 rounded-lg ${cat.color}`}>
-                                            <p className="font-bold text-sm">{cat.id}</p>
-                                            <p className="text-xs mt-1">{cat.name}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {vaptResult && (
+                            {/* Severity Breakdown */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>VAPT Scan Results</CardTitle>
+                                    <CardTitle className="text-lg">Severity Breakdown</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-4 gap-4">
-                                        <div className="text-center p-6 rounded-lg bg-red-50">
-                                            <p className="text-3xl font-bold text-red-600">{vaptResult.critical_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Critical</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-orange-50">
-                                            <p className="text-3xl font-bold text-orange-600">{vaptResult.high_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">High</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-yellow-50">
-                                            <p className="text-3xl font-bold text-yellow-600">{vaptResult.medium_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Medium</p>
-                                        </div>
-                                        <div className="text-center p-6 rounded-lg bg-blue-50">
-                                            <p className="text-3xl font-bold text-blue-600">{vaptResult.low_count || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Low</p>
-                                        </div>
+                                    <div className="grid grid-cols-5 gap-4">
+                                        {[
+                                            { label: 'Critical', value: defaultStats.severity_breakdown.critical, color: 'bg-red-600' },
+                                            { label: 'High', value: defaultStats.severity_breakdown.high, color: 'bg-orange-500' },
+                                            { label: 'Medium', value: defaultStats.severity_breakdown.medium, color: 'bg-yellow-500' },
+                                            { label: 'Low', value: defaultStats.severity_breakdown.low, color: 'bg-blue-500' },
+                                            { label: 'Info', value: defaultStats.severity_breakdown.info, color: 'bg-gray-400' }
+                                        ].map((item) => (
+                                            <div key={item.label} className="text-center p-4 rounded-lg bg-gray-50">
+                                                <div className={`w-4 h-4 ${item.color} rounded-full mx-auto mb-2`} />
+                                                <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                                                <p className="text-sm text-gray-500">{item.label}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 </CardContent>
                             </Card>
-                        )}
-                    </div>
-                )}
 
-                {/* Compliance Tab */}
-                {activeModule === 'compliance' && (
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ClipboardCheck className="w-5 h-5 text-blue-600" />
-                                    Compliance Dashboard
-                                </CardTitle>
-                                <CardDescription>
-                                    Track compliance with industry standards and generate audit-ready reports
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label>Select Framework</Label>
-                                    <Select value={selectedFramework} onValueChange={setSelectedFramework}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select a compliance framework" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {frameworks.map((fw) => (
-                                                <SelectItem key={fw.id} value={fw.id}>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">{fw.name}</span>
-                                                        <span className="text-gray-500 text-sm">- {fw.description}</span>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <Button
-                                    className="w-full !bg-none !bg-blue-600 hover:!bg-blue-700 !text-white shadow-lg"
-                                    onClick={handleGenerateComplianceReport}
-                                    disabled={generatingReport}
-                                >
-                                    {generatingReport ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Generating Report...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ClipboardCheck className="w-4 h-4 mr-2" />
-                                            Generate Compliance Report
-                                        </>
-                                    )}
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        {/* Framework Cards */}
-                        <div className="grid grid-cols-3 gap-6">
-                            {frameworks.map((framework) => {
-                                const isSelected = selectedFramework === framework.id
-                                const hasResult = complianceResult && selectedFramework === framework.id
-
-                                return (
+                            {/* Quick Actions */}
+                            <div className="grid grid-cols-4 gap-4">
+                                {[
+                                    { module: 'url', icon: Globe, bgColor: 'bg-teal-100', iconColor: 'text-teal-600', title: 'URL Security', desc: 'SSL, Headers, Ports' },
+                                    { module: 'repo', icon: GitBranch, bgColor: 'bg-purple-100', iconColor: 'text-purple-600', title: 'Repo Security', desc: 'Secrets, Dependencies' },
+                                    { module: 'vapt', icon: ShieldAlert, bgColor: 'bg-orange-100', iconColor: 'text-orange-600', title: 'VAPT', desc: 'OWASP Top 10' },
+                                    { module: 'compliance', icon: ClipboardCheck, bgColor: 'bg-blue-100', iconColor: 'text-blue-600', title: 'Compliance', desc: 'ISO, SOC 2, GDPR' }
+                                ].map((item) => (
                                     <Card
-                                        key={framework.id}
-                                        className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
-                                        onClick={() => setSelectedFramework(framework.id)}
+                                        key={item.module}
+                                        className="cursor-pointer hover:shadow-md transition-all hover:border-gray-300"
+                                        onClick={() => setActiveModule(item.module as any)}
                                     >
                                         <CardContent className="pt-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-lg font-bold text-gray-900">{framework.name}</h3>
-                                                {hasResult ? (
-                                                    <Badge className="bg-green-100 text-green-700">Assessed</Badge>
-                                                ) : (
-                                                    <Badge variant="outline">Not assessed</Badge>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-gray-500 mb-4">{framework.description}</p>
-                                            <Progress value={hasResult ? (complianceResult.compliance_percentage || 0) : 0} className="h-2 mb-2" />
-                                            <p className="text-sm text-gray-500">
-                                                {hasResult ? `${complianceResult.compliance_percentage || 0}% compliant` : '0% compliant'}
-                                            </p>
-                                            {isSelected && (
-                                                <div className="mt-4 flex items-center gap-2 text-blue-600">
-                                                    <Check className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">Selected</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-lg ${item.bgColor} flex items-center justify-center`}>
+                                                    <item.icon className={`w-6 h-6 ${item.iconColor}`} />
                                                 </div>
-                                            )}
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                                                    <p className="text-sm text-gray-500">{item.desc}</p>
+                                                </div>
+                                                <ChevronRight className="w-5 h-5 text-gray-400" />
+                                            </div>
                                         </CardContent>
                                     </Card>
-                                )
-                            })}
-                        </div>
+                                ))}
+                            </div>
 
-                        {complianceResult && (
+                            {/* Recent Scans */}
                             <Card>
                                 <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>Compliance Report</CardTitle>
-                                        <Button variant="outline" size="sm">
-                                            <Download className="w-4 h-4 mr-2" />
-                                            Export PDF
-                                        </Button>
-                                    </div>
+                                    <CardTitle className="text-lg">Recent Scans</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="text-center p-6 rounded-lg bg-green-50">
-                                            <p className="text-3xl font-bold text-green-600">{complianceResult.passed_controls || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Controls Passed</p>
+                                    {recentScans.length === 0 ? (
+                                        <div className="text-center py-16">
+                                            <Shield className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                                            <p className="text-gray-500 mb-4">No security scans yet</p>
+                                            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => setActiveModule('url')}>
+                                                <Play className="w-4 h-4 mr-2" />
+                                                Start First Scan
+                                            </Button>
                                         </div>
-                                        <div className="text-center p-6 rounded-lg bg-yellow-50">
-                                            <p className="text-3xl font-bold text-yellow-600">{complianceResult.partial_controls || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Partial</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {recentScans.map((scan) => (
+                                                <div key={scan.id} className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors">
+                                                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                                        {getScanTypeIcon(scan.scan_type)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-medium text-gray-900 truncate">{scan.name}</h4>
+                                                        <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                                                            <Clock className="w-3 h-3" />
+                                                            <span>{new Date(scan.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                    <Badge className={scan.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                                                        {scan.status}
+                                                    </Badge>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <div className="text-center p-6 rounded-lg bg-red-50">
-                                            <p className="text-3xl font-bold text-red-600">{complianceResult.failed_controls || 0}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Failed</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Recent Vulnerabilities */}
+                            {vulnerabilities.length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Recent Vulnerabilities</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-3">
+                                            {vulnerabilities.slice(0, 5).map((vuln) => (
+                                                <div key={vuln.id} className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors">
+                                                    <Badge className={getSeverityColor(vuln.severity)}>
+                                                        {vuln.severity}
+                                                    </Badge>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-medium text-gray-900 truncate">{vuln.title}</h4>
+                                                        <p className="text-sm text-gray-500 truncate">{vuln.description}</p>
+                                                    </div>
+                                                    {vuln.is_resolved ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                                    ) : (
+                                                        <AlertOctagon className="w-5 h-5 text-red-500" />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* URL Security Tab */}
+                    {activeModule === 'url' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Globe className="w-5 h-5 text-teal-600" />
+                                        URL Security Scanner
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Analyze SSL/TLS certificates, security headers, open ports, and subdomains
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="target-url">Target URL</Label>
+                                        <div className="flex gap-3">
+                                            <Input
+                                                id="target-url"
+                                                placeholder="https://example.com"
+                                                value={targetUrl}
+                                                onChange={(e) => setTargetUrl(e.target.value)}
+                                                className="flex-1"
+                                            />
+                                            <Button
+                                                className="bg-teal-600 hover:bg-teal-700"
+                                                onClick={handleStartURLScan}
+                                                disabled={scanning || !targetUrl}
+                                            >
+                                                {scanning ? (
+                                                    <>
+                                                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                        Scanning...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Play className="w-4 h-4 mr-2" />
+                                                        Start Scan
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-4">
+                                        {[
+                                            { id: 'checkSsl', label: 'SSL/TLS', icon: Lock },
+                                            { id: 'checkHeaders', label: 'Headers', icon: FileWarning },
+                                            { id: 'checkSubdomains', label: 'Subdomains', icon: Globe },
+                                            { id: 'checkPorts', label: 'Ports', icon: Terminal }
+                                        ].map((opt) => (
+                                            <div key={opt.id} className="flex items-center justify-between p-4 rounded-lg border">
+                                                <div className="flex items-center gap-2">
+                                                    <opt.icon className="w-4 h-4 text-gray-500" />
+                                                    <Label htmlFor={opt.id}>{opt.label}</Label>
+                                                </div>
+                                                <Switch
+                                                    id={opt.id}
+                                                    checked={scanConfig[opt.id as keyof typeof scanConfig] as boolean}
+                                                    onCheckedChange={(checked) => setScanConfig({ ...scanConfig, [opt.id]: checked })}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Active Scanning Toggle with Warning */}
+                                    <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <ShieldAlert className="w-4 h-4 text-orange-600" />
+                                                <Label htmlFor="enableActiveScanning" className="font-semibold text-orange-900">
+                                                    Active Penetration Testing
+                                                </Label>
+                                            </div>
+                                            <Switch
+                                                id="enableActiveScanning"
+                                                checked={scanConfig.enableActiveScanning}
+                                                onCheckedChange={(checked) => setScanConfig({ ...scanConfig, enableActiveScanning: checked })}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-orange-700">
+                                            ⚠️ Sends potentially malicious payloads (XSS, SQLi, CSRF). Only enable for systems you own or have permission to test.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Scan Depth</Label>
+                                        <div className="flex gap-2">
+                                            {['quick', 'standard', 'deep'].map((depth) => (
+                                                <Button
+                                                    key={depth}
+                                                    variant={scanConfig.scanDepth === depth ? 'default' : 'outline'}
+                                                    onClick={() => setScanConfig({ ...scanConfig, scanDepth: depth })}
+                                                    className={scanConfig.scanDepth === depth ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                                                >
+                                                    {depth.charAt(0).toUpperCase() + depth.slice(1)}
+                                                </Button>
+                                            ))}
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
-                        )}
-                    </div>
-                )}
 
-                {/* Policy Tab */}
-                {activeModule === 'policy' && (
-                    <PolicyPanel projectId={projectId} apiUrl={API_URL} />
-                )}
+                            {scanning && (
+                                <Card>
+                                    <CardContent className="pt-6">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium text-gray-600">Scanning in progress...</span>
+                                                <span className="font-bold text-teal-600">{scanProgress}%</span>
+                                            </div>
+                                            <Progress value={scanProgress} className="h-2" />
+                                            <div className="flex items-center gap-2 text-gray-500">
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                                <span>Analyzing {targetUrl}</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {scanResult && (
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle>Scan Results</CardTitle>
+                                            <Badge className={scanResult.risk_grade === 'A' || scanResult.risk_grade === 'A+'
+                                                ? 'bg-green-100 text-green-700'
+                                                : scanResult.risk_grade === 'F'
+                                                    ? 'bg-red-100 text-red-700'
+                                                    : 'bg-yellow-100 text-yellow-700'
+                                            }>
+                                                Grade: {scanResult.risk_grade}
+                                            </Badge>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {[
+                                                { severity: 'critical', count: scanResult.critical_count || 0, label: 'Critical', bg: 'bg-red-50', text: 'text-red-600' },
+                                                { severity: 'high', count: scanResult.high_count || 0, label: 'High', bg: 'bg-orange-50', text: 'text-orange-600' },
+                                                { severity: 'medium', count: scanResult.medium_count || 0, label: 'Medium', bg: 'bg-yellow-50', text: 'text-yellow-600' },
+                                                { severity: 'low', count: scanResult.low_count || 0, label: 'Low', bg: 'bg-blue-50', text: 'text-blue-600' }
+                                            ].map((item) => (
+                                                <div
+                                                    key={item.severity}
+                                                    className={`text-center p-6 rounded-lg ${item.bg}`}
+                                                >
+                                                    <p className={`text-3xl font-bold ${item.text}`}>{item.count}</p>
+                                                    <p className="text-sm text-gray-600 mt-1">{item.label}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* All Vulnerabilities Grouped by Severity */}
+                                        {loadingVulnerabilities ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
+                                                <span className="ml-2 text-gray-600">Loading vulnerability details...</span>
+                                            </div>
+                                        ) : scanVulnerabilities.length > 0 ? (
+                                            <div className="space-y-6 mt-6">
+                                                {['critical', 'high', 'medium', 'low', 'info'].map((severity) => {
+                                                    const severityVulns = scanVulnerabilities.filter(v => v.severity === severity)
+                                                    if (severityVulns.length === 0) return null
+
+                                                    const severityColors = {
+                                                        critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800' },
+                                                        high: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800' },
+                                                        medium: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800' },
+                                                        low: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800' },
+                                                        info: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800' }
+                                                    }
+                                                    const colors = severityColors[severity as keyof typeof severityColors]
+
+                                                    return (
+                                                        <div key={severity} className="border-t pt-4">
+                                                            <h4 className={`font-semibold capitalize mb-3 ${colors.text}`}>
+                                                                {severity} Vulnerabilities ({severityVulns.length})
+                                                            </h4>
+                                                            <div className="space-y-3">
+                                                                {severityVulns.map((vuln) => (
+                                                                    <div key={vuln.id} className={`p-4 rounded-lg border ${colors.bg} ${colors.border}`}>
+                                                                        <div className="flex items-start justify-between">
+                                                                            <div className="flex-1">
+                                                                                <h5 className="font-medium text-gray-900 mb-1">{vuln.title}</h5>
+                                                                                <p className="text-sm text-gray-600 mb-2">{vuln.description}</p>
+                                                                                {vuln.remediation && (
+                                                                                    <div className="mt-2 p-2 bg-teal-50 rounded border border-teal-200">
+                                                                                        <p className="text-xs font-medium text-teal-800 mb-1">🔧 Remediation:</p>
+                                                                                        <p className="text-xs text-teal-700">{vuln.remediation}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                            <Badge className={vuln.is_resolved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                                                                {vuln.is_resolved ? '✓ Resolved' : 'Open'}
+                                                                            </Badge>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        ) : null}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Repo Security Tab */}
+                    {activeModule === 'repo' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <GitBranch className="w-5 h-5 text-purple-600" />
+                                        Repository Security Scanner
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Detect secrets, scan dependencies for vulnerabilities, and check license compliance
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="repo-url">Repository URL</Label>
+                                            <Input
+                                                id="repo-url"
+                                                placeholder="https://github.com/owner/repo"
+                                                value={repoUrl}
+                                                onChange={(e) => setRepoUrl(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="repo-branch">Branch</Label>
+                                            <Input
+                                                id="repo-branch"
+                                                placeholder="main"
+                                                value={repoBranch}
+                                                onChange={(e) => setRepoBranch(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <TooltipProvider>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {[
+                                                {
+                                                    id: 'scanSecrets',
+                                                    label: 'Secret Detection',
+                                                    icon: Lock,
+                                                    desc: 'API keys, tokens, passwords',
+                                                    tooltip: 'Uses TruffleHog with entropy analysis to detect exposed secrets including API keys, AWS credentials, database passwords, OAuth tokens, and private keys. Identifies high-entropy strings that may be leaked credentials.'
+                                                },
+                                                {
+                                                    id: 'scanDependencies',
+                                                    label: 'SCA / Dependencies',
+                                                    icon: Package,
+                                                    desc: 'pip-audit, npm audit, OSV',
+                                                    tooltip: 'Software Composition Analysis (SCA): Scans package.json, requirements.txt, and go.mod for known CVEs using pip-audit, npm audit, Trivy, and the OSV vulnerability database. Includes transitive dependency analysis and upgrade path recommendations.'
+                                                },
+                                                {
+                                                    id: 'scanLicenses',
+                                                    label: 'Licenses / SBOM',
+                                                    icon: FileJson,
+                                                    desc: 'Compliance + CycloneDX export',
+                                                    tooltip: 'License Compliance & SBOM: Detects GPL, LGPL, AGPL and copyleft licenses. Generates Software Bill of Materials (SBOM) in CycloneDX/SPDX format for supply chain compliance (NIST, CISA). Exportable for audits and regulatory requirements.'
+                                                },
+                                                {
+                                                    id: 'scanCode',
+                                                    label: 'SAST / Code',
+                                                    icon: Code2,
+                                                    desc: 'Semgrep, Bandit, ESLint',
+                                                    tooltip: 'Static Application Security Testing (SAST): Deep code analysis using Semgrep for 30+ languages, Bandit for Python, and ESLint security plugins for JS/TS. Detects SQL injection, XSS, command injection, path traversal, and more with AI-powered fix suggestions.'
+                                                }
+                                            ].map((opt) => (
+                                                <div key={opt.id} className="flex flex-col p-4 rounded-lg border hover:border-purple-300 transition-colors">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <opt.icon className="w-4 h-4 text-purple-600" />
+                                                            <Label htmlFor={opt.id} className="font-medium">{opt.label}</Label>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-purple-600 cursor-help" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="max-w-sm" side="bottom">
+                                                                    <p className="text-sm">{opt.tooltip}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </div>
+                                                        <Switch
+                                                            id={opt.id}
+                                                            checked={repoConfig[opt.id as keyof typeof repoConfig]}
+                                                            onCheckedChange={(checked) => setRepoConfig({ ...repoConfig, [opt.id]: checked })}
+                                                        />
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">{opt.desc}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TooltipProvider>
+
+                                    <Button
+                                        className="w-full !bg-none !bg-purple-600 hover:!bg-purple-700 !text-white shadow-lg"
+                                        onClick={handleStartRepoScan}
+                                        disabled={repoScanning || !repoUrl}
+                                    >
+                                        {repoScanning ? (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                Scanning Repository...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play className="w-4 h-4 mr-2" />
+                                                Start Repository Scan
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {repoScanResult && (
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Lock className="w-4 h-4 text-red-500" />
+                                                Secrets Detected
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-3xl font-bold text-red-600">{repoScanResult.secrets_count || 0}</p>
+                                            <p className="text-sm text-gray-500 mt-2">Exposed credentials found</p>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                                                Vulnerable Dependencies
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-3xl font-bold text-orange-600">{repoScanResult.vulnerable_deps || 0}</p>
+                                            <p className="text-sm text-gray-500 mt-2">Out of {repoScanResult.total_deps || 0} total</p>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Scale className="w-4 h-4 text-blue-500" />
+                                                License Issues
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-3xl font-bold text-blue-600">{repoScanResult.license_issues || 0}</p>
+                                            <p className="text-sm text-gray-500 mt-2">Compliance warnings</p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            )}
+
+                            {!repoScanResult && !repoScanning && (
+                                <Card>
+                                    <CardContent className="py-12 text-center">
+                                        <GitBranch className="w-16 h-16 text-purple-200 mx-auto mb-4" />
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Repository Scans Yet</h3>
+                                        <p className="text-gray-500 max-w-md mx-auto">
+                                            Enter a repository URL above to scan for exposed secrets, vulnerable dependencies, and license compliance issues.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* VAPT Tab */}
+                    {activeModule === 'vapt' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ShieldAlert className="w-5 h-5 text-orange-600" />
+                                        Vulnerability Assessment & Penetration Testing
+                                    </CardTitle>
+                                    <CardDescription>
+                                        OWASP Top 10 vulnerability detection with AI-powered remediation suggestions
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="vapt-target">Target Application URL</Label>
+                                        <Input
+                                            id="vapt-target"
+                                            placeholder="https://app.example.com"
+                                            value={vaptTarget}
+                                            onChange={(e) => setVaptTarget(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Scan Mode</Label>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant={vaptConfig.scanMode === 'passive' ? 'default' : 'outline'}
+                                                onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'passive' })}
+                                                className={vaptConfig.scanMode === 'passive'
+                                                    ? '!bg-none !bg-orange-600 !text-white hover:!bg-orange-700 shadow-md'
+                                                    : '!text-orange-600 !border-orange-400 hover:!bg-orange-50'}
+                                            >
+                                                <Eye className="w-4 h-4 mr-2" />
+                                                Passive (Safe)
+                                            </Button>
+                                            <Button
+                                                variant={vaptConfig.scanMode === 'active' ? 'default' : 'outline'}
+                                                onClick={() => setVaptConfig({ ...vaptConfig, scanMode: 'active' })}
+                                                className={vaptConfig.scanMode === 'active'
+                                                    ? '!bg-none !bg-red-600 !text-white hover:!bg-red-700 shadow-md'
+                                                    : '!text-red-600 !border-red-400 hover:!bg-red-50'}
+                                            >
+                                                <ShieldAlert className="w-4 h-4 mr-2" />
+                                                Active (Aggressive)
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {vaptConfig.scanMode === 'passive'
+                                                ? 'Passive mode analyzes responses without modifying requests'
+                                                : 'Active mode sends test payloads - use only on authorized targets'}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-5 gap-3">
+                                        {[
+                                            { id: 'testSqlInjection', label: 'SQL Injection' },
+                                            { id: 'testXss', label: 'XSS' },
+                                            { id: 'testCsrf', label: 'CSRF' },
+                                            { id: 'testHeaders', label: 'Headers' },
+                                            { id: 'testAuthentication', label: 'Auth' }
+                                        ].map((test) => (
+                                            <div key={test.id} className="flex items-center gap-2 p-3 rounded-lg border">
+                                                <Switch
+                                                    id={test.id}
+                                                    checked={vaptConfig[test.id as keyof typeof vaptConfig] as boolean}
+                                                    onCheckedChange={(checked) => setVaptConfig({ ...vaptConfig, [test.id]: checked })}
+                                                />
+                                                <Label htmlFor={test.id} className="text-sm">{test.label}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <Button
+                                        className="w-full !bg-none !bg-orange-600 hover:!bg-orange-700 !text-white shadow-lg"
+                                        onClick={handleStartVAPTScan}
+                                        disabled={vaptScanning || !vaptTarget}
+                                    >
+                                        {vaptScanning ? (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                Running VAPT Scan...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play className="w-4 h-4 mr-2" />
+                                                Start VAPT Scan
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* OWASP Top 10 Categories */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">OWASP Top 10 (2021)</CardTitle>
+                                    <CardDescription>Common web application security risks</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-5 gap-3">
+                                        {owaspCategories.map((cat) => (
+                                            <div key={cat.id} className={`p-3 rounded-lg ${cat.color}`}>
+                                                <p className="font-bold text-sm">{cat.id}</p>
+                                                <p className="text-xs mt-1">{cat.name}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {vaptResult && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>VAPT Scan Results</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            <div className="text-center p-6 rounded-lg bg-red-50">
+                                                <p className="text-3xl font-bold text-red-600">{vaptResult.critical_count || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Critical</p>
+                                            </div>
+                                            <div className="text-center p-6 rounded-lg bg-orange-50">
+                                                <p className="text-3xl font-bold text-orange-600">{vaptResult.high_count || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">High</p>
+                                            </div>
+                                            <div className="text-center p-6 rounded-lg bg-yellow-50">
+                                                <p className="text-3xl font-bold text-yellow-600">{vaptResult.medium_count || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Medium</p>
+                                            </div>
+                                            <div className="text-center p-6 rounded-lg bg-blue-50">
+                                                <p className="text-3xl font-bold text-blue-600">{vaptResult.low_count || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Low</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Compliance Tab */}
+                    {activeModule === 'compliance' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ClipboardCheck className="w-5 h-5 text-blue-600" />
+                                        Compliance Dashboard
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Track compliance with industry standards and generate audit-ready reports
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label>Select Framework</Label>
+                                        <Select value={selectedFramework} onValueChange={setSelectedFramework}>
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select a compliance framework" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {frameworks.map((fw) => (
+                                                    <SelectItem key={fw.id} value={fw.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium">{fw.name}</span>
+                                                            <span className="text-gray-500 text-sm">- {fw.description}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <Button
+                                        className="w-full !bg-none !bg-blue-600 hover:!bg-blue-700 !text-white shadow-lg"
+                                        onClick={handleGenerateComplianceReport}
+                                        disabled={generatingReport}
+                                    >
+                                        {generatingReport ? (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                Generating Report...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ClipboardCheck className="w-4 h-4 mr-2" />
+                                                Generate Compliance Report
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* Framework Cards */}
+                            <div className="grid grid-cols-3 gap-6">
+                                {frameworks.map((framework) => {
+                                    const isSelected = selectedFramework === framework.id
+                                    const hasResult = complianceResult && selectedFramework === framework.id
+
+                                    return (
+                                        <Card
+                                            key={framework.id}
+                                            className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+                                            onClick={() => setSelectedFramework(framework.id)}
+                                        >
+                                            <CardContent className="pt-6">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-lg font-bold text-gray-900">{framework.name}</h3>
+                                                    {hasResult ? (
+                                                        <Badge className="bg-green-100 text-green-700">Assessed</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">Not assessed</Badge>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-gray-500 mb-4">{framework.description}</p>
+                                                <Progress value={hasResult ? (complianceResult.compliance_percentage || 0) : 0} className="h-2 mb-2" />
+                                                <p className="text-sm text-gray-500">
+                                                    {hasResult ? `${complianceResult.compliance_percentage || 0}% compliant` : '0% compliant'}
+                                                </p>
+                                                {isSelected && (
+                                                    <div className="mt-4 flex items-center gap-2 text-blue-600">
+                                                        <Check className="w-4 h-4" />
+                                                        <span className="text-sm font-medium">Selected</span>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+
+                            {complianceResult && (
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle>Compliance Report</CardTitle>
+                                            <Button variant="outline" size="sm">
+                                                <Download className="w-4 h-4 mr-2" />
+                                                Export PDF
+                                            </Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="text-center p-6 rounded-lg bg-green-50">
+                                                <p className="text-3xl font-bold text-green-600">{complianceResult.passed_controls || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Controls Passed</p>
+                                            </div>
+                                            <div className="text-center p-6 rounded-lg bg-yellow-50">
+                                                <p className="text-3xl font-bold text-yellow-600">{complianceResult.partial_controls || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Partial</p>
+                                            </div>
+                                            <div className="text-center p-6 rounded-lg bg-red-50">
+                                                <p className="text-3xl font-bold text-red-600">{complianceResult.failed_controls || 0}</p>
+                                                <p className="text-sm text-gray-600 mt-1">Failed</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Policy Tab */}
+                    {activeModule === 'policy' && (
+                        <PolicyPanel projectId={projectId} apiUrl={API_URL} />
+                    )}
+                </div>
             </div>
         </div>
     )

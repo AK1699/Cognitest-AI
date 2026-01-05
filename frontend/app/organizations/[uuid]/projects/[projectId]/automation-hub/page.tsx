@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { UserNav } from '@/components/layout/user-nav'
-import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, FolderOpen, BarChart3, BrainCircuit } from 'lucide-react'
+import { Globe, Workflow, Code, Smartphone, ArrowRight, Zap, CheckCircle2, ChevronLeft, ChevronRight, FolderOpen, BarChart3, BrainCircuit } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 
@@ -84,6 +84,7 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
   const router = useRouter()
   const [orgId, setOrgId] = React.useState<string>('')
   const [projectId, setProjectId] = React.useState<string>('')
+  const [isCollapsed, setIsCollapsed] = React.useState(false)
 
   React.useEffect(() => {
     params.then(({ uuid, projectId }) => {
@@ -102,86 +103,106 @@ export default function AutomationHubPage({ params }: AutomationHubPageProps) {
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
+      <aside
+        className={`flex flex-col transition-all duration-300 relative border-r border-gray-200 ${isCollapsed ? 'w-20' : 'w-60'}`}
+        style={{ backgroundColor: '#f0fefa' }}
+      >
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50 transition-transform"
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
+
         {/* Logo Section */}
-        <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+        <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
           <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
             <BrainCircuit className="w-6 h-6 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-800 tracking-tight">
-              Cogni<span className="text-primary">Test</span>
-            </h1>
-          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-gray-800 tracking-tight whitespace-nowrap">
+                Cogni<span className="text-primary">Test</span>
+              </h1>
+            </div>
+          )}
         </div>
 
         {/* Project Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded bg-purple-500 flex items-center justify-center flex-shrink-0">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold truncate text-gray-900">Automation Hub</h3>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold truncate text-gray-900">Automation Hub</h3>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => orgId && projectId && router.push(`/organizations/${orgId}/projects/${projectId}`)}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
-            disabled={!orgId || !projectId}
-          >
-            <ChevronLeft className="w-3 h-3" />
-            Back to project
-          </button>
+          {!isCollapsed && (
+            <button
+              onClick={() => orgId && projectId && router.push(`/organizations/${orgId}/projects/${projectId}`)}
+              className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-gray-500 hover:text-gray-900 transition-colors"
+              disabled={!orgId || !projectId}
+            >
+              <ChevronLeft className="w-3 h-3" />
+              Back to project
+            </button>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 p-3 overflow-y-auto overflow-x-hidden">
           <div className="space-y-6">
             {/* Automation Types Section */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Automation Types</div>
+              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Automation Types</div>}
               <button
                 onClick={() => handleCardClick(automationTypes[0])}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+                title={isCollapsed ? 'Web Automation' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Globe className="w-4 h-4" />
-                Web Automation
+                <Globe className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">Web Automation</span>}
               </button>
               <button
                 onClick={() => handleCardClick(automationTypes[1])}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-gray-100"
+                title={isCollapsed ? 'Workflow Automation' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Workflow className="w-4 h-4" />
-                Workflow Automation
+                <Workflow className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">Workflow Automation</span>}
               </button>
               <button
                 disabled
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed"
+                title={isCollapsed ? 'API Automation (Soon)' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 cursor-not-allowed ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Code className="w-4 h-4" />
-                API Automation
-                <span className="ml-auto text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Soon</span>
+                <Code className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">API Automation</span>}
               </button>
               <button
                 disabled
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed"
+                title={isCollapsed ? 'Mobile Automation (Soon)' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 cursor-not-allowed ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <Smartphone className="w-4 h-4" />
-                Mobile Automation
-                <span className="ml-auto text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Soon</span>
+                <Smartphone className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">Mobile Automation</span>}
               </button>
             </div>
 
             {/* Analytics Section */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-3">Analytics</div>
+              {!isCollapsed && <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 px-3 tracking-widest">Analytics</div>}
               <button
                 disabled
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed"
+                title={isCollapsed ? 'Overall Statistics' : ''}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 cursor-not-allowed ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <BarChart3 className="w-4 h-4" />
-                Overall Statistics
+                <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="truncate">Overall Statistics</span>}
               </button>
             </div>
           </div>

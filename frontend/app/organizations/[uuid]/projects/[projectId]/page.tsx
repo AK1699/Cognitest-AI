@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy, BrainCircuit } from 'lucide-react'
+import { ArrowLeft, FolderOpen, Settings, BarChart3, FileText, TestTube, Play, Shield, Zap, Smartphone, Code, ChevronLeft, ChevronRight, ChevronDown, Building2, Check, Plus, User, HelpCircle, LogOut, TrendingUp, Puzzle, Activity, Home, Calendar, Globe, Link as LinkIcon, Copy, BrainCircuit, Menu } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -150,6 +150,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [settingsTab, setSettingsTab] = useState('general')
   const [formData, setFormData] = useState({ name: '', description: '' })
   const [enabledModules, setEnabledModules] = useState<string[]>([])
@@ -316,59 +317,79 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
   return (
     <div className="flex min-h-screen bg-white">
       {/* Left Sidebar */}
-      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#f0fefa' }}>
+      <aside
+        className={`flex flex-col transition-all duration-300 relative border-r border-gray-200 ${isCollapsed ? 'w-20' : 'w-60'}`}
+        style={{ backgroundColor: '#f0fefa' }}
+      >
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 z-50"
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
+
         {/* Logo Section - CogniTest branding */}
-        <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+        <div className="p-4 flex items-center gap-3 border-b border-gray-200 overflow-hidden">
           <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
             <BrainCircuit className="w-6 h-6 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-800 tracking-tight">
-              Cogni<span className="text-primary">Test</span>
-            </h1>
-          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-gray-800 tracking-tight whitespace-nowrap">
+                Cogni<span className="text-primary">Test</span>
+              </h1>
+            </div>
+          )}
         </div>
 
         {/* Project Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center flex-shrink-0">
               <FolderOpen className="w-4 h-4 text-white" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold truncate text-gray-900">{project.name}</h3>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold truncate text-gray-900">{project.name}</h3>
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => router.push(`/organizations/${uuid}/projects`)}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            View all projects
-          </button>
+          {!isCollapsed && (
+            <button
+              onClick={() => router.push(`/organizations/${uuid}/projects`)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft className="w-3 h-3" />
+              View all projects
+            </button>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-3 overflow-y-auto">
           <div className="space-y-1">
             {/* Home */}
             <button
               onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'overview'
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 ${activeTab === 'overview'
                 ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                : 'text-gray-700 hover:bg-gray-100 border-transparent'
-                }`}
+                : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                } ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? 'Home' : ''}
             >
-              <Home className="w-4 h-4 text-blue-500" />
-              Home
+              <Home className={`w-4 h-4 text-blue-500 flex-shrink-0 ${activeTab === 'overview' ? 'scale-110' : ''}`} />
+              {!isCollapsed && <span>Home</span>}
             </button>
 
             {/* Module Navigation */}
             {getModuleNavItems().map((item: any) => {
               const Icon = item.icon
               const isActive = activeTab === item.id
+              const moduleItem = moduleConfig[item.id as keyof typeof moduleConfig] as any
+              const bgColor = moduleItem?.bgColor || 'bg-primary/10'
+              const textColor = moduleItem?.color ? colorToText[moduleItem.color] : 'text-primary'
 
-              // Handle navigation for specific modules
               const handleClick = () => {
                 if (item.id === 'test-management') {
                   router.push(`/organizations/${uuid}/projects/${projectId}/test-management`)
@@ -383,55 +404,60 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                 }
               }
 
-              const moduleItem = moduleConfig[item.id as keyof typeof moduleConfig] as any
-              const bgColor = moduleItem?.bgColor || 'bg-primary/10'
-              const textColor = moduleItem?.color ? colorToText[moduleItem.color] : 'text-primary'
-
               return (
                 <button
                   key={item.id}
                   onClick={handleClick}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${isActive
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 ${isActive
                     ? `${bgColor} ${textColor} font-medium border-gray-400 shadow-lg`
-                    : 'text-gray-700 hover:bg-gray-100 border-transparent'
-                    }`}
+                    : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                    } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                  title={isCollapsed ? item.label : ''}
                 >
-                  <Icon className={`w-4 h-4 ${item.iconColor}`} />
-                  {item.label}
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${item.iconColor} ${isActive ? 'scale-110' : ''}`} />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </button>
               )
             })}
           </div>
 
           {/* Additional Navigation */}
-          <div className="mt-1 space-y-1">
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-1">
             <button
               onClick={() => setActiveTab('reports')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'reports'
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 ${activeTab === 'reports'
                 ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                : 'text-gray-700 hover:bg-gray-100 border-transparent'
-                }`}
+                : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                } ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? 'Reports & Analytics' : ''}
             >
-              <TrendingUp className="w-4 h-4 text-cyan-600" />
-              Reports & Analytics
+              <TrendingUp className={`w-4 h-4 text-cyan-600 flex-shrink-0 ${activeTab === 'reports' ? 'scale-110' : ''}`} />
+              {!isCollapsed && <span>Reports & Analytics</span>}
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border-2 border-transparent">
-              <Puzzle className="w-4 h-4 text-pink-600" />
-              Integrations
+            <button
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? 'Integrations' : ''}
+            >
+              <Puzzle className="w-4 h-4 text-pink-600 flex-shrink-0" />
+              {!isCollapsed && <span>Integrations</span>}
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border-2 border-transparent">
-              <Activity className="w-4 h-4 text-teal-600" />
-              Activity Log
+            <button
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 border-transparent text-gray-700 hover:bg-white/50 hover:border-gray-200 ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? 'Activity Log' : ''}
+            >
+              <Activity className="w-4 h-4 text-teal-600 flex-shrink-0" />
+              {!isCollapsed && <span>Activity Log</span>}
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors border-2 ${activeTab === 'settings'
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors border-2 ${activeTab === 'settings'
                 ? 'bg-primary/10 text-primary font-medium border-gray-400 shadow-lg'
-                : 'text-gray-700 hover:bg-gray-100 border-transparent'
-                }`}
+                : 'text-gray-700 hover:bg-white/50 border-transparent hover:border-gray-200'
+                } ${isCollapsed ? 'justify-center px-0' : ''}`}
+              title={isCollapsed ? 'Settings' : ''}
             >
-              <Settings className="w-4 h-4 text-purple-600" />
-              Settings
+              <Settings className={`w-4 h-4 text-purple-600 flex-shrink-0 ${activeTab === 'settings' ? 'scale-110' : ''}`} />
+              {!isCollapsed && <span>Settings</span>}
             </button>
           </div>
         </nav>
