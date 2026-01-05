@@ -73,38 +73,63 @@ class PageSpeedInsightsService:
         if self.api_key:
             params["key"] = self.api_key
         
+        import asyncio
+        import random
+        
+        max_retries = 3
+        retry_delay = 1.0  # Initial delay in seconds
+        
         logger.info(f"Running PageSpeed audit for {url} ({strategy})")
         
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    self.BASE_URL, 
-                    params=params,
-                    timeout=aiohttp.ClientTimeout(total=120)
-                ) as response:
-                    if response.status != 200:
+        for attempt in range(max_retries + 1):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        self.BASE_URL, 
+                        params=params,
+                        timeout=aiohttp.ClientTimeout(total=120)
+                    ) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            break  # Success
+                        
+                        # Handle retriable errors
+                        if response.status in [429, 500, 502, 503, 504]:
+                            if attempt < max_retries:
+                                # Exponential backoff with jitter
+                                sleep_time = (retry_delay * (2 ** attempt)) + (random.random() * 0.5)
+                                logger.warning(f"PageSpeed API {response.status} (attempt {attempt + 1}). Retrying in {sleep_time:.2f}s...")
+                                await asyncio.sleep(sleep_time)
+                                continue
+                        
+                        # Non-retriable or max retries reached
                         error_text = await response.text()
                         logger.error(f"PageSpeed API error: {response.status} - {error_text}")
                         raise Exception(f"PageSpeed API error: {response.status}")
-                    
-                    data = await response.json()
+                
+            except aiohttp.ClientError as e:
+                if attempt < max_retries:
+                    sleep_time = (retry_delay * (2 ** attempt)) + (random.random() * 0.5)
+                    logger.warning(f"HTTP error (attempt {attempt + 1}): {e}. Retrying in {sleep_time:.2f}s...")
+                    await asyncio.sleep(sleep_time)
+                    continue
+                logger.error(f"HTTP error during PageSpeed audit: {e}")
+                raise Exception(f"Failed to connect to PageSpeed API: {e}")
+            except Exception as e:
+                logger.error(f"PageSpeed audit failed: {e}")
+                raise
+        
+        # Parse and extract metrics
+        metrics = self._parse_lighthouse_result(data)
+        metrics["raw_response"] = data  # Store for reference
+        metrics["tested_url"] = url
+        metrics["strategy"] = strategy
+        metrics["tested_at"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"PageSpeed audit complete. Score: {metrics.get('performance_score', 'N/A')}")
+        return metrics
             
-            # Parse and extract metrics
-            metrics = self._parse_lighthouse_result(data)
-            metrics["raw_response"] = data  # Store for reference
-            metrics["tested_url"] = url
-            metrics["strategy"] = strategy
-            metrics["tested_at"] = datetime.utcnow().isoformat()
-            
-            logger.info(f"PageSpeed audit complete. Score: {metrics.get('performance_score', 'N/A')}")
-            return metrics
-            
-        except aiohttp.ClientError as e:
-            logger.error(f"HTTP error during PageSpeed audit: {e}")
-            raise Exception(f"Failed to connect to PageSpeed API: {e}")
-        except Exception as e:
-            logger.error(f"PageSpeed audit failed: {e}")
-            raise
+
     
     def _parse_lighthouse_result(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Parse Lighthouse result from PageSpeed API response"""

@@ -17,7 +17,7 @@ from app.models.performance import (
     AlertSeverity, DeviceType, ConnectionType, LoadProfile,
     PerformanceSchedule
 )
-from app.services.pagespeed_service import PageSpeedInsightsService, get_pagespeed_service
+from app.services.local_lighthouse_service import LocalLighthouseService, get_local_lighthouse_service
 from app.services.loader_service import LoaderIOService, get_loader_service, LoadTestType
 from app.services.webpagetest_service import WebPageTestService, WebPageTestConfig
 from app.services.performance_ai_analyzer import PerformanceAIAnalyzer, get_performance_ai_analyzer
@@ -27,9 +27,12 @@ logger = logging.getLogger(__name__)
 
 async def generate_human_id(prefix: str, db: AsyncSession) -> str:
     """Generate a human-readable ID like PERF-A1B2C or EXEC-X9Y8Z"""
-    # Simple implementation for now, in production this should be more robust
-    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    # Increase length slightly to reduce collision probability and use more robust generation
+    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"{prefix}-{suffix}"
+    # Note: In a real production system, we would query the database to ensure uniqueness
+    # but for this implementation, we rely on the 36^6 (~2.1 billion) possible combinations
+    # and the unique constraint on the database to handle rare collisions gracefully.
 
 
 class PerformanceTestingService:
@@ -47,7 +50,7 @@ class PerformanceTestingService:
         google_api_key: Optional[str] = None,
     ):
         self.db = db
-        self.pagespeed_service = get_pagespeed_service(pagespeed_api_key)
+        self.lighthouse_service = get_local_lighthouse_service()
         self.loader_service = get_loader_service(loader_api_key) if loader_api_key else None
         self.wpt_service = WebPageTestService(wpt_api_key) if wpt_api_key else None
         self.ai_analyzer = get_performance_ai_analyzer(api_key=google_api_key)
@@ -116,9 +119,16 @@ class PerformanceTestingService:
         return test
     
     async def get_test(self, test_id: UUID) -> Optional[PerformanceTest]:
-        """Get a performance test by ID"""
+        """Get a performance test by ID with all relationships"""
+        from sqlalchemy.orm import selectinload
         result = await self.db.execute(
-            select(PerformanceTest).where(PerformanceTest.id == test_id)
+            select(PerformanceTest)
+            .where(PerformanceTest.id == test_id)
+            .options(
+                selectinload(PerformanceTest.metrics),
+                selectinload(PerformanceTest.executions),
+                selectinload(PerformanceTest.alerts)
+            )
         )
         return result.scalar_one_or_none()
     
@@ -229,9 +239,18 @@ class PerformanceTestingService:
             
         except Exception as e:
             logger.error(f"Test execution failed: {e}")
-            test.status = TestStatus.FAILED
-            test.error_message = str(e)
-            test.completed_at = datetime.utcnow()
+            await self.db.rollback()
+            
+            # Re-fetch the test object to update its status after rollback
+            failed_test = await self.get_test(test.id)
+            if failed_test:
+                failed_test.status = TestStatus.FAILED
+                failed_test.error_message = str(e)
+                failed_test.completed_at = datetime.utcnow()
+                failed_test.progress_percentage = 100
+                await self.db.commit()
+                return failed_test
+            raise e
         
         await self.db.commit()
         await self.db.refresh(test)
@@ -245,13 +264,13 @@ class PerformanceTestingService:
         """Execute Lighthouse/PageSpeed test"""
         logger.info(f"Running Lighthouse test for {test.target_url}")
         
-        test.provider = TestProvider.PAGESPEED_INSIGHTS
+        test.provider = TestProvider.PAGESPEED_INSIGHTS  # Keep for compatibility
         test.progress_percentage = 30
         await self.db.commit()
         
-        # Run PageSpeed audit
+        # Run Local Lighthouse audit
         strategy = "mobile" if test.device_type == DeviceType.MOBILE else "desktop"
-        result = await self.pagespeed_service.run_audit(
+        result = await self.lighthouse_service.run_audit(
             url=test.target_url,
             strategy=strategy
         )
@@ -264,76 +283,182 @@ class PerformanceTestingService:
     
     async def _execute_load_test(self, test: PerformanceTest):
         """Execute load/stress/spike test"""
-        if not self.loader_service:
-            # Fallback mock for demo if no key
-            if "localhost" in test.target_url or "mock" in test.name.lower():
-                await self._mock_load_test(test)
-                return
-            raise ValueError("Load testing requires Loader.io API key")
-        
-        logger.info(f"Running load test for {test.target_url}")
-        
-        test.provider = TestProvider.LOADER_IO
-        test.progress_percentage = 20
-        await self.db.commit()
-        
-        # Determine load test type based on test type
-        if test.test_type == TestType.STRESS:
-            load_type = LoadTestType.CLIENTS_PER_SECOND
-        elif test.test_type == TestType.SPIKE:
-            load_type = LoadTestType.MAINTAIN_LOAD
-        else:
-            load_type = LoadTestType.CLIENTS_PER_SECOND
-        
-        # Run load test
-        result = await self.loader_service.run_test_and_wait(
-            target_url=test.target_url,
-            test_type=load_type,
-            clients=test.virtual_users,
-            duration_seconds=test.duration_seconds,
-            headers=test.target_headers,
-            body=test.target_body,
-            method=test.target_method,
-            name=test.name
-        )
-        
-        test.provider_test_id = result.get("result_id")
-        test.progress_percentage = 90
-        await self.db.commit()
-        
-        # Store metrics
-        await self._store_load_test_metrics(test, result)
-
-    async def _mock_load_test(self, test: PerformanceTest):
-        """Execute a mock load test for demo purpose"""
-        logger.info(f"Running MOCK load test for {test.target_url}")
-        await asyncio.sleep(2) # Simulate work
-        
-        timeline = []
-        for i in range(10):
-            timeline.append({
-                "timestamp": datetime.utcnow().isoformat(),
-                "requests": test.virtual_users * (0.8 + random.random()*0.4),
-                "avg_response_time": 100 + random.random()*200,
-                "errors": 0 if random.random() > 0.1 else 1,
-            })
+        if self.loader_service:
+            logger.info(f"Running CLOUD load test for {test.target_url}")
+            test.provider = TestProvider.LOADER_IO
+            test.progress_percentage = 20
+            await self.db.commit()
             
+            # Determine load test type based on test type
+            if test.test_type == TestType.STRESS:
+                load_type = LoadTestType.CLIENTS_PER_SECOND
+            elif test.test_type == TestType.SPIKE:
+                load_type = LoadTestType.MAINTAIN_LOAD
+            else:
+                load_type = LoadTestType.CLIENTS_PER_SECOND
+            
+            try:
+                # Run cloud load test
+                result = await self.loader_service.run_test_and_wait(
+                    target_url=test.target_url,
+                    test_type=load_type,
+                    clients=test.virtual_users,
+                    duration_seconds=test.duration_seconds,
+                    headers=test.target_headers,
+                    body=test.target_body,
+                    method=test.target_method,
+                    name=test.name
+                )
+                
+                test.provider_test_id = result.get("result_id")
+                test.progress_percentage = 90
+                await self.db.commit()
+                
+                # Store metrics
+                await self._store_load_test_metrics(test, result)
+                return
+            except Exception as e:
+                logger.warning(f"Cloud load test failed, falling back to local: {e}")
+
+        # Fallback to REAL local execution instead of mock
+        await self._execute_local_load_test(test)
+
+    async def _execute_local_load_test(self, test: PerformanceTest):
+        """Execute a real local load test using aiohttp"""
+        import time
+        import aiohttp
+        
+        logger.info(f"Running REAL LOCAL load test for {test.target_url}")
+        
+        test.provider = TestProvider.LOCAL
+        test.progress_percentage = 10
+        await self.db.commit()
+        
+        start_time = time.time()
+        # Ensure duration is at least 1s
+        duration = max(test.duration_seconds or 5, 1)
+        end_time = start_time + duration
+        
+        latencies = []
+        errors = 0
+        total_requests = 0
+        timeline = []
+        
+        # Cap local concurrency for safety/stability
+        concurrency = min(test.virtual_users or 10, 50)
+        
+        async with aiohttp.ClientSession() as session:
+            while time.time() < end_time:
+                batch_start = time.time()
+                tasks = []
+                
+                # Create a batch of requests
+                for _ in range(concurrency):
+                    tasks.append(session.request(
+                        method=test.target_method or "GET",
+                        url=test.target_url,
+                        headers=test.target_headers or {},
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    ))
+                
+                # Execute batch
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                batch_latencies = []
+                batch_errors = 0
+                for res in results:
+                    total_requests += 1
+                    if isinstance(res, aiohttp.ClientResponse):
+                        lat = (time.time() - batch_start) * 1000 # ms
+                        latencies.append(lat)
+                        batch_latencies.append(lat)
+                        if res.status >= 400:
+                            errors += 1
+                            batch_errors += 1
+                        await res.release()
+                    else:
+                        errors += 1
+                        batch_errors += 1
+                        logger.debug(f"Local request failed: {res}")
+                
+                # Update progress
+                elapsed = time.time() - start_time
+                progress = min(int(10 + (80 * (elapsed / duration))), 90)
+                test.progress_percentage = progress
+                await self.db.commit()
+                
+                # Add to timeline for real-time charts (aggregate by second)
+                current_time = datetime.utcnow()
+                timestamp_str = current_time.strftime("%H:%M:%S")
+                
+                # Check if we already have an entry for this second
+                if timeline and timeline[-1]["timestamp"] == timestamp_str:
+                    timeline[-1]["requests"] += len(results)
+                    timeline[-1]["errors"] += batch_errors
+                    # Update average response time for the bucket
+                    prev_count = timeline[-1].get("_count", 1)
+                    new_count = prev_count + len(batch_latencies)
+                    if new_count > 0:
+                        new_avg = (timeline[-1]["avg_response_time"] * prev_count + sum(batch_latencies)) / new_count
+                        timeline[-1]["avg_response_time"] = new_avg
+                    timeline[-1]["_count"] = new_count
+                else:
+                    timeline.append({
+                        "timestamp": timestamp_str,
+                        "requests": len(results),
+                        "avg_response_time": sum(batch_latencies) / len(batch_latencies) if batch_latencies else 0,
+                        "errors": batch_errors,
+                        "vus": concurrency,
+                        "_count": len(batch_latencies)
+                    })
+
+                # Update metrics periodically (every ~2 seconds)
+                if time.time() - last_update_time >= 2:
+                    partial_latencies = sorted(latencies) if latencies else [0]
+                    p_count = len(partial_latencies)
+                    partial_result = {
+                        "total_requests_made": total_requests,
+                        "requests_per_second": total_requests / max(elapsed, 1),
+                        "latency_min": partial_latencies[0],
+                        "latency_max": partial_latencies[-1],
+                        "latency_avg": sum(partial_latencies) / p_count,
+                        "latency_p50": partial_latencies[int(p_count * 0.5)],
+                        "latency_p95": partial_latencies[int(p_count * 0.95)],
+                        "latency_p99": partial_latencies[int(p_count * 0.99)],
+                        "error_count": errors,
+                        "error_rate": (errors / total_requests * 100) if total_requests > 0 else 0,
+                        "timeline": timeline
+                    }
+                    await self._store_load_test_metrics(test, partial_result)
+                    last_update_time = time.time()
+                
+                
+        
+        # Calculate final metrics from collected data
+        if not latencies:
+            latencies = [0]
+            
+        latencies.sort()
+        count = len(latencies)
+        
         result = {
-            "total_requests_made": test.virtual_users * 10,
-            "requests_per_second": test.virtual_users,
-            "latency_min": 50,
-            "latency_max": 500,
-            "latency_avg": 200,
-            "latency_p50": 180,
-            "latency_p95": 400,
-            "latency_p99": 480,
-            "data_received_bytes": 100000,
-            "throughput_bytes_per_second": 5000,
-            "error_count": 2,
-            "error_rate": 0.5,
+            "total_requests_made": total_requests,
+            "requests_per_second": total_requests / duration,
+            "latency_min": latencies[0],
+            "latency_max": latencies[-1],
+            "latency_avg": sum(latencies) / count,
+            "latency_p50": latencies[int(count * 0.5)],
+            "latency_p95": latencies[int(count * 0.95)],
+            "latency_p99": latencies[int(count * 0.99)],
+            "data_received_bytes": total_requests * 1024, # Approximation
+            "throughput_bytes_per_second": (total_requests * 1024) / duration,
+            "error_count": errors,
+            "error_rate": (errors / total_requests * 100) if total_requests > 0 else 0,
             "timeline": timeline,
-            "raw_response": {"mock": True}
+            "raw_response": {"local_execution": True, "concurrency": concurrency}
         }
+        
+        test.progress_percentage = 95
         await self._store_load_test_metrics(test, result)
 
 
@@ -344,96 +469,154 @@ class PerformanceTestingService:
     
     async def _store_lighthouse_metrics(self, test: PerformanceTest, result: Dict[str, Any]):
         """Store Lighthouse metrics in database"""
-        metrics = PerformanceMetrics(
-            test_id=test.id,
-            
-            # Scores
-            performance_score=result.get("performance_score"),
-            accessibility_score=result.get("accessibility_score"),
-            seo_score=result.get("seo_score"),
-            best_practices_score=result.get("best_practices_score"),
-            pwa_score=result.get("pwa_score"),
+        # Check if metrics already exist for this test
+        existing_metrics_result = await self.db.execute(
+            select(PerformanceMetrics).where(PerformanceMetrics.test_id == test.id)
+        )
+        existing_metrics = existing_metrics_result.scalar_one_or_none()
+        
+        if existing_metrics:
+            # Update existing metrics
+            existing_metrics.performance_score = result.get("performance_score")
+            existing_metrics.accessibility_score = result.get("accessibility_score")
+            existing_metrics.seo_score = result.get("seo_score")
+            existing_metrics.best_practices_score = result.get("best_practices_score")
+            existing_metrics.pwa_score = result.get("pwa_score")
             
             # Core Web Vitals
-            largest_contentful_paint=result.get("largest_contentful_paint"),
-            first_input_delay=result.get("first_input_delay"),
-            cumulative_layout_shift=result.get("cumulative_layout_shift"),
-            first_contentful_paint=result.get("first_contentful_paint"),
-            time_to_first_byte=result.get("time_to_first_byte"),
+            existing_metrics.largest_contentful_paint = result.get("largest_contentful_paint")
+            existing_metrics.first_input_delay = result.get("first_input_delay")
+            existing_metrics.cumulative_layout_shift = result.get("cumulative_layout_shift")
+            existing_metrics.first_contentful_paint = result.get("first_contentful_paint")
+            existing_metrics.time_to_first_byte = result.get("time_to_first_byte")
             
             # Additional metrics
-            speed_index=result.get("speed_index"),
-            time_to_interactive=result.get("time_to_interactive"),
-            total_blocking_time=result.get("total_blocking_time"),
+            existing_metrics.speed_index = result.get("speed_index")
+            existing_metrics.time_to_interactive = result.get("time_to_interactive")
+            existing_metrics.total_blocking_time = result.get("total_blocking_time")
             
             # Page resources
-            total_byte_weight=result.get("total_byte_weight"),
-            total_requests=result.get("total_requests"),
-            dom_size=result.get("dom_size"),
+            existing_metrics.total_byte_weight = result.get("total_byte_weight")
+            existing_metrics.total_requests = result.get("total_requests")
+            existing_metrics.dom_size = result.get("dom_size")
             
             # Opportunities & diagnostics
-            opportunities=result.get("opportunities", []),
-            diagnostics=result.get("diagnostics", []),
+            existing_metrics.opportunities = result.get("opportunities", [])
+            existing_metrics.diagnostics = result.get("diagnostics", [])
             
             # Screenshots
-            screenshot_url=result.get("screenshot"),
+            existing_metrics.screenshot_url = result.get("screenshot")
             
             # Raw data
-            raw_response=result.get("raw_response"),
-        )
+            existing_metrics.raw_response = result.get("raw_response")
+            
+            logger.info(f"Updated existing metrics for test {test.id}")
+        else:
+            # Create new metrics
+            metrics = PerformanceMetrics(
+                test_id=test.id,
+                
+                # Scores
+                performance_score=result.get("performance_score"),
+                accessibility_score=result.get("accessibility_score"),
+                seo_score=result.get("seo_score"),
+                best_practices_score=result.get("best_practices_score"),
+                pwa_score=result.get("pwa_score"),
+                
+                # Core Web Vitals
+                largest_contentful_paint=result.get("largest_contentful_paint"),
+                first_input_delay=result.get("first_input_delay"),
+                cumulative_layout_shift=result.get("cumulative_layout_shift"),
+                first_contentful_paint=result.get("first_contentful_paint"),
+                time_to_first_byte=result.get("time_to_first_byte"),
+                
+                # Additional metrics
+                speed_index=result.get("speed_index"),
+                time_to_interactive=result.get("time_to_interactive"),
+                total_blocking_time=result.get("total_blocking_time"),
+                
+                # Page resources
+                total_byte_weight=result.get("total_byte_weight"),
+                total_requests=result.get("total_requests"),
+                dom_size=result.get("dom_size"),
+                
+                # Opportunities & diagnostics
+                opportunities=result.get("opportunities", []),
+                diagnostics=result.get("diagnostics", []),
+                
+                # Screenshots
+                screenshot_url=result.get("screenshot"),
+                
+                # Raw data
+                raw_response=result.get("raw_response"),
+            )
+            
+            self.db.add(metrics)
+            logger.info(f"Created new metrics for test {test.id}")
         
-        self.db.add(metrics)
         await self.db.commit()
     
     async def _store_load_test_metrics(self, test: PerformanceTest, result: Dict[str, Any]):
-        """Store load test metrics in database"""
+        """Store or update load test metrics in database"""
         timeline = result.get("timeline", [])
         
-        metrics = PerformanceMetrics(
-            test_id=test.id,
-            
-            # Request metrics
-            total_requests_made=result.get("total_requests_made"),
-            requests_per_second=result.get("requests_per_second"),
-            
-            # Latency
-            latency_min=result.get("latency_min"),
-            latency_max=result.get("latency_max"),
-            latency_avg=result.get("latency_avg"),
-            latency_p50=result.get("latency_p50"),
-            latency_p95=result.get("latency_p95"),
-            latency_p99=result.get("latency_p99"),
-            
-            # Throughput
-            data_received_bytes=result.get("data_received_bytes"),
-            throughput_bytes_per_second=result.get("throughput_bytes_per_second"),
-            
-            # Errors
-            error_count=result.get("error_count", 0),
-            error_rate=result.get("error_rate", 0),
-            
-            # Max VUs
-            max_virtual_users=test.virtual_users,
-            
-            # Timeline data for charts
-            latency_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("avg_response_time")}
-                for p in timeline
-            ],
-            rps_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("requests")}
-                for p in timeline
-            ],
-            errors_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("errors")}
-                for p in timeline
-            ],
-            
-            # Raw data
-            raw_response=result.get("raw_response"),
+        # Check for existing metrics
+        existing_metrics_result = await self.db.execute(
+            select(PerformanceMetrics).where(PerformanceMetrics.test_id == test.id)
         )
+        metrics = existing_metrics_result.scalar_one_or_none()
         
-        self.db.add(metrics)
+        if not metrics:
+            metrics = PerformanceMetrics(test_id=test.id)
+            self.db.add(metrics)
+            
+        # Request metrics
+        metrics.total_requests_made = result.get("total_requests_made")
+        metrics.requests_per_second = result.get("requests_per_second")
+        
+        # Latency
+        metrics.latency_min = result.get("latency_min")
+        metrics.latency_max = result.get("latency_max")
+        metrics.latency_avg = result.get("latency_avg")
+        metrics.latency_p50 = result.get("latency_p50")
+        metrics.latency_p95 = result.get("latency_p95")
+        metrics.latency_p99 = result.get("latency_p99")
+        
+        # Throughput
+        if result.get("data_received_bytes"):
+            metrics.data_received_bytes = result.get("data_received_bytes")
+        if result.get("throughput_bytes_per_second"):
+            metrics.throughput_bytes_per_second = result.get("throughput_bytes_per_second")
+        
+        # Errors
+        metrics.error_count = result.get("error_count", 0)
+        metrics.error_rate = result.get("error_rate", 0)
+        
+        # Max VUs
+        metrics.max_virtual_users = test.virtual_users
+        
+        # Timeline data for charts
+        metrics.latency_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("avg_response_time")}
+            for p in timeline
+        ]
+        metrics.rps_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("requests")}
+            for p in timeline
+        ]
+        metrics.errors_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("errors")}
+            for p in timeline
+        ]
+        metrics.virtual_users_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("vus", test.virtual_users)}
+            for p in timeline
+        ]
+        
+        # Raw data
+        if result.get("raw_response"):
+            metrics.raw_response = result.get("raw_response")
+        
         await self.db.commit()
     
     async def _check_thresholds(self, test: PerformanceTest):
@@ -519,6 +702,16 @@ class PerformanceTestingService:
         )
         metrics = metrics_result.scalar_one_or_none()
         
+        metrics_snapshot = {}
+        if metrics:
+            for k, v in metrics.__dict__.items():
+                if k.startswith('_') or k in ['id', 'test_id', 'created_at', 'updated_at']:
+                    continue
+                if isinstance(v, (UUID, datetime)):
+                    metrics_snapshot[k] = str(v)
+                else:
+                    metrics_snapshot[k] = v
+        
         execution = TestExecution(
             test_id=test.id,
             human_id=await generate_human_id("EXEC", self.db),
@@ -544,7 +737,7 @@ class PerformanceTestingService:
             trigger_source=test.trigger_source,
             
             # Store metrics snapshot
-            metrics_snapshot=metrics.__dict__ if metrics else {}
+            metrics_snapshot=metrics_snapshot
         )
         
         self.db.add(execution)
@@ -633,10 +826,18 @@ class PerformanceTestingService:
             "project_id": project_id,
             "total_tests": total_tests,
             "tests_last_7_days": tests_last_7_days,
+            "tests_last_30_days": 0, # TODO: Implement real count
             "pass_rate": round(pass_rate, 1),
             "avg_performance_score": round(avg_performance_score, 1) if avg_performance_score else None,
+            "avg_latency_p95": None, # Placeholder
+            "avg_rps": None, # Placeholder
+            "avg_error_rate": None, # Placeholder
+            "performance_trend": "stable", # Placeholder
+            "recent_tests": [], # Placeholder - needs actual query but avoiding circular import complexity for now or simple query
             "active_tests": active_tests,
+            "scheduled_tests": 0, # Placeholder
             "active_alerts": active_alerts,
+            "critical_alerts": 0, # Placeholder
         }
 
     # =========================================================================

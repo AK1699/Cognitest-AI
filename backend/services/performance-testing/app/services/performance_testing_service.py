@@ -264,40 +264,165 @@ class PerformanceTestingService:
     
     async def _execute_load_test(self, test: PerformanceTest):
         """Execute load/stress/spike test"""
-        if not self.loader_service:
-            raise ValueError("Load testing requires Loader.io API key")
+        if self.loader_service:
+            logger.info(f"Running CLOUD load test for {test.target_url}")
+            test.provider = TestProvider.LOADER_IO
+            test.progress_percentage = 20
+            await self.db.commit()
+            
+            # Determine load test type based on test type
+            if test.test_type == TestType.STRESS:
+                load_type = LoadTestType.CLIENTS_PER_SECOND
+            elif test.test_type == TestType.SPIKE:
+                load_type = LoadTestType.MAINTAIN_LOAD
+            else:
+                load_type = LoadTestType.CLIENTS_PER_SECOND
+            
+            try:
+                # Run cloud load test
+                result = await self.loader_service.run_test_and_wait(
+                    target_url=test.target_url,
+                    test_type=load_type,
+                    clients=test.virtual_users,
+                    duration_seconds=test.duration_seconds,
+                    headers=test.target_headers,
+                    body=test.target_body,
+                    method=test.target_method,
+                    name=test.name
+                )
+                
+                test.provider_test_id = result.get("result_id")
+                test.progress_percentage = 90
+                await self.db.commit()
+                
+                # Store metrics
+                await self._store_load_test_metrics(test, result)
+                return
+            except Exception as e:
+                logger.warning(f"Cloud load test failed, falling back to local: {e}")
+
+        # Fallback to REAL local execution instead of mock
+        await self._execute_local_load_test(test)
+
+    async def _execute_local_load_test(self, test: PerformanceTest):
+        """Execute a real local load test using aiohttp"""
+        import time
+        import aiohttp
         
-        logger.info(f"Running load test for {test.target_url}")
+        logger.info(f"Running REAL LOCAL load test for {test.target_url}")
         
-        test.provider = TestProvider.LOADER_IO
-        test.progress_percentage = 20
+        test.provider = TestProvider.LOCAL
+        test.progress_percentage = 10
         await self.db.commit()
         
-        # Determine load test type based on test type
-        if test.test_type == TestType.STRESS:
-            load_type = LoadTestType.CLIENTS_PER_SECOND
-        elif test.test_type == TestType.SPIKE:
-            load_type = LoadTestType.MAINTAIN_LOAD
-        else:
-            load_type = LoadTestType.CLIENTS_PER_SECOND
+        start_time = time.time()
+        # Ensure duration is at least 1s
+        duration = max(test.duration_seconds or 5, 1)
+        end_time = start_time + duration
         
-        # Run load test
-        result = await self.loader_service.run_test_and_wait(
-            target_url=test.target_url,
-            test_type=load_type,
-            clients=test.virtual_users,
-            duration_seconds=test.duration_seconds,
-            headers=test.target_headers,
-            body=test.target_body,
-            method=test.target_method,
-            name=test.name
-        )
+        latencies = []
+        errors = 0
+        total_requests = 0
+        timeline = []
         
-        test.provider_test_id = result.get("result_id")
-        test.progress_percentage = 90
-        await self.db.commit()
+        # Cap local concurrency for safety/stability
+        concurrency = min(test.virtual_users or 10, 50)
         
-        # Store metrics
+        async with aiohttp.ClientSession() as session:
+            while time.time() < end_time:
+                batch_start = time.time()
+                tasks = []
+                
+                # Create a batch of requests
+                for _ in range(concurrency):
+                    tasks.append(session.request(
+                        method=test.target_method or "GET",
+                        url=test.target_url,
+                        headers=test.target_headers or {},
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    ))
+                
+                # Execute batch
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                batch_latencies = []
+                batch_errors = 0
+                for res in results:
+                    total_requests += 1
+                    if isinstance(res, aiohttp.ClientResponse):
+                        lat = (time.time() - batch_start) * 1000 # ms
+                        latencies.append(lat)
+                        batch_latencies.append(lat)
+                        if res.status >= 400:
+                            errors += 1
+                            batch_errors += 1
+                        await res.release()
+                    else:
+                        errors += 1
+                        batch_errors += 1
+                        logger.debug(f"Local request failed: {res}")
+                
+                # Update progress
+                elapsed = time.time() - start_time
+                progress = int(10 + (80 * (min(elapsed / duration, 1.0))))
+                test.progress_percentage = progress
+                await self.db.commit()
+                
+                # Add to timeline for real-time charts
+                timeline.append({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "requests": len(results),
+                    "avg_response_time": sum(batch_latencies) / len(batch_latencies) if batch_latencies else 0,
+                    "errors": batch_errors,
+                })
+                
+                # Update metrics periodically (every ~2 seconds)
+                if len(timeline) % 4 == 0:
+                    partial_latencies = sorted(latencies) if latencies else [0]
+                    p_count = len(partial_latencies)
+                    partial_result = {
+                        "total_requests_made": total_requests,
+                        "requests_per_second": total_requests / max(elapsed, 1),
+                        "latency_min": partial_latencies[0],
+                        "latency_max": partial_latencies[-1],
+                        "latency_avg": sum(partial_latencies) / p_count,
+                        "latency_p50": partial_latencies[int(p_count * 0.5)],
+                        "latency_p95": partial_latencies[int(p_count * 0.95)],
+                        "latency_p99": partial_latencies[int(p_count * 0.99)],
+                        "error_count": errors,
+                        "error_rate": (errors / total_requests * 100) if total_requests > 0 else 0,
+                        "timeline": timeline,
+                    }
+                    await self._store_load_test_metrics(test, partial_result)
+                
+                # Regulate RPS a bit
+                await asyncio.sleep(0.5)
+        
+        # Calculate final metrics from collected data
+        if not latencies:
+            latencies = [0]
+            
+        latencies.sort()
+        count = len(latencies)
+        
+        result = {
+            "total_requests_made": total_requests,
+            "requests_per_second": total_requests / duration,
+            "latency_min": latencies[0],
+            "latency_max": latencies[-1],
+            "latency_avg": sum(latencies) / count,
+            "latency_p50": latencies[int(count * 0.5)],
+            "latency_p95": latencies[int(count * 0.95)],
+            "latency_p99": latencies[int(count * 0.99)],
+            "data_received_bytes": total_requests * 1024, # Approximation
+            "throughput_bytes_per_second": (total_requests * 1024) / duration,
+            "error_count": errors,
+            "error_rate": (errors / total_requests * 100) if total_requests > 0 else 0,
+            "timeline": timeline,
+            "raw_response": {"local_execution": True, "concurrency": concurrency}
+        }
+        
+        test.progress_percentage = 95
         await self._store_load_test_metrics(test, result)
     
     async def _execute_api_test(self, test: PerformanceTest):
@@ -349,54 +474,62 @@ class PerformanceTestingService:
         await self.db.commit()
     
     async def _store_load_test_metrics(self, test: PerformanceTest, result: Dict[str, Any]):
-        """Store load test metrics in database"""
+        """Store or update load test metrics in database"""
         timeline = result.get("timeline", [])
         
-        metrics = PerformanceMetrics(
-            test_id=test.id,
-            
-            # Request metrics
-            total_requests_made=result.get("total_requests_made"),
-            requests_per_second=result.get("requests_per_second"),
-            
-            # Latency
-            latency_min=result.get("latency_min"),
-            latency_max=result.get("latency_max"),
-            latency_avg=result.get("latency_avg"),
-            latency_p50=result.get("latency_p50"),
-            latency_p95=result.get("latency_p95"),
-            latency_p99=result.get("latency_p99"),
-            
-            # Throughput
-            data_received_bytes=result.get("data_received_bytes"),
-            throughput_bytes_per_second=result.get("throughput_bytes_per_second"),
-            
-            # Errors
-            error_count=result.get("error_count", 0),
-            error_rate=result.get("error_rate", 0),
-            
-            # Max VUs
-            max_virtual_users=test.virtual_users,
-            
-            # Timeline data for charts
-            latency_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("avg_response_time")}
-                for p in timeline
-            ],
-            rps_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("requests")}
-                for p in timeline
-            ],
-            errors_timeline=[
-                {"timestamp": p.get("timestamp"), "value": p.get("errors")}
-                for p in timeline
-            ],
-            
-            # Raw data
-            raw_response=result.get("raw_response"),
+        # Check for existing metrics
+        existing_metrics_result = await self.db.execute(
+            select(PerformanceMetrics).where(PerformanceMetrics.test_id == test.id)
         )
+        metrics = existing_metrics_result.scalar_one_or_none()
         
-        self.db.add(metrics)
+        if not metrics:
+            metrics = PerformanceMetrics(test_id=test.id)
+            self.db.add(metrics)
+            
+        # Request metrics
+        metrics.total_requests_made = result.get("total_requests_made")
+        metrics.requests_per_second = result.get("requests_per_second")
+        
+        # Latency
+        metrics.latency_min = result.get("latency_min")
+        metrics.latency_max = result.get("latency_max")
+        metrics.latency_avg = result.get("latency_avg")
+        metrics.latency_p50 = result.get("latency_p50")
+        metrics.latency_p95 = result.get("latency_p95")
+        metrics.latency_p99 = result.get("latency_p99")
+        
+        # Throughput
+        if result.get("data_received_bytes"):
+            metrics.data_received_bytes = result.get("data_received_bytes")
+        if result.get("throughput_bytes_per_second"):
+            metrics.throughput_bytes_per_second = result.get("throughput_bytes_per_second")
+        
+        # Errors
+        metrics.error_count = result.get("error_count", 0)
+        metrics.error_rate = result.get("error_rate", 0)
+        
+        # Max VUs
+        metrics.max_virtual_users = test.virtual_users
+        
+        # Timeline data for charts
+        metrics.latency_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("avg_response_time")}
+            for p in timeline
+        ]
+        metrics.rps_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("requests")}
+            for p in timeline
+        ]
+        metrics.errors_timeline = [
+            {"timestamp": p.get("timestamp"), "value": p.get("errors")}
+            for p in timeline
+        ]
+        
+        # Raw data
+        if result.get("raw_response"):
+            metrics.raw_response = result.get("raw_response")
+        
         await self.db.commit()
     
     async def _check_thresholds(self, test: PerformanceTest):

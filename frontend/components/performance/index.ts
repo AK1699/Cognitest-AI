@@ -12,3 +12,4 @@ export {
 export { TestComparison, demoTestResults } from './TestComparison'
 export { ReportExport, demoReportData } from './ReportExport'
 export { HistoricalTrendChart, generateDemoTrendData } from './HistoricalTrendChart'
+export { PerformanceTestList } from './PerformanceTestList'

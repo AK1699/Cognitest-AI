@@ -17,6 +17,10 @@ class TestType(str, enum.Enum):
     SPIKE = "spike"
     ENDURANCE = "endurance"
     API = "api"
+    VOLUME = "volume"
+    SCALABILITY = "scalability"
+    CAPACITY = "capacity"
+    BASELINE = "baseline"
 
 class TestStatus(str, enum.Enum):
     """Status of a performance test"""
@@ -26,6 +30,7 @@ class TestStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    STOPPED = "stopped"
 
 class LoadProfile(str, enum.Enum):
     """Load profile patterns for load testing"""
@@ -58,6 +63,7 @@ class TestProvider(str, enum.Enum):
     LOADER_IO = "loader_io"
     K6_CLOUD = "k6_cloud"
     ARTILLERY = "artillery"
+    LOCAL = "local"
 
 class ScheduleFrequency(str, enum.Enum):
     """Test schedule frequency"""
@@ -98,7 +104,7 @@ class PerformanceTestCreate(BaseModel):
     
     # Load Test Options
     virtual_users: int = Field(default=10, ge=1, le=10000)
-    duration_seconds: int = Field(default=60, ge=10, le=3600)
+    duration_seconds: int = Field(default=60, ge=1, le=3600)
     ramp_up_seconds: int = Field(default=10, ge=0, le=300)
     ramp_down_seconds: int = Field(default=10, ge=0, le=300)
     load_profile: Optional[LoadProfile] = LoadProfile.RAMP_UP
@@ -170,7 +176,7 @@ class PerformanceTestResponse(BaseModel):
     
     # AI Analysis
     ai_analysis: Optional[str]
-    ai_recommendations: List[Dict[str, Any]]
+    ai_recommendations: Optional[List[Dict[str, Any]]] = []
     ai_risk_level: Optional[str]
     
     # Metadata
@@ -190,7 +196,7 @@ class PerformanceTestResponse(BaseModel):
 class PerformanceTestDetailResponse(PerformanceTestResponse):
     """Detailed response including metrics"""
     metrics: Optional["PerformanceMetricsResponse"] = None
-    recent_executions: List["TestExecutionResponse"] = []
+    executions: List["TestExecutionResponse"] = []
     alerts: List["PerformanceAlertResponse"] = []
 
 
@@ -397,7 +403,7 @@ class LoadTestRequest(BaseModel):
     target_body: Optional[str] = None
     
     virtual_users: int = Field(default=10, ge=1, le=1000)
-    duration_seconds: int = Field(default=60, ge=10, le=600)
+    duration_seconds: int = Field(default=60, ge=1, le=600)
     ramp_up_seconds: int = Field(default=10, ge=0, le=60)
     
     # Thresholds for pass/fail
@@ -413,7 +419,7 @@ class StressTestRequest(BaseModel):
     
     start_vus: int = Field(default=10, ge=1, le=100)
     max_vus: int = Field(default=200, ge=10, le=1000)
-    step_duration_seconds: int = Field(default=30, ge=10, le=300)
+    step_duration_seconds: int = Field(default=30, ge=1, le=300)
     step_increase: int = Field(default=20, ge=5, le=100)
 
 

@@ -24,6 +24,10 @@ class TestType(str, enum.Enum):
     SPIKE = "spike"                     # Sudden traffic bursts
     ENDURANCE = "endurance"             # Sustained load over time
     API = "api"                         # API endpoint performance
+    VOLUME = "volume"                   # Large data volume testing
+    SCALABILITY = "scalability"         # System growth capacity testing
+    CAPACITY = "capacity"               # Maximum load capacity testing
+    BASELINE = "baseline"               # Minimal load benchmarking
 
 
 class TestStatus(str, enum.Enum):
@@ -34,6 +38,7 @@ class TestStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    STOPPED = "stopped"
 
 
 class LoadProfile(str, enum.Enum):
@@ -70,6 +75,7 @@ class TestProvider(str, enum.Enum):
     LOADER_IO = "loader_io"
     K6_CLOUD = "k6_cloud"
     ARTILLERY = "artillery"
+    LOCAL = "local"
 
 
 class ScheduleFrequency(str, enum.Enum):
@@ -119,11 +125,11 @@ class PerformanceTest(Base):
     target_body = Column(Text, nullable=True)
     
     # Status & Progress
-    status = Column(SQLEnum(TestStatus, values_callable=lambda x: [e.value for e in x]), default=TestStatus.PENDING)
+    status = Column(String(50), default=TestStatus.PENDING)
     progress_percentage = Column(Integer, default=0)
     
     # Provider Configuration
-    provider = Column(SQLEnum(TestProvider, values_callable=lambda x: [e.value for e in x]), nullable=True)
+    provider = Column(String(50), nullable=True)
     provider_test_id = Column(String(255), nullable=True)  # External test ID
     
     # Lighthouse Specific
@@ -294,7 +300,7 @@ class TestExecution(Base):
     
     # Execution Details
     run_number = Column(Integer, nullable=False)  # Sequential run number
-    status = Column(SQLEnum(TestStatus, values_callable=lambda x: [e.value for e in x]), default=TestStatus.PENDING)
+    status = Column(String(50), default=TestStatus.PENDING)
     
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -315,7 +321,7 @@ class TestExecution(Base):
     metrics_snapshot = Column(JSON, default=dict)
     
     # Provider Details
-    provider = Column(SQLEnum(TestProvider, values_callable=lambda x: [e.value for e in x]), nullable=True)
+    provider = Column(String(50), nullable=True)
     provider_test_id = Column(String(255), nullable=True)
     provider_report_url = Column(String(2000), nullable=True)
     

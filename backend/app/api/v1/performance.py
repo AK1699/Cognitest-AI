@@ -9,14 +9,17 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 import os
 import json
+from datetime import datetime
 import asyncio
 
 from app.api.v1.auth import get_current_user
 from app.core.deps import get_db
 from app.core.config import settings
 from app.models.user import User
+from app.models.project import Project
 from app.models.performance import TestType, TestStatus, PerformanceSchedule
 from app.services.performance_testing_service import PerformanceTestingService
+from sqlalchemy import select
 from app.schemas.performance import (
     PerformanceTestCreate, PerformanceTestUpdate, PerformanceTestResponse,
     PerformanceTestDetailResponse, PerformanceTestListResponse,
@@ -77,23 +80,38 @@ async def _create_and_run_test(
         **kwargs
     )
     
-    # Execute immediately
-    return await service.execute_test(test.id)
+    
+    return test
+
+async def run_test_background(test_id: UUID):
+    """Background task to run test with its own session"""
+    from app.core.database import AsyncSessionLocal
+    
+    async with AsyncSessionLocal() as db:
+        service = PerformanceTestingService(
+            db=db,
+            pagespeed_api_key=os.getenv("PAGESPEED_API_KEY"),
+            loader_api_key=os.getenv("LOADER_IO_API_KEY"),
+            wpt_api_key=os.getenv("WEBPAGETEST_API_KEY"),
+            google_api_key=settings.GOOGLE_API_KEY
+        )
+        await service.execute_test(test_id)
 
 
 # =============================================================================
 # Convenience Endpoints
 # =============================================================================
 
-@router.post("/lighthouse", response_model=Any) # Using Any as schemas might vary slightly from frontend expectation
+@router.post("/lighthouse", response_model=PerformanceTestResponse)
 async def run_lighthouse_audit(
+    background_tasks: BackgroundTasks,
     project_id: UUID,
     request: LighthouseScanRequest,
     current_user: User = Depends(get_current_user),
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick Lighthouse audit"""
-    # Create and execute
+    # Create test
     test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Lighthouse Scan: {request.target_url}",
@@ -102,24 +120,22 @@ async def run_lighthouse_audit(
         device_type=request.device_type
     )
     
-    # Return formatted result matching frontend expectation
-    # Frontend expects: {id, metrics: {...}, opportunities: [...]}
-    # We need to map our Test model + Metrics to this structure
-    # For now, return the internal model, assuming frontend uses the standard structure or we map it.
-    # Frontend uses `PerformanceTestResponse` usually? No, `LighthouseResult` interface in TS.
-    # We might need to implement a mapper here or rely on Pydantic response adaptation.
+    # Run in background
+    background_tasks.add_task(run_test_background, test.id)
+    
     return test
 
 
-@router.post("/load-test", response_model=Any)
+@router.post("/load-test", response_model=PerformanceTestResponse)
 async def run_load_test(
+    background_tasks: BackgroundTasks,
     project_id: UUID,
     request: LoadTestRequest,
     current_user: User = Depends(get_current_user),
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick load test"""
-    return await _create_and_run_test(
+    test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Load Test: {request.target_url}",
         test_type=TestType.LOAD,
@@ -127,28 +143,47 @@ async def run_load_test(
         virtual_users=request.virtual_users,
         duration_seconds=request.duration_seconds,
         ramp_up_seconds=request.ramp_up_seconds,
-        target_method=request.http_method
+        target_method=request.target_method
     )
+    
+    # Start execution in background
+    test.status = TestStatus.RUNNING
+    test.started_at = datetime.utcnow()
+    await service.db.commit()
+    await service.db.refresh(test)
+    background_tasks.add_task(run_test_background, test.id)
+    
+    return test
 
-@router.post("/stress-test", response_model=Any)
+@router.post("/stress-test", response_model=PerformanceTestResponse)
 async def run_stress_test(
+    background_tasks: BackgroundTasks,
     project_id: UUID,
     request: StressTestRequest,
     current_user: User = Depends(get_current_user),
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick stress test"""
-    return await _create_and_run_test(
+    test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Stress Test: {request.target_url}",
         test_type=TestType.STRESS,
         target_url=request.target_url,
         virtual_users=request.max_vus, # Use max as the target for simple execution logic
         stages=[ # Simple stage mapping
-            {"duration": request.step_duration, "target": request.start_vus + (request.step_size * i)}
+            {"duration": request.step_duration_seconds, "target": request.start_vus + (request.step_increase * i)}
             for i in range(5) # Example stages
         ]
     )
+    
+    # Start execution in background
+    test.status = TestStatus.RUNNING
+    test.started_at = datetime.utcnow()
+    await service.db.commit()
+    await service.db.refresh(test)
+    background_tasks.add_task(run_test_background, test.id)
+    
+    return test
 
 # =============================================================================
 # Standard CRUD
@@ -162,9 +197,15 @@ async def create_performance_test(
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Create a new performance test"""
+    # Fetch project to get organisation_id
+    result = await service.db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     return await service.create_test(
         project_id=project_id,
-        organisation_id=test_data.organisation_id, 
+        organisation_id=project.organisation_id, 
         user_id=current_user.id,
         name=test_data.name,
         test_type=test_data.test_type,
@@ -252,8 +293,16 @@ async def execute_performance_test(
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     
-    # Execute
-    return await service.execute_test(test_id)
+    # Execute in background
+    test.status = TestStatus.RUNNING
+    test.started_at = datetime.utcnow()
+    test.progress_percentage = 5
+    await service.db.commit()
+    await service.db.refresh(test)
+    
+    background_tasks.add_task(run_test_background, test.id)
+    
+    return test
 
 
 @router.get("/dashboard/{project_id}/stats", response_model=PerformanceDashboardStats)

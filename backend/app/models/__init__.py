@@ -106,7 +106,15 @@ from app.models.security_scan import (
     ComplianceFramework,
     ComplianceStatus,
     TargetType,
-    ScheduleFrequency,
+    ScheduleFrequency as SecurityScheduleFrequency,
+)
+from app.models.performance import (
+    PerformanceTest,
+    PerformanceMetrics,
+    TestExecution,
+    PerformanceAlert,
+    PerformanceSchedule,
+    PerformanceReport,
 )
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
@@ -201,7 +209,14 @@ __all__ = [
     "ComplianceFramework",
     "ComplianceStatus",
     "TargetType",
-    "ScheduleFrequency",
+    "SecurityScheduleFrequency",
+    # Performance Testing Models
+    "PerformanceTest",
+    "PerformanceMetrics",
+    "TestExecution",
+    "PerformanceAlert",
+    "PerformanceSchedule",
+    "PerformanceReport",
     # "Issue",
     # "IssueStatus",
     # "ApiCollection",
