@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: 'Cognitest - AI-Powered Testing Platform',
   description: 'A dynamic, self-evolving testing ecosystem powered by AI. Create comprehensive test plans, automate workflows, and ensure quality with intelligent agents.',
   keywords: ['testing', 'AI', 'automation', 'QA', 'test management'],
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
