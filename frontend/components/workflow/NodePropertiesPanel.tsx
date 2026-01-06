@@ -32,6 +32,7 @@ import {
     FileText,
     CheckCircle,
 } from 'lucide-react'
+import { ExpressionPreview } from './ExpressionPreview'
 
 interface NodePropertiesPanelProps {
     selectedNode: Node | null
@@ -161,8 +162,8 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     <button
                         onClick={() => setActiveTab('settings')}
                         className={`flex items-center gap-1.5 pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'settings'
-                                ? 'border-teal-500 text-teal-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-teal-500 text-teal-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         <Settings className="h-3.5 w-3.5" />
@@ -171,8 +172,8 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     <button
                         onClick={() => setActiveTab('advanced')}
                         className={`flex items-center gap-1.5 pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'advanced'
-                                ? 'border-teal-500 text-teal-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-teal-500 text-teal-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         <Code className="h-3.5 w-3.5" />
@@ -233,6 +234,7 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <>
                             {/* Advanced Settings */}
                             <div className="space-y-4">
+                                {/* Disabled Toggle */}
                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div>
                                         <Label className="text-gray-700 text-xs font-medium">Disabled</Label>
@@ -243,25 +245,120 @@ export const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         onCheckedChange={(checked) => handleUpdate({ disabled: checked })}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100" />
+
+                            {/* Error Handling Section */}
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Error Handling</h4>
+                                <div className="space-y-3">
                                     <div>
-                                        <Label className="text-gray-700 text-xs font-medium">Continue on Error</Label>
-                                        <p className="text-xs text-gray-500 mt-0.5">Don't stop workflow if this fails</p>
+                                        <Label className="text-gray-700 text-xs font-medium">On Error Action</Label>
+                                        <select
+                                            value={nodeData.onError || 'stop_workflow'}
+                                            onChange={(e) => handleUpdate({ onError: e.target.value })}
+                                            className="w-full mt-1.5 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500"
+                                        >
+                                            <option value="stop_workflow">Stop Workflow</option>
+                                            <option value="continue">Continue to Next Node</option>
+                                            <option value="retry_then_fail">Retry Then Fail</option>
+                                            <option value="retry_then_continue">Retry Then Continue</option>
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {nodeData.onError === 'continue' && 'Workflow continues even if this node fails'}
+                                            {nodeData.onError === 'retry_then_fail' && 'Retry according to policy, then fail if still unsuccessful'}
+                                            {nodeData.onError === 'retry_then_continue' && 'Retry, then continue workflow regardless of result'}
+                                            {(!nodeData.onError || nodeData.onError === 'stop_workflow') && 'Workflow stops immediately on error'}
+                                        </p>
                                     </div>
-                                    <Switch
-                                        checked={nodeData.continueOnError || false}
-                                        onCheckedChange={(checked) => handleUpdate({ continueOnError: checked })}
-                                    />
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div>
-                                        <Label className="text-gray-700 text-xs font-medium">Retry on Failure</Label>
-                                        <p className="text-xs text-gray-500 mt-0.5">Automatically retry if this fails</p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100" />
+
+                            {/* Retry Policy Section */}
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Retry Policy</h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <Label className="text-gray-700 text-xs font-medium">Enable Retries</Label>
+                                            <p className="text-xs text-gray-500 mt-0.5">Automatically retry on failure</p>
+                                        </div>
+                                        <Switch
+                                            checked={nodeData.retryEnabled || false}
+                                            onCheckedChange={(checked) => handleUpdate({ retryEnabled: checked })}
+                                        />
                                     </div>
-                                    <Switch
-                                        checked={nodeData.retryOnFailure || false}
-                                        onCheckedChange={(checked) => handleUpdate({ retryOnFailure: checked })}
-                                    />
+
+                                    {nodeData.retryEnabled && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <Label className="text-gray-700 text-xs font-medium">Max Retries</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        max={10}
+                                                        value={nodeData.maxRetries || 3}
+                                                        onChange={(e) => handleUpdate({ maxRetries: parseInt(e.target.value) || 3 })}
+                                                        className="mt-1.5 bg-gray-50 border-gray-200 focus:border-teal-500 focus:ring-teal-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-gray-700 text-xs font-medium">Delay (seconds)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        max={300}
+                                                        value={nodeData.retryDelay || 5}
+                                                        onChange={(e) => handleUpdate({ retryDelay: parseInt(e.target.value) || 5 })}
+                                                        className="mt-1.5 bg-gray-50 border-gray-200 focus:border-teal-500 focus:ring-teal-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-700 text-xs font-medium">Backoff Strategy</Label>
+                                                <select
+                                                    value={nodeData.backoffStrategy || 'exponential'}
+                                                    onChange={(e) => handleUpdate({ backoffStrategy: e.target.value })}
+                                                    className="w-full mt-1.5 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500"
+                                                >
+                                                    <option value="fixed">Fixed Delay</option>
+                                                    <option value="linear">Linear (delay × attempt)</option>
+                                                    <option value="exponential">Exponential (delay × 2^attempt)</option>
+                                                </select>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100" />
+
+                            {/* Variable Reference Helper */}
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Variable References</h4>
+                                <p className="text-xs text-gray-500 mb-3">
+                                    Use <code className="bg-gray-100 px-1 py-0.5 rounded text-teal-600">{'{{variable}}'}</code> syntax to reference data
+                                </p>
+                                <div className="space-y-2">
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                        <p className="text-xs font-medium text-gray-700 mb-1">Trigger Data</p>
+                                        <code className="text-xs text-teal-600 block">{'{{trigger.data.fieldName}}'}</code>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                        <p className="text-xs font-medium text-gray-700 mb-1">Previous Node Output</p>
+                                        <code className="text-xs text-teal-600 block">{'{{nodes.node_id.response}}'}</code>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                        <p className="text-xs font-medium text-gray-700 mb-1">Workflow Variables</p>
+                                        <code className="text-xs text-teal-600 block">{'{{variables.myVar}}'}</code>
+                                    </div>
                                 </div>
                             </div>
 
@@ -393,8 +490,9 @@ function renderNodeConfig(
                         value={config.body || ''}
                         onChange={(e) => onUpdate('body', e.target.value)}
                         className="mt-1.5 bg-gray-50 border-gray-200 h-24 font-mono text-xs resize-none focus:border-teal-500 focus:ring-teal-500"
-                        placeholder="Request body..."
+                        placeholder="Request body... Use {{variable}} for interpolation"
                     />
+                    <ExpressionPreview expression={config.body || ''} />
                 </div>
             </>
         )
@@ -454,10 +552,11 @@ function renderNodeConfig(
                     value={config.condition || ''}
                     onChange={(e) => onUpdate('condition', e.target.value)}
                     className="mt-1.5 bg-gray-50 border-gray-200 h-20 font-mono text-xs resize-none focus:border-teal-500 focus:ring-teal-500"
-                    placeholder="data.status === 'success'"
+                    placeholder="{{nodes.http-request-1.statusCode}} === 200"
                 />
+                <ExpressionPreview expression={config.condition || ''} />
                 <p className="text-xs text-gray-500 mt-1.5">
-                    JavaScript expression that evaluates to true/false
+                    Expression that evaluates to true/false. Use {`{{variable}}`} syntax.
                 </p>
             </div>
         )
@@ -482,8 +581,9 @@ function renderNodeConfig(
                         value={config.message || ''}
                         onChange={(e) => onUpdate('message', e.target.value)}
                         className="mt-1.5 bg-gray-50 border-gray-200 h-24 resize-none focus:border-teal-500 focus:ring-teal-500"
-                        placeholder="Workflow completed successfully!"
+                        placeholder="Use {{variables.testResult}} for dynamic content"
                     />
+                    <ExpressionPreview expression={config.message || ''} />
                 </div>
             </>
         )
@@ -508,8 +608,9 @@ function renderNodeConfig(
                         value={config.subject || ''}
                         onChange={(e) => onUpdate('subject', e.target.value)}
                         className="mt-1.5 bg-gray-50 border-gray-200 focus:border-teal-500 focus:ring-teal-500"
-                        placeholder="Email subject"
+                        placeholder="Test results for {{trigger.data.testName}}"
                     />
+                    <ExpressionPreview expression={config.subject || ''} />
                 </div>
                 <div>
                     <Label className="text-gray-700 text-xs font-medium">Body</Label>
@@ -517,8 +618,9 @@ function renderNodeConfig(
                         value={config.body || ''}
                         onChange={(e) => onUpdate('body', e.target.value)}
                         className="mt-1.5 bg-gray-50 border-gray-200 h-24 resize-none focus:border-teal-500 focus:ring-teal-500"
-                        placeholder="Email body content..."
+                        placeholder="Use {{variables}} for dynamic content..."
                     />
+                    <ExpressionPreview expression={config.body || ''} />
                 </div>
             </>
         )

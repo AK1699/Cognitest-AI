@@ -44,12 +44,14 @@ import {
     XCircle,
     Loader2,
     AlertCircle,
+    Sparkles,
 } from 'lucide-react'
 
 import { workflowAPI, WorkflowDetail, WorkflowNode, WorkflowEdge } from '@/lib/api/workflow'
 import { NodePalette } from './NodePalette'
 import { NodePropertiesModal } from './NodePropertiesModal'
 import { ExecutionMonitor } from './ExecutionMonitor'
+import { AIWorkflowPrompt } from './AIWorkflowPrompt'
 
 // Import custom node types
 import { TriggerNode } from './nodes/TriggerNode'
@@ -90,6 +92,7 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
     const [executionId, setExecutionId] = useState<string | null>(null)
     const [showMiniMap, setShowMiniMap] = useState(true)
     const [showGrid, setShowGrid] = useState(true)
+    const [showAIPanel, setShowAIPanel] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
@@ -332,6 +335,49 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
         }
     }
 
+    // Handle AI-generated workflow
+    const handleAIWorkflowGenerated = useCallback((
+        newNodes: Node[],
+        newEdges: Edge[],
+        metadata: { name: string; description: string; variables?: Record<string, any> }
+    ) => {
+        setNodes(newNodes)
+        setEdges(newEdges)
+        setWorkflowName(metadata.name)
+        setSuccess(`AI generated workflow: ${metadata.name}`)
+        setTimeout(() => setSuccess(null), 3000)
+    }, [setNodes, setEdges])
+
+    // Handle node status changes during execution
+    const handleNodeStatusChange = useCallback((
+        nodeId: string,
+        status: 'pending' | 'running' | 'completed' | 'failed'
+    ) => {
+        setNodes(nds => nds.map(node => {
+            if (node.id === nodeId) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        executionStatus: status
+                    }
+                }
+            }
+            return node
+        }))
+    }, [setNodes])
+
+    // Clear execution status from all nodes when execution ends
+    const clearNodeExecutionStatus = useCallback(() => {
+        setNodes(nds => nds.map(node => ({
+            ...node,
+            data: {
+                ...node.data,
+                executionStatus: undefined
+            }
+        })))
+    }, [setNodes])
+
     return (
         <div className="flex flex-col h-full w-full bg-gray-50">
             {/* Header */}
@@ -397,6 +443,16 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         className="text-zinc-400 border-zinc-700"
                     >
                         <Grid3X3 className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAIPanel(!showAIPanel)}
+                        className={`gap-1.5 ${showAIPanel ? 'text-teal-600 border-teal-300 bg-teal-50' : 'text-zinc-400 border-zinc-700'}`}
+                    >
+                        <Sparkles className="h-4 w-4" />
+                        AI
                     </Button>
 
                     <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -470,9 +526,18 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
                         )}
                         {showMiniMap && (
                             <MiniMap
-                                nodeColor="#d1d5db"
+                                nodeColor={(node) => {
+                                    const nodeType = node.data?.type || node.type || ''
+                                    if (nodeType.includes('trigger')) return '#10b981' // emerald
+                                    if (nodeType.includes('condition') || nodeType.includes('loop') || nodeType.includes('switch') || nodeType.includes('wait')) return '#8b5cf6' // violet
+                                    if (['slack', 'jira', 'github', 'gitlab', 'email', 'send-email', 'postgresql'].includes(nodeType)) return '#ec4899' // pink
+                                    return '#3b82f6' // blue for actions
+                                }}
                                 maskColor="rgba(255, 255, 255, 0.8)"
                                 className="bg-white border-gray-200"
+                                style={{ width: 150, height: 100 }}
+                                zoomable
+                                pannable
                             />
                         )}
 
@@ -512,7 +577,21 @@ export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
             {executionId && (
                 <ExecutionMonitor
                     executionId={executionId}
-                    onClose={() => setExecutionId(null)}
+                    onClose={() => {
+                        setExecutionId(null)
+                        clearNodeExecutionStatus()
+                    }}
+                    onNodeStatusChange={handleNodeStatusChange}
+                />
+            )}
+
+            {/* Bottom - AI Workflow Generator */}
+            {showAIPanel && (
+                <AIWorkflowPrompt
+                    projectId={projectId}
+                    onWorkflowGenerated={handleAIWorkflowGenerated}
+                    isCollapsed={false}
+                    onToggleCollapse={() => setShowAIPanel(!showAIPanel)}
                 />
             )}
         </div>

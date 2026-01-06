@@ -26,11 +26,13 @@ import { workflowAPI, ExecutionDetail, ExecutionStepSummary } from '@/lib/api/wo
 interface ExecutionMonitorProps {
     executionId: string
     onClose: () => void
+    onNodeStatusChange?: (nodeId: string, status: 'pending' | 'running' | 'completed' | 'failed') => void
 }
 
 export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
     executionId,
     onClose,
+    onNodeStatusChange,
 }) => {
     const [execution, setExecution] = useState<ExecutionDetail | null>(null)
     const [isExpanded, setIsExpanded] = useState(true)
@@ -103,8 +105,28 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                     current_node_id: data.node_id,
                     steps: prev.steps ? [...prev.steps, data.step] : [data.step]
                 } : null)
+                // Notify parent about node status change
+                if (onNodeStatusChange && data.node_id) {
+                    onNodeStatusChange(data.node_id, 'running')
+                }
                 break
             case 'step_completed':
+                setExecution(prev => {
+                    if (!prev) return null
+                    const updatedSteps = prev.steps.map(step =>
+                        step.node_id === data.node_id ? { ...step, ...data.step } : step
+                    )
+                    return {
+                        ...prev,
+                        completed_nodes: prev.completed_nodes + 1,
+                        steps: updatedSteps
+                    }
+                })
+                // Notify parent about node status change
+                if (onNodeStatusChange && data.node_id) {
+                    onNodeStatusChange(data.node_id, 'completed')
+                }
+                break
             case 'step_failed':
                 setExecution(prev => {
                     if (!prev) return null
@@ -113,11 +135,14 @@ export const ExecutionMonitor: React.FC<ExecutionMonitorProps> = ({
                     )
                     return {
                         ...prev,
-                        completed_nodes: prev.completed_nodes + (data.type === 'step_completed' ? 1 : 0),
-                        failed_nodes: prev.failed_nodes + (data.type === 'step_failed' ? 1 : 0),
+                        failed_nodes: prev.failed_nodes + 1,
                         steps: updatedSteps
                     }
                 })
+                // Notify parent about node status change
+                if (onNodeStatusChange && data.node_id) {
+                    onNodeStatusChange(data.node_id, 'failed')
+                }
                 break
             case 'log':
                 // Handle log messages

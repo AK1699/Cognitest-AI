@@ -172,6 +172,10 @@ class WorkflowDefinition(Base):
     notes = Column(Text, nullable=True)
     documentation_url = Column(String(1000), nullable=True)
 
+    # AI Generation Metadata
+    ai_generated = Column(Boolean, default=False)  # True if generated via AI prompt
+    ai_prompt = Column(Text, nullable=True)  # Original prompt used to generate workflow
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

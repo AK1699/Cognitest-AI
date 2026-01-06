@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from pydantic import BaseModel, Field
 from app.models.user import User
 from app.models.workflow import (
     WorkflowDefinition,
@@ -838,6 +839,130 @@ async def list_credentials(
     credentials = result.scalars().all()
     
     return [_credential_to_summary(cred) for cred in credentials]
+
+
+# ============================================================================
+# AI WORKFLOW GENERATION
+# ============================================================================
+
+class WorkflowGenerateRequest(BaseModel):
+    """Request schema for AI workflow generation"""
+    prompt: str = Field(..., min_length=10, max_length=2000, description="Natural language description of the workflow")
+    project_id: UUID = Field(..., description="Project to associate workflow with")
+
+
+class WorkflowGenerateResponse(BaseModel):
+    """Response schema for AI workflow generation"""
+    success: bool
+    workflow: Optional[Dict[str, Any]] = None
+    warnings: List[str] = []
+    error: Optional[str] = None
+
+
+class TemplateListItem(BaseModel):
+    """Template summary for listing"""
+    id: str
+    name: str
+    description: str
+    category: str
+    node_count: int
+
+
+@router.post("/generate", response_model=WorkflowGenerateResponse)
+async def generate_workflow_from_prompt(
+    request: WorkflowGenerateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate a workflow from natural language description using AI.
+    
+    This endpoint uses Gemini AI to convert a plain English description
+    into a valid workflow definition that can be edited and saved.
+    """
+    try:
+        from app.automation.workflows.ai_workflow_generator import get_ai_workflow_generator
+        
+        generator = get_ai_workflow_generator()
+        workflow_json, warnings = await generator.generate_workflow(
+            prompt=request.prompt,
+            project_id=str(request.project_id),
+            user_context={"user_id": str(current_user.id)}
+        )
+        
+        return WorkflowGenerateResponse(
+            success=True,
+            workflow=workflow_json,
+            warnings=warnings
+        )
+        
+    except ValueError as e:
+        return WorkflowGenerateResponse(
+            success=False,
+            error=str(e),
+            warnings=[]
+        )
+    except Exception as e:
+        logger.exception(f"AI workflow generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate workflow: {str(e)}"
+        )
+
+
+@router.get("/templates", response_model=List[TemplateListItem])
+async def list_workflow_templates(
+    category: Optional[str] = Query(None, description="Filter by category"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of available pre-built workflow templates.
+    
+    Templates provide starting points for common automation patterns
+    like smoke tests, health checks, and regression pipelines.
+    """
+    from app.automation.workflows.ai_workflow_generator import get_workflow_templates
+    
+    templates = get_workflow_templates(category=category)
+    return [TemplateListItem(**t) for t in templates]
+
+
+@router.get("/templates/{template_id}")
+async def get_workflow_template(
+    template_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a specific workflow template by ID.
+    
+    Returns the full template definition including nodes, edges, and variables
+    that can be used as a starting point for a new workflow.
+    """
+    from app.automation.workflows.ai_workflow_generator import get_workflow_template
+    
+    template = get_workflow_template(template_id)
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template '{template_id}' not found"
+        )
+    
+    return template
+
+
+@router.get("/ai/node-types")
+async def get_ai_supported_node_types(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get node types supported by AI workflow generation.
+    
+    Returns detailed information about each node type including
+    configuration schema for proper AI prompt engineering.
+    """
+    from app.automation.workflows.ai_workflow_generator import get_ai_workflow_generator
+    
+    generator = get_ai_workflow_generator()
+    return generator.get_supported_node_types()
 
 
 # ============================================================================

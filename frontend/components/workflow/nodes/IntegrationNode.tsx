@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
-import { MessageSquare, FileText, GitBranch, Database, Mail, Globe, Circle } from 'lucide-react'
+import { MessageSquare, FileText, GitBranch, Database, Mail, Globe, Circle, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 // Integration icons
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -55,6 +55,63 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
     const integrationType = data.type || 'webhook'
     const Icon = iconMap[integrationType] || Circle
     const colors = colorMap[integrationType] || { ring: 'border-pink-400', text: 'text-pink-400' }
+    const executionStatus = data.executionStatus // 'running' | 'completed' | 'failed' | 'pending' | undefined
+
+    // Execution status colors
+    const getStatusStyles = () => {
+        switch (executionStatus) {
+            case 'running':
+                return 'border-amber-400 shadow-lg shadow-amber-500/30 animate-pulse'
+            case 'completed':
+                return 'border-green-400 shadow-lg shadow-green-500/30'
+            case 'failed':
+                return 'border-red-400 shadow-lg shadow-red-500/30'
+            case 'pending':
+                return 'border-slate-500'
+            default:
+                return selected ? `${colors.ring} shadow-lg shadow-pink-500/30` : 'border-slate-600 hover:border-slate-500'
+        }
+    }
+
+    const getStatusIndicator = () => {
+        switch (executionStatus) {
+            case 'running':
+                return <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
+            case 'completed':
+                return <CheckCircle2 className="w-3 h-3 text-green-400" />
+            case 'failed':
+                return <XCircle className="w-3 h-3 text-red-400" />
+            default:
+                return null
+        }
+    }
+
+    // Get icon ring color based on execution status
+    const getIconRingColor = () => {
+        switch (executionStatus) {
+            case 'running':
+                return 'border-amber-400'
+            case 'completed':
+                return 'border-green-400'
+            case 'failed':
+                return 'border-red-400'
+            default:
+                return colors.ring
+        }
+    }
+
+    const getIconTextColor = () => {
+        switch (executionStatus) {
+            case 'running':
+                return 'text-amber-400'
+            case 'completed':
+                return 'text-green-400'
+            case 'failed':
+                return 'text-red-400'
+            default:
+                return colors.text
+        }
+    }
 
     return (
         <div className="flex flex-col items-center">
@@ -65,15 +122,19 @@ export const IntegrationNode: React.FC<NodeProps> = memo(({ data, selected }) =>
                     bg-slate-800 border-2
                     flex items-center justify-center
                     transition-all duration-200
-                    ${selected
-                        ? `${colors.ring} shadow-lg shadow-pink-500/30`
-                        : 'border-slate-600 hover:border-slate-500'
-                    }
+                    ${getStatusStyles()}
                 `}
             >
+                {/* Execution status indicator */}
+                {executionStatus && executionStatus !== 'pending' && (
+                    <div className="absolute -top-1 -right-1 bg-slate-900 rounded-full p-0.5 z-10">
+                        {getStatusIndicator()}
+                    </div>
+                )}
+
                 {/* Icon with colored ring */}
-                <div className={`w-9 h-9 rounded-full border-2 ${colors.ring} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${colors.text}`} />
+                <div className={`w-9 h-9 rounded-full border-2 ${getIconRingColor()} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${getIconTextColor()}`} />
                 </div>
 
                 {/* "+" indicator for the last node (n8n style) */}

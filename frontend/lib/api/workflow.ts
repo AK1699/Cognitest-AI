@@ -473,6 +473,56 @@ export const workflowAPI = {
         return response.data
     },
 
+    // ==================== AI Generation ====================
+
+    /**
+     * Generate workflow from natural language prompt
+     */
+    generate: async (data: {
+        prompt: string
+        project_id: string
+    }): Promise<{
+        success: boolean
+        workflow?: Record<string, any>
+        warnings: string[]
+        error?: string
+    }> => {
+        const response = await api.post('/workflows/generate', data)
+        return response.data
+    },
+
+    /**
+     * Get available workflow templates
+     */
+    getTemplates: async (category?: string): Promise<Array<{
+        id: string
+        name: string
+        description: string
+        category: string
+        node_count: number
+    }>> => {
+        const response = await api.get('/workflows/templates', {
+            params: category ? { category } : {}
+        })
+        return response.data
+    },
+
+    /**
+     * Get a specific workflow template
+     */
+    getTemplate: async (templateId: string): Promise<Record<string, any>> => {
+        const response = await api.get(`/workflows/templates/${templateId}`)
+        return response.data
+    },
+
+    /**
+     * Get AI-supported node types
+     */
+    getAINodeTypes: async (): Promise<Record<string, any>> => {
+        const response = await api.get('/workflows/ai/node-types')
+        return response.data
+    },
+
     // ==================== WebSocket ====================
 
     /**
@@ -485,3 +535,4 @@ export const workflowAPI = {
 }
 
 export default workflowAPI
+

@@ -141,6 +141,8 @@ class WorkflowCreate(BaseModel):
     category: Optional[str] = None
     icon: Optional[str] = None
     color: Optional[str] = None
+    ai_generated: bool = False
+    ai_prompt: Optional[str] = None
 
 
 class WorkflowUpdate(BaseModel):
@@ -184,6 +186,7 @@ class WorkflowSummary(BaseModel):
     failed_executions: int = 0
     last_execution_status: Optional[str] = None
     last_executed_at: Optional[datetime] = None
+    ai_generated: bool = False
     
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -229,6 +232,8 @@ class WorkflowDetail(BaseModel):
     average_duration_ms: int = 0
     last_execution_status: Optional[str] = None
     last_executed_at: Optional[datetime] = None
+    ai_generated: bool = False
+    ai_prompt: Optional[str] = None
     
     created_at: datetime
     updated_at: Optional[datetime] = None

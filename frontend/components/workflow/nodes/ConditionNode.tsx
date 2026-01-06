@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
-import { GitBranch, GitMerge, Repeat, Timer, Link2 } from 'lucide-react'
+import { GitBranch, GitMerge, Repeat, Timer, Link2, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 const iconMap: Record<string, React.ComponentType<any>> = {
     'if-condition': GitBranch,
@@ -17,6 +17,62 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
     const isLoop = data.type === 'loop'
     const isIfCondition = data.type === 'if-condition'
     const isMerge = data.type === 'merge' || data.type === 'switch'
+    const executionStatus = data.executionStatus // 'running' | 'completed' | 'failed' | 'pending' | undefined
+
+    // Execution status colors
+    const getStatusStyles = (baseColor: string) => {
+        switch (executionStatus) {
+            case 'running':
+                return 'border-amber-400 shadow-lg shadow-amber-500/30 animate-pulse'
+            case 'completed':
+                return 'border-green-400 shadow-lg shadow-green-500/30'
+            case 'failed':
+                return 'border-red-400 shadow-lg shadow-red-500/30'
+            case 'pending':
+                return 'border-slate-500'
+            default:
+                return selected ? `border-${baseColor}-400 shadow-lg shadow-${baseColor}-500/30` : 'border-slate-600 hover:border-slate-500'
+        }
+    }
+
+    const getStatusIndicator = () => {
+        switch (executionStatus) {
+            case 'running':
+                return <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
+            case 'completed':
+                return <CheckCircle2 className="w-3 h-3 text-green-400" />
+            case 'failed':
+                return <XCircle className="w-3 h-3 text-red-400" />
+            default:
+                return null
+        }
+    }
+
+    const getIconColor = (baseColor: string) => {
+        switch (executionStatus) {
+            case 'running':
+                return 'text-amber-400'
+            case 'completed':
+                return 'text-green-400'
+            case 'failed':
+                return 'text-red-400'
+            default:
+                return `text-${baseColor}-400`
+        }
+    }
+
+    const getIconBorderColor = (baseColor: string) => {
+        switch (executionStatus) {
+            case 'running':
+                return 'border-amber-400'
+            case 'completed':
+                return 'border-green-400'
+            case 'failed':
+                return 'border-red-400'
+            default:
+                return `border-${baseColor}-400`
+        }
+    }
 
     // For merge-style nodes (multiple inputs on left)
     if (isMerge) {
@@ -29,14 +85,22 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
                         bg-slate-800 border-2
                         flex items-center justify-center
                         transition-all duration-200
-                        ${selected
-                            ? 'border-cyan-400 shadow-lg shadow-cyan-500/30'
-                            : 'border-slate-600 hover:border-slate-500'
+                        ${executionStatus === 'running' ? 'border-amber-400 shadow-lg shadow-amber-500/30 animate-pulse' :
+                            executionStatus === 'completed' ? 'border-green-400 shadow-lg shadow-green-500/30' :
+                                executionStatus === 'failed' ? 'border-red-400 shadow-lg shadow-red-500/30' :
+                                    selected ? 'border-cyan-400 shadow-lg shadow-cyan-500/30' : 'border-slate-600 hover:border-slate-500'
                         }
                     `}
                 >
+                    {/* Execution status indicator */}
+                    {executionStatus && executionStatus !== 'pending' && (
+                        <div className="absolute -top-1 -right-1 bg-slate-900 rounded-full p-0.5 z-10">
+                            {getStatusIndicator()}
+                        </div>
+                    )}
+
                     {/* Icon */}
-                    <Link2 className="w-6 h-6 text-cyan-400" />
+                    <Link2 className={`w-6 h-6 ${getIconColor('cyan')}`} />
 
                     {/* Multiple input handles on LEFT */}
                     <Handle
@@ -92,15 +156,23 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
                     bg-slate-800 border-2
                     flex items-center justify-center
                     transition-all duration-200
-                    ${selected
-                        ? 'border-violet-400 shadow-lg shadow-violet-500/30'
-                        : 'border-slate-600 hover:border-slate-500'
+                    ${executionStatus === 'running' ? 'border-amber-400 shadow-lg shadow-amber-500/30 animate-pulse' :
+                        executionStatus === 'completed' ? 'border-green-400 shadow-lg shadow-green-500/30' :
+                            executionStatus === 'failed' ? 'border-red-400 shadow-lg shadow-red-500/30' :
+                                selected ? 'border-violet-400 shadow-lg shadow-violet-500/30' : 'border-slate-600 hover:border-slate-500'
                     }
                 `}
             >
+                {/* Execution status indicator */}
+                {executionStatus && executionStatus !== 'pending' && (
+                    <div className="absolute -top-1 -right-1 bg-slate-900 rounded-full p-0.5 z-10">
+                        {getStatusIndicator()}
+                    </div>
+                )}
+
                 {/* Icon with ring for condition nodes */}
-                <div className="w-9 h-9 rounded-full border-2 border-violet-400 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-violet-400" />
+                <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center ${getIconBorderColor('violet')}`}>
+                    <Icon className={`w-5 h-5 ${getIconColor('violet')}`} />
                 </div>
 
                 {/* Disabled overlay */}
