@@ -400,6 +400,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<PagePara
                   router.push(`/organizations/${uuid}/projects/${projectId}/security-testing`)
                 } else if (item.id === 'performance-testing') {
                   router.push(`/organizations/${uuid}/projects/${projectId}/performance-testing`)
+                } else if (item.id === 'api-testing') {
+                  router.push(`/organizations/${uuid}/projects/${projectId}/api-testing`)
                 } else {
                   setActiveTab(item.id)
                 }
