@@ -1,0 +1,102 @@
+from pydantic import BaseModel, Field, HttpUrl
+from typing import Dict, Any, Optional, List
+from uuid import UUID
+from datetime import datetime
+
+# --- Proxy Schemas ---
+class ProxyRequest(BaseModel):
+    method: str = Field(..., description="HTTP Method")
+    url: str = Field(..., description="Target URL")
+    headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="Request Headers")
+    body: Optional[Any] = Field(None, description="Request Body")
+
+class ProxyResponse(BaseModel):
+    status: int
+    statusText: str
+    time: float
+    size: float
+    headers: Dict[str, str]
+    body: Any
+    cookies: Dict[str, str]
+
+# --- Database Schemas ---
+
+class APIRequestBase(BaseModel):
+    name: str
+    method: str = "GET"
+    url: str = ""
+    params: List[Dict[str, Any]] = []
+    headers: List[Dict[str, Any]] = []
+    body: Dict[str, Any] = {"type": "none", "content": ""}
+    auth: Dict[str, Any] = {"type": "none"}
+    pre_request_script: Optional[str] = None
+    test_script: Optional[str] = None
+    order: int = 0
+
+class APIRequestCreate(APIRequestBase):
+    collection_id: UUID
+
+class APIRequestUpdate(BaseModel):
+    name: Optional[str] = None
+    method: Optional[str] = None
+    url: Optional[str] = None
+    params: Optional[List[Dict[str, Any]]] = None
+    headers: Optional[List[Dict[str, Any]]] = None
+    body: Optional[Dict[str, Any]] = None
+    auth: Optional[Dict[str, Any]] = None
+    pre_request_script: Optional[str] = None
+    test_script: Optional[str] = None
+    order: Optional[int] = None
+
+class APIRequest(APIRequestBase):
+    id: UUID
+    collection_id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+class APIFolderOut(BaseModel):
+    id: UUID
+    name: str
+    parent_id: Optional[UUID]
+    requests: List[APIRequest] = []
+    folders: List['APIFolderOut'] = []
+
+    class Config:
+        from_attributes = True
+
+class APICollectionBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    project_id: UUID
+    parent_id: Optional[UUID] = None
+
+class APICollectionCreate(APICollectionBase):
+    pass
+
+class APICollectionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class APICollection(APICollectionBase):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime]
+    api_requests: List[APIRequest] = []
+    children: List['APICollection'] = []
+
+    class Config:
+        from_attributes = True
+
+# For the tree view
+class APICollectionTree(BaseModel):
+    id: UUID
+    name: str
+    parent_id: Optional[UUID]
+    requests: List[APIRequest] = []
+    folders: List['APICollectionTree'] = []
+    
+    class Config:
+        from_attributes = True

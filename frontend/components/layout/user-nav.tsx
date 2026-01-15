@@ -10,9 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/lib/auth-context"
-import { Building2, Plus, LogOut, Check, User, Settings, HelpCircle, ChevronDown } from 'lucide-react'
+import { Building2, Plus, LogOut, Check, User, Settings, HelpCircle, ChevronDown, Moon, Sun, Monitor } from 'lucide-react'
 import { useOrganizationStore } from '@/lib/store/organization-store'
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 
 interface Organisation {
   id: string
@@ -28,6 +29,7 @@ export function UserNav() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   // Use organization store instead of local state
   const {
@@ -60,8 +62,8 @@ export function UserNav() {
             </div>
             {/* Role Badge */}
             <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-sm border-2 border-white ${userRole === 'owner' ? 'bg-red-500' :
-                userRole === 'admin' ? 'bg-amber-500' :
-                  userRole === 'member' ? 'bg-green-500' : 'bg-gray-500'
+              userRole === 'admin' ? 'bg-amber-500' :
+                userRole === 'member' ? 'bg-green-500' : 'bg-gray-500'
               }`}>
               <User className="w-2.5 h-2.5 text-white" />
             </div>
@@ -72,9 +74,9 @@ export function UserNav() {
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${userRole === 'owner' ? 'bg-red-100 text-red-700' :
-                  userRole === 'admin' ? 'bg-amber-100 text-amber-700' :
-                    userRole === 'member' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-700'
+                userRole === 'admin' ? 'bg-amber-100 text-amber-700' :
+                  userRole === 'member' ? 'bg-green-100 text-green-700' :
+                    'bg-gray-100 text-gray-700'
                 }`}>
                 {userRole === 'owner' ? 'Owner' :
                   userRole === 'admin' ? 'Administrator' :
@@ -173,6 +175,8 @@ export function UserNav() {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        {/* Sign Out */}
 
         {/* Sign Out */}
         <DropdownMenuItem

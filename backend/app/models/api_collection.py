@@ -1,39 +1,24 @@
 from sqlalchemy import Column, String, DateTime, JSON, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 import uuid
 import enum
 
 from app.core.database import Base
 
-class HttpMethod(str, enum.Enum):
-    GET = "GET"
-    POST = "POST"
-    PUT = "PUT"
-    PATCH = "PATCH"
-    DELETE = "DELETE"
-    HEAD = "HEAD"
-    OPTIONS = "OPTIONS"
-
 class ApiCollection(Base):
     __tablename__ = "api_collections"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("api_collections.id", ondelete="CASCADE"), nullable=True)
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    # API Requests
-    requests = Column(JSON, default=list)  # List of API request objects
-
-    # Environment variables
+    # Environment variables (optionally stored at collection level)
     environment = Column(JSON, default=dict)
-
-    # Import source
-    imported_from = Column(String(100), nullable=True)  # "openapi", "postman", "manual"
-    source_url = Column(String(500), nullable=True)
 
     # Metadata
     tags = Column(JSON, default=list)
@@ -42,10 +27,14 @@ class ApiCollection(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(255), nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     # Relationships
     project = relationship("Project", back_populates="api_collections")
+    api_requests = relationship("APIRequest", back_populates="collection", cascade="all, delete-orphan", order_by="APIRequest.order")
+    
+    # Self-referential relationship for folders
+    children = relationship("ApiCollection", backref=backref("parent", remote_side=[id]), cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<ApiCollection {self.name}>"

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets, api_testing
 from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
 
 api_router = APIRouter()
@@ -55,3 +55,7 @@ api_router.include_router(security_advanced.router, tags=["security-advanced"])
 # Performance Testing Module - Load testing, Lighthouse, k6, BlazeMeter competitor
 from app.api.v1 import performance
 api_router.include_router(performance.router, prefix="/performance", tags=["performance-testing"])
+
+# API Testing Proxy
+api_router.include_router(api_testing.router, prefix="/api-testing", tags=["api-testing"])
+
