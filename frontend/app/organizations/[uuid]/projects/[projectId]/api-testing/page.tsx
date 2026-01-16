@@ -1311,6 +1311,14 @@ export default function APITestingPage() {
                                     />
                                 </button>
                             ))}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={addNewRequest}
+                                className="h-7 px-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1 shrink-0"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                            </Button>
                         </div>
                     </ScrollArea>
                     {openRequests.length > 0 && (
@@ -1321,14 +1329,6 @@ export default function APITestingPage() {
                             Close All
                         </button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={addNewRequest}
-                        className="h-8 px-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-                    >
-                        Add <Plus className="w-3 h-3" />
-                    </Button>
                 </div>
             </div>
 
