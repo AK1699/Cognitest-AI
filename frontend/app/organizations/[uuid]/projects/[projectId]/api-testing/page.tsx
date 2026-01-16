@@ -44,6 +44,7 @@ import { CodeEditor } from '@/components/api-testing/CodeEditor'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EnvironmentManager, type Environment, type EnvironmentVariable } from '@/components/api-testing/EnvironmentManager'
+import { HighlightedInput } from '@/components/api-testing/HighlightedInput'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Select,
@@ -1925,11 +1926,13 @@ export default function APITestingPage() {
                                         </div>
                                     )}
                                     <div className="flex-1 px-1">
-                                        <input
-                                            className="w-full text-base font-medium bg-transparent border-none outline-none p-2 text-gray-700 placeholder:text-gray-300 placeholder:font-normal"
+                                        <HighlightedInput
+                                            className="w-full text-base font-medium"
                                             value={activeRequest.url}
                                             onChange={(e) => updateActiveRequest({ url: e.target.value })}
                                             placeholder="Enter request URL (e.g. https://api.example.com/data)"
+                                            resolveVariable={(val) => interpolateVariables(val)}
+                                            variables={selectedEnvId ? environments.find(e => e.id === selectedEnvId)?.variables.filter(v => v.enabled) : []}
                                         />
                                     </div>
                                     <div className="flex items-center gap-1.5 px-2">
