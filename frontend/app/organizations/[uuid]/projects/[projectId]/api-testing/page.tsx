@@ -229,28 +229,31 @@ const getStatusColor = (status: number) => {
 const formatResponseBody = (body: any, mode: string): string => {
     if (!body) return ''
 
-    const content = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body)
+    // Base content string
+    const contentStr = typeof body === 'object' ? JSON.stringify(body) : String(body)
+
+    // For pretty printing (default JSON view)
+    const prettyContent = typeof body === 'object' ? JSON.stringify(body, null, 2) :
+        (typeof body === 'string' && (body.startsWith('{') || body.startsWith('['))) ?
+            (() => { try { return JSON.stringify(JSON.parse(body), null, 2) } catch { return body } })() : body
 
     switch (mode) {
-        case 'json':
         case 'pretty':
-            return content
+        case 'json':
+            return prettyContent
         case 'xml':
         case 'html':
-            // TODO: Add proper XML/HTML formatting if needed. For now return as-is.
-            // If it was parsed as JSON but user wants XML, we might show the JSON string
-            // or attempt to convert (complex). For now, just showing content is safer.
-            return content
+            return contentStr
         case 'hex':
-            return content.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')
+            return contentStr.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')
         case 'base64':
-            return btoa(content)
+            return btoa(contentStr)
         case 'raw':
         case 'text':
         case 'javascript':
-            return content
+            return contentStr
         default:
-            return content
+            return contentStr
     }
 }
 
@@ -445,7 +448,8 @@ export default function APITestingPage() {
     // Active UI tabs
     const [activeConfigTab, setActiveConfigTab] = useState('params')
     const [activeResponseTab, setActiveResponseTab] = useState('body')
-    const [responseBodyMode, setResponseBodyMode] = useState<'pretty' | 'raw' | 'preview' | 'text' | 'xml' | 'html' | 'javascript' | 'hex' | 'base64'>('pretty')
+    const [responseBodyMode, setResponseBodyMode] = useState<'pretty' | 'raw' | 'text' | 'xml' | 'html' | 'javascript' | 'hex' | 'base64'>('pretty')
+    const [showPreview, setShowPreview] = useState(false)
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
     const [lastUsedProtocol, setLastUsedProtocol] = useState<APIRequest['protocol']>('http')
@@ -2600,12 +2604,12 @@ export default function APITestingPage() {
                                                 </TabsList>
 
                                                 <div className="flex-1 flex flex-col overflow-hidden">
-                                                    <TabsContent value="body" className="m-0 p-0 flex flex-col h-full overflow-hidden">
+                                                    <TabsContent value="body" className="m-0 p-0 data-[state=active]:flex flex-col h-full overflow-hidden">
                                                         <div className="flex flex-col border-b border-gray-100 bg-white sticky top-0 z-10">
                                                             <div className="flex items-center justify-between px-4 py-2">
                                                                 <div className="flex items-center gap-1">
                                                                     <Select
-                                                                        value={responseBodyMode === 'preview' ? 'pretty' : responseBodyMode}
+                                                                        value={responseBodyMode}
                                                                         onValueChange={(val) => setResponseBodyMode(val as any)}
                                                                     >
                                                                         <SelectTrigger className="h-7 gap-2 text-xs font-bold border-none shadow-none focus:ring-0 px-2 hover:bg-gray-50 data-[state=open]:bg-gray-100 min-w-[90px]">
@@ -2618,10 +2622,9 @@ export default function APITestingPage() {
                                                                             {responseBodyMode === 'base64' && <Binary className="w-3.5 h-3.5 text-primary" />}
 
                                                                             <span className="uppercase">
-                                                                                {responseBodyMode === 'preview' ? 'JSON' :
-                                                                                    responseBodyMode === 'pretty' ? 'JSON' :
-                                                                                        responseBodyMode === 'javascript' ? 'JavaScript' :
-                                                                                            responseBodyMode}
+                                                                                {responseBodyMode === 'pretty' ? 'JSON' :
+                                                                                    responseBodyMode === 'javascript' ? 'JavaScript' :
+                                                                                        responseBodyMode}
                                                                             </span>
                                                                         </SelectTrigger>
                                                                         <SelectContent align="start" className="min-w-[180px]">
@@ -2676,8 +2679,8 @@ export default function APITestingPage() {
                                                                     <div className="h-4 w-[1px] bg-gray-200 mx-2" />
 
                                                                     <button
-                                                                        onClick={() => setResponseBodyMode('preview')}
-                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${responseBodyMode === 'preview'
+                                                                        onClick={() => setShowPreview(!showPreview)}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${showPreview
                                                                             ? 'bg-gray-100 text-gray-900'
                                                                             : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                                                                             }`}
@@ -2715,7 +2718,7 @@ export default function APITestingPage() {
                                                         </div>
 
                                                         <div className="flex-1 p-4 overflow-auto">
-                                                            {responseBodyMode !== 'preview' ? (
+                                                            {!showPreview ? (
                                                                 <CodeEditor
                                                                     value={formatResponseBody(response.body, responseBodyMode)}
                                                                     onChange={() => { }}
