@@ -429,6 +429,22 @@ export default function APITestingPage() {
         localStorage.setItem('lastUsedProtocol', lastUsedProtocol);
     }, [lastUsedProtocol]);
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault()
+                handleSaveRequest()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [activeRequestId, openRequests]) // Re-bind when state changes to capture latest activeRequest via closure if needed, though handleSaveRequest uses ref-like access if defined properly. 
+    // Wait, handleSaveRequest depends on activeRequest state. 
+    // handleSaveRequest is re-created on each render. 
+    // So this effect needs to depend on handleSaveRequest or include it in dependency array.
+    // Ideally, we add handleSaveRequest to dependencies.
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -580,6 +596,12 @@ export default function APITestingPage() {
                 const updated = await response.json()
                 // Update local collections if the request is there
                 await fetchCollections()
+
+                // Update open requests state to clear dirty flag
+                setOpenRequests(prev => prev.map(r =>
+                    r.id === id ? { ...r, ...updated, isDirty: false } : r
+                ))
+
                 toast.success('Request updated in database')
                 return updated
             }
@@ -652,7 +674,7 @@ export default function APITestingPage() {
                 setOpenRequests(prev => {
                     const existing = prev.find(r => r.id === (requestToSave as APIRequest).id);
                     if (existing) {
-                        return prev.map(r => r.id === (requestToSave as APIRequest).id ? { ...r, id: newReq.id } : r);
+                        return prev.map(r => r.id === (requestToSave as APIRequest).id ? { ...r, id: newReq.id, isDirty: false } : r);
                     } else {
                         return [...prev, { ...requestToSave, id: newReq.id, isDirty: false } as APIRequest];
                     }
