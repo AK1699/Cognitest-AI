@@ -9,7 +9,7 @@ import {
     Settings, Settings2, Clock, Copy, Check, AlertCircle, Loader2,
     Sparkles, MessageSquare, Code2, Eye, FileText, Cookie,
     Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2,
-    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap
+    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap, WrapText, Search, Binary
 } from 'lucide-react'
 import { HttpIcon } from '@/components/icons/HttpIcon'
 import { GraphqlIcon } from '@/components/icons/GraphqlIcon'
@@ -225,6 +225,35 @@ const getStatusColor = (status: number) => {
     return 'text-gray-600 bg-gray-50'
 }
 
+// Response body formatter
+const formatResponseBody = (body: any, mode: string): string => {
+    if (!body) return ''
+
+    const content = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body)
+
+    switch (mode) {
+        case 'json':
+        case 'pretty':
+            return content
+        case 'xml':
+        case 'html':
+            // TODO: Add proper XML/HTML formatting if needed. For now return as-is.
+            // If it was parsed as JSON but user wants XML, we might show the JSON string
+            // or attempt to convert (complex). For now, just showing content is safer.
+            return content
+        case 'hex':
+            return content.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')
+        case 'base64':
+            return btoa(content)
+        case 'raw':
+        case 'text':
+        case 'javascript':
+            return content
+        default:
+            return content
+    }
+}
+
 // Drag and Drop Components
 const DraggableItem = ({ id, children, type, name }: { id: string; children: React.ReactNode; type: string; name: string }) => {
     const {
@@ -416,7 +445,7 @@ export default function APITestingPage() {
     // Active UI tabs
     const [activeConfigTab, setActiveConfigTab] = useState('params')
     const [activeResponseTab, setActiveResponseTab] = useState('body')
-    const [responseBodyMode, setResponseBodyMode] = useState<'pretty' | 'raw' | 'preview'>('pretty')
+    const [responseBodyMode, setResponseBodyMode] = useState<'pretty' | 'raw' | 'preview' | 'text' | 'xml' | 'html' | 'javascript' | 'hex' | 'base64'>('pretty')
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
     const [lastUsedProtocol, setLastUsedProtocol] = useState<APIRequest['protocol']>('http')
@@ -2570,50 +2599,133 @@ export default function APITestingPage() {
                                                     </TabsTrigger>
                                                 </TabsList>
 
-                                                <ScrollArea className="flex-1">
+                                                <div className="flex-1 flex flex-col overflow-hidden">
                                                     <TabsContent value="body" className="m-0 p-0 flex flex-col h-full overflow-hidden">
-                                                        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                                                            <div className="flex bg-gray-100/50 p-0.5 rounded-lg border border-gray-200/50">
-                                                                {(['pretty', 'raw', 'preview'] as const).map((mode) => (
-                                                                    <button
-                                                                        key={mode}
-                                                                        onClick={() => setResponseBodyMode(mode)}
-                                                                        className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${responseBodyMode === mode ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                        <div className="flex flex-col border-b border-gray-100 bg-white sticky top-0 z-10">
+                                                            <div className="flex items-center justify-between px-4 py-2">
+                                                                <div className="flex items-center gap-1">
+                                                                    <Select
+                                                                        value={responseBodyMode === 'preview' ? 'pretty' : responseBodyMode}
+                                                                        onValueChange={(val) => setResponseBodyMode(val as any)}
                                                                     >
-                                                                        {mode}
+                                                                        <SelectTrigger className="h-7 gap-2 text-xs font-bold border-none shadow-none focus:ring-0 px-2 hover:bg-gray-50 data-[state=open]:bg-gray-100 min-w-[90px]">
+                                                                            {responseBodyMode === 'pretty' && <span className="text-primary font-black">{'{ }'}</span>}
+                                                                            {responseBodyMode === 'xml' && <Code2 className="w-3.5 h-3.5 text-primary" />}
+                                                                            {responseBodyMode === 'html' && <Code2 className="w-3.5 h-3.5 text-primary" />}
+                                                                            {responseBodyMode === 'javascript' && <span className="text-primary font-black text-[10px]">JS</span>}
+                                                                            {responseBodyMode === 'raw' && <FileText className="w-3.5 h-3.5 text-primary" />}
+                                                                            {responseBodyMode === 'hex' && <Binary className="w-3.5 h-3.5 text-primary" />}
+                                                                            {responseBodyMode === 'base64' && <Binary className="w-3.5 h-3.5 text-primary" />}
+
+                                                                            <span className="uppercase">
+                                                                                {responseBodyMode === 'preview' ? 'JSON' :
+                                                                                    responseBodyMode === 'pretty' ? 'JSON' :
+                                                                                        responseBodyMode === 'javascript' ? 'JavaScript' :
+                                                                                            responseBodyMode}
+                                                                            </span>
+                                                                        </SelectTrigger>
+                                                                        <SelectContent align="start" className="min-w-[180px]">
+                                                                            <SelectItem value="pretty" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <span className="font-mono font-bold text-xs">{'{ }'}</span>
+                                                                                    <span>JSON</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                            <SelectItem value="xml" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <Code2 className="w-3.5 h-3.5" />
+                                                                                    <span>XML</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                            <SelectItem value="html" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <Code2 className="w-3.5 h-3.5" />
+                                                                                    <span>HTML</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                            <SelectItem value="javascript" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <span className="font-mono font-bold text-xs">JS</span>
+                                                                                    <span>JavaScript</span>
+                                                                                </div>
+                                                                            </SelectItem>
+
+                                                                            <div className="h-[1px] bg-gray-100 my-1 mx-2" />
+
+                                                                            <SelectItem value="raw" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <FileText className="w-3.5 h-3.5" />
+                                                                                    <span>Raw</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                            <SelectItem value="hex" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <span className="font-mono font-bold text-xs">0x</span>
+                                                                                    <span>Hex</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                            <SelectItem value="base64" className="gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <span className="font-mono font-bold text-xs">64</span>
+                                                                                    <span>Base64</span>
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+
+                                                                    <div className="h-4 w-[1px] bg-gray-200 mx-2" />
+
+                                                                    <button
+                                                                        onClick={() => setResponseBodyMode('preview')}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${responseBodyMode === 'preview'
+                                                                            ? 'bg-gray-100 text-gray-900'
+                                                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                                                            }`}
+                                                                    >
+                                                                        <Play className="w-3 h-3 fill-current" />
+                                                                        Preview
                                                                     </button>
-                                                                ))}
+                                                                </div>
+
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-900">
+                                                                        <WrapText className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-900">
+                                                                        <Search className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-900" onClick={() => {
+                                                                        navigator.clipboard.writeText(JSON.stringify(response.body, null, 2));
+                                                                        toast.success('Copied to clipboard');
+                                                                    }}>
+                                                                        <Copy className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Select defaultValue="json">
-                                                                    <SelectTrigger className="h-6 w-20 text-[10px] uppercase font-bold border-none bg-transparent">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="json">JSON</SelectItem>
-                                                                        <SelectItem value="xml">XML</SelectItem>
-                                                                        <SelectItem value="html">HTML</SelectItem>
-                                                                        <SelectItem value="text">Text</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] font-bold text-gray-400" onClick={() => {
-                                                                    navigator.clipboard.writeText(JSON.stringify(response.body, null, 2));
-                                                                    toast.success('Copied to clipboard');
-                                                                }}>
-                                                                    <Copy className="w-3 h-3 mr-1" />
-                                                                    COPY
-                                                                </Button>
+                                                            {/* Filter Bar */}
+                                                            <div className="px-4 py-2 border-t border-gray-50 flex items-center gap-2">
+                                                                <span className="text-xs text-gray-400 font-medium">Filter using JSONPath:</span>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="$.store.book[*].author"
+                                                                    className="flex-1 bg-transparent border-none text-xs font-mono focus:ring-0 p-0 text-gray-600 placeholder:text-gray-300"
+                                                                    disabled
+                                                                />
                                                             </div>
                                                         </div>
 
                                                         <div className="flex-1 p-4 overflow-auto">
-                                                            {responseBodyMode === 'pretty' || responseBodyMode === 'raw' ? (
+                                                            {responseBodyMode !== 'preview' ? (
                                                                 <CodeEditor
-                                                                    value={typeof response.body === 'object'
-                                                                        ? JSON.stringify(response.body, null, 2)
-                                                                        : String(response.body)}
+                                                                    value={formatResponseBody(response.body, responseBodyMode)}
                                                                     onChange={() => { }}
-                                                                    language="json"
+                                                                    language={
+                                                                        responseBodyMode === 'pretty' ? 'json' :
+                                                                            responseBodyMode === 'javascript' ? 'javascript' :
+                                                                                responseBodyMode === 'html' ? 'html' :
+                                                                                    responseBodyMode === 'xml' ? 'xml' :
+                                                                                        'text'
+                                                                    }
                                                                     height="100%"
                                                                     readOnly={true}
                                                                 />
@@ -2629,7 +2741,7 @@ export default function APITestingPage() {
                                                         </div>
                                                     </TabsContent>
 
-                                                    <TabsContent value="headers" className="m-0 p-4">
+                                                    <TabsContent value="headers" className="m-0 p-4 h-full overflow-auto">
                                                         <div className="space-y-2">
                                                             {Object.entries(response.headers).map(([key, value]) => (
                                                                 <div key={key} className="flex items-start gap-2 text-sm">
@@ -2640,7 +2752,7 @@ export default function APITestingPage() {
                                                         </div>
                                                     </TabsContent>
 
-                                                    <TabsContent value="cookies" className="m-0 p-4">
+                                                    <TabsContent value="cookies" className="m-0 p-4 h-full overflow-auto">
                                                         {response.cookies && Object.keys(response.cookies).length > 0 ? (
                                                             <div className="space-y-2">
                                                                 {Object.entries(response.cookies).map(([key, value]) => (
@@ -2654,7 +2766,7 @@ export default function APITestingPage() {
                                                             <p className="text-sm text-gray-500">No cookies received</p>
                                                         )}
                                                     </TabsContent>
-                                                </ScrollArea>
+                                                </div>
                                             </Tabs>
                                         ) : (
                                             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">

@@ -75,9 +75,9 @@ export function CodeEditor({
     }, [onChange])
 
     return (
-        <div className={`border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm ${className}`}>
+        <div className={`border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm ${className}`} style={{ height }}>
             <Editor
-                height={height}
+                height="100%"
                 language={language === 'graphql' ? 'graphql' : language}
                 value={value}
                 onChange={handleEditorChange}
