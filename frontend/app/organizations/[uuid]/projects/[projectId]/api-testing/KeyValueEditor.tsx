@@ -20,9 +20,33 @@ interface KeyValueEditorProps {
     onBulkUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => void
 }
 
+// Common HTTP Headers for autocomplete
+const COMMON_HEADERS = [
+    'Accept', 'Accept-Charset', 'Accept-Encoding', 'Accept-Language', 'Accept-Datetime',
+    'Authorization', 'Cache-Control', 'Connection', 'Cookie', 'Content-Length',
+    'Content-MD5', 'Content-Type', 'Date', 'Expect', 'Forwarded', 'From', 'Host',
+    'If-Match', 'If-Modified-Since', 'If-None-Match', 'If-Range', 'If-Unmodified-Since',
+    'Max-Forwards', 'Origin', 'Pragma', 'Proxy-Authorization', 'Range', 'Referer',
+    'TE', 'User-Agent', 'Upgrade', 'Via', 'Warning', 'X-Requested-With',
+    'X-Do-Not-Track', 'DNT', 'x-api-key', 'X-CSRF-Token'
+].sort();
+
+const HEADER_VALUES: Record<string, string[]> = {
+    'Content-Type': ['application/json', 'application/x-www-form-urlencoded', 'multipart/form-data', 'text/plain', 'text/html', 'application/xml'],
+    'Accept': ['application/json', '*/*', 'text/html', 'text/plain', 'application/xml'],
+    'Authorization': ['Bearer ', 'Basic ', 'Digest '],
+    'Cache-Control': ['no-cache', 'no-store', 'max-age=0', 'private', 'public'],
+    'Connection': ['keep-alive', 'close'],
+    'Accept-Encoding': ['gzip', 'deflate', 'br'],
+    'Accept-Language': ['en-US', 'en-GB', 'fr', 'de', 'es'],
+    'Access-Control-Allow-Origin': ['*', 'http://localhost:3000'],
+}
+
 export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkUpdate }: KeyValueEditorProps) => {
     const [isBulkEdit, setIsBulkEdit] = useState(false)
     const [bulkValue, setBulkValue] = useState('')
+    const [activeRowId, setActiveRowId] = useState<string | null>(null)
+    const [activeValueRowId, setActiveValueRowId] = useState<string | null>(null)
 
     const toggleBulkEdit = () => {
         if (isBulkEdit) {
@@ -49,6 +73,20 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
             setBulkValue(text)
         }
         setIsBulkEdit(!isBulkEdit)
+    }
+
+    const getSuggestions = (input: string) => {
+        if (!input) return COMMON_HEADERS
+        const lowerInput = input.toLowerCase()
+        return COMMON_HEADERS.filter(h => h.toLowerCase().includes(lowerInput) && h.toLowerCase() !== lowerInput)
+    }
+
+    const getValueSuggestions = (key: string, input: string) => {
+        const values = HEADER_VALUES[Object.keys(HEADER_VALUES).find(k => k.toLowerCase() === key.toLowerCase()) || '']
+        if (!values) return []
+        if (!input) return values
+        const lowerInput = input.toLowerCase()
+        return values.filter(v => v.toLowerCase().includes(lowerInput) && v.toLowerCase() !== lowerInput)
     }
 
     return (
@@ -84,46 +122,93 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                         <div></div>
                     </div>
                     <div className="divide-y divide-gray-200">
-                        {pairs.map(pair => (
-                            <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
-                                <div className="flex justify-center">
+                        {pairs.map(pair => {
+                            const suggestions = type === 'headers' && activeRowId === pair.id ? getSuggestions(pair.key) : []
+                            const valueSuggestions = type === 'headers' && activeValueRowId === pair.id ? getValueSuggestions(pair.key, pair.value) : []
+
+                            return (
+                                <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
+                                    <div className="flex justify-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={pair.enabled}
+                                            onChange={(e) => onUpdate(type, pair.id, { enabled: e.target.checked })}
+                                            className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 accent-primary"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            value={pair.key}
+                                            onChange={(e) => onUpdate(type, pair.id, { key: e.target.value })}
+                                            onFocus={() => setActiveRowId(pair.id)}
+                                            onBlur={() => setTimeout(() => setActiveRowId(null), 200)}
+                                            placeholder="Key"
+                                            className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
+                                        />
+                                        {suggestions.length > 0 && (
+                                            <div className="absolute top-full left-0 w-full z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                                {suggestions.map(header => (
+                                                    <div
+                                                        key={header}
+                                                        className="px-3 py-1.5 text-xs text-gray-700 hover:bg-primary/5 hover:text-primary cursor-pointer transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onUpdate(type, pair.id, { key: header })
+                                                            setActiveRowId(null)
+                                                        }}
+                                                    >
+                                                        {header}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            value={pair.value}
+                                            onChange={(e) => onUpdate(type, pair.id, { value: e.target.value })}
+                                            onFocus={() => setActiveValueRowId(pair.id)}
+                                            onBlur={() => setTimeout(() => setActiveValueRowId(null), 200)}
+                                            placeholder="Value"
+                                            className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
+                                        />
+                                        {valueSuggestions.length > 0 && (
+                                            <div className="absolute top-full left-0 w-full z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                                {valueSuggestions.map(value => (
+                                                    <div
+                                                        key={value}
+                                                        className="px-3 py-1.5 text-xs text-gray-700 hover:bg-primary/5 hover:text-primary cursor-pointer transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onUpdate(type, pair.id, { value })
+                                                            setActiveValueRowId(null)
+                                                        }}
+                                                    >
+                                                        {value}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <input
-                                        type="checkbox"
-                                        checked={pair.enabled}
-                                        onChange={(e) => onUpdate(type, pair.id, { enabled: e.target.checked })}
-                                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 accent-primary"
+                                        value={pair.description}
+                                        onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
+                                        placeholder="Add description..."
+                                        className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
                                     />
+                                    <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 text-gray-300 hover:text-red-500 hover:bg-red-50"
+                                            onClick={() => onRemove(type, pair.id)}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <input
-                                    value={pair.key}
-                                    onChange={(e) => onUpdate(type, pair.id, { key: e.target.value })}
-                                    placeholder="Key"
-                                    className="h-9 text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
-                                />
-                                <input
-                                    value={pair.value}
-                                    onChange={(e) => onUpdate(type, pair.id, { value: e.target.value })}
-                                    placeholder="Value"
-                                    className="h-9 text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
-                                />
-                                <input
-                                    value={pair.description}
-                                    onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
-                                    placeholder="Add description..."
-                                    className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
-                                />
-                                <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-gray-300 hover:text-red-500 hover:bg-red-50"
-                                        onClick={() => onRemove(type, pair.id)}
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
 
                     <div className="pt-3">
