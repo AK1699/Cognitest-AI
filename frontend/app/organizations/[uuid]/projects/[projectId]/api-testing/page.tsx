@@ -401,6 +401,10 @@ export default function APITestingPage() {
     const [aiPrompt, setAiPrompt] = useState('')
     const [aiLoading, setAiLoading] = useState(false)
 
+    // Unsaved Changes Dialog state
+    const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false)
+    const [pendingCloseRequestId, setPendingCloseRequestId] = useState<string | null>(null)
+
     // Active UI tabs
     const [activeConfigTab, setActiveConfigTab] = useState('params')
     const [activeResponseTab, setActiveResponseTab] = useState('body')
@@ -660,15 +664,19 @@ export default function APITestingPage() {
         }
     }
 
-    const handleSaveRequest = () => {
-        if (!activeRequest) return
+    const handleSaveRequest = (requestToSave: APIRequest | null = activeRequest) => {
+        if (!requestToSave) return
 
         // If it's a real UUID (not temp string), just update it
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeRequest.id)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestToSave.id)
 
         if (isUUID) {
-            updateRequestAPI(activeRequest.id, activeRequest)
+            updateRequestAPI(requestToSave.id, requestToSave)
         } else {
+            // Ensure we are saving the correct request
+            if (activeRequestId !== requestToSave.id) {
+                setActiveRequestId(requestToSave.id)
+            }
             setSaveTarget({ collectionId: '', folderId: '' })
             setNewCollectionName('')
             setIsCreatingNewCollection(collections.length === 0)
@@ -923,13 +931,55 @@ export default function APITestingPage() {
     }
 
     // Close request tab
-    const closeRequest = (id: string) => {
+    const closeRequest = (id: string, force: boolean = false) => {
+        const req = openRequests.find(r => r.id === id)
+        if (!force && req?.isDirty) {
+            setPendingCloseRequestId(id)
+            setIsUnsavedChangesDialogOpen(true)
+            return
+        }
+
         const newRequests = openRequests.filter(r => r.id !== id)
         setOpenRequests(newRequests)
         if (newRequests.length === 0) {
             setActiveRequestId(null)
         } else if (activeRequestId === id) {
             setActiveRequestId(newRequests[newRequests.length - 1]?.id || null)
+        }
+    }
+
+    const handleConfirmClose = () => {
+        if (pendingCloseRequestId) {
+            closeRequest(pendingCloseRequestId, true)
+            setIsUnsavedChangesDialogOpen(false)
+            setPendingCloseRequestId(null)
+        }
+    }
+
+    const handleSaveAndClose = async () => {
+        if (pendingCloseRequestId) {
+            const req = openRequests.find(r => r.id === pendingCloseRequestId)
+            if (req) {
+                // Trigger save logic (reusing addRequestToCollection logic or similar)
+                // Since handleSaveRequest depends on activeRequest, we might need to set active request or pass it.
+                // For simplicity, let's just trigger the save flow if it's the active one, or we need a way to save *that* specific request.
+                // If it's a new request, we need the save dialog.
+
+                // If the request ID is a UUID, we can save directly.
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.id)
+                if (isUUID) {
+                    await updateRequestAPI(req.id, req)
+                    closeRequest(req.id, true)
+                } else {
+                    // For new requests, we switch to it and open the save dialog
+                    setActiveRequestId(req.id)
+                    setIsUnsavedChangesDialogOpen(false)
+                    handleSaveRequest(req)
+                    return
+                }
+            }
+            setIsUnsavedChangesDialogOpen(false)
+            setPendingCloseRequestId(null)
         }
     }
 
@@ -1874,7 +1924,7 @@ export default function APITestingPage() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={handleSaveRequest}
+                                            onClick={() => handleSaveRequest()}
                                             className="h-8 text-gray-500 hover:text-primary hover:bg-primary/5 font-semibold text-xs px-3"
                                         >
                                             <Save className="w-3.5 h-3.5 mr-1.5" />
@@ -3012,6 +3062,31 @@ export default function APITestingPage() {
                             disabled={isCreatingNewCollection ? !newCollectionName.trim() : !saveTarget.collectionId}
                         >
                             {isCreatingNewCollection ? 'Create & Save' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Unsaved Changes Confirmation Dialog */}
+            <Dialog open={isUnsavedChangesDialogOpen} onOpenChange={setIsUnsavedChangesDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Do you want to save?</DialogTitle>
+                        <DialogDescription>
+                            This tab has unsaved changes which will be lost if you choose to close it. Save these changes to avoid losing your work.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="destructive" onClick={handleConfirmClose} className="mr-auto bg-gray-600 hover:bg-gray-700 text-white">
+                            Don't save
+                        </Button>
+                        <Button variant="ghost" onClick={() => setIsUnsavedChangesDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveAndClose}
+                            className="bg-primary text-white hover:bg-primary/90"
+                        >
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>
