@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -7,6 +6,7 @@ interface HighlightedInputProps extends React.InputHTMLAttributes<HTMLInputEleme
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     resolveVariable?: (variable: string) => string;
     variables?: { key: string; value: string }[];
+    pathVariables?: { key: string; value: string }[];
 }
 
 export const HighlightedInput: React.FC<HighlightedInputProps> = ({
@@ -14,6 +14,7 @@ export const HighlightedInput: React.FC<HighlightedInputProps> = ({
     onChange,
     resolveVariable,
     variables = [],
+    pathVariables = [],
     className,
     ...props
 }) => {
@@ -28,22 +29,33 @@ export const HighlightedInput: React.FC<HighlightedInputProps> = ({
     const [dropdownLeft, setDropdownLeft] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
 
-    // Regex to match {{variable}}
-    const varRegex = /\{\{([^}]+)\}\}/g;
+    // Regex to match {{variable}} or :pathVariable
+    const tokenRegex = /(\{\{[^}]+\}\})|(:[a-zA-Z0-9_]+)/g;
 
     // Split value into segments
     const getSegments = (text: string) => {
         const segments = [];
         let lastIndex = 0;
         let match;
-        varRegex.lastIndex = 0;
+        tokenRegex.lastIndex = 0;
 
-        while ((match = varRegex.exec(text)) !== null) {
+        while ((match = tokenRegex.exec(text)) !== null) {
             if (match.index > lastIndex) {
                 segments.push({ type: 'text', content: text.slice(lastIndex, match.index), start: lastIndex });
             }
-            segments.push({ type: 'variable', content: match[0], name: match[1], start: match.index });
-            lastIndex = varRegex.lastIndex;
+
+            // Determine type
+            const isEnvVar = match[1] !== undefined;
+            const content = match[0];
+            const name = isEnvVar ? match[1].slice(2, -2).trim() : match[2].slice(1); // {{name}} -> name, :name -> name
+
+            segments.push({
+                type: isEnvVar ? 'variable' : 'pathVariable',
+                content,
+                name,
+                start: match.index
+            });
+            lastIndex = tokenRegex.lastIndex;
         }
 
         if (lastIndex < text.length) {
@@ -178,7 +190,7 @@ export const HighlightedInput: React.FC<HighlightedInputProps> = ({
                 onSelect={handleInputSelect}
                 onKeyDown={handleKeyDown}
                 onScroll={handleScroll}
-                className="w-full bg-transparent text-transparent caret-gray-900 border-none outline-none px-2 relative z-0 placeholder:text-gray-400 focus:ring-0"
+                className="w-full bg-transparent text-transparent caret-gray-900 border-none outline-none px-2 relative z-0 placeholder:text-gray-400 focus:ring-0 text-base font-medium"
                 style={{ color: 'transparent' }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -203,11 +215,25 @@ export const HighlightedInput: React.FC<HighlightedInputProps> = ({
                                     <Tooltip delayDuration={0}>
                                         <TooltipTrigger asChild>
                                             <span
-                                                className="text-amber-600 font-bold pointer-events-auto cursor-help relative inline-block transition-colors hover:text-amber-500"
+                                                className="text-amber-600 relative inline-block transition-colors cursor-text pointer-events-auto"
                                                 onClick={(e) => {
+                                                    e.preventDefault();
                                                     e.stopPropagation();
-                                                    const end = segment.start + segment.content.length;
-                                                    handleVariableClick(segment.start, end);
+
+                                                    let offset = segment.content.length;
+
+                                                    if (document.caretRangeFromPoint) {
+                                                        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                                                        if (range && range.startContainer.textContent === segment.content) {
+                                                            offset = range.startOffset;
+                                                        }
+                                                    }
+
+                                                    const cursorPos = segment.start + offset;
+                                                    if (inputRef.current) {
+                                                        inputRef.current.focus();
+                                                        inputRef.current.setSelectionRange(cursorPos, cursorPos);
+                                                    }
                                                 }}
                                             >
                                                 {segment.content}
@@ -219,6 +245,49 @@ export const HighlightedInput: React.FC<HighlightedInputProps> = ({
                                             </div>
                                             <div className="text-xs mt-1 border-t border-gray-700 pt-1">
                                                 <span className="opacity-70">Value:</span> {resolved || <span className="text-red-400 italic">Not found</span>}
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            );
+                        } else if (segment.type === 'pathVariable') {
+                            return (
+                                <TooltipProvider key={i}>
+                                    <Tooltip delayDuration={0}>
+                                        <TooltipTrigger asChild>
+                                            <span
+                                                className="text-amber-600 relative inline-block transition-colors cursor-text pointer-events-auto"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+
+                                                    let offset = segment.content.length;
+
+                                                    // Webkit/Standard
+                                                    if (document.caretRangeFromPoint) {
+                                                        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                                                        // Verify we clicked the right node text
+                                                        if (range && range.startContainer.textContent === segment.content) {
+                                                            offset = range.startOffset;
+                                                        }
+                                                    }
+
+                                                    const cursorPos = segment.start + offset;
+                                                    if (inputRef.current) {
+                                                        inputRef.current.focus();
+                                                        inputRef.current.setSelectionRange(cursorPos, cursorPos);
+                                                    }
+                                                }}
+                                            >
+                                                {segment.content}
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent sideOffset={4}>
+                                            <div className="text-xs">
+                                                <span className="font-bold text-amber-500">Path Variable:</span> {segment.name}
+                                            </div>
+                                            <div className="text-xs mt-1 border-t border-gray-700 pt-1">
+                                                <span className="opacity-70">Value:</span> {pathVariables.find(v => v.key === segment.name)?.value || <span className="text-red-400 italic">Not found</span>}
                                             </div>
                                         </TooltipContent>
                                     </Tooltip>

@@ -12,12 +12,12 @@ export interface KeyValuePair {
 }
 
 interface KeyValueEditorProps {
-    type: 'params' | 'headers' | 'formData'
+    type: 'params' | 'headers' | 'formData' | 'pathVariables'
     pairs: KeyValuePair[]
-    onUpdate: (type: 'params' | 'headers' | 'formData', id: string, updates: Partial<KeyValuePair>) => void
-    onAdd: (type: 'params' | 'headers' | 'formData') => void
-    onRemove: (type: 'params' | 'headers' | 'formData', id: string) => void
-    onBulkUpdate: (type: 'params' | 'headers' | 'formData', pairs: KeyValuePair[]) => void
+    onUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => void
+    onAdd: (type: 'params' | 'headers' | 'formData' | 'pathVariables') => void
+    onRemove: (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string) => void
+    onBulkUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => void
 }
 
 export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkUpdate }: KeyValueEditorProps) => {

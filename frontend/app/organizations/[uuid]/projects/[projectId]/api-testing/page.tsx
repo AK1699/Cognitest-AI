@@ -86,6 +86,7 @@ interface APIRequest {
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
     url: string
     params: KeyValuePair[]
+    pathVariables: KeyValuePair[]
     headers: KeyValuePair[]
     body: {
         type: 'none' | 'json' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary' | 'graphql'
@@ -311,6 +312,7 @@ const createNewRequest = (protocol: APIRequest['protocol'] = 'http'): APIRequest
     method: protocol === 'http' ? 'GET' : 'POST',
     url: '',
     params: [],
+    pathVariables: [],
     headers: [
         { id: 'h1', key: 'Content-Type', value: 'application/json', description: 'Standard content type', enabled: true }
     ],
@@ -667,6 +669,41 @@ export default function APITestingPage() {
         }
     }
 
+    const syncPathVariablesWithUrl = (url: string, currentPathVariables: KeyValuePair[] = []): KeyValuePair[] => {
+        try {
+            // Match :variableName pattern
+            const regex = /:([a-zA-Z0-9_]+)/g
+            const matches = Array.from(url.matchAll(regex))
+            const variables = matches.map(m => m[1])
+
+            // Use a Map to keep track of current values
+            const currentMap = new Map(currentPathVariables.map(p => [p.key, p]))
+            const newPathVariables: KeyValuePair[] = []
+
+            variables.forEach(key => {
+                if (currentMap.has(key)) {
+                    // Keep existing variable with its value
+                    newPathVariables.push(currentMap.get(key)!)
+                    currentMap.delete(key) // Remove so we don't add it again if duplicates exist in URL (though duplicates in list ok, usually unique keys preferred)
+                } else {
+                    // Add new variable
+                    newPathVariables.push({
+                        id: Math.random().toString(36).substr(2, 9),
+                        key: key,
+                        value: '',
+                        description: '',
+                        enabled: true
+                    })
+                }
+            })
+
+            return newPathVariables
+        } catch (e) {
+            console.error("Error syncing path variables", e)
+            return currentPathVariables
+        }
+    }
+
     const syncUrlWithParams = (url: string, params: KeyValuePair[]): string => {
         const baseUrl = url.split('?')[0];
         const enabledParams = params.filter(p => p.enabled && p.key);
@@ -684,10 +721,36 @@ export default function APITestingPage() {
 
             let updatedRequest = { ...r, ...updates, isDirty: true };
 
-            if (updates.url !== undefined && updates.params === undefined) {
-                updatedRequest.params = syncParamsWithUrl(updatedRequest.url, r.params);
-            } else if (updates.params !== undefined && updates.url === undefined) {
-                updatedRequest.url = syncUrlWithParams(r.url, updatedRequest.params);
+            if (updates.url !== undefined) {
+                // Determine source of change. If URL changed, we might need to sync params and path variables
+                updatedRequest.params = syncParamsWithUrl(updatedRequest.url, r.params || []);
+                updatedRequest.pathVariables = syncPathVariablesWithUrl(updatedRequest.url, r.pathVariables || []);
+            } else if (updates.params !== undefined) {
+                // Params (Query) -> Url
+                updatedRequest.url = syncUrlWithParams(updatedRequest.url, updatedRequest.params);
+            }
+
+            if (updates.pathVariables !== undefined && r.pathVariables) {
+                // Check for key renames to update URL
+                const oldVars = r.pathVariables;
+                const newVars = updates.pathVariables;
+
+                let url = updatedRequest.url;
+                let urlChanged = false;
+
+                newVars.forEach(nV => {
+                    const oldV = oldVars.find(o => o.id === nV.id);
+                    if (oldV && oldV.key !== nV.key) {
+                        if (url.includes(`:${oldV.key}`)) {
+                            url = url.replace(`:${oldV.key}`, `:${nV.key}`);
+                            urlChanged = true;
+                        }
+                    }
+                });
+
+                if (urlChanged) {
+                    updatedRequest.url = url;
+                }
             }
 
             return updatedRequest;
@@ -1155,6 +1218,18 @@ export default function APITestingPage() {
         try {
             // Build URL with params and apply variable interpolation
             let url = interpolateVariables(activeRequest.url)
+
+            // Calculate Path Variables
+            if (activeRequest.pathVariables && activeRequest.pathVariables.length > 0) {
+                activeRequest.pathVariables.forEach(v => {
+                    if (v.enabled && v.key) {
+                        const val = interpolateVariables(v.value)
+                        // Replace :key with value
+                        url = url.replace(new RegExp(`:${v.key}\\b`, 'g'), val)
+                    }
+                })
+            }
+
             const enabledParams = activeRequest.params.filter(p => p.enabled && p.key)
             if (enabledParams.length > 0) {
                 const searchParams = new URLSearchParams()
@@ -1247,7 +1322,8 @@ export default function APITestingPage() {
     }
 
     // Add key-value pair
-    const addKeyValuePair = (type: 'params' | 'headers' | 'formData') => {
+    // Add key-value pair
+    const addKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables') => {
         if (!activeRequest) return
         const newPair: KeyValuePair = { id: Math.random().toString(36).substr(2, 9), key: '', value: '', description: '', enabled: true }
 
@@ -1255,6 +1331,8 @@ export default function APITestingPage() {
             updateActiveRequest({ params: [...activeRequest.params, newPair] })
         } else if (type === 'headers') {
             updateActiveRequest({ headers: [...activeRequest.headers, newPair] })
+        } else if (type === 'pathVariables') {
+            updateActiveRequest({ pathVariables: [...(activeRequest.pathVariables || []), newPair] })
         } else if (type === 'formData') {
             updateActiveRequest({
                 body: {
@@ -1266,13 +1344,16 @@ export default function APITestingPage() {
     }
 
     // Update key-value pair
-    const updateKeyValuePair = (type: 'params' | 'headers' | 'formData', id: string, updates: Partial<KeyValuePair>) => {
+    // Update key-value pair
+    const updateKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => {
         if (!activeRequest) return
         const updateFn = (pairs: KeyValuePair[]) =>
             pairs.map(p => p.id === id ? { ...p, ...updates } : p)
 
         if (type === 'params') {
             updateActiveRequest({ params: updateFn(activeRequest.params) })
+        } else if (type === 'pathVariables') {
+            updateActiveRequest({ pathVariables: updateFn(activeRequest.pathVariables || []) })
         } else if (type === 'headers') {
             updateActiveRequest({ headers: updateFn(activeRequest.headers) })
         } else if (type === 'formData') {
@@ -1286,7 +1367,8 @@ export default function APITestingPage() {
     }
 
     // Remove key-value pair
-    const removeKeyValuePair = (type: 'params' | 'headers' | 'formData', id: string) => {
+    // Remove key-value pair
+    const removeKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string) => {
         if (!activeRequest) return
         const filterFn = (pairs: KeyValuePair[]) => pairs.filter(p => p.id !== id)
 
@@ -1294,6 +1376,8 @@ export default function APITestingPage() {
             updateActiveRequest({ params: filterFn(activeRequest.params) })
         } else if (type === 'headers') {
             updateActiveRequest({ headers: filterFn(activeRequest.headers) })
+        } else if (type === 'pathVariables') {
+            updateActiveRequest({ pathVariables: filterFn(activeRequest.pathVariables || []) })
         } else if (type === 'formData') {
             updateActiveRequest({
                 body: {
@@ -1339,9 +1423,11 @@ export default function APITestingPage() {
     // Key-value editor component
 
     // Handle bulk updates from KeyValueEditor
-    const handleBulkUpdate = (type: 'params' | 'headers' | 'formData', pairs: KeyValuePair[]) => {
+    // Handle bulk updates from KeyValueEditor
+    const handleBulkUpdate = (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => {
         if (!activeRequest) return
         if (type === 'params') updateActiveRequest({ params: pairs })
+        else if (type === 'pathVariables') updateActiveRequest({ pathVariables: pairs })
         else if (type === 'headers') updateActiveRequest({ headers: pairs })
         else if (type === 'formData') updateActiveRequest({ body: { ...activeRequest.body, formData: pairs } })
     }
@@ -1902,6 +1988,7 @@ export default function APITestingPage() {
                                             placeholder="Enter request URL (e.g. https://api.example.com/data)"
                                             resolveVariable={(val) => interpolateVariables(val)}
                                             variables={selectedEnvId ? environments.find(e => e.id === selectedEnvId)?.variables.filter(v => v.enabled) : []}
+                                            pathVariables={activeRequest.pathVariables}
                                         />
                                     </div>
                                     <div className="flex items-center gap-1.5 px-2">
@@ -1988,15 +2075,30 @@ export default function APITestingPage() {
 
                                         <ScrollArea className="flex-1 bg-white">
                                             <div className="p-4">
-                                                <TabsContent value="params" className="m-0">
-                                                    <KeyValueEditor
-                                                        type="params"
-                                                        pairs={activeRequest.params}
-                                                        onAdd={addKeyValuePair}
-                                                        onUpdate={updateKeyValuePair}
-                                                        onRemove={removeKeyValuePair}
-                                                        onBulkUpdate={handleBulkUpdate}
-                                                    />
+                                                <TabsContent value="params" className="m-0 space-y-6">
+                                                    <div>
+                                                        <h3 className="text-sm font-medium mb-3 text-gray-700">Query Params</h3>
+                                                        <KeyValueEditor
+                                                            type="params"
+                                                            pairs={activeRequest.params}
+                                                            onAdd={addKeyValuePair}
+                                                            onUpdate={updateKeyValuePair}
+                                                            onRemove={removeKeyValuePair}
+                                                            onBulkUpdate={handleBulkUpdate}
+                                                        />
+                                                    </div>
+
+                                                    <div className={activeRequest.pathVariables && activeRequest.pathVariables.length > 0 ? 'block' : 'hidden'}>
+                                                        <h3 className="text-sm font-medium mb-3 text-gray-700">Path Variables</h3>
+                                                        <KeyValueEditor
+                                                            type="pathVariables"
+                                                            pairs={activeRequest.pathVariables || []}
+                                                            onAdd={addKeyValuePair}
+                                                            onUpdate={updateKeyValuePair}
+                                                            onRemove={removeKeyValuePair}
+                                                            onBulkUpdate={handleBulkUpdate}
+                                                        />
+                                                    </div>
                                                 </TabsContent>
 
                                                 <TabsContent value="authorization" className="m-0 space-y-4">
