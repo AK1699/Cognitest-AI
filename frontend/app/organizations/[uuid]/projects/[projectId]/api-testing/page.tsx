@@ -1907,7 +1907,7 @@ export default function APITestingPage() {
                                         </span>
                                     </div>
                                     {activeRequest.protocol === 'http' && (
-                                        <div className="w-32 border-r border-gray-100 px-1">
+                                        <div className="w-24 border-r border-gray-100 px-1">
                                             <Select
                                                 value={activeRequest.method}
                                                 onValueChange={(value: any) => updateActiveRequest({ method: value })}
