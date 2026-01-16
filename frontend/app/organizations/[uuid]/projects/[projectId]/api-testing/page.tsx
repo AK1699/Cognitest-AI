@@ -668,14 +668,53 @@ export default function APITestingPage() {
         }
     }
 
+    const getAllRequestIdsInCollection = (coll: Collection): string[] => {
+        let ids = (coll.requests || []).map(r => r.id)
+        if (coll.folders) {
+            coll.folders.forEach(f => {
+                ids = [...ids, ...getAllRequestIdsInCollection(f)]
+            })
+        }
+        return ids
+    }
+
     const deleteCollection = async (id: string) => {
         try {
+            // Find all request IDs in this collection/folder BEFORE deleting
+            let idsToRemove: string[] = []
+
+            const findAndGetIds = (items: Collection[]) => {
+                for (const item of items) {
+                    if (item.id === id) {
+                        idsToRemove = getAllRequestIdsInCollection(item)
+                        return true
+                    }
+                    if (item.folders && findAndGetIds(item.folders)) return true
+                }
+                return false
+            }
+
+            findAndGetIds(collections)
+
             const response = await fetch(`${API_URL}/api/v1/api-testing/collections/${id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             })
             if (response.ok) {
                 await fetchCollections()
+
+                // Close all affected tabs
+                if (idsToRemove.length > 0) {
+                    setOpenRequests(prev => {
+                        const filtered = prev.filter(r => !idsToRemove.includes(r.id))
+                        // Update active request if it was in the deleted set
+                        if (activeRequestId && idsToRemove.includes(activeRequestId)) {
+                            setActiveRequestId(filtered.length > 0 ? filtered[0].id : null)
+                        }
+                        return filtered
+                    })
+                }
+
                 toast.success('Deleted successfully')
             }
         } catch (error) {
