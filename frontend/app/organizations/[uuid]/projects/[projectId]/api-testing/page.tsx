@@ -9,7 +9,7 @@ import {
     Settings, Settings2, Clock, Copy, Check, AlertCircle, Loader2,
     Sparkles, MessageSquare, Code2, Eye, FileText, Cookie,
     Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2,
-    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap, WrapText, Search, Binary
+    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap, WrapText, Search, Binary, Beaker
 } from 'lucide-react'
 import { HttpIcon } from '@/components/icons/HttpIcon'
 import { GraphqlIcon } from '@/components/icons/GraphqlIcon'
@@ -2637,6 +2637,10 @@ export default function APITestingPage() {
                                                         <Cookie className="w-3 h-3 mr-1" />
                                                         Cookies
                                                     </TabsTrigger>
+                                                    <TabsTrigger value="test-results" className="text-xs">
+                                                        <Beaker className="w-3 h-3 mr-1" />
+                                                        Test Results
+                                                    </TabsTrigger>
                                                 </TabsList>
 
                                                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -2804,6 +2808,13 @@ export default function APITestingPage() {
                                                         ) : (
                                                             <p className="text-sm text-gray-500">No cookies received</p>
                                                         )}
+                                                    </TabsContent>
+
+                                                    <TabsContent value="test-results" className="m-0 p-4 h-full overflow-auto">
+                                                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                                            <Beaker className="w-8 h-8 opacity-20 mb-2" />
+                                                            <p className="text-sm font-medium">No tests executed</p>
+                                                        </div>
                                                     </TabsContent>
                                                 </div>
                                             </Tabs>
