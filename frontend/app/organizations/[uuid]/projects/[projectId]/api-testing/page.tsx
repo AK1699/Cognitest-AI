@@ -114,6 +114,7 @@ interface APIRequest {
     }
     preRequestScript?: string
     testScript?: string
+    isDirty?: boolean
 }
 
 interface APIResponse {
@@ -539,7 +540,7 @@ export default function APITestingPage() {
     const updateActiveRequest = (updates: Partial<APIRequest>) => {
         if (!activeRequestId) return
         setOpenRequests(prev => prev.map(r =>
-            r.id === activeRequestId ? { ...r, ...updates } : r
+            r.id === activeRequestId ? { ...r, ...updates, isDirty: true } : r
         ))
     }
 
@@ -577,6 +578,7 @@ export default function APITestingPage() {
         }
         return null
     }
+
 
 
 
@@ -641,7 +643,7 @@ export default function APITestingPage() {
                     if (existing) {
                         return prev.map(r => r.id === (requestToSave as APIRequest).id ? { ...r, id: newReq.id } : r);
                     } else {
-                        return [...prev, { ...requestToSave, id: newReq.id } as APIRequest];
+                        return [...prev, { ...requestToSave, id: newReq.id, isDirty: false } as APIRequest];
                     }
                 })
                 setActiveRequestId(newReq.id)
@@ -1372,7 +1374,7 @@ export default function APITestingPage() {
                                             onChange={(e) => {
                                                 const newName = e.target.value;
                                                 setOpenRequests(prev => prev.map(r =>
-                                                    r.id === req.id ? { ...r, name: newName } : r
+                                                    r.id === req.id ? { ...r, name: newName, isDirty: true } : r
                                                 ));
                                             }}
                                             onBlur={() => setEditingTabId(null)}
@@ -1388,7 +1390,7 @@ export default function APITestingPage() {
                                                 setEditingTabId(req.id);
                                             }}
                                         >
-                                            {req.name}
+                                            {req.name}{req.isDirty && '*'}
                                         </span>
                                     )}
                                     <X
