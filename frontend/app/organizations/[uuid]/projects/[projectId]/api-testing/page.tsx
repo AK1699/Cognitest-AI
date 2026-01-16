@@ -174,9 +174,9 @@ const PROTOCOLS = [
     { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50' },
     { id: 'grpc', name: 'gRPC', icon: Box, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50' },
     { id: 'websocket', name: 'WebSocket', icon: Network, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50' },
-    { id: 'socketio', name: 'Socket.IO', icon: Activity, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50' },
+    { id: 'socketio', name: 'Socket.IO', icon: Zap, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50' },
     { id: 'mqtt', name: 'MQTT', icon: Radio, description: 'IoT messaging service testing', color: 'text-amber-500', bgColor: 'bg-amber-50' },
-    { id: 'mcp', name: 'MCP', icon: Zap, description: 'Model Context Protocol testing', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+    { id: 'mcp', name: 'MCP', icon: Link2, description: 'Model Context Protocol testing', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
 ] as const;
 
 const getProtocolBadgeInfo = (protocol: APIRequest['protocol'], method: string) => {
