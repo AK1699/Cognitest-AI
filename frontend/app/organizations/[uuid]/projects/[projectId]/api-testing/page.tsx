@@ -260,19 +260,12 @@ export default function APITestingPage() {
         }
     ])
 
-    // Environment state
-    const [environments, setEnvironments] = useState<Environment[]>([
-        { id: 'env-none', name: 'No Environment', variables: [] },
-        {
-            id: 'env-dev',
-            name: 'Development',
-            variables: [
-                { id: 'v1', key: 'baseUrl', value: 'https://api.dev.example.com', enabled: true }
-            ]
-        }
-    ])
-    const [selectedEnvId, setSelectedEnvId] = useState<string | null>('env-none')
+    // Environment state - now fetched from backend
+    const [environments, setEnvironments] = useState<Environment[]>([])
+    const [environmentsLoading, setEnvironmentsLoading] = useState(true)
+    const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null)
     const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false)
+    const [envDropdownOpen, setEnvDropdownOpen] = useState(false)
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
     const [saveTarget, setSaveTarget] = useState({ collectionId: '', folderId: '' })
 
@@ -312,6 +305,114 @@ export default function APITestingPage() {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    // Fetch environments from backend on mount
+    useEffect(() => {
+        const fetchEnvironments = async () => {
+            try {
+                setEnvironmentsLoading(true)
+                const response = await fetch(`${API_URL}/api/v1/api-testing/environments/${projectId}`, {
+                    credentials: 'include'
+                })
+                if (response.ok) {
+                    const data = await response.json()
+                    setEnvironments(data)
+                    // Set default environment if one exists
+                    const defaultEnv = data.find((e: Environment) => e.is_default)
+                    if (defaultEnv) {
+                        setSelectedEnvId(defaultEnv.id)
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch environments:', error)
+            } finally {
+                setEnvironmentsLoading(false)
+            }
+        }
+        fetchEnvironments()
+    }, [projectId])
+
+    // Environment API functions
+    const createEnvironmentAPI = async (name: string, variables: any[] = []) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/environments`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    project_id: projectId,
+                    variables,
+                    is_default: environments.length === 0
+                })
+            })
+            if (response.ok) {
+                const newEnv = await response.json()
+                setEnvironments(prev => [...prev, newEnv])
+                return newEnv
+            }
+        } catch (error) {
+            console.error('Failed to create environment:', error)
+            toast.error('Failed to create environment')
+        }
+        return null
+    }
+
+    const updateEnvironmentAPI = async (envId: string, updates: Partial<Environment>) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/environments/${envId}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            })
+            if (response.ok) {
+                const updatedEnv = await response.json()
+                setEnvironments(prev => prev.map(e => e.id === envId ? updatedEnv : e))
+                return updatedEnv
+            }
+        } catch (error) {
+            console.error('Failed to update environment:', error)
+            toast.error('Failed to update environment')
+        }
+        return null
+    }
+
+    const deleteEnvironmentAPI = async (envId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/environments/${envId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+            if (response.ok) {
+                setEnvironments(prev => prev.filter(e => e.id !== envId))
+                if (selectedEnvId === envId) {
+                    setSelectedEnvId(null)
+                }
+                return true
+            }
+        } catch (error) {
+            console.error('Failed to delete environment:', error)
+            toast.error('Failed to delete environment')
+        }
+        return false
+    }
+
+    // Variable interpolation helper
+    const interpolateVariables = (text: string): string => {
+        if (!selectedEnvId) return text
+        const selectedEnv = environments.find(e => e.id === selectedEnvId)
+        if (!selectedEnv) return text
+
+        let result = text
+        selectedEnv.variables
+            .filter(v => v.enabled)
+            .forEach(v => {
+                const regex = new RegExp(`\\{\\{${v.key}\\}\\}`, 'g')
+                result = result.replace(regex, v.value)
+            })
+        return result
+    }
 
     const updateActiveRequest = (updates: Partial<APIRequest>) => {
         setOpenRequests(prev => prev.map(r =>
@@ -513,47 +614,50 @@ export default function APITestingPage() {
         const startTime = Date.now()
 
         try {
-            // Build URL with params
-            let url = activeRequest.url
+            // Build URL with params and apply variable interpolation
+            let url = interpolateVariables(activeRequest.url)
             const enabledParams = activeRequest.params.filter(p => p.enabled && p.key)
             if (enabledParams.length > 0) {
                 const searchParams = new URLSearchParams()
-                enabledParams.forEach(p => searchParams.append(p.key, p.value))
+                enabledParams.forEach(p => searchParams.append(
+                    interpolateVariables(p.key),
+                    interpolateVariables(p.value)
+                ))
                 url += (url.includes('?') ? '&' : '?') + searchParams.toString()
             }
 
-            // Build headers
+            // Build headers with variable interpolation
             const headers: Record<string, string> = {}
             activeRequest.headers.filter(h => h.enabled && h.key).forEach(h => {
-                headers[h.key] = h.value
+                headers[interpolateVariables(h.key)] = interpolateVariables(h.value)
             })
 
-            // Add auth headers
+            // Add auth headers with variable interpolation
             if (activeRequest.auth.type === 'bearer' && activeRequest.auth.token) {
-                headers['Authorization'] = `Bearer ${activeRequest.auth.token}`
+                headers['Authorization'] = `Bearer ${interpolateVariables(activeRequest.auth.token)}`
             } else if (activeRequest.auth.type === 'basic' && activeRequest.auth.username) {
-                const encoded = btoa(`${activeRequest.auth.username}:${activeRequest.auth.password || ''}`)
+                const encoded = btoa(`${interpolateVariables(activeRequest.auth.username)}:${interpolateVariables(activeRequest.auth.password || '')}`)
                 headers['Authorization'] = `Basic ${encoded}`
             } else if (activeRequest.auth.type === 'api-key' && activeRequest.auth.apiKey) {
-                headers[activeRequest.auth.apiKeyHeader || 'X-API-Key'] = activeRequest.auth.apiKey
+                headers[activeRequest.auth.apiKeyHeader || 'X-API-Key'] = interpolateVariables(activeRequest.auth.apiKey)
             }
 
-            // Build body
+            // Build body with variable interpolation
             let body: string | FormData | undefined
             if (['POST', 'PUT', 'PATCH'].includes(activeRequest.method)) {
                 if (activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') {
-                    body = activeRequest.body.content
+                    body = interpolateVariables(activeRequest.body.content)
                 } else if (activeRequest.body.type === 'form-data' && activeRequest.body.formData) {
                     const formData = new FormData()
                     activeRequest.body.formData.filter(f => f.enabled && f.key).forEach(f => {
-                        formData.append(f.key, f.value)
+                        formData.append(interpolateVariables(f.key), interpolateVariables(f.value))
                     })
                     body = formData
                     delete headers['Content-Type'] // Let browser set it
                 } else if (activeRequest.body.type === 'x-www-form-urlencoded' && activeRequest.body.formData) {
                     const params = new URLSearchParams()
                     activeRequest.body.formData.filter(f => f.enabled && f.key).forEach(f => {
-                        params.append(f.key, f.value)
+                        params.append(interpolateVariables(f.key), interpolateVariables(f.value))
                     })
                     body = params.toString()
                     headers['Content-Type'] = 'application/x-www-form-urlencoded'
@@ -850,33 +954,43 @@ export default function APITestingPage() {
 
                     <div className="flex items-center gap-2">
                         <div className="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-100">
-                            <Select value={selectedEnvId || 'env-none'} onValueChange={(val) => setSelectedEnvId(val === 'env-none' ? null : val)}>
+                            <Select
+                                value={selectedEnvId || ''}
+                                onValueChange={(val) => setSelectedEnvId(val || null)}
+                                open={envDropdownOpen}
+                                onOpenChange={setEnvDropdownOpen}
+                            >
                                 <SelectTrigger className="w-44 h-8 text-xs border-none bg-transparent shadow-none focus:ring-0 font-bold text-gray-700">
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedEnvId && selectedEnvId !== 'env-none' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`} />
+                                        <div className={`w-1.5 h-1.5 rounded-full ${selectedEnvId ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`} />
                                         <SelectValue placeholder="No Environment" />
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl border-gray-100 shadow-xl p-1">
-                                    {environments.map((env: Environment) => (
-                                        <SelectItem key={env.id} value={env.id} className="rounded-lg text-xs font-bold py-2.5">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${env.id === 'env-none' ? 'bg-gray-300' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]'}`} />
+                                    {environments.length === 0 ? (
+                                        <div className="px-2 py-3 text-xs text-gray-500 text-center">
+                                            No environments yet
+                                        </div>
+                                    ) : (
+                                        environments.map((env: Environment) => (
+                                            <SelectItem key={env.id} value={env.id} className="rounded-lg text-xs font-bold py-2.5">
                                                 {env.name}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                    <div className="my-1 border-t border-gray-100" />
+                                    <button
+                                        className="w-full flex items-center gap-2 px-2 py-2.5 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                                        onClick={() => {
+                                            setEnvDropdownOpen(false)
+                                            setIsEnvDialogOpen(true)
+                                        }}
+                                    >
+                                        <Settings2 className="w-3.5 h-3.5" />
+                                        Manage Environments
+                                    </button>
                                 </SelectContent>
                             </Select>
-
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-gray-400 hover:text-primary hover:bg-white rounded-md transition-all"
-                                onClick={() => setIsEnvDialogOpen(true)}
-                            >
-                                <Settings2 className="w-3.5 h-3.5" />
-                            </Button>
                         </div>
 
                         <div className="w-[1px] h-4 bg-gray-200 mx-1" />
@@ -884,12 +998,14 @@ export default function APITestingPage() {
                         <Button
                             size="sm"
                             onClick={() => setShowAIPanel(!showAIPanel)}
-                            className={`h-9 px-4 text-xs font-black uppercase tracking-widest transition-all ${showAIPanel
-                                ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[0.98]'
-                                : 'bg-white text-primary border border-primary/20 hover:bg-primary/5 hover:border-primary/40 shadow-sm'}`}
+                            className={`h-9 px-4 text-xs font-black uppercase tracking-widest transition-all bg-primary text-white shadow-lg hover:bg-primary/90 ${showAIPanel
+                                ? 'shadow-inner scale-[0.98] ring-2 ring-primary/20 bg-primary/95'
+                                : 'shadow-primary/20'}`}
                         >
-                            <Sparkles className={`w-3.5 h-3.5 mr-2 ${showAIPanel ? 'text-white' : 'text-primary'}`} />
-                            AI Assistant
+                            <span className="inline-flex items-center text-white">
+                                <Sparkles className="w-3.5 h-3.5 mr-2" />
+                                AI Assistant
+                            </span>
                         </Button>
                     </div>
                 </div>
@@ -2080,6 +2196,9 @@ export default function APITestingPage() {
                 setEnvironments={setEnvironments}
                 selectedEnvironmentId={selectedEnvId}
                 setSelectedEnvironmentId={setSelectedEnvId}
+                onCreateEnvironment={createEnvironmentAPI}
+                onUpdateEnvironment={updateEnvironmentAPI}
+                onDeleteEnvironment={deleteEnvironmentAPI}
             />
 
             {/* Save to Collection Dialog */}

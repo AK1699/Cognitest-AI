@@ -90,7 +90,6 @@ class APICollection(APICollectionBase):
     class Config:
         from_attributes = True
 
-# For the tree view
 class APICollectionTree(BaseModel):
     id: UUID
     name: str
@@ -100,3 +99,39 @@ class APICollectionTree(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- Environment Schemas ---
+
+class EnvironmentVariableSchema(BaseModel):
+    id: Optional[str] = None
+    key: str = ""
+    value: str = ""
+    enabled: bool = True
+    secret: bool = False
+
+class EnvironmentBase(BaseModel):
+    name: str
+    project_id: UUID
+    variables: List[EnvironmentVariableSchema] = []
+    is_default: bool = False
+
+class EnvironmentCreate(EnvironmentBase):
+    pass
+
+class EnvironmentUpdate(BaseModel):
+    name: Optional[str] = None
+    variables: Optional[List[EnvironmentVariableSchema]] = None
+    is_default: Optional[bool] = None
+
+class Environment(BaseModel):
+    id: UUID
+    name: str
+    project_id: UUID
+    variables: List[Dict[str, Any]] = []
+    is_default: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+

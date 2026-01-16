@@ -116,6 +116,9 @@ from app.models.performance import (
     PerformanceSchedule,
     PerformanceReport,
 )
+from app.models.api_environment import ApiEnvironment
+from app.models.api_collection import ApiCollection
+from app.models.api_request import APIRequest as ApiRequest
 # from app.models.issue import Issue, IssueStatus  # TODO: Fix metadata column name conflict
 # from app.models.api_collection import ApiCollection  # Not needed for RBAC
 
@@ -219,5 +222,8 @@ __all__ = [
     "PerformanceReport",
     # "Issue",
     # "IssueStatus",
-    # "ApiCollection",
+    # API Testing Models
+    "ApiEnvironment",
+    "ApiCollection",
+    "ApiRequest",
 ]

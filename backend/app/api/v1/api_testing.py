@@ -10,10 +10,12 @@ from app.core.deps import get_db, get_current_active_user
 from app.models.user import User
 from app.models.api_collection import ApiCollection
 from app.models.api_request import APIRequest as APIRequestModel
+from app.models.api_environment import ApiEnvironment
 from app.schemas.api_testing import (
     ProxyRequest, ProxyResponse, 
     APICollectionTree, APICollectionCreate, APICollectionUpdate,
-    APIRequestCreate, APIRequestUpdate, APIRequest as APIRequestSchema
+    APIRequestCreate, APIRequestUpdate, APIRequest as APIRequestSchema,
+    EnvironmentCreate, EnvironmentUpdate, Environment as EnvironmentSchema
 )
 
 router = APIRouter()
@@ -259,5 +261,98 @@ async def move_folder(
         .where(ApiCollection.id == collection_id)
         .values(parent_id=target_parent_id)
     )
+    await db.commit()
+    return {"status": "success"}
+
+# --- Environments CRUD ---
+
+@router.get("/environments/{project_id}", response_model=List[EnvironmentSchema])
+async def list_environments(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List all environments for a project."""
+    result = await db.execute(
+        select(ApiEnvironment).where(ApiEnvironment.project_id == project_id)
+    )
+    environments = result.scalars().all()
+    return environments
+
+@router.post("/environments", response_model=EnvironmentSchema)
+async def create_environment(
+    env_data: EnvironmentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new environment for a project."""
+    # If this is the first environment or is_default is True, ensure only one default
+    if env_data.is_default:
+        await db.execute(
+            update(ApiEnvironment)
+            .where(ApiEnvironment.project_id == env_data.project_id)
+            .values(is_default=False)
+        )
+    
+    # Convert variables to dict format for storage
+    variables_data = [v.model_dump() for v in env_data.variables] if env_data.variables else []
+    
+    environment = ApiEnvironment(
+        project_id=env_data.project_id,
+        name=env_data.name,
+        variables=variables_data,
+        is_default=env_data.is_default,
+        created_by=current_user.id
+    )
+    db.add(environment)
+    await db.commit()
+    await db.refresh(environment)
+    return environment
+
+@router.patch("/environments/{environment_id}", response_model=EnvironmentSchema)
+async def update_environment(
+    environment_id: UUID,
+    env_data: EnvironmentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update an environment."""
+    result = await db.execute(
+        select(ApiEnvironment).where(ApiEnvironment.id == environment_id)
+    )
+    environment = result.scalar_one_or_none()
+    if not environment:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    # If setting as default, unset other defaults
+    if env_data.is_default:
+        await db.execute(
+            update(ApiEnvironment)
+            .where(ApiEnvironment.project_id == environment.project_id)
+            .where(ApiEnvironment.id != environment_id)
+            .values(is_default=False)
+        )
+    
+    update_data = env_data.model_dump(exclude_unset=True)
+    
+    # Convert variables to dict format if present
+    if 'variables' in update_data and update_data['variables']:
+        update_data['variables'] = [v.model_dump() if hasattr(v, 'model_dump') else v for v in update_data['variables']]
+    
+    for key, value in update_data.items():
+        setattr(environment, key, value)
+    
+    await db.commit()
+    await db.refresh(environment)
+    return environment
+
+@router.delete("/environments/{environment_id}")
+async def delete_environment(
+    environment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete an environment."""
+    await db.execute(delete(ApiEnvironment).where(ApiEnvironment.id == environment_id))
     await db.commit()
     return {"status": "success"}

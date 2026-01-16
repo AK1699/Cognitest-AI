@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import {
     X, Plus, Trash2, Settings, Key, Check, HelpCircle,
-    Globe, Zap, Copy, Eye, EyeOff, Search, Sparkles
+    Globe, Zap, Copy, Eye, EyeOff, Search, Sparkles, Save, Loader2, Pencil
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -23,6 +23,10 @@ export interface Environment {
     id: string
     name: string
     variables: EnvironmentVariable[]
+    project_id?: string
+    is_default?: boolean
+    created_at?: string
+    updated_at?: string
 }
 
 interface EnvironmentManagerProps {
@@ -32,6 +36,10 @@ interface EnvironmentManagerProps {
     setEnvironments: React.Dispatch<React.SetStateAction<Environment[]>>
     selectedEnvironmentId: string | null
     setSelectedEnvironmentId: (id: string | null) => void
+    // API callbacks for persistence
+    onCreateEnvironment?: (name: string, variables?: EnvironmentVariable[]) => Promise<Environment | null>
+    onUpdateEnvironment?: (envId: string, updates: Partial<Environment>) => Promise<Environment | null>
+    onDeleteEnvironment?: (envId: string) => Promise<boolean>
 }
 
 export function EnvironmentManager({
@@ -40,39 +48,76 @@ export function EnvironmentManager({
     environments,
     setEnvironments,
     selectedEnvironmentId,
-    setSelectedEnvironmentId
+    setSelectedEnvironmentId,
+    onCreateEnvironment,
+    onUpdateEnvironment,
+    onDeleteEnvironment
 }: EnvironmentManagerProps) {
     const [editingEnvId, setEditingEnvId] = useState<string | null>(null)
     const [newEnvName, setNewEnvName] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
+    const [isSaving, setIsSaving] = useState(false)
+    const [renamingEnvId, setRenamingEnvId] = useState<string | null>(null)
+    const [renamingName, setRenamingName] = useState('')
 
     if (!isOpen) return null
 
-    const createEnvironment = () => {
+    const createEnvironment = async () => {
         const name = newEnvName.trim()
         if (!name) return
 
-        const newEnv: Environment = {
-            id: `env-${Date.now()}`,
-            name: name,
-            variables: []
+        setIsSaving(true)
+        try {
+            if (onCreateEnvironment) {
+                // Use API callback if provided
+                const newEnv = await onCreateEnvironment(name, [])
+                if (newEnv) {
+                    setNewEnvName('')
+                    setEditingEnvId(newEnv.id)
+                    toast.success(`Environment "${newEnv.name}" created`)
+                }
+            } else {
+                // Fallback to local state
+                const newEnv: Environment = {
+                    id: `env-${Date.now()}`,
+                    name: name,
+                    variables: []
+                }
+                setEnvironments(prev => [...prev, newEnv])
+                setNewEnvName('')
+                setEditingEnvId(newEnv.id)
+                toast.success(`Environment "${newEnv.name}" created`)
+            }
+        } finally {
+            setIsSaving(false)
         }
-
-        setEnvironments(prev => [...prev, newEnv])
-        setNewEnvName('')
-        setEditingEnvId(newEnv.id)
-        toast.success(`Environment "${newEnv.name}" created`)
     }
 
-    const deleteEnvironment = (envId: string) => {
+    const deleteEnvironment = async (envId: string) => {
         const env = environments.find(e => e.id === envId)
-        setEnvironments(prev => prev.filter(e => e.id !== envId))
-        if (selectedEnvironmentId === envId) {
-            setSelectedEnvironmentId(null)
+
+        setIsSaving(true)
+        try {
+            if (onDeleteEnvironment) {
+                // Use API callback if provided
+                const success = await onDeleteEnvironment(envId)
+                if (success) {
+                    setEditingEnvId(null)
+                    toast.success(`Environment "${env?.name}" deleted`)
+                }
+            } else {
+                // Fallback to local state
+                setEnvironments(prev => prev.filter(e => e.id !== envId))
+                if (selectedEnvironmentId === envId) {
+                    setSelectedEnvironmentId(null)
+                }
+                setEditingEnvId(null)
+                toast.success(`Environment "${env?.name}" deleted`)
+            }
+        } finally {
+            setIsSaving(false)
         }
-        setEditingEnvId(null)
-        toast.success(`Environment "${env?.name}" deleted`)
     }
 
     const addEnvVariable = (envId: string) => {
@@ -109,6 +154,20 @@ export function EnvironmentManager({
                 ? { ...env, variables: env.variables.filter(v => v.id !== varId) }
                 : env
         ))
+    }
+
+    // Save environment variables to backend when changed
+    const saveEnvironmentVariables = async (envId: string) => {
+        const env = environments.find(e => e.id === envId)
+        if (!env || !onUpdateEnvironment) return
+
+        setIsSaving(true)
+        try {
+            await onUpdateEnvironment(envId, { variables: env.variables })
+            toast.success('Environment saved')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const copyVariable = (key: string) => {
@@ -160,7 +219,7 @@ export function EnvironmentManager({
                 {/* Modal Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Environment List */}
-                    <div className="w-80 border-r border-gray-100 bg-gray-50/50 flex flex-col">
+                    <div className="w-80 border-r border-gray-100 bg-gray-50/50 flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-gray-100">
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
@@ -195,36 +254,91 @@ export function EnvironmentManager({
                                     </div>
                                 ) : (
                                     environments.map(env => (
-                                        <button
+                                        <div
                                             key={env.id}
-                                            onClick={() => setEditingEnvId(env.id)}
                                             className={`w-full flex items-center justify-between p-4 rounded-xl text-left transition-all group ${editingEnvId === env.id
-                                                    ? 'bg-white shadow-lg shadow-gray-200/50 border border-primary/20 ring-2 ring-primary/10'
-                                                    : 'hover:bg-white hover:shadow-md border border-transparent'
+                                                ? 'bg-white shadow-lg shadow-gray-200/50 border border-primary/20 ring-2 ring-primary/10'
+                                                : 'hover:bg-white hover:shadow-md border border-transparent'
                                                 }`}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedEnvironmentId === env.id
-                                                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
-                                                        : 'bg-gray-100'
+                                            <button
+                                                onClick={() => setEditingEnvId(env.id)}
+                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                            >
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedEnvironmentId === env.id
+                                                    ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
+                                                    : 'bg-gray-100'
                                                     }`}>
                                                     <Globe className={`w-5 h-5 ${selectedEnvironmentId === env.id ? 'text-white' : 'text-gray-400'}`} />
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <p className={`font-semibold truncate ${editingEnvId === env.id ? 'text-primary' : 'text-gray-900'}`}>
-                                                        {env.name}
-                                                    </p>
-                                                    <p className="text-xs text-gray-400 mt-0.5">
-                                                        {env.variables.length} variable{env.variables.length !== 1 ? 's' : ''}
-                                                    </p>
+                                                <div className="min-w-0 flex-1">
+                                                    {renamingEnvId === env.id ? (
+                                                        <Input
+                                                            value={renamingName}
+                                                            onChange={(e) => setRenamingName(e.target.value)}
+                                                            onKeyDown={async (e) => {
+                                                                if (e.key === 'Enter' && renamingName.trim()) {
+                                                                    if (onUpdateEnvironment) {
+                                                                        await onUpdateEnvironment(env.id, { name: renamingName.trim() })
+                                                                    }
+                                                                    setRenamingEnvId(null)
+                                                                } else if (e.key === 'Escape') {
+                                                                    setRenamingEnvId(null)
+                                                                }
+                                                            }}
+                                                            onBlur={async () => {
+                                                                if (renamingName.trim() && renamingName !== env.name) {
+                                                                    if (onUpdateEnvironment) {
+                                                                        await onUpdateEnvironment(env.id, { name: renamingName.trim() })
+                                                                    }
+                                                                }
+                                                                setRenamingEnvId(null)
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="h-7 text-sm font-semibold w-full"
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <p className={`font-semibold truncate max-w-[100px] ${editingEnvId === env.id ? 'text-primary' : 'text-gray-900'}`}>
+                                                                {env.name}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                                {env.variables.length} variable{env.variables.length !== 1 ? 's' : ''}
+                                                            </p>
+                                                        </>
+                                                    )}
                                                 </div>
+                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {selectedEnvironmentId === env.id && (
+                                                    <Badge className="bg-green-100 text-green-700 border-0 text-[10px] font-bold mr-1">
+                                                        ACTIVE
+                                                    </Badge>
+                                                )}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setRenamingEnvId(env.id)
+                                                        setRenamingName(env.name)
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all"
+                                                    title="Rename"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        deleteEnvironment(env.id)
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
-                                            {selectedEnvironmentId === env.id && (
-                                                <Badge className="bg-green-100 text-green-700 border-0 text-[10px] font-bold">
-                                                    ACTIVE
-                                                </Badge>
-                                            )}
-                                        </button>
+                                        </div>
                                     ))
                                 )}
                             </div>
@@ -240,8 +354,8 @@ export function EnvironmentManager({
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedEnvironmentId === currentEnv.id
-                                                    ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
-                                                    : 'bg-gray-100'
+                                                ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
+                                                : 'bg-gray-100'
                                                 }`}>
                                                 <Globe className={`w-6 h-6 ${selectedEnvironmentId === currentEnv.id ? 'text-white' : 'text-gray-400'}`} />
                                             </div>
@@ -258,8 +372,8 @@ export function EnvironmentManager({
                                                 size="sm"
                                                 onClick={() => setSelectedEnvironmentId(currentEnv.id)}
                                                 className={`rounded-xl h-10 px-4 transition-all ${selectedEnvironmentId === currentEnv.id
-                                                        ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
-                                                        : 'hover:border-primary hover:text-primary'
+                                                    ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
+                                                    : 'hover:border-primary hover:text-primary'
                                                     }`}
                                             >
                                                 {selectedEnvironmentId === currentEnv.id ? (
@@ -274,10 +388,27 @@ export function EnvironmentManager({
                                                     </>
                                                 )}
                                             </Button>
+                                            {onUpdateEnvironment && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => saveEnvironmentVariables(currentEnv.id)}
+                                                    disabled={isSaving}
+                                                    className="rounded-xl h-10 px-4 hover:border-primary hover:text-primary"
+                                                >
+                                                    {isSaving ? (
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    ) : (
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                    )}
+                                                    Save
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => deleteEnvironment(currentEnv.id)}
+                                                disabled={isSaving}
                                                 className="rounded-xl h-10 w-10 text-gray-400 hover:text-red-500 hover:bg-red-50"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -341,8 +472,8 @@ export function EnvironmentManager({
                                                 <div
                                                     key={variable.id}
                                                     className={`grid grid-cols-[40px_1fr_1fr_120px] gap-4 items-center p-4 rounded-xl border transition-all group ${variable.enabled
-                                                            ? 'bg-white border-gray-100 hover:border-primary/20 hover:shadow-md'
-                                                            : 'bg-gray-50/50 border-gray-100 opacity-60'
+                                                        ? 'bg-white border-gray-100 hover:border-primary/20 hover:shadow-md'
+                                                        : 'bg-gray-50/50 border-gray-100 opacity-60'
                                                         }`}
                                                 >
                                                     <div className="flex justify-center">

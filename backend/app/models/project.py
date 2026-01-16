@@ -46,6 +46,7 @@ class Project(Base):
     # issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")  # Commented out: Issue model has metadata column conflict
     integrations = relationship("Integration", back_populates="project", cascade="all, delete-orphan")
     api_collections = relationship("ApiCollection", back_populates="project", cascade="all, delete-orphan")
+    api_environments = relationship("ApiEnvironment", back_populates="project", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Project {self.name}>"
