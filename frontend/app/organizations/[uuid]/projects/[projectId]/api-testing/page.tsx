@@ -13,6 +13,11 @@ import {
 } from 'lucide-react'
 import { HttpIcon } from '@/components/icons/HttpIcon'
 import { GraphqlIcon } from '@/components/icons/GraphqlIcon'
+import { GrpcIcon } from '@/components/icons/GrpcIcon'
+import { McpIcon } from '@/components/icons/McpIcon'
+import { WebsocketIcon } from '@/components/icons/WebsocketIcon'
+import { SocketIoIcon } from '@/components/icons/SocketIoIcon'
+import { MqttIcon } from '@/components/icons/MqttIcon'
 import {
     DndContext,
     closestCenter,
@@ -175,11 +180,11 @@ const PROTOCOLS = [
     { id: 'http', name: 'HTTP', icon: HttpIcon, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'graphql', name: 'GraphQL', icon: GraphqlIcon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50' },
-    { id: 'grpc', name: 'gRPC', icon: Box, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50' },
-    { id: 'websocket', name: 'WebSocket', icon: Network, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50' },
-    { id: 'socketio', name: 'Socket.IO', icon: Zap, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50' },
-    { id: 'mqtt', name: 'MQTT', icon: Radio, description: 'IoT messaging service testing', color: 'text-amber-500', bgColor: 'bg-amber-50' },
-    { id: 'mcp', name: 'MCP', icon: Link2, description: 'Model Context Protocol testing', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+    { id: 'grpc', name: 'gRPC', icon: GrpcIcon, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50', iconSize: 'w-16 h-16', padding: 'p-1' },
+    { id: 'websocket', name: 'WebSocket', icon: WebsocketIcon, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50', iconSize: 'w-16 h-16', padding: 'p-1' },
+    { id: 'socketio', name: 'Socket.IO', icon: SocketIoIcon, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50', iconSize: 'w-16 h-16', padding: 'p-1' },
+    { id: 'mqtt', name: 'MQTT', icon: MqttIcon, description: 'IoT messaging service testing', color: 'text-amber-500', bgColor: 'bg-amber-50', iconSize: 'w-16 h-16', padding: 'p-1' },
+    { id: 'mcp', name: 'MCP', icon: McpIcon, description: 'Model Context Protocol for AI Agent interactions', color: 'text-stone-500', bgColor: 'bg-stone-50', iconSize: 'w-16 h-16', padding: 'p-1' },
 ] as const;
 
 const getProtocolBadgeInfo = (protocol: APIRequest['protocol'], method: string) => {
