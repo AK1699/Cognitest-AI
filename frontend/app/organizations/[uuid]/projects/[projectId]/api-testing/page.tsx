@@ -180,12 +180,12 @@ const getMethodTextColor = (method: string) => {
 const PROTOCOLS = [
     { id: 'http', name: 'HTTP', icon: HttpIcon, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'graphql', name: 'GraphQL', icon: GraphqlIcon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50', iconSize: 'w-16 h-16', padding: 'p-1' },
-    { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50', iconSize: 'w-16 h-16', padding: 'p-2' },
+    { id: 'ai', name: 'AI', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50', iconSize: 'w-16 h-16', padding: 'p-2' },
+    { id: 'mcp', name: 'MCP', icon: McpIcon, description: 'Model Context Protocol for AI Agent interactions', color: 'text-stone-500', bgColor: 'bg-stone-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'grpc', name: 'gRPC', icon: GrpcIcon, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'websocket', name: 'WebSocket', icon: WebsocketIcon, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'socketio', name: 'Socket.IO', icon: SocketIoIcon, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'mqtt', name: 'MQTT', icon: MqttIcon, description: 'IoT messaging service testing', color: 'text-amber-500', bgColor: 'bg-amber-50', iconSize: 'w-16 h-16', padding: 'p-1' },
-    { id: 'mcp', name: 'MCP', icon: McpIcon, description: 'Model Context Protocol for AI Agent interactions', color: 'text-stone-500', bgColor: 'bg-stone-50', iconSize: 'w-16 h-16', padding: 'p-1' },
 ] as const;
 
 const getProtocolBadgeInfo = (protocol: APIRequest['protocol'], method: string) => {
@@ -1953,95 +1953,49 @@ export default function APITestingPage() {
                     {activeRequest ? (
                         <>
                             {/* Request Header */}
-                            <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <button className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm border transition-all hover:scale-105 active:scale-95 ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.bgColor} ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.padding || 'p-1'}`}>
-                                                    {(() => {
-                                                        const proto = PROTOCOLS.find(p => p.id === activeRequest.protocol);
-                                                        const Icon = proto?.icon || Globe;
-                                                        return <Icon className="w-full h-full" />;
-                                                    })()}
-                                                </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start" className="w-64 p-2 rounded-2xl shadow-2xl border-gray-100">
-                                                {PROTOCOLS.map((proto) => (
-                                                    <DropdownMenuItem
-                                                        key={proto.id}
-                                                        onClick={() => {
-                                                            updateActiveRequest({ protocol: proto.id as any });
-                                                            setLastUsedProtocol(proto.id as any);
-                                                        }}
-                                                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-primary/5 group"
-                                                    >
-                                                        <div className={`p-2 rounded-lg ${proto.bgColor} ${proto.color} group-hover:scale-110 transition-transform`}>
-                                                            <proto.icon className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-gray-900 group-hover:text-primary transition-colors">{proto.name}</span>
-                                                            <span className="text-[10px] text-gray-500 font-medium leading-none mt-0.5">{proto.description.split('.')[0]}</span>
-                                                        </div>
-                                                        {activeRequest.protocol === proto.id && (
-                                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
-                                                        )}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <div className="flex flex-col">
-                                            {editingRequestId === activeRequest.id ? (
-                                                <input
-                                                    autoFocus
-                                                    className="text-lg font-bold text-gray-900 bg-transparent border-none outline-none focus:ring-0 p-0"
-                                                    value={activeRequest.name}
-                                                    onChange={(e) => updateActiveRequest({ name: e.target.value })}
-                                                    onBlur={() => setEditingRequestId(null)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingRequestId(null)}
-                                                />
-                                            ) : (
-                                                <h2
-                                                    className="text-lg font-bold text-gray-900 cursor-text hover:text-primary transition-colors"
-                                                    onDoubleClick={() => setEditingRequestId(activeRequest.id)}
-                                                >
-                                                    {activeRequest.name}
-                                                </h2>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter py-0 h-4 border-gray-200 text-gray-400">
-                                                    {activeRequest.protocol}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" className="h-8 text-gray-500">
-                                        <Settings className="w-4 h-4 mr-2" />
-                                        Config
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="h-8 text-gray-500">
-                                        <Copy className="w-4 h-4 mr-2" />
-                                        Copy URL
-                                    </Button>
-                                </div>
-                            </div>
+                            {/* Request Header Removed */}
 
                             {/* URL Bar */}
                             <div className="px-6 py-4 border-b border-gray-200 bg-white">
                                 <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-gray-300 focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5 transition-all shadow-sm">
-                                    <div className="flex items-center gap-2 pl-3 border-r border-gray-100 pr-2">
-                                        <div className={`p-1.5 rounded-lg ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.bgColor || 'bg-blue-50'} ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.color || 'text-blue-500'}`}>
-                                            {(() => {
-                                                const Icon = PROTOCOLS.find(p => p.id === activeRequest.protocol)?.icon || Globe
-                                                return <Icon className="w-4 h-4" />
-                                            })()}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                            {activeRequest.protocol}
-                                        </span>
-                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <div className="flex items-center gap-2 pl-3 border-r border-gray-100 pr-2 cursor-pointer hover:bg-gray-50 rounded-l-xl transition-colors h-full">
+                                                <div className={`p-1.5 rounded-lg ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.bgColor || 'bg-blue-50'} ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.color || 'text-blue-500'}`}>
+                                                    {(() => {
+                                                        const Icon = PROTOCOLS.find(p => p.id === activeRequest.protocol)?.icon || Globe
+                                                        return <Icon className="w-4 h-4" />
+                                                    })()}
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                    {activeRequest.protocol}
+                                                </span>
+                                            </div>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-64 p-2 rounded-2xl shadow-2xl border-gray-100">
+                                            {PROTOCOLS.map((proto) => (
+                                                <DropdownMenuItem
+                                                    key={proto.id}
+                                                    onClick={() => {
+                                                        updateActiveRequest({ protocol: proto.id as any });
+                                                        setLastUsedProtocol(proto.id as any);
+                                                    }}
+                                                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-primary/5 group"
+                                                >
+                                                    <div className={`p-2 rounded-lg ${proto.bgColor} ${proto.color} group-hover:scale-110 transition-transform`}>
+                                                        <proto.icon className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-gray-900 group-hover:text-primary transition-colors">{proto.name}</span>
+                                                        <span className="text-[10px] text-gray-500 font-medium leading-none mt-0.5">{proto.description.split('.')[0]}</span>
+                                                    </div>
+                                                    {activeRequest.protocol === proto.id && (
+                                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                                                    )}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                     {activeRequest.protocol === 'http' && (
                                         <div className="w-24 border-r border-gray-100 px-1">
                                             <Select
