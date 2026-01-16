@@ -625,11 +625,78 @@ export default function APITestingPage() {
         return result
     }
 
+    const syncParamsWithUrl = (url: string, currentParams: KeyValuePair[]): KeyValuePair[] => {
+        try {
+            const queryString = url.includes('?') ? url.split('?')[1] : '';
+            if (!queryString) {
+                return currentParams.filter(p => !p.enabled);
+            }
+
+            const searchParams = new URLSearchParams(queryString);
+            const newParams: KeyValuePair[] = [];
+            const processedParams = new Set<string>();
+
+            searchParams.forEach((value, key) => {
+                const existingParam = currentParams.find(p => p.key === key && p.value === value && !processedParams.has(p.id));
+
+                if (existingParam) {
+                    newParams.push({ ...existingParam, enabled: true });
+                    processedParams.add(existingParam.id);
+                } else {
+                    const sameKeyParam = currentParams.find(p => p.key === key && !processedParams.has(p.id));
+                    if (sameKeyParam) {
+                        newParams.push({ ...sameKeyParam, value, enabled: true });
+                        processedParams.add(sameKeyParam.id);
+                    } else {
+                        newParams.push({
+                            id: Math.random().toString(36).substr(2, 9),
+                            key,
+                            value,
+                            description: '',
+                            enabled: true
+                        });
+                    }
+                }
+            });
+
+            currentParams.forEach(p => {
+                if (!p.enabled && !processedParams.has(p.id)) {
+                    newParams.push(p);
+                }
+            });
+
+            return newParams;
+        } catch (e) {
+            console.error("Error syncing params", e)
+            return currentParams
+        }
+    }
+
+    const syncUrlWithParams = (url: string, params: KeyValuePair[]): string => {
+        const baseUrl = url.split('?')[0];
+        const enabledParams = params.filter(p => p.enabled && p.key);
+        if (enabledParams.length === 0) return baseUrl;
+
+        const searchParams = new URLSearchParams();
+        enabledParams.forEach(p => searchParams.append(p.key, p.value));
+        return `${baseUrl}?${searchParams.toString()}`;
+    }
+
     const updateActiveRequest = (updates: Partial<APIRequest>) => {
         if (!activeRequestId) return
-        setOpenRequests(prev => prev.map(r =>
-            r.id === activeRequestId ? { ...r, ...updates, isDirty: true } : r
-        ))
+        setOpenRequests(prev => prev.map(r => {
+            if (r.id !== activeRequestId) return r;
+
+            let updatedRequest = { ...r, ...updates, isDirty: true };
+
+            if (updates.url !== undefined && updates.params === undefined) {
+                updatedRequest.params = syncParamsWithUrl(updatedRequest.url, r.params);
+            } else if (updates.params !== undefined && updates.url === undefined) {
+                updatedRequest.url = syncUrlWithParams(r.url, updatedRequest.params);
+            }
+
+            return updatedRequest;
+        }))
     }
 
     const updateRequestAPI = async (id: string, updates: Partial<APIRequest>) => {
