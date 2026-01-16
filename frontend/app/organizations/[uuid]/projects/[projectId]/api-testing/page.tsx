@@ -45,6 +45,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EnvironmentManager, type Environment, type EnvironmentVariable } from '@/components/api-testing/EnvironmentManager'
 import { HighlightedInput } from '@/components/api-testing/HighlightedInput'
+import { CollectionRunner } from '@/components/api-testing/CollectionRunner'
 import { KeyValueEditor, type KeyValuePair } from './KeyValueEditor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -468,6 +469,7 @@ export default function APITestingPage() {
     // Unsaved Changes Dialog state
     const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false)
     const [pendingCloseRequestId, setPendingCloseRequestId] = useState<string | null>(null)
+    const [runnerTarget, setRunnerTarget] = useState<Collection | null>(null)
 
     // Active UI tabs
     const [activeConfigTab, setActiveConfigTab] = useState('params')
@@ -1719,6 +1721,11 @@ export default function APITestingPage() {
                                                                 <DropdownMenuItem onClick={() => addFolderToCollection(collection.id, 'New Folder')}>
                                                                     <Folder className="w-4 h-4 mr-2" /> New Folder
                                                                 </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => {
+                                                                    setRunnerTarget(collection)
+                                                                }}>
+                                                                    <Play className="w-4 h-4 mr-2" /> Run Collection
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => {
                                                                     setTargetId(collection.id);
@@ -1869,7 +1876,7 @@ export default function APITestingPage() {
                                                                                 setActiveRequestId(req.id)
                                                                             }}
                                                                         >
-                                                                            <span className={`text-[8px] font-black w-7 flex-shrink-0 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
+                                                                            <span className={`text-[8px] font-black w-9 flex-shrink-0 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
                                                                                 {getProtocolBadgeInfo(req.protocol, req.method).label}
                                                                             </span>
                                                                             <span className="text-[12px] text-gray-500 group-hover/req:text-primary truncate flex-1">{req.name}</span>
@@ -2094,6 +2101,11 @@ export default function APITestingPage() {
                                                     Scripts
                                                 </TabsTrigger>
                                             )}
+                                            <div className="ml-auto flex items-center">
+                                                <button className="text-primary text-xs font-bold hover:underline">
+                                                    Cookies
+                                                </button>
+                                            </div>
                                         </TabsList>
 
                                         <ScrollArea className="flex-1 bg-white">
@@ -3019,6 +3031,19 @@ export default function APITestingPage() {
                         </div>
                     )
                 }
+
+                {/* Collection Runner Overlay */}
+                {runnerTarget && (
+                    <CollectionRunner
+                        target={runnerTarget}
+                        onClose={() => setRunnerTarget(null)}
+                        onRun={(config) => {
+                            console.log('Running with config:', config)
+                            toast.success(`Started run for ${runnerTarget.name}`)
+                            setRunnerTarget(null)
+                        }}
+                    />
+                )}
             </div>
 
             {/* Rename Dialog */}
