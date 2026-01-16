@@ -11,6 +11,8 @@ import {
     Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2,
     Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap
 } from 'lucide-react'
+import { HttpIcon } from '@/components/icons/HttpIcon'
+import { GraphqlIcon } from '@/components/icons/GraphqlIcon'
 import {
     DndContext,
     closestCenter,
@@ -170,8 +172,8 @@ const getMethodTextColor = (method: string) => {
     }
 }
 const PROTOCOLS = [
-    { id: 'http', name: 'HTTP', icon: Globe, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50' },
-    { id: 'graphql', name: 'GraphQL', icon: Hexagon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50' },
+    { id: 'http', name: 'HTTP', icon: HttpIcon, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50', iconSize: 'w-16 h-16', padding: 'p-1' },
+    { id: 'graphql', name: 'GraphQL', icon: GraphqlIcon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50' },
     { id: 'grpc', name: 'gRPC', icon: Box, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50' },
     { id: 'websocket', name: 'WebSocket', icon: Network, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50' },
@@ -2919,8 +2921,8 @@ export default function APITestingPage() {
                                 }}
                                 className="flex items-start gap-4 p-5 rounded-2xl border border-gray-100 bg-white hover:border-primary/20 hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/5 transition-all group text-left"
                             >
-                                <div className={`p-3 rounded-xl ${proto.bgColor} ${proto.color} transition-transform group-hover:scale-110`}>
-                                    <proto.icon className="w-6 h-6" />
+                                <div className={`${(proto as any).padding || 'p-3'} rounded-xl ${proto.bgColor} ${proto.color} transition-transform group-hover:scale-110`}>
+                                    <proto.icon className={(proto as any).iconSize || "w-6 h-6"} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-bold text-gray-900 mb-0.5 group-hover:text-primary transition-colors">
