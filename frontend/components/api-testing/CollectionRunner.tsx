@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     X,
     ChevronRight,
@@ -9,7 +9,14 @@ import {
     Info,
     CheckSquare,
     Square,
-    ArrowRight
+    ArrowRight,
+    RotateCcw,
+    Plus,
+    Terminal,
+    ChevronDown,
+    CheckCircle,
+    XCircle,
+    AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +34,9 @@ interface CollectionRunnerProps {
 }
 
 export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerProps) {
+    const [view, setView] = useState<'config' | 'results'>('config');
+    const [runResults, setRunResults] = useState<any>(null);
+
     // Flatten requests from the target (recursively if it's a collection/folder)
     const allRequests = useMemo(() => {
         const requests: any[] = [];
@@ -74,6 +84,197 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
             default: return 'text-gray-600 bg-gray-100 border-gray-200';
         }
     };
+
+    const handleRun = () => {
+        // Mock run execution for immediate feedback
+        const mockResults = {
+            id: crypto.randomUUID(),
+            startTime: new Date(),
+            duration: 790,
+            iterations: config.iterations,
+            total: selectedRequestIds.length * config.iterations,
+            failed: 1,
+            avgResponseTime: 625,
+            environment: 'testing',
+            executed: allRequests
+                .filter(r => selectedRequestIds.includes(r.id))
+                .map(r => ({
+                    ...r,
+                    status: Math.random() > 0.8 ? 403 : 200,
+                    responseTime: Math.floor(Math.random() * 500) + 100,
+                    size: Math.floor(Math.random() * 2000) + 500
+                }))
+        };
+        setRunResults(mockResults);
+        setView('results');
+        // onRun({ selectedRequestIds, ...config }); // Keep original handler if needed
+    };
+
+    if (view === 'results' && runResults) {
+        return (
+            <div className="fixed inset-0 bg-white z-50 flex flex-col animate-in slide-in-from-bottom-10 duration-200">
+                {/* Results Header */}
+                <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 bg-white">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-lg font-bold text-gray-900">{target.name} - Run results</h2>
+                            {runResults.failed > 0 && (
+                                <Badge className="bg-red-500 hover:bg-red-600 text-white border-0 font-bold px-2 py-0.5 rounded text-[10px]">ERROR</Badge>
+                            )}
+                        </div>
+                        <div className="h-4 w-[1px] bg-gray-300 mx-2" />
+                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900 gap-2" onClick={handleRun}>
+                            <RotateCcw className="w-4 h-4" /> Run Again
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900 gap-2" onClick={() => setView('config')}>
+                            <Plus className="w-4 h-4" /> New Run
+                        </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="gap-2">
+                            Share
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-100 rounded-full">
+                            <X className="w-5 h-5 text-gray-500" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/30">
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-6 gap-8 p-8 border-b border-gray-200 bg-white">
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Source</span>
+                            <span className="text-sm font-medium text-gray-900">Runner</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Environment</span>
+                            <span className="text-sm font-medium text-gray-900">{runResults.environment}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Iterations</span>
+                            <span className="text-sm font-medium text-gray-900">{runResults.iterations}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Duration</span>
+                            <span className="text-sm font-medium text-gray-900">{runResults.duration}ms</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">All tests</span>
+                            <span className="text-sm font-medium text-gray-900">{runResults.total}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-red-500 block uppercase tracking-wider">Errors</span>
+                            <span className="text-xl font-bold text-red-500">{runResults.failed}</span>
+                        </div>
+                    </div>
+
+                    {/* Avg Response Time Big Display */}
+                    <div className="px-8 pb-4 bg-white border-b border-gray-200">
+                        <div className="space-y-1">
+                            <span className="text-xs font-semibold text-gray-500 block">Avg. Resp. Time</span>
+                            <span className="text-2xl font-black text-gray-900">{runResults.avgResponseTime} ms</span>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="px-8 pt-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                        <div className="flex gap-8">
+                            {['All Tests', 'Passed', 'Failed', 'Skipped', 'Errors'].map(tab => (
+                                <button
+                                    key={tab}
+                                    className="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-900 transition-all hover:border-gray-300 first:border-primary first:text-primary"
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                            <button className="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-900 transition-all ml-auto flex items-center gap-2">
+                                Console Log
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Results List */}
+                    <ScrollArea className="flex-1">
+                        <div className="p-8 space-y-8">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-gray-500 border-b border-gray-200 pb-2 flex items-center justify-between">
+                                    <span>Iteration 1</span>
+                                    <span className="bg-gray-100 text-[10px] px-1.5 py-0.5 rounded text-gray-500">1</span>
+                                </h3>
+
+                                <div className="space-y-1">
+                                    {runResults.executed.map((req: any) => (
+                                        <div key={req.id} className="group relative">
+                                            {/* Request Row */}
+                                            <div className="flex items-center py-2 px-2 hover:bg-gray-100 rounded-lg group-hover:bg-gray-50 transition-colors cursor-pointer select-none">
+                                                {/* Method */}
+                                                <div className="w-16 flex-shrink-0">
+                                                    <span className={`text-[10px] font-bold ${req.method === 'GET' ? 'text-green-600' :
+                                                        req.method === 'POST' ? 'text-yellow-600' :
+                                                            req.method === 'DELETE' ? 'text-red-600' :
+                                                                req.method === 'PUT' ? 'text-blue-600' : 'text-gray-600'
+                                                        }`}>
+                                                        {req.method}
+                                                    </span>
+                                                </div>
+
+                                                {/* Name */}
+                                                <div className="flex-1 min-w-0 pr-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-gray-900 truncate">{req.name}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* URL (Faded) - shown on hover or constant */}
+                                                <div className="flex-1 hidden md:block text-xs text-gray-400 truncate pr-4">
+                                                    {req.url || 'https://restful-booker.herokuapp.com/booking/1'}
+                                                </div>
+
+                                                {/* Status Code */}
+                                                <div className="w-20 text-right flex-shrink-0">
+                                                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${req.status >= 200 && req.status < 300
+                                                        ? 'text-green-700 bg-green-100'
+                                                        : 'text-red-700 bg-red-100'
+                                                        }`}>
+                                                        {req.status}
+                                                    </span>
+                                                </div>
+
+                                                {/* Time */}
+                                                <div className="w-20 text-right text-xs font-mono text-gray-500 flex-shrink-0">
+                                                    {req.responseTime} ms
+                                                </div>
+
+                                                {/* Size */}
+                                                <div className="w-20 text-right text-xs font-mono text-gray-500 flex-shrink-0">
+                                                    {req.size} B
+                                                </div>
+
+                                                {/* Dots */}
+                                                <div className="w-6 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                    <div className="w-1 h-1 bg-gray-400 rounded-full" />
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Status/Tests (simplified) */}
+                                            <div className="pl-16 pl-2 pb-2">
+                                                {req.status >= 400 ? (
+                                                    <div className="text-xs text-gray-400 italic">No tests found</div>
+                                                ) : (
+                                                    <div className="text-xs text-gray-400 italic">No tests found</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </ScrollArea>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-white z-50 flex flex-col animate-in slide-in-from-bottom-10 duration-200">
@@ -280,7 +481,8 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
                         </div>
                         <Button
                             className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-8 text-base shadow-xl shadow-primary/20 rounded-xl transition-all hover:-translate-y-0.5"
-                            onClick={() => onRun({ selectedRequestIds, ...config })}
+                            onClick={handleRun}
+                            disabled={selectedRequestIds.length === 0}
                         >
                             <Play className="w-5 h-5 mr-2 fill-current" />
                             Run {target.name}
@@ -291,5 +493,3 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
         </div>
     );
 }
-
-
