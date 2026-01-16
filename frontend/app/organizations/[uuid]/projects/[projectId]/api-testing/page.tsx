@@ -285,15 +285,31 @@ export default function APITestingPage() {
     const [loading, setLoading] = useState(false)
 
     // Collections state
-    const [collections, setCollections] = useState<Collection[]>([
-        {
-            id: 'c1',
-            name: 'My Collection',
-            isOpen: true,
-            requests: [],
-            folders: []
+    const [collections, setCollections] = useState<Collection[]>([])
+    const [collectionsLoading, setCollectionsLoading] = useState(true)
+
+    // Fetch collections on mount
+    const fetchCollections = async () => {
+        try {
+            setCollectionsLoading(true)
+            const response = await fetch(`${API_URL}/api/v1/api-testing/collections/${projectId}`, {
+                credentials: 'include'
+            })
+            if (response.ok) {
+                const data = await response.json()
+                setCollections(data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch collections:', error)
+            toast.error('Failed to load collections')
+        } finally {
+            setCollectionsLoading(false)
         }
-    ])
+    }
+
+    useEffect(() => {
+        fetchCollections()
+    }, [projectId])
 
     // Environment state - now fetched from backend
     const [environments, setEnvironments] = useState<Environment[]>([])
@@ -303,6 +319,8 @@ export default function APITestingPage() {
     const [envDropdownOpen, setEnvDropdownOpen] = useState(false)
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
     const [saveTarget, setSaveTarget] = useState({ collectionId: '', folderId: '' })
+    const [newCollectionName, setNewCollectionName] = useState('')
+    const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false)
 
     // Sidebar state
     const [activeSidebarTab, setActiveSidebarTab] = useState<'collections' | 'history'>('collections')
@@ -456,92 +474,239 @@ export default function APITestingPage() {
         ))
     }
 
-    const deleteCollection = (id: string) => {
-        setCollections(prev => prev.filter(c => c.id !== id))
+    const updateRequestAPI = async (id: string, updates: Partial<APIRequest>) => {
+        try {
+            // Map frontend fields to backend if necessary
+            const backendUpdates: any = {}
+            if (updates.name) backendUpdates.name = updates.name
+            if (updates.method) backendUpdates.method = updates.method
+            if (updates.url) backendUpdates.url = updates.url
+            if (updates.params) backendUpdates.params = updates.params
+            if (updates.headers) backendUpdates.headers = updates.headers
+            if (updates.body) backendUpdates.body = updates.body
+            if (updates.auth) backendUpdates.auth = updates.auth
+            if (updates.preRequestScript !== undefined) backendUpdates.pre_request_script = updates.preRequestScript
+            if (updates.testScript !== undefined) backendUpdates.test_script = updates.testScript
+
+            const response = await fetch(`${API_URL}/api/v1/api-testing/requests/${id}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(backendUpdates)
+            })
+
+            if (response.ok) {
+                const updated = await response.json()
+                // Update local collections if the request is there
+                await fetchCollections()
+                toast.success('Request updated in database')
+                return updated
+            }
+        } catch (error) {
+            console.error('Update error:', error)
+            toast.error('Failed to update request')
+        }
+        return null
     }
 
-    const addRequestToCollection = (collectionId: string, folderId?: string) => {
-        const newReq = { ...activeRequest!, id: `req-${Date.now()}` }
-        setCollections(prev => prev.map(c => {
-            if (c.id === collectionId) {
-                if (folderId) {
-                    const updateFolders = (folders: Collection[]): Collection[] => {
-                        return folders.map(f => {
-                            if (f.id === folderId) {
-                                return { ...f, requests: [...(f.requests || []), newReq] }
-                            }
-                            if (f.folders) return { ...f, folders: updateFolders(f.folders) }
-                            return f
-                        })
-                    }
-                    return { ...c, folders: updateFolders(c.folders || []) }
-                }
-                return { ...c, requests: [...c.requests, newReq], isOpen: true }
+
+
+    const addRequestToCollection = async (collectionId: string, folderId?: string) => {
+        if (!activeRequest) return
+
+        try {
+            const requestData = {
+                name: activeRequest.name || 'New Request',
+                method: activeRequest.method,
+                url: activeRequest.url,
+                params: activeRequest.params,
+                headers: activeRequest.headers,
+                body: activeRequest.body,
+                auth: activeRequest.auth,
+                pre_request_script: activeRequest.preRequestScript,
+                test_script: activeRequest.testScript,
+                collection_id: folderId || collectionId
             }
-            return c
-        }))
-        toast.success('Request saved to collection')
+
+            // If we need to create a collection first
+            let finalCollectionId = folderId || collectionId
+            if (isCreatingNewCollection && newCollectionName.trim()) {
+                const colRes = await fetch(`${API_URL}/api/v1/api-testing/collections`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newCollectionName,
+                        project_id: projectId
+                    })
+                })
+                if (colRes.ok) {
+                    const newCol = await colRes.json()
+                    finalCollectionId = newCol.id
+                } else {
+                    throw new Error('Failed to create collection')
+                }
+            }
+
+            const response = await fetch(`${API_URL}/api/v1/api-testing/requests`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...requestData, collection_id: finalCollectionId })
+            })
+
+            if (response.ok) {
+                const newReq = await response.json()
+                // Update open tab with real ID
+                setOpenRequests(prev => prev.map(r =>
+                    r.id === activeRequest.id ? { ...r, id: newReq.id } : r
+                ))
+                setActiveRequestId(newReq.id)
+
+                await fetchCollections()
+                toast.success('Request saved to database')
+                setIsSaveDialogOpen(false)
+            } else {
+                throw new Error('Failed to save request')
+            }
+        } catch (error) {
+            console.error('Save error:', error)
+            toast.error('Failed to save to database')
+        }
     }
 
     const handleSaveRequest = () => {
         if (!activeRequest) return
-        setIsSaveDialogOpen(true)
-    }
 
-    const addFolderToCollection = (collectionId: string, name: string) => {
-        const newFolder: Collection = {
-            id: `folder-${Date.now()}`,
-            name,
-            requests: [],
-            folders: [],
-            isOpen: true
-        }
-        setCollections(prev => prev.map(c => {
-            if (c.id === collectionId) {
-                return { ...c, folders: [...(c.folders || []), newFolder], isOpen: true }
-            }
-            return c
-        }))
-    }
+        // If it's a real UUID (not temp string), just update it
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeRequest.id)
 
-    const duplicateRequest = (req: APIRequest, parentId: string) => {
-        const newReq = { ...req, id: `req-${Date.now()}`, name: `${req.name} (Copy)` }
-        setCollections(prev => prev.map(c => {
-            if (c.id === parentId) {
-                return { ...c, requests: [...c.requests, newReq] }
-            }
-            return {
-                ...c,
-                folders: (c.folders || []).map(f => f.id === parentId ? { ...f, requests: [...f.requests, newReq] } : f)
-            }
-        }))
-        setOpenRequests(prev => [...prev, newReq])
-        setActiveRequestId(newReq.id)
-    }
-
-    const deleteRequest = (id: string) => {
-        setCollections(prev => prev.map(c => ({
-            ...c,
-            requests: c.requests.filter(r => r.id !== id),
-            folders: (c.folders || []).map(f => ({ ...f, requests: f.requests.filter(r => r.id !== id) }))
-        })))
-        setOpenRequests(prev => prev.filter(r => r.id !== id))
-        if (activeRequestId === id && openRequests.length > 1) {
-            setActiveRequestId(openRequests[0].id)
+        if (isUUID) {
+            updateRequestAPI(activeRequest.id, activeRequest)
+        } else {
+            setSaveTarget({ collectionId: '', folderId: '' })
+            setNewCollectionName('')
+            setIsCreatingNewCollection(collections.length === 0)
+            setIsSaveDialogOpen(true)
         }
     }
 
-    const handleRename = () => {
+    const addFolderToCollection = async (collectionId: string, name: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/collections`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    project_id: projectId,
+                    parent_id: collectionId
+                })
+            })
+            if (response.ok) {
+                await fetchCollections()
+                toast.success('Folder created')
+            }
+        } catch (error) {
+            console.error('Create folder error:', error)
+            toast.error('Failed to create folder')
+        }
+    }
+
+    const duplicateRequest = async (req: APIRequest, parentId: string) => {
+        try {
+            const requestData = {
+                name: `${req.name} (Copy)`,
+                method: req.method,
+                url: req.url,
+                params: req.params,
+                headers: req.headers,
+                body: req.body,
+                auth: req.auth,
+                pre_request_script: req.preRequestScript,
+                test_script: req.testScript,
+                collection_id: parentId
+            }
+
+            const response = await fetch(`${API_URL}/api/v1/api-testing/requests`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+
+            if (response.ok) {
+                const newReq = await response.json()
+                setOpenRequests(prev => [...prev, newReq])
+                setActiveRequestId(newReq.id)
+                await fetchCollections()
+                toast.success('Request duplicated')
+            }
+        } catch (error) {
+            console.error('Duplicate error:', error)
+            toast.error('Failed to duplicate request')
+        }
+    }
+
+    const deleteRequest = async (id: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/requests/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+            if (response.ok) {
+                await fetchCollections()
+                setOpenRequests(prev => prev.filter(r => r.id !== id))
+                if (activeRequestId === id) {
+                    setActiveRequestId(null)
+                }
+                toast.success('Request deleted')
+            }
+        } catch (error) {
+            console.error('Delete error:', error)
+            toast.error('Failed to delete request')
+        }
+    }
+
+    const deleteCollection = async (id: string) => {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/collections/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+            if (response.ok) {
+                await fetchCollections()
+                toast.success('Deleted successfully')
+            }
+        } catch (error) {
+            console.error('Delete error:', error)
+            toast.error('Failed to delete')
+        }
+    }
+
+    const handleRename = async () => {
         if (!targetId || !tempName.trim()) return
-        setCollections(prev => prev.map(c => {
-            if (c.id === targetId) return { ...c, name: tempName }
-            return {
-                ...c,
-                folders: (c.folders || []).map(f => f.id === targetId ? { ...f, name: tempName } : f),
-                requests: c.requests.map(r => r.id === targetId ? { ...r, name: tempName } : r)
+
+        try {
+            const isRequest = openRequests.some(r => r.id === targetId) || collections.some(c => c.requests.some(req => req.id === targetId))
+            const endpoint = isRequest ? `requests/${targetId}` : `collections/${targetId}`
+
+            const response = await fetch(`${API_URL}/api/v1/api-testing/${endpoint}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: tempName })
+            })
+
+            if (response.ok) {
+                await fetchCollections()
+                setOpenRequests(prev => prev.map(r => r.id === targetId ? { ...r, name: tempName } : r))
+                toast.success('Renamed successfully')
             }
-        }))
-        setOpenRequests(prev => prev.map(r => r.id === targetId ? { ...r, name: tempName } : r))
+        } catch (error) {
+            console.error('Rename error:', error)
+            toast.error('Failed to rename')
+        }
         setIsRenameDialogOpen(false)
     }
 
@@ -1282,12 +1447,7 @@ export default function APITestingPage() {
                                                                                             }}>
                                                                                                 <Edit2 className="w-4 h-4 mr-2" /> Rename
                                                                                             </DropdownMenuItem>
-                                                                                            <DropdownMenuItem className="text-red-600" onClick={() => {
-                                                                                                setCollections(prev => prev.map(c => ({
-                                                                                                    ...c,
-                                                                                                    folders: c.folders?.filter(f => f.id !== folder.id)
-                                                                                                })))
-                                                                                            }}>
+                                                                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteCollection(folder.id)}>
                                                                                                 <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                                             </DropdownMenuItem>
                                                                                         </DropdownMenuContent>
@@ -2261,18 +2421,28 @@ export default function APITestingPage() {
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsNewCollectionOpen(false)}>Cancel</Button>
                         <Button
-                            onClick={() => {
+                            onClick={async () => {
                                 if (tempName.trim()) {
-                                    const newCol: Collection = {
-                                        id: Math.random().toString(36).substr(2, 9),
-                                        name: tempName,
-                                        isOpen: true,
-                                        requests: [],
-                                        folders: []
+                                    try {
+                                        const response = await fetch(`${API_URL}/api/v1/api-testing/collections`, {
+                                            method: 'POST',
+                                            credentials: 'include',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                name: tempName,
+                                                project_id: projectId
+                                            })
+                                        })
+                                        if (response.ok) {
+                                            await fetchCollections()
+                                            setIsNewCollectionOpen(false)
+                                            setTempName('')
+                                            toast.success('Collection created')
+                                        }
+                                    } catch (error) {
+                                        console.error('Create collection error:', error)
+                                        toast.error('Failed to create collection')
                                     }
-                                    setCollections(prev => [...prev, newCol])
-                                    setIsNewCollectionOpen(false)
-                                    setTempName('')
                                 }
                             }}
                             disabled={!tempName.trim()}
@@ -2305,23 +2475,64 @@ export default function APITestingPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Collection</Label>
-                            <Select
-                                value={saveTarget.collectionId}
-                                onValueChange={(val) => setSaveTarget({ ...saveTarget, collectionId: val, folderId: '' })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a collection" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {collections.map(c => (
-                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {saveTarget.collectionId && (
+                        {!isCreatingNewCollection && collections.length > 0 ? (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label>Collection</Label>
+                                    <Button
+                                        variant="link"
+                                        className="h-auto p-0 text-xs text-primary"
+                                        onClick={() => {
+                                            setIsCreatingNewCollection(true)
+                                            setSaveTarget({ collectionId: '', folderId: '' })
+                                        }}
+                                    >
+                                        + Create New
+                                    </Button>
+                                </div>
+                                <Select
+                                    value={saveTarget.collectionId}
+                                    onValueChange={(val) => setSaveTarget({ ...saveTarget, collectionId: val, folderId: '' })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a collection" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {collections.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label>New Collection Name</Label>
+                                    {collections.length > 0 && (
+                                        <Button
+                                            variant="link"
+                                            className="h-auto p-0 text-xs text-primary"
+                                            onClick={() => setIsCreatingNewCollection(false)}
+                                        >
+                                            Cancel New
+                                        </Button>
+                                    )}
+                                </div>
+                                <Input
+                                    value={newCollectionName}
+                                    onChange={(e) => setNewCollectionName(e.target.value)}
+                                    placeholder="e.g. My API Collection"
+                                    autoFocus
+                                />
+                                {collections.length === 0 && (
+                                    <p className="text-[10px] text-amber-600 font-medium">
+                                        You don't have any collections yet. Please create one to save your request.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {saveTarget.collectionId && !isCreatingNewCollection && (
                             <div className="space-y-2">
                                 <Label>Folder (Optional)</Label>
                                 <Select
@@ -2354,11 +2565,10 @@ export default function APITestingPage() {
                         <Button
                             onClick={() => {
                                 addRequestToCollection(saveTarget.collectionId, saveTarget.folderId === 'none' ? undefined : saveTarget.folderId)
-                                setIsSaveDialogOpen(false)
                             }}
-                            disabled={!saveTarget.collectionId}
+                            disabled={isCreatingNewCollection ? !newCollectionName.trim() : !saveTarget.collectionId}
                         >
-                            Save
+                            {isCreatingNewCollection ? 'Create & Save' : 'Save'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
