@@ -16,6 +16,7 @@ class APIRequest(Base):
     name = Column(String(255), nullable=False)
     method = Column(String(10), nullable=False, default="GET")
     url = Column(Text, nullable=False)
+    protocol = Column(String(20), nullable=False, default="http")
     
     params = Column(JSON, default=list)
     headers = Column(JSON, default=list)

@@ -8,7 +8,8 @@ import {
     FileJson, Folder, FolderOpen, MoreHorizontal, Upload, Download,
     Settings, Settings2, Clock, Copy, Check, AlertCircle, Loader2,
     Sparkles, MessageSquare, Code2, Eye, FileText, Cookie,
-    Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2
+    Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2,
+    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap
 } from 'lucide-react'
 import {
     DndContext,
@@ -78,6 +79,7 @@ interface KeyValuePair {
 interface APIRequest {
     id: string
     name: string
+    protocol: 'http' | 'graphql' | 'grpc' | 'websocket' | 'socketio' | 'mqtt' | 'ai' | 'mcp'
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
     url: string
     params: KeyValuePair[]
@@ -124,6 +126,14 @@ interface APIResponse {
     cookies?: Record<string, string>
 }
 
+interface Message {
+    id: string
+    type: 'sent' | 'received'
+    content: string
+    timestamp: number
+    topic?: string // For MQTT
+}
+
 interface Collection {
     id: string
     name: string
@@ -145,6 +155,47 @@ const getMethodColor = (method: string) => {
         default: return 'bg-gray-100 text-gray-700 border-gray-200'
     }
 }
+
+const getMethodTextColor = (method: string) => {
+    switch (method) {
+        case 'GET': return 'text-green-500'
+        case 'POST': return 'text-yellow-500'
+        case 'PUT': return 'text-blue-500'
+        case 'PATCH': return 'text-purple-500'
+        case 'DELETE': return 'text-red-500'
+        case 'HEAD': return 'text-blue-400'
+        case 'OPTIONS': return 'text-pink-400'
+        default: return 'text-gray-500'
+    }
+}
+const PROTOCOLS = [
+    { id: 'http', name: 'HTTP', icon: Globe, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50' },
+    { id: 'graphql', name: 'GraphQL', icon: Hexagon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50' },
+    { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50' },
+    { id: 'grpc', name: 'gRPC', icon: Box, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50' },
+    { id: 'websocket', name: 'WebSocket', icon: Network, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50' },
+    { id: 'socketio', name: 'Socket.IO', icon: Activity, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50' },
+    { id: 'mqtt', name: 'MQTT', icon: Radio, description: 'IoT messaging service testing', color: 'text-amber-500', bgColor: 'bg-amber-50' },
+    { id: 'mcp', name: 'MCP', icon: Zap, description: 'Model Context Protocol testing', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+] as const;
+
+const getProtocolBadgeInfo = (protocol: APIRequest['protocol'], method: string) => {
+    if (protocol === 'http') {
+        return {
+            label: method,
+            classes: getMethodColor(method)
+        };
+    }
+    const proto = PROTOCOLS.find(p => p.id === protocol);
+    const label = protocol === 'websocket' ? 'WS' :
+        protocol === 'socketio' ? 'SIO' :
+            protocol === 'graphql' ? 'GQL' :
+                protocol.toUpperCase();
+    return {
+        label,
+        classes: `${proto?.bgColor || 'bg-gray-100'} ${proto?.color || 'text-gray-700'}`
+    };
+};
 
 const getMethodBgColor = (method: string) => {
     switch (method) {
@@ -217,10 +268,11 @@ const HEADER_PRESETS = [
     { key: 'Origin', value: 'http://localhost:3000', description: 'Cross-origin request' },
 ]
 
-const createNewRequest = (): APIRequest => ({
+const createNewRequest = (protocol: APIRequest['protocol'] = 'http'): APIRequest => ({
     id: `req-${Date.now()}`,
     name: 'New Request',
-    method: 'GET',
+    protocol: protocol,
+    method: protocol === 'http' ? 'GET' : 'POST',
     url: '',
     params: [],
     headers: [
@@ -282,6 +334,7 @@ export default function APITestingPage() {
 
     // Response state
     const [response, setResponse] = useState<APIResponse | null>(null)
+    const [messages, setMessages] = useState<Message[]>([])
     const [loading, setLoading] = useState(false)
 
     // Collections state
@@ -321,6 +374,11 @@ export default function APITestingPage() {
     const [saveTarget, setSaveTarget] = useState({ collectionId: '', folderId: '' })
     const [newCollectionName, setNewCollectionName] = useState('')
     const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false)
+    const [isProtocolSelectorOpen, setIsProtocolSelectorOpen] = useState(false)
+    const [selectedProtocolForNewRequest, setSelectedProtocolForNewRequest] = useState<APIRequest['protocol']>('http')
+    const [pendingAddLocation, setPendingAddLocation] = useState<{ collectionId: string, folderId?: string } | null>(null)
+
+
 
     // Sidebar state
     const [activeSidebarTab, setActiveSidebarTab] = useState<'collections' | 'history'>('collections')
@@ -347,6 +405,17 @@ export default function APITestingPage() {
     const [activeResponseTab, setActiveResponseTab] = useState('body')
     const [responseBodyMode, setResponseBodyMode] = useState<'pretty' | 'raw' | 'preview'>('pretty')
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
+    const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
+    const [lastUsedProtocol, setLastUsedProtocol] = useState<APIRequest['protocol']>('http')
+
+    useEffect(() => {
+        const savedProtocol = localStorage.getItem('lastUsedProtocol') as APIRequest['protocol'];
+        if (savedProtocol) setLastUsedProtocol(savedProtocol);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('lastUsedProtocol', lastUsedProtocol);
+    }, [lastUsedProtocol]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -511,20 +580,29 @@ export default function APITestingPage() {
 
 
 
-    const addRequestToCollection = async (collectionId: string, folderId?: string) => {
-        if (!activeRequest) return
+    const addRequestToCollection = async (collectionId: string, folderId?: string, protocol?: APIRequest['protocol']) => {
+        let requestToSave: APIRequest | null = null;
+
+        if (protocol) {
+            requestToSave = createNewRequest(protocol);
+        } else if (activeRequest) {
+            requestToSave = activeRequest;
+        }
+
+        if (!requestToSave) return;
 
         try {
             const requestData = {
-                name: activeRequest.name || 'New Request',
-                method: activeRequest.method,
-                url: activeRequest.url,
-                params: activeRequest.params,
-                headers: activeRequest.headers,
-                body: activeRequest.body,
-                auth: activeRequest.auth,
-                pre_request_script: activeRequest.preRequestScript,
-                test_script: activeRequest.testScript,
+                name: requestToSave.name || 'New Request',
+                method: requestToSave.method,
+                protocol: requestToSave.protocol,
+                url: requestToSave.url,
+                params: requestToSave.params,
+                headers: requestToSave.headers,
+                body: requestToSave.body,
+                auth: requestToSave.auth,
+                pre_request_script: requestToSave.preRequestScript,
+                test_script: requestToSave.testScript,
                 collection_id: folderId || collectionId
             }
 
@@ -558,16 +636,21 @@ export default function APITestingPage() {
             if (response.ok) {
                 const newReq = await response.json()
                 // Update open tab with real ID
-                setOpenRequests(prev => prev.map(r =>
-                    r.id === activeRequest.id ? { ...r, id: newReq.id } : r
-                ))
+                setOpenRequests(prev => {
+                    const existing = prev.find(r => r.id === (requestToSave as APIRequest).id);
+                    if (existing) {
+                        return prev.map(r => r.id === (requestToSave as APIRequest).id ? { ...r, id: newReq.id } : r);
+                    } else {
+                        return [...prev, { ...requestToSave, id: newReq.id } as APIRequest];
+                    }
+                })
                 setActiveRequestId(newReq.id)
 
                 await fetchCollections()
-                toast.success('Request saved to database')
+                toast.success(protocol ? 'Request created' : 'Request saved to database')
                 setIsSaveDialogOpen(false)
-            } else {
-                throw new Error('Failed to save request')
+                setIsCreatingNewCollection(false)
+                setNewCollectionName('')
             }
         } catch (error) {
             console.error('Save error:', error)
@@ -825,10 +908,16 @@ export default function APITestingPage() {
     };
 
     // Add new request tab
-    const addNewRequest = () => {
-        const newReq = createNewRequest()
-        setOpenRequests(prev => [...prev, newReq])
-        setActiveRequestId(newReq.id)
+    const addNewRequest = (protocol: APIRequest['protocol'] = 'http') => {
+        setLastUsedProtocol(protocol);
+        if (pendingAddLocation) {
+            addRequestToCollection(pendingAddLocation.collectionId, pendingAddLocation.folderId, protocol)
+            setPendingAddLocation(null)
+        } else {
+            const newReq = createNewRequest(protocol)
+            setOpenRequests(prev => [...prev, newReq])
+            setActiveRequestId(newReq.id)
+        }
     }
 
     // Close request tab
@@ -1267,18 +1356,18 @@ export default function APITestingPage() {
                                 <button
                                     key={req.id}
                                     onClick={() => setActiveRequestId(req.id)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-t-md text-sm transition-colors group ${activeRequestId === req.id
-                                        ? 'bg-gray-100 border border-b-0 border-gray-200'
-                                        : 'hover:bg-gray-50'
+                                    className={`flex items-center gap-3 px-4 py-2 text-xs transition-all relative group h-10 ${activeRequestId === req.id
+                                        ? 'text-primary font-bold'
+                                        : 'text-gray-500 hover:text-gray-700'
                                         }`}
                                 >
-                                    <Badge className={`${getMethodColor(req.method)} px-1.5 py-0 text-[10px] font-black pointer-events-none`}>
-                                        {req.method}
-                                    </Badge>
+                                    <span className={`${req.protocol === 'http' ? getMethodTextColor(req.method) : (PROTOCOLS.find(p => p.id === req.protocol)?.color || 'text-primary')} font-black text-[10px]`}>
+                                        {getProtocolBadgeInfo(req.protocol, req.method).label}
+                                    </span>
                                     {editingTabId === req.id ? (
                                         <input
                                             autoFocus
-                                            className="bg-transparent border-none outline-none focus:ring-0 p-0 m-0 w-24 text-sm font-medium text-primary select-all"
+                                            className="bg-transparent border-none outline-none focus:ring-0 p-0 m-0 w-24 text-xs font-semibold text-primary select-all"
                                             value={req.name}
                                             onChange={(e) => {
                                                 const newName = e.target.value;
@@ -1303,22 +1392,41 @@ export default function APITestingPage() {
                                         </span>
                                     )}
                                     <X
-                                        className="w-3 h-3 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all ml-1"
+                                        className={`w-3 h-3 hover:text-red-500 transition-colors ${activeRequestId === req.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             closeRequest(req.id);
                                         }}
                                     />
+                                    {activeRequestId === req.id && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary animate-in fade-in slide-in-from-bottom-1 duration-200" />
+                                    )}
                                 </button>
                             ))}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={addNewRequest}
-                                className="h-7 px-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ml-1 shrink-0"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-0.5 ml-2 border-l border-gray-200 pl-2 shrink-0">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        const newReq = createNewRequest(lastUsedProtocol);
+                                        setOpenRequests(prev => [...prev, newReq]);
+                                        setActiveRequestId(newReq.id);
+                                    }}
+                                    className="h-8 w-8 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all"
+                                    title={`New ${lastUsedProtocol.toUpperCase()} Request`}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsProtocolSelectorOpen(true)}
+                                    className="h-8 px-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"
+                                >
+                                    New
+                                    <ChevronDown className="w-3 h-3 text-gray-400" />
+                                </Button>
+                            </div>
                         </div>
                     </ScrollArea>
                     {openRequests.length > 0 && (
@@ -1407,7 +1515,10 @@ export default function APITestingPage() {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="start" className="w-48">
-                                                                <DropdownMenuItem onClick={() => addRequestToCollection(collection.id)}>
+                                                                <DropdownMenuItem onClick={() => {
+                                                                    setPendingAddLocation({ collectionId: collection.id });
+                                                                    setIsProtocolSelectorOpen(true);
+                                                                }}>
                                                                     <Plus className="w-4 h-4 mr-2" /> New Request
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => addFolderToCollection(collection.id, 'New Folder')}>
@@ -1468,13 +1579,8 @@ export default function APITestingPage() {
                                                                                         </DropdownMenuTrigger>
                                                                                         <DropdownMenuContent align="start" className="w-48">
                                                                                             <DropdownMenuItem onClick={() => {
-                                                                                                const newReq = createNewRequest()
-                                                                                                setCollections(prev => prev.map(c => ({
-                                                                                                    ...c,
-                                                                                                    folders: c.folders?.map(f => f.id === folder.id ? { ...f, requests: [...f.requests, newReq] } : f)
-                                                                                                })))
-                                                                                                setOpenRequests(prev => [...prev, newReq])
-                                                                                                setActiveRequestId(newReq.id)
+                                                                                                setPendingAddLocation({ collectionId: collection.id, folderId: folder.id });
+                                                                                                setIsProtocolSelectorOpen(true);
                                                                                             }}>
                                                                                                 <Plus className="w-4 h-4 mr-2" /> New Request
                                                                                             </DropdownMenuItem>
@@ -1505,8 +1611,8 @@ export default function APITestingPage() {
                                                                                                             setActiveRequestId(req.id)
                                                                                                         }}
                                                                                                     >
-                                                                                                        <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getMethodColor(req.method)}`}>
-                                                                                                            {req.method}
+                                                                                                        <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
+                                                                                                            {getProtocolBadgeInfo(req.protocol, req.method).label}
                                                                                                         </span>
                                                                                                         <span className="text-[12px] text-gray-500 group-hover/req:text-primary truncate flex-1">{req.name}</span>
                                                                                                     </button>
@@ -1557,8 +1663,8 @@ export default function APITestingPage() {
                                                                                 setActiveRequestId(req.id)
                                                                             }}
                                                                         >
-                                                                            <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getMethodColor(req.method)}`}>
-                                                                                {req.method}
+                                                                            <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
+                                                                                {getProtocolBadgeInfo(req.protocol, req.method).label}
                                                                             </span>
                                                                             <span className="text-[12px] text-gray-500 group-hover/req:text-primary truncate flex-1">{req.name}</span>
                                                                         </button>
@@ -1625,29 +1731,135 @@ export default function APITestingPage() {
                 </div>
 
                 {/* Request Builder */}
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden bg-white">
                     {activeRequest ? (
                         <>
+                            {/* Request Header */}
+                            <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border transition-all hover:scale-105 active:scale-95 ${activeRequest.protocol === 'http' ? 'bg-blue-600 border-blue-500 hover:bg-blue-700' :
+                                                    activeRequest.protocol === 'graphql' ? 'bg-pink-600 border-pink-500 hover:bg-pink-700' :
+                                                        activeRequest.protocol === 'grpc' ? 'bg-indigo-600 border-indigo-500 hover:bg-indigo-700' :
+                                                            activeRequest.protocol === 'ai' ? 'bg-purple-600 border-purple-500 hover:bg-purple-700' :
+                                                                'bg-gray-800 border-gray-700 hover:bg-gray-900'
+                                                    }`}>
+                                                    {activeRequest.protocol === 'http' ? (
+                                                        <div className="text-[10px] font-black text-white leading-none flex flex-col items-center">
+                                                            <span>HTTP</span>
+                                                            <div className="flex gap-0.5 mt-0.5">
+                                                                <ChevronRight className="w-2 h-2" />
+                                                                <ChevronRight className="w-2 h-2 -ml-1" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-white">
+                                                            {(() => {
+                                                                const Icon = PROTOCOLS.find(p => p.id === activeRequest.protocol)?.icon || Globe
+                                                                return <Icon className="w-5 h-5" />
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-64 p-2 rounded-2xl shadow-2xl border-gray-100">
+                                                {PROTOCOLS.map((proto) => (
+                                                    <DropdownMenuItem
+                                                        key={proto.id}
+                                                        onClick={() => {
+                                                            updateActiveRequest({ protocol: proto.id as any });
+                                                            setLastUsedProtocol(proto.id as any);
+                                                        }}
+                                                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-primary/5 group"
+                                                    >
+                                                        <div className={`p-2 rounded-lg ${proto.bgColor} ${proto.color} group-hover:scale-110 transition-transform`}>
+                                                            <proto.icon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-gray-900 group-hover:text-primary transition-colors">{proto.name}</span>
+                                                            <span className="text-[10px] text-gray-500 font-medium leading-none mt-0.5">{proto.description.split('.')[0]}</span>
+                                                        </div>
+                                                        {activeRequest.protocol === proto.id && (
+                                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <div className="flex flex-col">
+                                            {editingRequestId === activeRequest.id ? (
+                                                <input
+                                                    autoFocus
+                                                    className="text-lg font-bold text-gray-900 bg-transparent border-none outline-none focus:ring-0 p-0"
+                                                    value={activeRequest.name}
+                                                    onChange={(e) => updateActiveRequest({ name: e.target.value })}
+                                                    onBlur={() => setEditingRequestId(null)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingRequestId(null)}
+                                                />
+                                            ) : (
+                                                <h2
+                                                    className="text-lg font-bold text-gray-900 cursor-text hover:text-primary transition-colors"
+                                                    onDoubleClick={() => setEditingRequestId(activeRequest.id)}
+                                                >
+                                                    {activeRequest.name}
+                                                </h2>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter py-0 h-4 border-gray-200 text-gray-400">
+                                                    {activeRequest.protocol}
+                                                </Badge>
+                                                <span className="text-[10px] text-gray-400 font-medium">Auto-saved 2m ago</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="sm" className="h-8 text-gray-500">
+                                        <Settings className="w-4 h-4 mr-2" />
+                                        Config
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 text-gray-500">
+                                        <Copy className="w-4 h-4 mr-2" />
+                                        Copy URL
+                                    </Button>
+                                </div>
+                            </div>
+
                             {/* URL Bar */}
                             <div className="px-6 py-4 border-b border-gray-200 bg-white">
                                 <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-gray-300 focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5 transition-all shadow-sm">
-                                    <div className="w-32 border-r border-gray-200 px-1">
-                                        <Select
-                                            value={activeRequest.method}
-                                            onValueChange={(value: any) => updateActiveRequest({ method: value })}
-                                        >
-                                            <SelectTrigger className="border-none shadow-none focus:ring-0 text-xs font-black uppercase tracking-widest h-9">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="min-w-[120px]">
-                                                {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].map(m => (
-                                                    <SelectItem key={m} value={m} className="text-xs font-bold py-2">
-                                                        <span className={getMethodColor(m)}>{m}</span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                    <div className="flex items-center gap-2 pl-3 border-r border-gray-100 pr-2">
+                                        <div className={`p-1.5 rounded-lg ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.bgColor || 'bg-blue-50'} ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.color || 'text-blue-500'}`}>
+                                            {(() => {
+                                                const Icon = PROTOCOLS.find(p => p.id === activeRequest.protocol)?.icon || Globe
+                                                return <Icon className="w-4 h-4" />
+                                            })()}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                            {activeRequest.protocol}
+                                        </span>
                                     </div>
+                                    {activeRequest.protocol === 'http' && (
+                                        <div className="w-32 border-r border-gray-100 px-1">
+                                            <Select
+                                                value={activeRequest.method}
+                                                onValueChange={(value: any) => updateActiveRequest({ method: value })}
+                                            >
+                                                <SelectTrigger className="border-none shadow-none focus:ring-0 text-xs font-black uppercase tracking-widest h-9">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="min-w-[120px]">
+                                                    {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].map(m => (
+                                                        <SelectItem key={m} value={m} className="text-xs font-bold py-2">
+                                                            <span className={getMethodColor(m)}>{m}</span>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                     <div className="flex-1 px-1">
                                         <input
                                             className="w-full text-base font-medium bg-transparent border-none outline-none p-2 text-gray-700 placeholder:text-gray-300 placeholder:font-normal"
@@ -1691,33 +1903,51 @@ export default function APITestingPage() {
                                 <div className="flex-1 flex flex-col border-r border-gray-300 overflow-hidden">
                                     <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="flex-1 flex flex-col">
                                         <TabsList className="w-full justify-start rounded-none border-b border-gray-200 bg-white px-6 h-12 gap-8">
-                                            <TabsTrigger value="params" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
-                                                Params
-                                                {activeRequest.params.length > 0 && (
-                                                    <span className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-black">
-                                                        {activeRequest.params.filter(p => p.enabled).length}
-                                                    </span>
-                                                )}
-                                            </TabsTrigger>
+                                            {activeRequest.protocol === 'http' && (
+                                                <TabsTrigger value="params" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
+                                                    Params
+                                                    {activeRequest.params.length > 0 && (
+                                                        <span className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-black">
+                                                            {activeRequest.params.filter(p => p.enabled).length}
+                                                        </span>
+                                                    )}
+                                                </TabsTrigger>
+                                            )}
+
                                             <TabsTrigger value="authorization" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
                                                 <Lock className="w-3.5 h-3.5" />
                                                 Auth
                                             </TabsTrigger>
-                                            <TabsTrigger value="headers" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
-                                                Headers
-                                                {activeRequest.headers.length > 0 && (
-                                                    <span className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-black">
-                                                        {activeRequest.headers.filter(h => h.enabled).length}
-                                                    </span>
-                                                )}
-                                            </TabsTrigger>
+
+                                            {['http', 'graphql', 'websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) && (
+                                                <TabsTrigger value="headers" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
+                                                    {activeRequest.protocol === 'http' ? 'Headers' : 'Metadata'}
+                                                    {activeRequest.headers.length > 0 && (
+                                                        <span className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-black">
+                                                            {activeRequest.headers.filter(h => h.enabled).length}
+                                                        </span>
+                                                    )}
+                                                </TabsTrigger>
+                                            )}
+
                                             <TabsTrigger value="body" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0">
-                                                Body
+                                                {activeRequest.protocol === 'ai' ? 'Prompt' :
+                                                    activeRequest.protocol === 'graphql' ? 'Query' :
+                                                        activeRequest.protocol === 'grpc' ? 'Message' : 'Body'}
                                             </TabsTrigger>
-                                            <TabsTrigger value="scripts" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
-                                                <Terminal className="w-3.5 h-3.5" />
-                                                Scripts
-                                            </TabsTrigger>
+
+                                            {activeRequest.protocol === 'graphql' && (
+                                                <TabsTrigger value="variables" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0">
+                                                    Variables
+                                                </TabsTrigger>
+                                            )}
+
+                                            {['http', 'ai', 'graphql', 'websocket'].includes(activeRequest.protocol) && (
+                                                <TabsTrigger value="scripts" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
+                                                    <Terminal className="w-3.5 h-3.5" />
+                                                    Scripts
+                                                </TabsTrigger>
+                                            )}
                                         </TabsList>
 
                                         <ScrollArea className="flex-1 bg-white">
@@ -1961,123 +2191,158 @@ export default function APITestingPage() {
                                                     <KeyValueEditor type="headers" pairs={activeRequest.headers} />
                                                 </TabsContent>
 
-                                                <TabsContent value="body" className="m-0 space-y-4">
-                                                    <div className="flex items-center gap-6 flex-wrap pb-2 border-b border-gray-50">
-                                                        {['none', 'json', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary', 'graphql'].map(type => (
-                                                            <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                                                                <div className="relative flex items-center justify-center">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="bodyType"
-                                                                        checked={activeRequest.body.type === type}
-                                                                        onChange={() => updateActiveRequest({
-                                                                            body: { ...activeRequest.body, type: type as any }
-                                                                        })}
-                                                                        className="peer appearance-none w-4 h-4 rounded-full border-2 border-gray-200 checked:border-primary transition-all"
-                                                                    />
-                                                                    <div className="absolute w-2 h-2 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200" />
-                                                                </div>
-                                                                <span className={`text-[10px] uppercase tracking-[0.15em] transition-all ${activeRequest.body.type === type ? 'text-primary font-black' : 'text-gray-400 font-bold group-hover:text-gray-600'}`}>
-                                                                    {type === 'graphql' ? 'GraphQL' : type.replace(/-/g, ' ')}
-                                                                </span>
-                                                            </label>
-                                                        ))}
-                                                    </div>
-
-                                                    {(activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') && (
+                                                <TabsContent value="body" className="m-0">
+                                                    {activeRequest.protocol === 'ai' && (
                                                         <div className="space-y-4">
-                                                            {activeRequest.body.type === 'raw' && (
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <span className="text-xs font-medium text-gray-500">FORMAT:</span>
-                                                                    <Select
-                                                                        value={activeRequest.body.rawType || 'text'}
-                                                                        onValueChange={(val) => updateActiveRequest({
-                                                                            body: { ...activeRequest.body, rawType: val as any }
-                                                                        })}
-                                                                    >
-                                                                        <SelectTrigger className="h-7 w-28 text-xs">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="text">Plain Text</SelectItem>
-                                                                            <SelectItem value="json">JSON</SelectItem>
-                                                                            <SelectItem value="xml">XML</SelectItem>
-                                                                            <SelectItem value="html">HTML</SelectItem>
-                                                                            <SelectItem value="javascript">JavaScript</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Model Output Prompt</Label>
+                                                                <div className="flex gap-2">
+                                                                    <Badge variant="outline" className="text-[10px] border-primary/20 text-primary bg-primary/5">GPT-4o</Badge>
+                                                                    <Badge variant="outline" className="text-[10px]">TEMP: 0.7</Badge>
                                                                 </div>
-                                                            )}
+                                                            </div>
                                                             <CodeEditor
                                                                 value={activeRequest.body.content}
                                                                 onChange={(value) => updateActiveRequest({
                                                                     body: { ...activeRequest.body, content: value }
                                                                 })}
-                                                                language={activeRequest.body.type === 'json' ? 'json' : (activeRequest.body.rawType || 'text')}
-                                                                height="250px"
-                                                                placeholder={activeRequest.body.type === 'json' ? '{"key": "value"}' : 'Raw body content'}
+                                                                language="text"
+                                                                height="400px"
+                                                                placeholder="Enter your AI prompt here... e.g. Analyze the following request data..."
                                                             />
                                                         </div>
                                                     )}
 
-                                                    {(activeRequest.body.type === 'form-data' || activeRequest.body.type === 'x-www-form-urlencoded') && (
-                                                        <KeyValueEditor type="formData" pairs={activeRequest.body.formData || []} />
+                                                    {activeRequest.protocol === 'graphql' && (
+                                                        <div className="space-y-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">GraphQL Query</Label>
+                                                                <Button variant="ghost" size="sm" className="h-6 text-[10px] font-black text-primary">
+                                                                    PRETTIFY
+                                                                </Button>
+                                                            </div>
+                                                            <CodeEditor
+                                                                value={activeRequest.body.content}
+                                                                onChange={(value) => updateActiveRequest({
+                                                                    body: { ...activeRequest.body, content: value }
+                                                                })}
+                                                                language="graphql"
+                                                                height="400px"
+                                                                placeholder="query { users { id name } }"
+                                                            />
+                                                        </div>
                                                     )}
 
-                                                    {activeRequest.body.type === 'graphql' && (
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            {/* GraphQL Query Panel */}
-                                                            <div className="space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                    <Label className="text-sm font-semibold text-gray-700">QUERY</Label>
-                                                                    <Button variant="ghost" size="sm" className="h-6 text-xs text-gray-500">
-                                                                        Prettify
+                                                    {activeRequest.protocol === 'grpc' && (
+                                                        <div className="space-y-4">
+                                                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Protocol Buffer Message (JSON)</Label>
+                                                            <CodeEditor
+                                                                value={activeRequest.body.content}
+                                                                onChange={(value) => updateActiveRequest({
+                                                                    body: { ...activeRequest.body, content: value }
+                                                                })}
+                                                                language="json"
+                                                                height="400px"
+                                                                placeholder='{ "id": "123", "name": "Test User" }'
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {activeRequest.protocol === 'http' && (
+                                                        <>
+                                                            <div className="flex items-center gap-6 flex-wrap pb-2 border-b border-gray-50 mb-4">
+                                                                {['none', 'json', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary'].map(type => (
+                                                                    <label key={type} className="flex items-center gap-2 cursor-pointer group">
+                                                                        <div className="relative flex items-center justify-center">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="bodyType"
+                                                                                checked={activeRequest.body.type === type}
+                                                                                onChange={() => updateActiveRequest({
+                                                                                    body: { ...activeRequest.body, type: type as any }
+                                                                                })}
+                                                                                className="peer appearance-none w-4 h-4 rounded-full border-2 border-gray-200 checked:border-primary transition-all"
+                                                                            />
+                                                                            <div className="absolute w-2 h-2 rounded-full bg-primary scale-0 peer-checked:scale-100 transition-transform duration-200" />
+                                                                        </div>
+                                                                        <span className={`text-[10px] uppercase tracking-[0.15em] transition-all ${activeRequest.body.type === type ? 'text-primary font-black' : 'text-gray-400 font-bold group-hover:text-gray-600'}`}>
+                                                                            {type.replace(/-/g, ' ')}
+                                                                        </span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+
+                                                            {(activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') && (
+                                                                <div className="space-y-4">
+                                                                    {activeRequest.body.type === 'raw' && (
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <span className="text-xs font-medium text-gray-500">FORMAT:</span>
+                                                                            <Select
+                                                                                value={activeRequest.body.rawType || 'text'}
+                                                                                onValueChange={(val) => updateActiveRequest({
+                                                                                    body: { ...activeRequest.body, rawType: val as any }
+                                                                                })}
+                                                                            >
+                                                                                <SelectTrigger className="h-7 w-28 text-xs">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    <SelectItem value="text">Plain Text</SelectItem>
+                                                                                    <SelectItem value="json">JSON</SelectItem>
+                                                                                    <SelectItem value="xml">XML</SelectItem>
+                                                                                    <SelectItem value="html">HTML</SelectItem>
+                                                                                    <SelectItem value="javascript">JavaScript</SelectItem>
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
+                                                                    )}
+                                                                    <CodeEditor
+                                                                        value={activeRequest.body.content}
+                                                                        onChange={(value) => updateActiveRequest({
+                                                                            body: { ...activeRequest.body, content: value }
+                                                                        })}
+                                                                        language={activeRequest.body.type === 'json' ? 'json' : (activeRequest.body.rawType || 'text')}
+                                                                        height="400px"
+                                                                        placeholder={activeRequest.body.type === 'json' ? '{"key": "value"}' : 'Raw body content'}
+                                                                    />
+                                                                </div>
+                                                            )}
+
+                                                            {(activeRequest.body.type === 'form-data' || activeRequest.body.type === 'x-www-form-urlencoded') && (
+                                                                <KeyValueEditor type="formData" pairs={activeRequest.body.formData || []} />
+                                                            )}
+
+                                                            {activeRequest.body.type === 'binary' && (
+                                                                <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-16 bg-gray-50/20 transition-colors hover:bg-gray-50/40">
+                                                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 mb-6 group transition-transform hover:scale-105">
+                                                                        <Upload className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors" />
+                                                                    </div>
+                                                                    <h3 className="text-sm font-bold text-gray-700 tracking-tight">Select Binary File</h3>
+                                                                    <p className="text-xs text-gray-400 mt-2 max-w-[240px] text-center mb-8 leading-relaxed font-medium">
+                                                                        The selected file will be sent as the raw request body.
+                                                                    </p>
+                                                                    <Button variant="outline" className="h-10 px-8 text-[11px] font-black uppercase tracking-widest border-gray-200 hover:border-primary/20 hover:bg-white hover:shadow-md transition-all active:scale-[0.98]">
+                                                                        Choose File
                                                                     </Button>
                                                                 </div>
-                                                                <CodeEditor
-                                                                    value={activeRequest.body.content}
-                                                                    onChange={(value) => updateActiveRequest({
-                                                                        body: { ...activeRequest.body, content: value }
-                                                                    })}
-                                                                    language="graphql"
-                                                                    height="280px"
-                                                                    placeholder="query { users { id name } }"
-                                                                />
-                                                            </div>
-
-                                                            {/* GraphQL Variables Panel */}
-                                                            <div className="space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                    <Label className="text-sm font-semibold text-gray-700">GRAPHQL VARIABLES</Label>
-                                                                    <span className="text-xs text-gray-400">Optional</span>
-                                                                </div>
-                                                                <CodeEditor
-                                                                    value={activeRequest.body.graphqlVariables || ''}
-                                                                    onChange={(value) => updateActiveRequest({
-                                                                        body: { ...activeRequest.body, graphqlVariables: value }
-                                                                    })}
-                                                                    language="json"
-                                                                    height="280px"
-                                                                    placeholder='{"userId": 123}'
-                                                                />
-                                                            </div>
-                                                        </div>
+                                                            )}
+                                                        </>
                                                     )}
+                                                </TabsContent>
 
-                                                    {activeRequest.body.type === 'binary' && (
-                                                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-16 bg-gray-50/20 transition-colors hover:bg-gray-50/40">
-                                                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 mb-6 group transition-transform hover:scale-105">
-                                                                <Upload className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors" />
-                                                            </div>
-                                                            <h3 className="text-sm font-bold text-gray-700 tracking-tight">Select Binary File</h3>
-                                                            <p className="text-xs text-gray-400 mt-2 max-w-[240px] text-center mb-8 leading-relaxed font-medium">
-                                                                The selected file will be sent as the raw request body.
-                                                            </p>
-                                                            <Button variant="outline" className="h-10 px-8 text-[11px] font-black uppercase tracking-widest border-gray-200 hover:border-primary/20 hover:bg-white hover:shadow-md transition-all active:scale-[0.98]">
-                                                                Choose File
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                <TabsContent value="variables" className="m-0">
+                                                    <div className="space-y-4">
+                                                        <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">GraphQL Variables (JSON)</Label>
+                                                        <CodeEditor
+                                                            value={activeRequest.body.graphqlVariables || ''}
+                                                            onChange={(value) => updateActiveRequest({
+                                                                body: { ...activeRequest.body, graphqlVariables: value }
+                                                            })}
+                                                            language="json"
+                                                            height="400px"
+                                                            placeholder='{"userId": 123}'
+                                                        />
+                                                    </div>
                                                 </TabsContent>
 
                                                 <TabsContent value="scripts" className="m-0 space-y-6">
@@ -2117,8 +2382,10 @@ export default function APITestingPage() {
                                 <div className="w-[45%] flex flex-col overflow-hidden bg-white">
                                     <div className="border-b border-gray-200 p-3 flex items-center justify-between flex-shrink-0">
                                         <div className="flex items-center gap-3">
-                                            <span className="font-semibold text-sm text-gray-700">Response</span>
-                                            {response && (
+                                            <span className="font-semibold text-sm text-gray-700">
+                                                {['websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) ? 'Message Stream' : 'Response'}
+                                            </span>
+                                            {response && !['websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) && (
                                                 <>
                                                     <Badge className={`${getStatusColor(response.status)} px-2 py-0.5`}>
                                                         {response.status} {response.statusText}
@@ -2126,6 +2393,12 @@ export default function APITestingPage() {
                                                     <span className="text-xs text-gray-500">{response.time}ms</span>
                                                     <span className="text-xs text-gray-500">{(response.size / 1024).toFixed(2)}KB</span>
                                                 </>
+                                            )}
+                                            {['websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) && (
+                                                <Badge className="bg-blue-50 text-blue-600 border-blue-100 flex items-center gap-1.5 px-2 py-0.5 animate-pulse">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                    CONNECTED
+                                                </Badge>
                                             )}
                                         </div>
                                         {response && (
@@ -2138,10 +2411,82 @@ export default function APITestingPage() {
                                                 </Button>
                                             </div>
                                         )}
+                                        {['websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) && messages.length > 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 px-2 text-[10px] font-black text-gray-400 hover:text-red-500"
+                                                onClick={() => setMessages([])}
+                                            >
+                                                CLEAR
+                                            </Button>
+                                        )}
                                     </div>
 
                                     {
-                                        response ? (
+                                        ['websocket', 'socketio', 'mqtt'].includes(activeRequest.protocol) ? (
+                                            <div className="flex-1 flex flex-col bg-gray-50/30 overflow-hidden">
+                                                <ScrollArea className="flex-1 p-4">
+                                                    <div className="space-y-3">
+                                                        {messages.length === 0 ? (
+                                                            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                                                <Radio className="w-12 h-12 opacity-10 mb-4 animate-pulse" />
+                                                                <p className="text-xs font-bold uppercase tracking-widest">Waiting for messages...</p>
+                                                            </div>
+                                                        ) : (
+                                                            messages.map((msg) => (
+                                                                <div key={msg.id} className={`flex flex-col gap-1 ${msg.type === 'sent' ? 'items-end' : 'items-start'}`}>
+                                                                    <div className="flex items-center gap-2 px-2">
+                                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">
+                                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                                        </span>
+                                                                        {msg.topic && (
+                                                                            <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/20 text-primary bg-primary/5">
+                                                                                {msg.topic}
+                                                                            </Badge>
+                                                                        )}
+                                                                        <span className={`text-[9px] font-black uppercase tracking-tighter ${msg.type === 'sent' ? 'text-blue-500' : 'text-green-500'}`}>
+                                                                            {msg.type}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs font-medium shadow-sm border ${msg.type === 'sent'
+                                                                        ? 'bg-primary text-white border-primary'
+                                                                        : 'bg-white text-gray-700 border-gray-100'
+                                                                        }`}>
+                                                                        <pre className="whitespace-pre-wrap font-sans leading-relaxed">
+                                                                            {msg.content}
+                                                                        </pre>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </ScrollArea>
+                                                <div className="p-4 border-t border-gray-200 bg-white">
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            placeholder="Type a message to send..."
+                                                            className="h-10 text-xs font-medium border-gray-200 focus-visible:ring-primary/20"
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter' && e.currentTarget.value) {
+                                                                    const text = e.currentTarget.value;
+                                                                    setMessages(prev => [...prev, {
+                                                                        id: `msg-${Date.now()}`,
+                                                                        type: 'sent',
+                                                                        content: text,
+                                                                        timestamp: Date.now()
+                                                                    }]);
+                                                                    e.currentTarget.value = '';
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Button className="h-10 px-6 text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+                                                            SEND
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : response ? (
                                             <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="flex-1 flex flex-col overflow-hidden">
                                                 <TabsList className="w-full justify-start rounded-none border-b border-gray-200 bg-gray-100 px-4 h-10 flex-shrink-0">
                                                     <TabsTrigger value="body" className="text-xs">
@@ -2275,11 +2620,11 @@ export default function APITestingPage() {
 
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                                 <Button
-                                    onClick={addNewRequest}
+                                    onClick={() => setIsProtocolSelectorOpen(true)}
                                     className="h-14 px-10 bg-primary hover:bg-primary/90 text-white font-black text-base rounded-2xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:translate-y-0"
                                 >
                                     <Plus className="w-5 h-5 mr-3" />
-                                    New HTTP Request
+                                    New Request
                                 </Button>
 
                                 <Button
@@ -2489,6 +2834,63 @@ export default function APITestingPage() {
                             Create Collection
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Protocol Selector Modal */}
+            <Dialog open={isProtocolSelectorOpen} onOpenChange={(open) => {
+                setIsProtocolSelectorOpen(open);
+                if (!open) setPendingAddLocation(null);
+            }}>
+                <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+                    <DialogHeader className="px-8 pt-8 pb-4 bg-gray-50/50">
+                        <DialogTitle className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                                <Plus className="w-6 h-6 text-primary" />
+                            </div>
+                            Create New Request
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-500 font-medium text-sm mt-1">
+                            {pendingAddLocation
+                                ? "Choose a protocol to add a new request to your collection"
+                                : "Select the protocol for your new independent API request"}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="p-8 grid grid-cols-2 gap-4 bg-white">
+                        {PROTOCOLS.map((proto) => (
+                            <button
+                                key={proto.id}
+                                onClick={() => {
+                                    addNewRequest(proto.id as any);
+                                    setIsProtocolSelectorOpen(false);
+                                }}
+                                className="flex items-start gap-4 p-5 rounded-2xl border border-gray-100 bg-white hover:border-primary/20 hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/5 transition-all group text-left"
+                            >
+                                <div className={`p-3 rounded-xl ${proto.bgColor} ${proto.color} transition-transform group-hover:scale-110`}>
+                                    <proto.icon className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-gray-900 mb-0.5 group-hover:text-primary transition-colors">
+                                        {proto.name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 leading-relaxed font-medium">
+                                        {proto.description}
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-white text-[10px] font-black uppercase tracking-widest py-0.5 px-2">Advanced</Badge>
+                            <span className="text-xs text-gray-400 font-medium">Testing across diverse protocols is now fully optimized.</span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setIsProtocolSelectorOpen(false)} className="font-bold text-xs">
+                            Cancel
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
             {/* Environment Manager Dialog */}

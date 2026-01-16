@@ -24,6 +24,7 @@ class ProxyResponse(BaseModel):
 class APIRequestBase(BaseModel):
     name: str
     method: str = "GET"
+    protocol: str = "http"
     url: str = ""
     params: List[Dict[str, Any]] = []
     headers: List[Dict[str, Any]] = []
@@ -39,6 +40,7 @@ class APIRequestCreate(APIRequestBase):
 class APIRequestUpdate(BaseModel):
     name: Optional[str] = None
     method: Optional[str] = None
+    protocol: Optional[str] = None
     url: Optional[str] = None
     params: Optional[List[Dict[str, Any]]] = None
     headers: Optional[List[Dict[str, Any]]] = None
