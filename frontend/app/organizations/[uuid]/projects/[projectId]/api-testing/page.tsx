@@ -45,6 +45,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EnvironmentManager, type Environment, type EnvironmentVariable } from '@/components/api-testing/EnvironmentManager'
 import { HighlightedInput } from '@/components/api-testing/HighlightedInput'
+import { KeyValueEditor, type KeyValuePair } from './KeyValueEditor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Select,
@@ -76,13 +77,7 @@ import { toast } from 'sonner'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 // Types
-interface KeyValuePair {
-    id: string
-    key: string
-    value: string
-    description?: string
-    enabled: boolean
-}
+
 
 interface APIRequest {
     id: string
@@ -1342,129 +1337,13 @@ export default function APITestingPage() {
     }
 
     // Key-value editor component
-    const KeyValueEditor = ({ type, pairs }: { type: 'params' | 'headers' | 'formData', pairs: KeyValuePair[] }) => {
-        const [isBulkEdit, setIsBulkEdit] = useState(false)
-        const [bulkValue, setBulkValue] = useState('')
 
-        const toggleBulkEdit = () => {
-            if (isBulkEdit) {
-                // Parse bulk text back to pairs (Key: Value // Description)
-                const lines = bulkValue.split('\n')
-                const newPairs: KeyValuePair[] = lines
-                    .filter(line => line.trim())
-                    .map(line => {
-                        const [content, description] = line.split('//')
-                        const [key, ...valueParts] = content.split(':')
-                        return {
-                            id: Math.random().toString(36).substr(2, 9),
-                            key: key?.trim() || '',
-                            value: valueParts.join(':')?.trim() || '',
-                            description: description?.trim() || '',
-                            enabled: true
-                        }
-                    })
-
-                if (type === 'params') updateActiveRequest({ params: newPairs })
-                else if (type === 'headers') updateActiveRequest({ headers: newPairs })
-                else if (type === 'formData') updateActiveRequest({ body: { ...activeRequest!.body, formData: newPairs } })
-            } else {
-                // Convert pairs to bulk text
-                const text = pairs.map(p => `${p.key}: ${p.value}${p.description ? ` // ${p.description}` : ''}`).join('\n')
-                setBulkValue(text)
-            }
-            setIsBulkEdit(!isBulkEdit)
-        }
-
-        return (
-            <div className="space-y-4">
-                <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                        {type}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleBulkEdit}
-                        className="h-7 text-[10px] font-bold text-primary hover:text-primary hover:bg-primary/5 uppercase tracking-wider px-2"
-                    >
-                        {isBulkEdit ? 'Show Table' : 'Bulk Edit'}
-                    </Button>
-                </div>
-
-                {isBulkEdit ? (
-                    <Textarea
-                        value={bulkValue}
-                        onChange={(e) => setBulkValue(e.target.value)}
-                        placeholder="key: value // description"
-                        className="font-mono text-sm min-h-[200px] resize-y bg-white border-gray-300 focus:border-primary/40 transition-all p-4 rounded-xl shadow-sm"
-                    />
-                ) : (
-                    <div className="space-y-0 relative">
-                        <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
-                            <div className="flex justify-center"></div>
-                            <div className="pl-2">Key</div>
-                            <div className="pl-2">Value</div>
-                            <div className="pl-2">Description</div>
-                            <div></div>
-                        </div>
-                        <div className="divide-y divide-gray-200">
-                            {pairs.map(pair => (
-                                <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
-                                    <div className="flex justify-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={pair.enabled}
-                                            onChange={(e) => updateKeyValuePair(type, pair.id, { enabled: e.target.checked })}
-                                            className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 accent-primary"
-                                        />
-                                    </div>
-                                    <input
-                                        value={pair.key}
-                                        onChange={(e) => updateKeyValuePair(type, pair.id, { key: e.target.value })}
-                                        placeholder="Key"
-                                        className="h-9 text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
-                                    />
-                                    <input
-                                        value={pair.value}
-                                        onChange={(e) => updateKeyValuePair(type, pair.id, { value: e.target.value })}
-                                        placeholder="Value"
-                                        className="h-9 text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
-                                    />
-                                    <input
-                                        value={pair.description}
-                                        onChange={(e) => updateKeyValuePair(type, pair.id, { description: e.target.value })}
-                                        placeholder="Add description..."
-                                        className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
-                                    />
-                                    <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 text-gray-300 hover:text-red-500 hover:bg-red-50"
-                                            onClick={() => removeKeyValuePair(type, pair.id)}
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="pt-3">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => addKeyValuePair(type)}
-                                className="h-8 text-[12px] font-semibold text-primary/60 hover:text-primary hover:bg-primary/5 pl-2 pr-4 rounded-lg group/add"
-                            >
-                                <Plus className="w-4 h-4 mr-2 text-primary/40 group-hover/add:text-primary transition-colors" />
-                                Add Row
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        )
+    // Handle bulk updates from KeyValueEditor
+    const handleBulkUpdate = (type: 'params' | 'headers' | 'formData', pairs: KeyValuePair[]) => {
+        if (!activeRequest) return
+        if (type === 'params') updateActiveRequest({ params: pairs })
+        else if (type === 'headers') updateActiveRequest({ headers: pairs })
+        else if (type === 'formData') updateActiveRequest({ body: { ...activeRequest.body, formData: pairs } })
     }
 
     return (
@@ -2110,7 +1989,14 @@ export default function APITestingPage() {
                                         <ScrollArea className="flex-1 bg-white">
                                             <div className="p-4">
                                                 <TabsContent value="params" className="m-0">
-                                                    <KeyValueEditor type="params" pairs={activeRequest.params} />
+                                                    <KeyValueEditor
+                                                        type="params"
+                                                        pairs={activeRequest.params}
+                                                        onAdd={addKeyValuePair}
+                                                        onUpdate={updateKeyValuePair}
+                                                        onRemove={removeKeyValuePair}
+                                                        onBulkUpdate={handleBulkUpdate}
+                                                    />
                                                 </TabsContent>
 
                                                 <TabsContent value="authorization" className="m-0 space-y-4">
@@ -2345,7 +2231,14 @@ export default function APITestingPage() {
                                                             </DropdownMenu>
                                                         </div>
                                                     </div>
-                                                    <KeyValueEditor type="headers" pairs={activeRequest.headers} />
+                                                    <KeyValueEditor
+                                                        type="headers"
+                                                        pairs={activeRequest.headers}
+                                                        onAdd={addKeyValuePair}
+                                                        onUpdate={updateKeyValuePair}
+                                                        onRemove={removeKeyValuePair}
+                                                        onBulkUpdate={handleBulkUpdate}
+                                                    />
                                                 </TabsContent>
 
                                                 <TabsContent value="body" className="m-0">
@@ -2466,7 +2359,14 @@ export default function APITestingPage() {
                                                             )}
 
                                                             {(activeRequest.body.type === 'form-data' || activeRequest.body.type === 'x-www-form-urlencoded') && (
-                                                                <KeyValueEditor type="formData" pairs={activeRequest.body.formData || []} />
+                                                                <KeyValueEditor
+                                                                    type="formData"
+                                                                    pairs={activeRequest.body.formData || []}
+                                                                    onAdd={addKeyValuePair}
+                                                                    onUpdate={updateKeyValuePair}
+                                                                    onRemove={removeKeyValuePair}
+                                                                    onBulkUpdate={handleBulkUpdate}
+                                                                />
                                                             )}
 
                                                             {activeRequest.body.type === 'binary' && (
