@@ -179,7 +179,7 @@ const getMethodTextColor = (method: string) => {
 const PROTOCOLS = [
     { id: 'http', name: 'HTTP', icon: HttpIcon, description: 'REST, SOAP, or standard HTTP requests', color: 'text-blue-500', bgColor: 'bg-blue-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'graphql', name: 'GraphQL', icon: GraphqlIcon, description: 'Execute GraphQL queries and mutations', color: 'text-pink-500', bgColor: 'bg-pink-50', iconSize: 'w-16 h-16', padding: 'p-1' },
-    { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50' },
+    { id: 'ai', name: 'AI Testing', icon: Sparkles, description: 'Test LLM behaviors and custom prompts', color: 'text-purple-500', bgColor: 'bg-purple-50', iconSize: 'w-16 h-16', padding: 'p-2' },
     { id: 'grpc', name: 'gRPC', icon: GrpcIcon, description: 'High-performance RPC using Protobuf', color: 'text-green-500', bgColor: 'bg-green-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'websocket', name: 'WebSocket', icon: WebsocketIcon, description: 'Full-duplex real-time communication', color: 'text-orange-500', bgColor: 'bg-orange-50', iconSize: 'w-16 h-16', padding: 'p-1' },
     { id: 'socketio', name: 'Socket.IO', icon: SocketIoIcon, description: 'Event-driven real-time testing', color: 'text-cyan-500', bgColor: 'bg-cyan-50', iconSize: 'w-16 h-16', padding: 'p-1' },
@@ -1799,28 +1799,12 @@ export default function APITestingPage() {
                                     <div className="flex items-center gap-3">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border transition-all hover:scale-105 active:scale-95 ${activeRequest.protocol === 'http' ? 'bg-blue-600 border-blue-500 hover:bg-blue-700' :
-                                                    activeRequest.protocol === 'graphql' ? 'bg-pink-600 border-pink-500 hover:bg-pink-700' :
-                                                        activeRequest.protocol === 'grpc' ? 'bg-indigo-600 border-indigo-500 hover:bg-indigo-700' :
-                                                            activeRequest.protocol === 'ai' ? 'bg-purple-600 border-purple-500 hover:bg-purple-700' :
-                                                                'bg-gray-800 border-gray-700 hover:bg-gray-900'
-                                                    }`}>
-                                                    {activeRequest.protocol === 'http' ? (
-                                                        <div className="text-[10px] font-black text-white leading-none flex flex-col items-center">
-                                                            <span>HTTP</span>
-                                                            <div className="flex gap-0.5 mt-0.5">
-                                                                <ChevronRight className="w-2 h-2" />
-                                                                <ChevronRight className="w-2 h-2 -ml-1" />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-white">
-                                                            {(() => {
-                                                                const Icon = PROTOCOLS.find(p => p.id === activeRequest.protocol)?.icon || Globe
-                                                                return <Icon className="w-5 h-5" />
-                                                            })()}
-                                                        </div>
-                                                    )}
+                                                <button className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm border transition-all hover:scale-105 active:scale-95 ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.bgColor} ${PROTOCOLS.find(p => p.id === activeRequest.protocol)?.padding || 'p-1'}`}>
+                                                    {(() => {
+                                                        const proto = PROTOCOLS.find(p => p.id === activeRequest.protocol);
+                                                        const Icon = proto?.icon || Globe;
+                                                        return <Icon className="w-full h-full" />;
+                                                    })()}
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="start" className="w-64 p-2 rounded-2xl shadow-2xl border-gray-100">
@@ -1869,7 +1853,6 @@ export default function APITestingPage() {
                                                 <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter py-0 h-4 border-gray-200 text-gray-400">
                                                     {activeRequest.protocol}
                                                 </Badge>
-                                                <span className="text-[10px] text-gray-400 font-medium">Auto-saved 2m ago</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3098,6 +3081,6 @@ export default function APITestingPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }
