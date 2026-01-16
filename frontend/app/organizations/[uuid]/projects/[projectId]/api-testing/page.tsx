@@ -851,20 +851,20 @@ export default function APITestingPage() {
                         value={bulkValue}
                         onChange={(e) => setBulkValue(e.target.value)}
                         placeholder="key: value // description"
-                        className="font-mono text-sm min-h-[200px] resize-y bg-gray-50/50 border-gray-200 focus:border-primary/30 transition-all p-4 rounded-xl"
+                        className="font-mono text-sm min-h-[200px] resize-y bg-white border-gray-300 focus:border-primary/40 transition-all p-4 rounded-xl shadow-sm"
                     />
                 ) : (
                     <div className="space-y-0 relative">
-                        <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-400 px-1 uppercase tracking-widest mb-2 border-b border-gray-50 pb-2">
+                        <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
                             <div className="flex justify-center"></div>
                             <div className="pl-2">Key</div>
                             <div className="pl-2">Value</div>
                             <div className="pl-2">Description</div>
                             <div></div>
                         </div>
-                        <div className="divide-y divide-gray-50/50">
+                        <div className="divide-y divide-gray-200">
                             {pairs.map(pair => (
-                                <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50/50 transition-colors py-0.5">
+                                <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
                                     <div className="flex justify-center">
                                         <input
                                             type="checkbox"
@@ -923,9 +923,9 @@ export default function APITestingPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex flex-col h-screen bg-white">
             {/* Top Bar with Logo and Profile */}
-            <div className="border-b border-gray-200 bg-white flex-shrink-0">
+            <div className="border-b border-gray-300 bg-white flex-shrink-0">
                 <div className="px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <CircuitLogoIcon className="w-8 h-8" />
@@ -953,7 +953,7 @@ export default function APITestingPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-100">
+                        <div className="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-300 shadow-sm">
                             <Select
                                 value={selectedEnvId || ''}
                                 onValueChange={(val) => setSelectedEnvId(val || null)}
@@ -1012,7 +1012,7 @@ export default function APITestingPage() {
             </div>
 
             {/* Request Tabs */}
-            <div className="border-b border-gray-200 bg-white flex-shrink-0">
+            <div className="border-b border-gray-300 bg-white flex-shrink-0">
                 <div className="flex items-center px-2">
                     <ScrollArea className="flex-1">
                         <div className="flex items-center gap-1 py-1">
@@ -1075,8 +1075,8 @@ export default function APITestingPage() {
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Collections Sidebar */}
-                <div className="w-64 border-r border-gray-200 bg-white flex-shrink-0 flex flex-col">
-                    <div className="flex items-center px-3 border-b border-gray-100 bg-gray-50/50">
+                <div className="w-64 border-r border-gray-300 bg-white flex-shrink-0 flex flex-col">
+                    <div className="flex items-center px-3 border-b border-gray-200 bg-gray-50/50">
                         <button
                             onClick={() => setActiveSidebarTab('collections')}
                             className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeSidebarTab === 'collections' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -1374,8 +1374,8 @@ export default function APITestingPage() {
                     {activeRequest ? (
                         <>
                             {/* URL Bar */}
-                            <div className="px-6 py-4 border-b border-gray-100 bg-white">
-                                <div className="flex items-center gap-3 bg-gray-50/50 p-1 rounded-xl border border-gray-100 focus-within:border-primary/20 focus-within:ring-4 focus-within:ring-primary/5 transition-all">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-white">
+                                <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-gray-300 focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5 transition-all shadow-sm">
                                     <div className="w-32 border-r border-gray-200 px-1">
                                         <Select
                                             value={activeRequest.method}
@@ -1415,7 +1415,7 @@ export default function APITestingPage() {
                                         <Button
                                             onClick={sendRequest}
                                             disabled={loading}
-                                            className="h-9 px-6 bg-primary hover:bg-primary/90 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                                            className="h-10 px-8 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/30 transition-all active:scale-[0.98] rounded-xl"
                                         >
                                             {loading ? (
                                                 <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -1433,9 +1433,9 @@ export default function APITestingPage() {
                             {/* Request Config & Response */}
                             <div className="flex-1 flex overflow-hidden">
                                 {/* Request Configuration */}
-                                <div className="flex-1 flex flex-col border-r border-gray-200 overflow-hidden">
+                                <div className="flex-1 flex flex-col border-r border-gray-300 overflow-hidden">
                                     <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="flex-1 flex flex-col">
-                                        <TabsList className="w-full justify-start rounded-none border-b border-gray-100 bg-white px-6 h-12 gap-8">
+                                        <TabsList className="w-full justify-start rounded-none border-b border-gray-200 bg-white px-6 h-12 gap-8">
                                             <TabsTrigger value="params" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
                                                 Params
                                                 {activeRequest.params.length > 0 && (
@@ -1810,7 +1810,7 @@ export default function APITestingPage() {
                                                     )}
 
                                                     {activeRequest.body.type === 'binary' && (
-                                                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-xl py-16 bg-gray-50/20 transition-colors hover:bg-gray-50/40">
+                                                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-16 bg-gray-50/20 transition-colors hover:bg-gray-50/40">
                                                             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 mb-6 group transition-transform hover:scale-105">
                                                                 <Upload className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors" />
                                                             </div>
@@ -1888,7 +1888,7 @@ export default function APITestingPage() {
                                     {
                                         response ? (
                                             <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="flex-1 flex flex-col overflow-hidden">
-                                                <TabsList className="w-full justify-start rounded-none border-b bg-gray-50 px-4 h-9 flex-shrink-0">
+                                                <TabsList className="w-full justify-start rounded-none border-b border-gray-200 bg-gray-100 px-4 h-10 flex-shrink-0">
                                                     <TabsTrigger value="body" className="text-xs">
                                                         <FileJson className="w-3 h-3 mr-1" />
                                                         Body
@@ -2026,8 +2026,8 @@ export default function APITestingPage() {
                 {/* AI Assistant Panel */}
                 {
                     showAIPanel && (
-                        <div className="w-80 border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
-                            <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                        <div className="w-80 border-l border-gray-300 bg-white flex flex-col flex-shrink-0">
+                            <div className="p-3 border-b border-gray-300 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-5 h-5 text-primary" />
                                     <span className="font-semibold text-sm">AI Assistant</span>
@@ -2066,11 +2066,11 @@ export default function APITestingPage() {
                                     <div className="space-y-2">
                                         <p className="text-xs font-medium text-gray-500 uppercase">Suggestions</p>
                                         <div className="space-y-2">
-                                            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                            <button className="w-full text-left p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
                                                 <p className="text-sm font-medium text-gray-700">Add Authorization</p>
                                                 <p className="text-xs text-gray-500 mt-1">This endpoint might need authentication</p>
                                             </button>
-                                            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                            <button className="w-full text-left p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
                                                 <p className="text-sm font-medium text-gray-700">Add Content-Type Header</p>
                                                 <p className="text-xs text-gray-500 mt-1">Recommended for POST requests</p>
                                             </button>

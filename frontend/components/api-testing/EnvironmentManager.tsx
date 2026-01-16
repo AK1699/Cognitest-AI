@@ -190,9 +190,9 @@ export function EnvironmentManager({
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-300">
                 {/* Modal Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                     <div className="flex items-center gap-4">
                         <div className="bg-gradient-to-br from-primary to-primary/80 p-3 rounded-xl shadow-lg shadow-primary/20">
                             <Globe className="w-5 h-5 text-white" />
@@ -219,15 +219,15 @@ export function EnvironmentManager({
                 {/* Modal Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Environment List */}
-                    <div className="w-80 border-r border-gray-100 bg-gray-50/50 flex flex-col overflow-hidden">
-                        <div className="p-4 border-b border-gray-100">
+                    <div className="w-80 border-r border-gray-300 bg-gray-50/50 flex flex-col overflow-hidden">
+                        <div className="p-4 border-b border-gray-200">
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <Input
                                         value={newEnvName}
                                         onChange={(e) => setNewEnvName(e.target.value)}
                                         placeholder="New environment name..."
-                                        className="h-10 pl-4 pr-4 text-sm rounded-xl border-gray-200 focus:border-primary focus:ring-primary/20"
+                                        className="h-10 pl-4 pr-4 text-sm rounded-xl border-gray-300 focus:border-primary focus:ring-primary/20 bg-white"
                                         onKeyDown={(e) => e.key === 'Enter' && createEnvironment()}
                                     />
                                 </div>
@@ -350,7 +350,7 @@ export function EnvironmentManager({
                         {currentEnv ? (
                             <>
                                 {/* Environment Header */}
-                                <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50/50">
+                                <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-white to-gray-50/50">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedEnvironmentId === currentEnv.id
@@ -422,12 +422,12 @@ export function EnvironmentManager({
                                     {/* Toolbar */}
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="relative flex-1 max-w-xs">
-                                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                                             <Input
                                                 placeholder="Search variables..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="h-10 pl-10 rounded-xl border-gray-200"
+                                                className="h-10 pl-10 rounded-xl border-gray-300 bg-white"
                                             />
                                         </div>
                                         <Button
@@ -472,8 +472,8 @@ export function EnvironmentManager({
                                                 <div
                                                     key={variable.id}
                                                     className={`grid grid-cols-[40px_1fr_1fr_120px] gap-4 items-center p-4 rounded-xl border transition-all group ${variable.enabled
-                                                        ? 'bg-white border-gray-100 hover:border-primary/20 hover:shadow-md'
-                                                        : 'bg-gray-50/50 border-gray-100 opacity-60'
+                                                        ? 'bg-white border-gray-200 shadow-sm hover:border-primary/40 hover:shadow-md'
+                                                        : 'bg-gray-50/50 border-gray-200 opacity-60'
                                                         }`}
                                                 >
                                                     <div className="flex justify-center">
@@ -488,7 +488,7 @@ export function EnvironmentManager({
                                                         value={variable.key}
                                                         onChange={(e) => updateEnvVariable(currentEnv.id, variable.id, { key: e.target.value })}
                                                         placeholder="VARIABLE_NAME"
-                                                        className="h-10 text-sm font-mono font-medium border-gray-200 rounded-lg focus:border-primary focus:ring-primary/20"
+                                                        className="h-10 text-sm font-mono font-medium border-gray-300 rounded-lg focus:border-primary focus:ring-primary/20 bg-white"
                                                     />
                                                     <div className="relative">
                                                         <Input
@@ -496,7 +496,7 @@ export function EnvironmentManager({
                                                             value={variable.value}
                                                             onChange={(e) => updateEnvVariable(currentEnv.id, variable.id, { value: e.target.value })}
                                                             placeholder="Value"
-                                                            className="h-10 text-sm font-mono border-gray-200 rounded-lg pr-10 focus:border-primary focus:ring-primary/20"
+                                                            className="h-10 text-sm font-mono border-gray-300 rounded-lg pr-10 focus:border-primary focus:ring-primary/20 bg-white"
                                                         />
                                                         {variable.secret && (
                                                             <button
