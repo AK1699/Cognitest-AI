@@ -1631,8 +1631,7 @@ export default function APITestingPage() {
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="start" className="w-48">
                                                                 <DropdownMenuItem onClick={() => {
-                                                                    setPendingAddLocation({ collectionId: collection.id });
-                                                                    setIsProtocolSelectorOpen(true);
+                                                                    addRequestToCollection(collection.id, undefined, lastUsedProtocol || 'http');
                                                                 }}>
                                                                     <Plus className="w-4 h-4 mr-2" /> New Request
                                                                 </DropdownMenuItem>
@@ -1694,8 +1693,7 @@ export default function APITestingPage() {
                                                                                         </DropdownMenuTrigger>
                                                                                         <DropdownMenuContent align="start" className="w-48">
                                                                                             <DropdownMenuItem onClick={() => {
-                                                                                                setPendingAddLocation({ collectionId: collection.id, folderId: folder.id });
-                                                                                                setIsProtocolSelectorOpen(true);
+                                                                                                addRequestToCollection(collection.id, folder.id, lastUsedProtocol || 'http');
                                                                                             }}>
                                                                                                 <Plus className="w-4 h-4 mr-2" /> New Request
                                                                                             </DropdownMenuItem>
