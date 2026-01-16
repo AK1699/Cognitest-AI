@@ -239,11 +239,46 @@ export default function APITestingPage() {
     const uuid = params.uuid as string
 
     // Request tabs state
-    const [openRequests, setOpenRequests] = useState<APIRequest[]>([createNewRequest()])
-    const [activeRequestId, setActiveRequestId] = useState<string>(openRequests[0].id)
+    const [openRequests, setOpenRequests] = useState<APIRequest[]>([])
+    const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+    // Load state from localStorage on mount
+    useEffect(() => {
+        const savedRequests = localStorage.getItem(`api-testing-tabs-${projectId}`)
+        const savedActiveId = localStorage.getItem(`api-testing-active-tab-${projectId}`)
+
+        if (savedRequests) {
+            try {
+                const parsed = JSON.parse(savedRequests)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setOpenRequests(parsed)
+                    if (savedActiveId && parsed.find((r: any) => r.id === savedActiveId)) {
+                        setActiveRequestId(savedActiveId)
+                    } else {
+                        setActiveRequestId(parsed[0].id)
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse saved tabs", e)
+            }
+        }
+        setIsInitialLoad(false)
+    }, [projectId])
+
+    // Persistence
+    useEffect(() => {
+        if (isInitialLoad) return
+        localStorage.setItem(`api-testing-tabs-${projectId}`, JSON.stringify(openRequests))
+        if (activeRequestId) {
+            localStorage.setItem(`api-testing-active-tab-${projectId}`, activeRequestId)
+        } else {
+            localStorage.removeItem(`api-testing-active-tab-${projectId}`)
+        }
+    }, [openRequests, activeRequestId, projectId, isInitialLoad])
 
     // Current request state
-    const activeRequest = openRequests.find(r => r.id === activeRequestId) || openRequests[0] || null
+    const activeRequest = openRequests.find(r => r.id === activeRequestId) || null
 
     // Response state
     const [response, setResponse] = useState<APIResponse | null>(null)
@@ -415,6 +450,7 @@ export default function APITestingPage() {
     }
 
     const updateActiveRequest = (updates: Partial<APIRequest>) => {
+        if (!activeRequestId) return
         setOpenRequests(prev => prev.map(r =>
             r.id === activeRequestId ? { ...r, ...updates } : r
         ))
@@ -593,12 +629,18 @@ export default function APITestingPage() {
 
     // Close request tab
     const closeRequest = (id: string) => {
-        if (openRequests.length === 1) return
         const newRequests = openRequests.filter(r => r.id !== id)
         setOpenRequests(newRequests)
-        if (activeRequestId === id) {
-            setActiveRequestId(newRequests[newRequests.length - 1].id)
+        if (newRequests.length === 0) {
+            setActiveRequestId(null)
+        } else if (activeRequestId === id) {
+            setActiveRequestId(newRequests[newRequests.length - 1]?.id || null)
         }
+    }
+
+    const closeAllRequests = () => {
+        setOpenRequests([])
+        setActiveRequestId(null)
     }
 
     // Send request
@@ -748,6 +790,7 @@ export default function APITestingPage() {
 
     // Remove key-value pair
     const removeKeyValuePair = (type: 'params' | 'headers' | 'formData', id: string) => {
+        if (!activeRequest) return
         const filterFn = (pairs: KeyValuePair[]) => pairs.filter(p => p.id !== id)
 
         if (type === 'params') {
@@ -766,7 +809,7 @@ export default function APITestingPage() {
 
     // AI Generate suggestion
     const generateWithAI = async () => {
-        if (!aiPrompt.trim()) return
+        if (!activeRequest || !aiPrompt.trim()) return
 
         setAiLoading(true)
         try {
@@ -1066,8 +1109,21 @@ export default function APITestingPage() {
                             ))}
                         </div>
                     </ScrollArea>
-                    <Button variant="ghost" size="sm" onClick={addNewRequest} className="ml-1">
-                        <Plus className="w-4 h-4" />
+                    {openRequests.length > 0 && (
+                        <button
+                            onClick={closeAllRequests}
+                            className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest px-3 py-1 transition-colors border-r border-gray-200 mr-1"
+                        >
+                            Close All
+                        </button>
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addNewRequest}
+                        className="h-8 px-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                        Add <Plus className="w-3 h-3" />
                     </Button>
                 </div>
             </div>
@@ -2003,21 +2059,59 @@ export default function APITestingPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-gray-50/30">
-                            <div className="w-20 h-20 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6">
-                                <Plus className="w-10 h-10 text-primary/30" />
+                        <div className="flex-1 flex flex-col items-center justify-center bg-white p-20 text-center overflow-auto">
+                            <div className="relative mb-12">
+                                <div className="absolute inset-0 bg-primary/5 blur-[80px] rounded-full scale-150 animate-pulse" />
+                                <div className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                                    <CircuitLogoIcon className="w-24 h-24 text-primary" />
+                                </div>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Get Started</h3>
-                            <p className="text-sm text-gray-500 mt-2 max-w-xs mx-auto">
-                                Create a new request from the sidebar or workspace to start testing your APIs.
+
+                            <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-4">
+                                Test Your APIs <span className="text-primary">Better</span>
+                            </h1>
+                            <p className="text-gray-500 max-w-md mx-auto mb-10 leading-relaxed font-medium">
+                                Cognitest AI helps you test, document, and debug your APIs with an intelligent interface designed for modern engineering teams.
                             </p>
-                            <Button
-                                className="mt-8"
-                                onClick={addNewRequest}
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Request
-                            </Button>
+
+                            <div className="flex flex-col sm:flex-row items-center gap-4">
+                                <Button
+                                    onClick={addNewRequest}
+                                    className="h-14 px-10 bg-primary hover:bg-primary/90 text-white font-black text-base rounded-2xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:translate-y-0"
+                                >
+                                    <Plus className="w-5 h-5 mr-3" />
+                                    New HTTP Request
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    className="h-14 px-10 border-gray-200 hover:border-primary/30 hover:bg-primary/5 text-gray-600 font-bold text-base rounded-2xl transition-all"
+                                >
+                                    <Terminal className="w-5 h-5 mr-3" />
+                                    Import from cURL
+                                </Button>
+                            </div>
+
+                            <div className="mt-20 grid grid-cols-3 gap-12 max-w-3xl opacity-50">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                                        <Lock className="w-6 h-6 text-gray-400" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Secure Auth</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                                        <Sparkles className="w-6 h-6 text-gray-400" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">AI Assistant</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                                        <Code2 className="w-6 h-6 text-gray-400" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Code Generation</span>
+                                </div>
+                            </div>
                         </div>
                     )
                     }
