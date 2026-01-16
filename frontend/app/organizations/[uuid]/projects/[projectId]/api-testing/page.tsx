@@ -425,6 +425,33 @@ export default function APITestingPage() {
     const [activeSidebarTab, setActiveSidebarTab] = useState<'collections' | 'history'>('collections')
     const [searchQuery, setSearchQuery] = useState('')
     const [history, setHistory] = useState<any[]>([])
+    const [sidebarWidth, setSidebarWidth] = useState(256)
+    const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizingSidebar) return
+            setSidebarWidth(Math.max(200, Math.min(600, e.clientX)))
+        }
+
+        const handleMouseUp = () => {
+            setIsResizingSidebar(false)
+        }
+
+        if (isResizingSidebar) {
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+            document.body.style.cursor = 'col-resize'
+            document.body.style.userSelect = 'none'
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+            document.body.style.cursor = ''
+            document.body.style.userSelect = ''
+        }
+    }, [isResizingSidebar])
 
     // Dialogs state
     const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
@@ -1558,7 +1585,18 @@ export default function APITestingPage() {
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Collections Sidebar */}
-                <div className="w-64 border-r border-gray-300 bg-white flex-shrink-0 flex flex-col">
+                <div
+                    style={{ width: sidebarWidth }}
+                    className="border-r border-gray-300 bg-white flex-shrink-0 flex flex-col relative group/sidebar"
+                >
+                    {/* Resize Handle */}
+                    <div
+                        className={`absolute top-0 right-[-4px] w-2 h-full cursor-col-resize z-50 hover:bg-primary/20 transition-colors ${isResizingSidebar ? 'bg-primary/20' : ''}`}
+                        onMouseDown={(e) => {
+                            e.preventDefault()
+                            setIsResizingSidebar(true)
+                        }}
+                    />
                     <div className="flex items-center px-3 border-b border-gray-200 bg-gray-50/50">
                         <button
                             onClick={() => setActiveSidebarTab('collections')}
@@ -1687,7 +1725,7 @@ export default function APITestingPage() {
 
                                                                                     <DropdownMenu>
                                                                                         <DropdownMenuTrigger asChild>
-                                                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover/row-f:opacity-100">
+                                                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover/row-f:opacity-100 flex-shrink-0">
                                                                                                 <MoreHorizontal className="w-3.5 h-3.5 text-gray-400" />
                                                                                             </Button>
                                                                                         </DropdownMenuTrigger>
@@ -1716,22 +1754,22 @@ export default function APITestingPage() {
                                                                                         {folder.folders?.map(subfolder => renderFolderItems(subfolder, depth + 1))}
                                                                                         {folder.requests.map(req => (
                                                                                             <DraggableItem key={req.id} id={req.id} type="request" name={req.name}>
-                                                                                                <div className="flex items-center group/req pl-3">
+                                                                                                <div className="relative flex items-center group/req pl-3">
                                                                                                     <button
-                                                                                                        className="flex-1 flex items-center gap-2 p-1.5 rounded-lg hover:bg-primary/[0.03] hover:text-primary transition-all text-left"
+                                                                                                        className="flex-1 min-w-0 flex items-center gap-2 p-1.5 pr-7 rounded-lg hover:bg-primary/[0.03] hover:text-primary transition-all text-left"
                                                                                                         onClick={() => {
                                                                                                             setOpenRequests(prev => prev.find(r => r.id === req.id) ? prev : [...prev, req])
                                                                                                             setActiveRequestId(req.id)
                                                                                                         }}
                                                                                                     >
-                                                                                                        <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
+                                                                                                        <span className={`text-[8px] font-black w-7 flex-shrink-0 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
                                                                                                             {getProtocolBadgeInfo(req.protocol, req.method).label}
                                                                                                         </span>
                                                                                                         <span className="text-[12px] text-gray-500 group-hover/req:text-primary truncate flex-1">{req.name}</span>
                                                                                                     </button>
                                                                                                     <DropdownMenu>
                                                                                                         <DropdownMenuTrigger asChild>
-                                                                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover/req:opacity-100">
+                                                                                                            <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover/req:opacity-100 z-10 bg-white shadow-sm ring-1 ring-gray-100">
                                                                                                                 <MoreHorizontal className="w-3 h-3 text-gray-400" />
                                                                                                             </Button>
                                                                                                         </DropdownMenuTrigger>
@@ -1768,22 +1806,22 @@ export default function APITestingPage() {
                                                             {/* Root level requests in collection */}
                                                             {collection.requests.map(req => (
                                                                 <DraggableItem key={req.id} id={req.id} type="request" name={req.name}>
-                                                                    <div className="flex items-center group/req pl-3">
+                                                                    <div className="relative flex items-center group/req pl-3">
                                                                         <button
-                                                                            className="flex-1 flex items-center gap-2 p-1.5 rounded-lg hover:bg-primary/[0.03] hover:text-primary transition-all text-left"
+                                                                            className="flex-1 min-w-0 flex items-center gap-2 p-1.5 pr-7 rounded-lg hover:bg-primary/[0.03] hover:text-primary transition-all text-left"
                                                                             onClick={() => {
                                                                                 setOpenRequests(prev => prev.find(r => r.id === req.id) ? prev : [...prev, req])
                                                                                 setActiveRequestId(req.id)
                                                                             }}
                                                                         >
-                                                                            <span className={`text-[8px] font-black w-7 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
+                                                                            <span className={`text-[8px] font-black w-7 flex-shrink-0 text-center rounded px-1 py-0.5 ${getProtocolBadgeInfo(req.protocol, req.method).classes}`}>
                                                                                 {getProtocolBadgeInfo(req.protocol, req.method).label}
                                                                             </span>
                                                                             <span className="text-[12px] text-gray-500 group-hover/req:text-primary truncate flex-1">{req.name}</span>
                                                                         </button>
                                                                         <DropdownMenu>
                                                                             <DropdownMenuTrigger asChild>
-                                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover/req:opacity-100">
+                                                                                <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 opacity-0 group-hover/req:opacity-100 z-10 bg-white shadow-sm ring-1 ring-gray-100">
                                                                                     <MoreHorizontal className="w-3 h-3 text-gray-400" />
                                                                                 </Button>
                                                                             </DropdownMenuTrigger>
