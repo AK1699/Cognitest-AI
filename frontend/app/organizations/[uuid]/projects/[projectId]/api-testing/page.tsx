@@ -2785,7 +2785,7 @@ export default function APITestingPage() {
                                                                                     body: { ...activeRequest.body, rawType: val }
                                                                                 })}
                                                                             >
-                                                                                <SelectTrigger className="w-[140px] h-9 text-xs font-bold bg-white border-gray-200">
+                                                                                <SelectTrigger className="w-[180px] h-9 text-[10px] font-black text-primary bg-primary/5 border-2 border-primary/20 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all uppercase tracking-widest pl-3 pr-2">
                                                                                     <SelectValue />
                                                                                 </SelectTrigger>
                                                                                 <SelectContent>

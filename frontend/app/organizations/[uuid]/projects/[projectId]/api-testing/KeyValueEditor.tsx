@@ -179,7 +179,7 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                         <div className="flex items-center justify-center border-r border-gray-200 h-10">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <button className="h-7 px-1.5 text-[10px] font-bold text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded flex items-center gap-1 transition-colors border border-gray-200 uppercase tracking-tighter">
+                                                    <button className="h-7 px-2 text-[9px] font-black text-primary hover:text-primary bg-primary/5 hover:bg-primary/10 rounded-lg flex items-center gap-1 transition-all border-2 border-primary/20 hover:border-primary/40 uppercase tracking-wider">
                                                         {valueType === 'file' ? (
                                                             <>
                                                                 <FileText className="w-2.5 h-2.5" />
