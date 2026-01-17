@@ -150,14 +150,11 @@ export class ScriptRunner {
             }
         };
 
-        // Also expose 'pm' for compatibility
-        const pm = ct;
-
         try {
-            // Execute script within the context of 'ct' and 'pm'
-            const fn = new Function('ct', 'pm', 'console', script);
+            // Execute script within the context of 'ct'
+            const fn = new Function('ct', 'console', script);
             // We pass our log as both ct.log and console.log for the script context
-            fn(ct, pm, { log: log });
+            fn(ct, { log: log });
         } catch (err: any) {
             logs.push(`Script Error: ${err.message}`);
         }

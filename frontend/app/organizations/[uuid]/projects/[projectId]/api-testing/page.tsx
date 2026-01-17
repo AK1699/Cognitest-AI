@@ -94,7 +94,8 @@ interface APIRequest {
     headers: KeyValuePair[]
     body: {
         type: 'none' | 'json' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary' | 'graphql'
-        content: string
+        rawContent?: string
+        graphqlQuery?: string
         rawType?: 'text' | 'json' | 'xml' | 'html' | 'javascript'
         formData?: KeyValuePair[]
         urlencodedData?: KeyValuePair[]
@@ -328,7 +329,7 @@ const createNewRequest = (protocol: APIRequest['protocol'] = 'http'): APIRequest
     headers: [
         { id: 'h1', key: 'Content-Type', value: 'application/json', description: 'Standard content type', enabled: true }
     ],
-    body: { type: 'none', content: '', rawType: 'json', formData: [], urlencodedData: [] },
+    body: { type: 'none', rawContent: '', graphqlQuery: '', rawType: 'json', formData: [], urlencodedData: [], graphqlVariables: '' },
     auth: { type: 'none' },
     preRequestScript: '',
     testScript: ''
@@ -1354,10 +1355,10 @@ export default function APITestingPage() {
             let body: string | FormData | undefined
             if (['POST', 'PUT', 'PATCH'].includes(activeRequest.method)) {
                 if (activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') {
-                    body = interpolateVariables(activeRequest.body.content)
+                    body = interpolateVariables(activeRequest.body.rawContent || '')
                 } else if (activeRequest.body.type === 'graphql') {
                     try {
-                        const query = interpolateVariables(activeRequest.body.content || '')
+                        const query = interpolateVariables(activeRequest.body.graphqlQuery || '')
                         const varsStr = interpolateVariables(activeRequest.body.graphqlVariables || '{}')
                         const variables = varsStr ? JSON.parse(varsStr) : {}
                         body = JSON.stringify({ query, variables })
@@ -1366,7 +1367,7 @@ export default function APITestingPage() {
                         console.error('Error parsing GraphQL variables:', e)
                         // If parsing fails, send as is or show error
                         body = JSON.stringify({
-                            query: interpolateVariables(activeRequest.body.content || ''),
+                            query: interpolateVariables(activeRequest.body.graphqlQuery || ''),
                             variables: {}
                         })
                         headers['Content-Type'] = 'application/json'
@@ -2703,9 +2704,9 @@ export default function APITestingPage() {
                                                                 </div>
                                                             </div>
                                                             <CodeEditor
-                                                                value={activeRequest.body.content}
+                                                                value={activeRequest.body.rawContent || ''}
                                                                 onChange={(value) => updateActiveRequest({
-                                                                    body: { ...activeRequest.body, content: value }
+                                                                    body: { ...activeRequest.body, rawContent: value }
                                                                 })}
                                                                 language="text"
                                                                 height="400px"
@@ -2723,9 +2724,9 @@ export default function APITestingPage() {
                                                                 </Button>
                                                             </div>
                                                             <CodeEditor
-                                                                value={activeRequest.body.content}
+                                                                value={activeRequest.body.graphqlQuery || ''}
                                                                 onChange={(value) => updateActiveRequest({
-                                                                    body: { ...activeRequest.body, content: value }
+                                                                    body: { ...activeRequest.body, graphqlQuery: value }
                                                                 })}
                                                                 language="graphql"
                                                                 height="400px"
@@ -2738,9 +2739,9 @@ export default function APITestingPage() {
                                                         <div className="space-y-4">
                                                             <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Protocol Buffer Message (JSON)</Label>
                                                             <CodeEditor
-                                                                value={activeRequest.body.content}
+                                                                value={activeRequest.body.rawContent || ''}
                                                                 onChange={(value) => updateActiveRequest({
-                                                                    body: { ...activeRequest.body, content: value }
+                                                                    body: { ...activeRequest.body, rawContent: value }
                                                                 })}
                                                                 language="json"
                                                                 height="400px"
@@ -2773,32 +2774,29 @@ export default function APITestingPage() {
                                                                 ))}
                                                             </div>
 
-                                                            {(activeRequest.body.type === 'raw' || (activeRequest.body.type as string) === 'json') && (
+                                                            {(activeRequest.body.type === 'raw' || activeRequest.body.type === 'json') && (
                                                                 <div className="space-y-4">
                                                                     <div className="flex items-center justify-between mb-2">
-                                                                        {activeRequest.body.type === 'raw' ? (
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="text-xs font-medium text-gray-500">FORMAT:</span>
-                                                                                <Select
-                                                                                    value={activeRequest.body.rawType || 'text'}
-                                                                                    onValueChange={(val) => updateActiveRequest({
-                                                                                        body: { ...activeRequest.body, rawType: val as any }
-                                                                                    })}
-                                                                                >
-                                                                                    <SelectTrigger className="h-7 w-28 text-xs">
-                                                                                        <SelectValue />
-                                                                                    </SelectTrigger>
-                                                                                    <SelectContent>
-                                                                                        <SelectItem value="text">Plain Text</SelectItem>
-                                                                                        <SelectItem value="json">JSON</SelectItem>
-                                                                                        <SelectItem value="xml">XML</SelectItem>
-                                                                                        <SelectItem value="html">HTML</SelectItem>
-                                                                                        <SelectItem value="javascript">JavaScript</SelectItem>
-                                                                                    </SelectContent>
-                                                                                </Select>
-                                                                            </div>
-                                                                        ) : <div />}
-
+                                                                        <div className="flex items-center gap-4">
+                                                                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Format:</Label>
+                                                                            <Select
+                                                                                value={activeRequest.body.rawType || 'json'}
+                                                                                onValueChange={(val: any) => updateActiveRequest({
+                                                                                    body: { ...activeRequest.body, rawType: val }
+                                                                                })}
+                                                                            >
+                                                                                <SelectTrigger className="w-[140px] h-9 text-xs font-bold bg-white border-gray-200">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    <SelectItem value="text">Text (text/plain)</SelectItem>
+                                                                                    <SelectItem value="json">JSON (application/json)</SelectItem>
+                                                                                    <SelectItem value="xml">XML (application/xml)</SelectItem>
+                                                                                    <SelectItem value="html">HTML (text/html)</SelectItem>
+                                                                                    <SelectItem value="javascript">JavaScript (application/javascript)</SelectItem>
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
                                                                         <div className="flex items-center gap-1">
                                                                             <SnippetsSelector
                                                                                 type="body"
@@ -2817,13 +2815,16 @@ export default function APITestingPage() {
                                                                     </div>
                                                                     <CodeEditor
                                                                         ref={bodyEditorRef}
-                                                                        value={activeRequest.body.content}
+                                                                        value={activeRequest.body.rawContent || ''}
                                                                         onChange={(value) => updateActiveRequest({
-                                                                            body: { ...activeRequest.body, content: value }
+                                                                            body: { ...activeRequest.body, rawContent: value }
                                                                         })}
-                                                                        language={(activeRequest.body.type as string === 'json' || activeRequest.body.rawType === 'json') ? 'json' : (activeRequest.body.rawType || 'text')}
-                                                                        height="400px"
-                                                                        placeholder={(activeRequest.body.type as string === 'json' || activeRequest.body.rawType === 'json') ? '{"key": "value"}' : 'Raw body content'}
+                                                                        language={activeRequest.body.rawType === 'json' ? 'json' :
+                                                                            activeRequest.body.rawType === 'xml' ? 'xml' :
+                                                                                activeRequest.body.rawType === 'html' ? 'html' :
+                                                                                    activeRequest.body.rawType === 'javascript' ? 'javascript' : 'text'}
+                                                                        height="450px"
+                                                                        placeholder={activeRequest.body.rawType === 'json' ? '{ "key": "value" }' : 'Enter request body...'}
                                                                     />
                                                                 </div>
                                                             )}
@@ -2845,9 +2846,9 @@ export default function APITestingPage() {
                                                                         <div className="flex-1">
                                                                             <CodeEditor
                                                                                 ref={bodyEditorRef}
-                                                                                value={activeRequest.body.content}
+                                                                                value={activeRequest.body.graphqlQuery || ''}
                                                                                 onChange={(value) => updateActiveRequest({
-                                                                                    body: { ...activeRequest.body, content: value }
+                                                                                    body: { ...activeRequest.body, graphqlQuery: value }
                                                                                 })}
                                                                                 language="graphql"
                                                                                 height="100%"
@@ -2994,7 +2995,7 @@ export default function APITestingPage() {
                                                             onChange={(value) => updateActiveRequest({ testScript: value })}
                                                             language="javascript"
                                                             height="180px"
-                                                            placeholder="// pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                                                            placeholder="// ct.test('Status is 200', () => ct.response.to.have.status(200));"
                                                         />
                                                     </div>
                                                 </TabsContent>
