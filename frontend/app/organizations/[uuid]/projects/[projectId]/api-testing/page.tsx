@@ -46,6 +46,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EnvironmentManager, type Environment, type EnvironmentVariable } from '@/components/api-testing/EnvironmentManager'
 import { HighlightedInput } from '@/components/api-testing/HighlightedInput'
 import { CollectionRunner } from '@/components/api-testing/CollectionRunner'
+import { JsonTable } from './JsonTable'
 import { KeyValueEditor, type KeyValuePair } from './KeyValueEditor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -3002,7 +3003,7 @@ export default function APITestingPage() {
                                                                     <button
                                                                         onClick={() => setShowPreview(!showPreview)}
                                                                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${showPreview
-                                                                            ? 'bg-gray-100 text-gray-900'
+                                                                            ? 'bg-primary/10 text-primary border border-primary/20'
                                                                             : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                                                                             }`}
                                                                     >
@@ -3054,11 +3055,15 @@ export default function APITestingPage() {
                                                                     readOnly={true}
                                                                 />
                                                             ) : (
-                                                                <div className="h-full bg-white rounded-lg border border-gray-100 p-4 font-sans text-sm text-gray-600 overflow-auto">
+                                                                <div className="h-full bg-white rounded-lg border border-gray-100 font-sans text-sm text-gray-600 overflow-auto">
                                                                     {typeof response.body === 'string' && (response.body.includes('<html') || response.body.includes('<!DOCTYPE')) ? (
-                                                                        <iframe srcDoc={response.body} className="w-full h-full border-none" title="Preview" />
+                                                                        <iframe srcDoc={response.body} className="w-full h-full border-none p-4" title="Preview" />
+                                                                    ) : responseBodyMode === 'pretty' && typeof response.body === 'object' ? (
+                                                                        <div className="p-4">
+                                                                            <JsonTable data={response.body} />
+                                                                        </div>
                                                                     ) : (
-                                                                        <pre className="whitespace-pre-wrap">{typeof response.body === 'object' ? JSON.stringify(response.body, null, 2) : String(response.body)}</pre>
+                                                                        <pre className="p-4 whitespace-pre-wrap">{typeof response.body === 'object' ? JSON.stringify(response.body, null, 2) : String(response.body)}</pre>
                                                                     )}
                                                                 </div>
                                                             )}
