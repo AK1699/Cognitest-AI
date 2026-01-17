@@ -16,7 +16,8 @@ import {
     ChevronDown,
     CheckCircle,
     XCircle,
-    AlertTriangle
+    AlertTriangle,
+    Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,14 +27,33 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    SelectSeparator,
+} from '@/components/ui/select';
+import { type Environment } from './EnvironmentManager';
 
 interface CollectionRunnerProps {
     target: any; // Collection or Folder
     onClose: () => void;
     onRun: (config: any) => void;
+    environments: Environment[];
+    selectedEnvironmentId: string | null;
+    onEnvironmentChange?: (id: string | null) => void;
 }
 
-export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerProps) {
+export function CollectionRunner({
+    target,
+    onClose,
+    onRun,
+    environments,
+    selectedEnvironmentId,
+    onEnvironmentChange
+}: CollectionRunnerProps) {
     const [view, setView] = useState<'config' | 'results'>('config');
     const [runResults, setRunResults] = useState<any>(null);
 
@@ -60,7 +80,12 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
         stopOnError: false
     });
     const [activeTab, setActiveTab] = useState<'functional' | 'performance'>('functional');
+    const [selectedEnvId, setSelectedEnvId] = useState<string | null>(selectedEnvironmentId);
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    useEffect(() => {
+        setSelectedEnvId(selectedEnvironmentId);
+    }, [selectedEnvironmentId]);
 
     const toggleRequest = (id: string) => {
         setSelectedRequestIds(prev =>
@@ -86,6 +111,9 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
     };
 
     const handleRun = () => {
+        // Find selected environment name
+        const env = environments.find(e => e.id === selectedEnvId);
+
         // Mock run execution for immediate feedback
         const mockResults = {
             id: crypto.randomUUID(),
@@ -95,7 +123,7 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
             total: selectedRequestIds.length * config.iterations,
             failed: 1,
             avgResponseTime: 625,
-            environment: 'testing',
+            environment: env?.name || 'No Environment',
             executed: allRequests
                 .filter(r => selectedRequestIds.includes(r.id))
                 .map(r => ({
@@ -107,7 +135,7 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
         };
         setRunResults(mockResults);
         setView('results');
-        // onRun({ selectedRequestIds, ...config }); // Keep original handler if needed
+        onRun({ selectedRequestIds, environmentId: selectedEnvId, ...config });
     };
 
     if (view === 'results' && runResults) {
@@ -408,6 +436,36 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
                                         </div>
                                     </div>
                                 </RadioGroup>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-gray-900">Environment</h3>
+                                </div>
+                                <Select
+                                    value={selectedEnvId || "no-environment"}
+                                    onValueChange={(val) => {
+                                        const id = val === "no-environment" ? null : val;
+                                        setSelectedEnvId(id);
+                                        onEnvironmentChange?.(id);
+                                    }}
+                                >
+                                    <SelectTrigger className="w-full h-11 border-gray-200 rounded-xl bg-white shadow-sm ring-offset-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                                        <div className="flex items-center gap-2">
+                                            <Globe className="w-4 h-4 text-gray-400" />
+                                            <SelectValue placeholder="No Environment" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="no-environment" className="font-medium text-gray-500 italic">No Environment</SelectItem>
+                                        <SelectSeparator className="my-1" />
+                                        {environments.map((env) => (
+                                            <SelectItem key={env.id} value={env.id} className="font-medium">
+                                                {env.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <Separator />

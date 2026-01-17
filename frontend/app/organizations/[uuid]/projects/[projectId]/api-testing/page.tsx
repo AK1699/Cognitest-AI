@@ -2259,6 +2259,9 @@ export default function APITestingPage() {
                             <CollectionRunner
                                 target={runnerTabs.find(t => t.id === activeRunnerTabId)!.target}
                                 onClose={() => closeRunnerTab(activeRunnerTabId)}
+                                environments={environments}
+                                selectedEnvironmentId={selectedEnvId}
+                                onEnvironmentChange={setSelectedEnvId}
                                 onRun={(config) => {
                                     console.log('Running with config:', config)
                                     toast.success(`Started run for ${runnerTabs.find(t => t.id === activeRunnerTabId)?.target.name}`)
