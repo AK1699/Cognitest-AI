@@ -4,13 +4,19 @@ from sqlalchemy import select, delete, update
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 import httpx
+import aiohttp
 import time
+import base64
+import io
+import os
+import aiofiles
 
 from app.core.deps import get_db, get_current_active_user
 from app.models.user import User
 from app.models.api_collection import ApiCollection
 from app.models.api_request import APIRequest as APIRequestModel
 from app.models.api_environment import ApiEnvironment
+from app.models.api_file import APIFile
 from app.schemas.api_testing import (
     ProxyRequest, ProxyResponse, 
     APICollectionTree, APICollectionCreate, APICollectionUpdate,
@@ -20,20 +26,107 @@ from app.schemas.api_testing import (
 
 router = APIRouter()
 
+# File storage directory
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "uploads", "api-testing")
+
 @router.post("/proxy", response_model=ProxyResponse)
-async def proxy_request(request_data: ProxyRequest):
+async def proxy_request(
+    request_data: ProxyRequest,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Proxy an API request to bypass CORS and handle requests from the server side.
     """
     start_time = time.time()
     
     try:
+        # Ensure URL has a protocol
+        url = request_data.url
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'https://' + url
+        
+        # Check if it's multipart form-data with files - use aiohttp for better handling
+        if request_data.form_data and len(request_data.form_data) > 0:
+            # Use aiohttp for multipart form-data (handles boundaries properly)
+            form = aiohttp.FormData()
+            
+            # Prepare headers (remove Content-Type - aiohttp will set it)
+            headers = dict(request_data.headers) if request_data.headers else {}
+            headers.pop("Content-Type", None)
+            headers.pop("content-type", None)
+            
+            for field in request_data.form_data:
+                if field.type == "file":
+                    file_content = None
+                    file_name = field.file_name
+                    content_type = field.content_type or "application/octet-stream"
+                    
+                    if field.file_id:
+                        # Fetch file from storage
+                        result = await db.execute(select(APIFile).where(APIFile.id == field.file_id))
+                        db_file = result.scalar_one_or_none()
+                        if db_file:
+                            file_path = os.path.join(UPLOAD_DIR, db_file.stored_filename)
+                            if os.path.exists(file_path):
+                                async with aiofiles.open(file_path, 'rb') as f:
+                                    file_content = await f.read()
+                                file_name = db_file.original_filename
+                                content_type = db_file.content_type
+                    
+                    if not file_content and field.file_data:
+                        # Fallback to base64 data
+                        file_content = base64.b64decode(field.file_data)
+                    
+                    if file_content:
+                        form.add_field(
+                            field.key,
+                            file_content,
+                            filename=file_name,
+                            content_type=content_type
+                        )
+                        print(f"[DEBUG] Adding file: {field.key}, name: {file_name}, size: {len(file_content)}")
+                    else:
+                        print(f"[WARNING] File field {field.key} has no content (file_id: {field.file_id})")
+                else:
+                    form.add_field(field.key, field.value or "")
+                    print(f"[DEBUG] Adding field: {field.key}={field.value}")
+            
+            print(f"[DEBUG] Making aiohttp request to {url}")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=request_data.method,
+                    url=url,
+                    headers=headers,
+                    data=form
+                ) as response:
+                    elapsed_time = (time.time() - start_time) * 1000
+                    response_body = await response.text()
+                    
+                    # Try to parse as JSON
+                    try:
+                        import json
+                        body = json.loads(response_body)
+                    except:
+                        body = response_body
+                    
+                    return ProxyResponse(
+                        status=response.status,
+                        statusText=response.reason or "",
+                        time=round(elapsed_time, 2),
+                        size=len(response_body),
+                        headers=dict(response.headers),
+                        body=body,
+                        cookies={k: v.value for k, v in response.cookies.items()}
+                    )
+        
+        # Use httpx for non-multipart requests
         async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
             # Prepare request arguments
             kwargs = {
                 "method": request_data.method,
-                "url": request_data.url,
-                "headers": request_data.headers,
+                "url": url,
+                "headers": dict(request_data.headers) if request_data.headers else {},
             }
             
             if request_data.body:
@@ -42,17 +135,15 @@ async def proxy_request(request_data: ProxyRequest):
                 else:
                     kwargs["content"] = str(request_data.body)
 
-            # Execute request
+            print(f"[DEBUG] Making httpx request to {url}")
             response = await client.request(**kwargs)
             
-            elapsed_time = (time.time() - start_time) * 1000  # in ms
+            elapsed_time = (time.time() - start_time) * 1000
             
             # Prepare response body
             try:
-                # Try to parse as JSON first
                 body = response.json()
             except Exception:
-                # Fallback to text
                 body = response.text
 
             return ProxyResponse(
@@ -67,6 +158,8 @@ async def proxy_request(request_data: ProxyRequest):
 
     except httpx.RequestError as exc:
         raise HTTPException(status_code=500, detail=f"An error occurred while requesting {exc.request.url!r}.")
+    except aiohttp.ClientError as exc:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(exc)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

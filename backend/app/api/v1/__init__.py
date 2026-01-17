@@ -59,3 +59,7 @@ api_router.include_router(performance.router, prefix="/performance", tags=["perf
 # API Testing Proxy
 api_router.include_router(api_testing.router, prefix="/api-testing", tags=["api-testing"])
 
+# API Testing File Upload
+from app.api.v1 import api_file_upload
+api_router.include_router(api_file_upload.router, prefix="/api-testing", tags=["api-testing-files"])
+

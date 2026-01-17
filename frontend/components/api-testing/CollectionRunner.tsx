@@ -112,7 +112,7 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
 
     if (view === 'results' && runResults) {
         return (
-            <div className="fixed inset-0 bg-white z-50 flex flex-col animate-in slide-in-from-bottom-10 duration-200">
+            <div className="flex-1 flex flex-col bg-white overflow-hidden">
                 {/* Results Header */}
                 <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 bg-white">
                     <div className="flex items-center gap-4">
@@ -277,7 +277,7 @@ export function CollectionRunner({ target, onClose, onRun }: CollectionRunnerPro
     }
 
     return (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col animate-in slide-in-from-bottom-10 duration-200">
+        <div className="flex-1 flex flex-col bg-white overflow-hidden">
             {/* Header */}
             <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 bg-white">
                 <div className="flex items-center gap-3">

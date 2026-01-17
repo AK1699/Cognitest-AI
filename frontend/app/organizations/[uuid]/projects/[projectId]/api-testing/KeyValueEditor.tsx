@@ -1,7 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, ChevronDown, FileText, Type } from 'lucide-react'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export interface KeyValuePair {
     id: string
@@ -9,6 +15,13 @@ export interface KeyValuePair {
     value: string
     description?: string
     enabled: boolean
+    valueType?: 'text' | 'file'  // For form-data: text or file
+    file?: File | null  // Temporary file object (not persisted)
+    // Persistent file references (stored in database)
+    fileId?: string | null  // UUID of uploaded file
+    fileName?: string | null  // Original filename
+    fileContentType?: string | null  // MIME type
+    uploading?: boolean  // Upload in progress
 }
 
 interface KeyValueEditorProps {
@@ -18,6 +31,8 @@ interface KeyValueEditorProps {
     onAdd: (type: 'params' | 'headers' | 'formData' | 'pathVariables') => void
     onRemove: (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string) => void
     onBulkUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => void
+    projectId?: string  // For file uploads
+    onFileUpload?: (pairId: string, file: File) => Promise<void>  // Callback to upload file
 }
 
 // Common HTTP Headers for autocomplete
@@ -42,7 +57,7 @@ const HEADER_VALUES: Record<string, string[]> = {
     'Access-Control-Allow-Origin': ['*', 'http://localhost:3000'],
 }
 
-export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkUpdate }: KeyValueEditorProps) => {
+export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkUpdate, projectId, onFileUpload }: KeyValueEditorProps) => {
     const [isBulkEdit, setIsBulkEdit] = useState(false)
     const [bulkValue, setBulkValue] = useState('')
     const [activeRowId, setActiveRowId] = useState<string | null>(null)
@@ -114,18 +129,164 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                 />
             ) : (
                 <div className="space-y-0 relative">
-                    <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
-                        <div className="flex justify-center"></div>
-                        <div className="pl-2">Key</div>
-                        <div className="pl-2">Value</div>
-                        <div className="pl-2">Description</div>
-                        <div></div>
-                    </div>
+                    {/* Header Row - Different for form-data */}
+                    {type === 'formData' ? (
+                        <div className="grid grid-cols-[36px_1fr_70px_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
+                            <div className="flex justify-center"></div>
+                            <div className="pl-2">Key</div>
+                            <div className="pl-2"></div>
+                            <div className="pl-2">Value</div>
+                            <div className="pl-2">Description</div>
+                            <div></div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
+                            <div className="flex justify-center"></div>
+                            <div className="pl-2">Key</div>
+                            <div className="pl-2">Value</div>
+                            <div className="pl-2">Description</div>
+                            <div></div>
+                        </div>
+                    )}
                     <div className="divide-y divide-gray-200">
                         {pairs.map(pair => {
                             const suggestions = type === 'headers' && activeRowId === pair.id ? getSuggestions(pair.key) : []
                             const valueSuggestions = type === 'headers' && activeValueRowId === pair.id ? getValueSuggestions(pair.key, pair.value) : []
+                            const valueType = pair.valueType || 'text'
 
+                            // Form-data layout with type selector
+                            if (type === 'formData') {
+                                return (
+                                    <div key={pair.id} className="grid grid-cols-[36px_1fr_70px_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
+                                        <div className="flex justify-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={pair.enabled}
+                                                onChange={(e) => onUpdate(type, pair.id, { enabled: e.target.checked })}
+                                                className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 accent-primary"
+                                            />
+                                        </div>
+                                        {/* Key Input */}
+                                        <div className="relative">
+                                            <input
+                                                value={pair.key}
+                                                onChange={(e) => onUpdate(type, pair.id, { key: e.target.value })}
+                                                placeholder="Key"
+                                                className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
+                                            />
+                                        </div>
+                                        {/* Type Selector Dropdown */}
+                                        <div className="flex items-center justify-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="h-7 px-2 text-[11px] font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded flex items-center gap-1 transition-colors border border-gray-200">
+                                                        {valueType === 'file' ? (
+                                                            <>
+                                                                <FileText className="w-3 h-3" />
+                                                                File
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Type className="w-3 h-3" />
+                                                                Text
+                                                            </>
+                                                        )}
+                                                        <ChevronDown className="w-3 h-3 text-gray-400" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start" className="w-28">
+                                                    <DropdownMenuItem
+                                                        onClick={() => onUpdate(type, pair.id, { valueType: 'text', file: null, value: '' })}
+                                                        className="text-xs"
+                                                    >
+                                                        <Type className="w-3.5 h-3.5 mr-2" />
+                                                        Text
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => onUpdate(type, pair.id, { valueType: 'file', value: '' })}
+                                                        className="text-xs"
+                                                    >
+                                                        <FileText className="w-3.5 h-3.5 mr-2" />
+                                                        File
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                        {/* Value Input or File Selector */}
+                                        <div className="relative">
+                                            {valueType === 'file' ? (
+                                                <div className="flex items-center h-9 px-2">
+                                                    <input
+                                                        type="file"
+                                                        id={`file-input-${pair.id}`}
+                                                        className="hidden"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0] || null
+                                                            if (file && onFileUpload) {
+                                                                // Set uploading state
+                                                                onUpdate(type, pair.id, {
+                                                                    uploading: true,
+                                                                    value: file.name
+                                                                })
+                                                                // Upload file
+                                                                await onFileUpload(pair.id, file)
+                                                            } else if (file) {
+                                                                // Fallback: store file locally (won't persist)
+                                                                onUpdate(type, pair.id, {
+                                                                    file,
+                                                                    value: file.name
+                                                                })
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`file-input-${pair.id}`}
+                                                        className="cursor-pointer text-[13px] text-gray-500 hover:text-primary transition-colors flex items-center gap-2"
+                                                    >
+                                                        {pair.uploading ? (
+                                                            <span className="text-blue-500 animate-pulse">Uploading...</span>
+                                                        ) : pair.fileId ? (
+                                                            <span className="text-green-600 font-medium truncate max-w-[200px]">✓ {pair.fileName || pair.value}</span>
+                                                        ) : pair.value ? (
+                                                            <span className="text-gray-700 font-medium truncate max-w-[200px]">{pair.value}</span>
+                                                        ) : (
+                                                            <span className="text-gray-400">Select files</span>
+                                                        )}
+                                                    </label>
+
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    value={pair.value}
+                                                    onChange={(e) => onUpdate(type, pair.id, { value: e.target.value })}
+                                                    placeholder="Value"
+                                                    className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
+                                                />
+                                            )}
+                                        </div>
+                                        {/* Description */}
+                                        <input
+                                            value={pair.description}
+                                            onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
+                                            placeholder="Add description..."
+                                            className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
+                                        />
+                                        {/* Delete Button */}
+                                        <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-gray-300 hover:text-red-500 hover:bg-red-50"
+                                                onClick={() => onRemove(type, pair.id)}
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )
+                            }
+
+                            // Default layout for other types (params, headers, pathVariables)
                             return (
                                 <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
                                     <div className="flex justify-center">

@@ -4,11 +4,21 @@ from uuid import UUID
 from datetime import datetime
 
 # --- Proxy Schemas ---
+class FormDataField(BaseModel):
+    key: str
+    value: Optional[str] = ""
+    type: str = "text"  # "text" or "file"
+    file_data: Optional[str] = None  # Base64 encoded file content
+    file_id: Optional[UUID] = None  # Persistent file ID
+    file_name: Optional[str] = None
+    content_type: Optional[str] = None
+
 class ProxyRequest(BaseModel):
     method: str = Field(..., description="HTTP Method")
     url: str = Field(..., description="Target URL")
     headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="Request Headers")
     body: Optional[Any] = Field(None, description="Request Body")
+    form_data: Optional[List[FormDataField]] = Field(None, description="Form data fields for multipart requests")
 
 class ProxyResponse(BaseModel):
     status: int

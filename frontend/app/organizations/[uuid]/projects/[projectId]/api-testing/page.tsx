@@ -148,6 +148,13 @@ interface Collection {
     isOpen?: boolean
 }
 
+interface RunnerTab {
+    id: string
+    type: 'runner'
+    target: Collection
+    name: string
+}
+
 // Method color helpers
 const getMethodColor = (method: string) => {
     switch (method) {
@@ -357,10 +364,26 @@ export default function APITestingPage() {
         setIsInitialLoad(false)
     }, [projectId])
 
-    // Persistence
+    // Helper to strip File objects from requests before saving to localStorage
+    // (File objects can't be serialized to JSON)
+    const stripFilesForStorage = (requests: APIRequest[]): APIRequest[] => {
+        return requests.map(req => ({
+            ...req,
+            body: req.body ? {
+                ...req.body,
+                formData: req.body.formData?.map(f => ({
+                    ...f,
+                    file: null // File references can't be persisted
+                }))
+            } : req.body
+        }))
+    }
+
+    // Persistence - strip File objects before saving
     useEffect(() => {
         if (isInitialLoad) return
-        localStorage.setItem(`api-testing-tabs-${projectId}`, JSON.stringify(openRequests))
+        const storableRequests = stripFilesForStorage(openRequests)
+        localStorage.setItem(`api-testing-tabs-${projectId}`, JSON.stringify(storableRequests))
         if (activeRequestId) {
             localStorage.setItem(`api-testing-active-tab-${projectId}`, activeRequestId)
         } else {
@@ -469,7 +492,10 @@ export default function APITestingPage() {
     // Unsaved Changes Dialog state
     const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false)
     const [pendingCloseRequestId, setPendingCloseRequestId] = useState<string | null>(null)
-    const [runnerTarget, setRunnerTarget] = useState<Collection | null>(null)
+
+    // Runner tabs state
+    const [runnerTabs, setRunnerTabs] = useState<RunnerTab[]>([])
+    const [activeRunnerTabId, setActiveRunnerTabId] = useState<string | null>(null)
 
     // Active UI tabs
     const [activeConfigTab, setActiveConfigTab] = useState('params')
@@ -1205,6 +1231,46 @@ export default function APITestingPage() {
         setActiveRequestId(null)
     }
 
+    // Open a runner tab for a collection
+    const openRunnerTab = (collection: Collection) => {
+        // Check if runner tab for this collection already exists
+        const existingTab = runnerTabs.find(t => t.target.id === collection.id)
+        if (existingTab) {
+            // Switch to the existing tab
+            setActiveRequestId(null)
+            setActiveRunnerTabId(existingTab.id)
+            return
+        }
+
+        // Create new runner tab
+        const newTab: RunnerTab = {
+            id: `runner-${collection.id}-${Date.now()}`,
+            type: 'runner',
+            target: collection,
+            name: `Runner`
+        }
+        setRunnerTabs(prev => [...prev, newTab])
+        setActiveRequestId(null)
+        setActiveRunnerTabId(newTab.id)
+    }
+
+    // Close a runner tab
+    const closeRunnerTab = (id: string) => {
+        const newTabs = runnerTabs.filter(t => t.id !== id)
+        setRunnerTabs(newTabs)
+        if (activeRunnerTabId === id) {
+            // Switch to another tab or fall back to request tabs
+            if (newTabs.length > 0) {
+                setActiveRunnerTabId(newTabs[newTabs.length - 1].id)
+            } else if (openRequests.length > 0) {
+                setActiveRunnerTabId(null)
+                setActiveRequestId(openRequests[openRequests.length - 1].id)
+            } else {
+                setActiveRunnerTabId(null)
+            }
+        }
+    }
+
     // Send request
     const sendRequest = async () => {
         if (!activeRequest) return
@@ -1264,12 +1330,90 @@ export default function APITestingPage() {
                 if (activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') {
                     body = interpolateVariables(activeRequest.body.content)
                 } else if (activeRequest.body.type === 'form-data' && activeRequest.body.formData) {
-                    const formData = new FormData()
-                    activeRequest.body.formData.filter(f => f.enabled && f.key).forEach(f => {
-                        formData.append(interpolateVariables(f.key), interpolateVariables(f.value))
+                    // For form-data with potential files, we send as form_data array with base64 encoded files or file IDs
+                    const formDataFields: Array<{ key: string, value: string, type: string, file_data?: string, file_id?: string, file_name?: string, content_type?: string }> = []
+
+                    for (const f of activeRequest.body.formData.filter(fd => fd.enabled && fd.key)) {
+                        if (f.valueType === 'file') {
+                            // Support fileId field OR a UUID string in the value field (for migration/fallback)
+                            const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+                            const effectiveFileId = f.fileId || (f.value && isUuid(f.value) ? f.value : null)
+
+                            if (effectiveFileId) {
+                                // Use the persistent file ID
+                                formDataFields.push({
+                                    key: interpolateVariables(f.key),
+                                    value: '',
+                                    type: 'file',
+                                    file_id: effectiveFileId,
+                                    file_name: f.fileName || (f.value && !isUuid(f.value) ? f.value : 'uploaded_file'),
+                                    content_type: f.fileContentType || 'application/octet-stream'
+                                })
+                            } else if (f.file && f.file instanceof Blob) {
+                                // Capture file reference before async operation
+                                const file = f.file
+                                // Read file as base64
+                                const fileData = await new Promise<string>((resolve, reject) => {
+                                    const reader = new FileReader()
+                                    reader.onload = () => {
+                                        const base64 = (reader.result as string).split(',')[1] // Remove data:...;base64, prefix
+                                        resolve(base64)
+                                    }
+                                    reader.onerror = () => reject(new Error('Failed to read file'))
+                                    reader.readAsDataURL(file)
+                                })
+                                formDataFields.push({
+                                    key: interpolateVariables(f.key),
+                                    value: '',
+                                    type: 'file',
+                                    file_data: fileData,
+                                    file_name: file.name,
+                                    content_type: file.type || 'application/octet-stream'
+                                })
+                            } else {
+                                // File type selected but no valid file
+                                toast.error(`Please select a file for field "${f.key}"`)
+                                setLoading(false)
+                                return
+                            }
+                        } else {
+                            // Text field
+                            formDataFields.push({
+                                key: interpolateVariables(f.key),
+                                value: interpolateVariables(f.value),
+                                type: 'text'
+                            })
+                        }
+                    }
+
+                    // Send form_data separately, not as body
+                    const proxyResponse = await fetch(`${API_URL}/api/v1/api-testing/proxy`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: activeRequest.method,
+                            url: url,
+                            headers: headers,
+                            form_data: formDataFields
+                        })
                     })
-                    body = formData
-                    delete headers['Content-Type'] // Let browser set it
+
+                    const result = await proxyResponse.json()
+                    const endTime = Date.now()
+
+                    setResponse({
+                        status: result.status || proxyResponse.status,
+                        statusText: result.statusText || proxyResponse.statusText,
+                        time: endTime - startTime,
+                        size: JSON.stringify(result.body || result).length,
+                        headers: result.headers || {},
+                        body: result.body || result,
+                        cookies: result.cookies
+                    })
+
+                    toast.success(`Request completed: ${result.status || proxyResponse.status}`)
+                    return // Early return since we handled the response
                 } else if (activeRequest.body.type === 'x-www-form-urlencoded' && activeRequest.body.formData) {
                     const params = new URLSearchParams()
                     activeRequest.body.formData.filter(f => f.enabled && f.key).forEach(f => {
@@ -1365,6 +1509,39 @@ export default function APITestingPage() {
                     formData: updateFn(activeRequest.body.formData || [])
                 }
             })
+        }
+    }
+
+    const handleFileUpload = async (pairId: string, file: File) => {
+        if (!projectId) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            const response = await fetch(`${API_URL}/api/v1/api-testing/files/upload?project_id=${projectId}`, {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!response.ok) throw new Error('Failed to upload file')
+
+            const data = await response.json()
+
+            // Update the key-value pair with the uploaded file info
+            updateKeyValuePair('formData', pairId, {
+                fileId: data.id,
+                fileName: data.original_filename,
+                fileContentType: data.content_type,
+                uploading: false,
+                value: data.original_filename // Display name
+            })
+
+            toast.success(`File "${file.name}" uploaded successfully`)
+        } catch (error) {
+            console.error('File upload error:', error)
+            updateKeyValuePair('formData', pairId, { uploading: false })
+            toast.error(`Failed to upload file "${file.name}"`)
         }
     }
 
@@ -1531,8 +1708,11 @@ export default function APITestingPage() {
                             {openRequests.map(req => (
                                 <button
                                     key={req.id}
-                                    onClick={() => setActiveRequestId(req.id)}
-                                    className={`flex items-center gap-3 px-4 py-2 text-xs transition-all relative group h-10 ${activeRequestId === req.id
+                                    onClick={() => {
+                                        setActiveRunnerTabId(null)
+                                        setActiveRequestId(req.id)
+                                    }}
+                                    className={`flex items-center gap-3 px-4 py-2 text-xs transition-all relative group h-10 ${activeRequestId === req.id && !activeRunnerTabId
                                         ? 'text-primary font-bold'
                                         : 'text-gray-500 hover:text-gray-700'
                                         }`}
@@ -1568,13 +1748,42 @@ export default function APITestingPage() {
                                         </span>
                                     )}
                                     <X
-                                        className={`w-3 h-3 hover:text-red-500 transition-colors ${activeRequestId === req.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                        className={`w-3 h-3 hover:text-red-500 transition-colors ${activeRequestId === req.id && !activeRunnerTabId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             closeRequest(req.id);
                                         }}
                                     />
-                                    {activeRequestId === req.id && (
+                                    {activeRequestId === req.id && !activeRunnerTabId && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary animate-in fade-in slide-in-from-bottom-1 duration-200" />
+                                    )}
+                                </button>
+                            ))}
+                            {/* Runner Tabs */}
+                            {runnerTabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => {
+                                        setActiveRequestId(null)
+                                        setActiveRunnerTabId(tab.id)
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2 text-xs transition-all relative group h-10 ${activeRunnerTabId === tab.id
+                                        ? 'text-primary font-bold'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    <Play className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+                                    <span className="max-w-32 truncate select-none">
+                                        {tab.name}
+                                    </span>
+                                    <X
+                                        className={`w-3 h-3 hover:text-red-500 transition-colors ${activeRunnerTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            closeRunnerTab(tab.id);
+                                        }}
+                                    />
+                                    {activeRunnerTabId === tab.id && (
                                         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary animate-in fade-in slide-in-from-bottom-1 duration-200" />
                                     )}
                                 </button>
@@ -1722,7 +1931,7 @@ export default function APITestingPage() {
                                                                     <Folder className="w-4 h-4 mr-2" /> New Folder
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => {
-                                                                    setRunnerTarget(collection)
+                                                                    openRunnerTab(collection)
                                                                 }}>
                                                                     <Play className="w-4 h-4 mr-2" /> Run Collection
                                                                 </DropdownMenuItem>
@@ -1943,9 +2152,21 @@ export default function APITestingPage() {
                     </DndContext>
                 </div>
 
-                {/* Request Builder */}
+                {/* Request Builder / Runner */}
                 <div className="flex-1 flex flex-col overflow-hidden bg-white">
-                    {activeRequest ? (
+                    {/* Runner Tab Content */}
+                    {activeRunnerTabId && runnerTabs.find(t => t.id === activeRunnerTabId) ? (
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                            <CollectionRunner
+                                target={runnerTabs.find(t => t.id === activeRunnerTabId)!.target}
+                                onClose={() => closeRunnerTab(activeRunnerTabId)}
+                                onRun={(config) => {
+                                    console.log('Running with config:', config)
+                                    toast.success(`Started run for ${runnerTabs.find(t => t.id === activeRunnerTabId)?.target.name}`)
+                                }}
+                            />
+                        </div>
+                    ) : activeRequest ? (
                         <>
                             {/* Request Header */}
                             {/* Request Header Removed */}
@@ -2503,6 +2724,8 @@ export default function APITestingPage() {
                                                                     onUpdate={updateKeyValuePair}
                                                                     onRemove={removeKeyValuePair}
                                                                     onBulkUpdate={handleBulkUpdate}
+                                                                    projectId={projectId as string}
+                                                                    onFileUpload={handleFileUpload}
                                                                 />
                                                             )}
 
@@ -3031,19 +3254,6 @@ export default function APITestingPage() {
                         </div>
                     )
                 }
-
-                {/* Collection Runner Overlay */}
-                {runnerTarget && (
-                    <CollectionRunner
-                        target={runnerTarget}
-                        onClose={() => setRunnerTarget(null)}
-                        onRun={(config) => {
-                            console.log('Running with config:', config)
-                            toast.success(`Started run for ${runnerTarget.name}`)
-                            setRunnerTarget(null)
-                        }}
-                    />
-                )}
             </div>
 
             {/* Rename Dialog */}
