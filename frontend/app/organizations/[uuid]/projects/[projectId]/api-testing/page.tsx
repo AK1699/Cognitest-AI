@@ -49,6 +49,7 @@ import { JsonTable } from './JsonTable'
 import { KeyValueEditor, type KeyValuePair } from './KeyValueEditor'
 import { SnippetsSelector } from './SnippetsSelector'
 import { CodeEditor, type CodeEditorHandle } from '@/components/api-testing/CodeEditor'
+import { ScriptRunner, type TestResult } from './ScriptRunner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Select,
@@ -438,6 +439,9 @@ export default function APITestingPage() {
     const preRequestScriptEditorRef = useRef<CodeEditorHandle>(null)
     const testScriptEditorRef = useRef<CodeEditorHandle>(null)
     const graphqlVariablesEditorRef = useRef<CodeEditorHandle>(null)
+
+    const [testResults, setTestResults] = useState<TestResult[]>([])
+    const [scriptLogs, setScriptLogs] = useState<string[]>([])
     const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false)
     const [envDropdownOpen, setEnvDropdownOpen] = useState(false)
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
@@ -1289,10 +1293,23 @@ export default function APITestingPage() {
 
         setLoading(true)
         setResponse(null)
+        setTestResults([])
+        setScriptLogs([])
         const startTime = Date.now()
 
         try {
             // Build URL with params and apply variable interpolation
+
+            // Execute Pre-request script
+            if (activeRequest.preRequestScript) {
+                const preRequestResult = ScriptRunner.execute(activeRequest.preRequestScript, {
+                    environment: environments.find(e => e.id === selectedEnvId)?.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) || {}
+                })
+                setScriptLogs(prev => [...prev, ...preRequestResult.logs])
+                // Note: Currently we don't sync back environment changes to the UI state immediately 
+                // but they are available in the script context for subsequent operations.
+            }
+
             let url = interpolateVariables(activeRequest.url)
 
             // Calculate Path Variables
@@ -1409,16 +1426,31 @@ export default function APITestingPage() {
 
                     const result = await proxyResponse.json()
                     const endTime = Date.now()
+                    const responseTime = endTime - startTime
 
-                    setResponse({
+                    const responseData = {
                         status: result.status || proxyResponse.status,
                         statusText: result.statusText || proxyResponse.statusText,
-                        time: endTime - startTime,
+                        time: responseTime,
                         size: JSON.stringify(result.body || result).length,
                         headers: result.headers || {},
                         body: result.body || result,
                         cookies: result.cookies
-                    })
+                    }
+
+                    setResponse(responseData)
+
+                    // Execute Post-request script (Tests)
+                    if (activeRequest.testScript) {
+                        const scriptResult = ScriptRunner.execute(activeRequest.testScript, {
+                            response: responseData,
+                            environment: environments.find(e => e.id === selectedEnvId)?.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) || {}
+                        })
+                        setTestResults(scriptResult.tests)
+                        setScriptLogs(prev => [...prev, ...scriptResult.logs])
+                    } else {
+                        setTestResults([])
+                    }
 
                     toast.success(`Request completed: ${result.status || proxyResponse.status}`)
                     return // Early return since we handled the response
@@ -1447,16 +1479,34 @@ export default function APITestingPage() {
 
             const result = await proxyResponse.json()
             const endTime = Date.now()
+            const responseTime = endTime - startTime
 
-            setResponse({
+            const responseData = {
                 status: result.status || proxyResponse.status,
                 statusText: result.statusText || proxyResponse.statusText,
-                time: endTime - startTime,
+                time: responseTime,
                 size: JSON.stringify(result.body || result).length,
                 headers: result.headers || {},
                 body: result.body || result,
                 cookies: result.cookies
-            })
+            }
+
+            setResponse(responseData)
+
+            // Execute Post-request script (Tests)
+            if (activeRequest.testScript) {
+                const scriptResult = ScriptRunner.execute(activeRequest.testScript, {
+                    response: responseData,
+                    environment: environments.find(e => e.id === selectedEnvId)?.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) || {}
+                })
+                setTestResults(scriptResult.tests)
+                setScriptLogs(prev => [...prev, ...scriptResult.logs])
+
+                // If environment was updated, we could sync it back here
+                // For now, focus on test results UI
+            } else {
+                setTestResults([])
+            }
 
             toast.success(`Request completed: ${result.status || proxyResponse.status}`)
         } catch (error) {
@@ -3176,11 +3226,61 @@ export default function APITestingPage() {
                                                         )}
                                                     </TabsContent>
 
-                                                    <TabsContent value="test-results" className="m-0 p-4 h-full overflow-auto">
-                                                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                                                            <Beaker className="w-8 h-8 opacity-20 mb-2" />
-                                                            <p className="text-sm font-medium">No tests executed</p>
-                                                        </div>
+                                                    <TabsContent value="test-results" className="m-0 p-0 h-full overflow-auto bg-gray-50/30">
+                                                        {testResults.length > 0 ? (
+                                                            <div className="flex flex-col h-full">
+                                                                <div className="p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
+                                                                    <div className="flex items-center gap-6">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                                            <span className="text-xs font-bold text-gray-700">PASSED</span>
+                                                                            <Badge variant="outline" className="h-5 min-w-[20px] justify-center bg-green-50 text-green-700 border-green-100 text-[10px] font-black">
+                                                                                {testResults.filter(t => t.passed).length}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                                                                            <span className="text-xs font-bold text-gray-700">FAILED</span>
+                                                                            <Badge variant="outline" className="h-5 min-w-[20px] justify-center bg-red-50 text-red-700 border-red-100 text-[10px] font-black">
+                                                                                {testResults.filter(t => !t.passed).length}
+                                                                            </Badge>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="divide-y divide-gray-100 bg-white">
+                                                                    {testResults.map((test, idx) => (
+                                                                        <div key={idx} className="flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors group">
+                                                                            <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${test.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                                                {test.passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className={`text-xs font-bold leading-normal ${test.passed ? 'text-gray-700' : 'text-red-700'}`}>
+                                                                                    {test.name}
+                                                                                </p>
+                                                                                {!test.passed && test.error && (
+                                                                                    <p className="text-[10px] text-red-500 mt-1 font-medium bg-red-50/50 p-2 rounded border border-red-100/50">
+                                                                                        {test.error}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                            <Badge variant="outline" className={`h-5 text-[9px] font-black uppercase tracking-tighter ${test.passed ? 'text-green-600 bg-green-50 group-hover:bg-green-100 border-green-100' : 'text-red-600 bg-red-50 group-hover:bg-red-100 border-red-100'}`}>
+                                                                                {test.passed ? 'Pass' : 'Fail'}
+                                                                            </Badge>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
+                                                                <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+                                                                    <Beaker className="w-8 h-8 opacity-20" />
+                                                                </div>
+                                                                <p className="text-sm font-bold text-gray-700 mb-1">No tests executed</p>
+                                                                <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
+                                                                    Add tests in the Scripts tab to verify your API responses automatically.
+                                                                </p>
+                                                            </div>
+                                                        )}
                                                     </TabsContent>
                                                 </div>
                                             </Tabs>
