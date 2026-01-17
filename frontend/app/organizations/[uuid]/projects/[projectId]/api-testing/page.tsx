@@ -1354,6 +1354,22 @@ export default function APITestingPage() {
             if (['POST', 'PUT', 'PATCH'].includes(activeRequest.method)) {
                 if (activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') {
                     body = interpolateVariables(activeRequest.body.content)
+                } else if (activeRequest.body.type === 'graphql') {
+                    try {
+                        const query = interpolateVariables(activeRequest.body.content || '')
+                        const varsStr = interpolateVariables(activeRequest.body.graphqlVariables || '{}')
+                        const variables = varsStr ? JSON.parse(varsStr) : {}
+                        body = JSON.stringify({ query, variables })
+                        headers['Content-Type'] = 'application/json'
+                    } catch (e) {
+                        console.error('Error parsing GraphQL variables:', e)
+                        // If parsing fails, send as is or show error
+                        body = JSON.stringify({
+                            query: interpolateVariables(activeRequest.body.content || ''),
+                            variables: {}
+                        })
+                        headers['Content-Type'] = 'application/json'
+                    }
                 } else if (activeRequest.body.type === 'form-data' && activeRequest.body.formData) {
                     // For form-data with potential files, we send as form_data array with base64 encoded files or file IDs
                     const formDataFields: Array<{ key: string, value: string, type: string, file_data?: string, file_id?: string, file_name?: string, content_type?: string }> = []
@@ -2368,11 +2384,6 @@ export default function APITestingPage() {
                                                         activeRequest.protocol === 'grpc' ? 'Message' : 'Body'}
                                             </TabsTrigger>
 
-                                            {activeRequest.protocol === 'graphql' && (
-                                                <TabsTrigger value="variables" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0">
-                                                    Variables
-                                                </TabsTrigger>
-                                            )}
 
                                             {['http', 'ai', 'graphql', 'websocket'].includes(activeRequest.protocol) && (
                                                 <TabsTrigger value="scripts" className="text-xs font-bold uppercase tracking-widest h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all px-0 flex items-center gap-2">
@@ -2717,7 +2728,7 @@ export default function APITestingPage() {
                                                     {activeRequest.protocol === 'http' && (
                                                         <>
                                                             <div className="flex items-center gap-6 flex-wrap pb-2 border-b border-gray-50 mb-4">
-                                                                {['none', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary'].map(type => (
+                                                                {['none', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary', 'graphql'].map(type => (
                                                                     <label key={type} className="flex items-center gap-2 cursor-pointer group">
                                                                         <div className="relative flex items-center justify-center">
                                                                             <input
@@ -2793,6 +2804,69 @@ export default function APITestingPage() {
                                                                 </div>
                                                             )}
 
+                                                            {activeRequest.body.type === 'graphql' && (
+                                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[450px]">
+                                                                    <div className="flex flex-col h-full border rounded-xl overflow-hidden bg-white shadow-sm border-gray-100">
+                                                                        <div className="flex items-center justify-between px-4 py-2 bg-gray-50/50 border-b border-gray-100">
+                                                                            <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">GraphQL Query</Label>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="h-6 px-2 text-[10px] font-black text-primary hover:bg-primary/5"
+                                                                                onClick={() => bodyEditorRef.current?.beautify()}
+                                                                            >
+                                                                                PRETTIFY
+                                                                            </Button>
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <CodeEditor
+                                                                                ref={bodyEditorRef}
+                                                                                value={activeRequest.body.content}
+                                                                                onChange={(value) => updateActiveRequest({
+                                                                                    body: { ...activeRequest.body, content: value }
+                                                                                })}
+                                                                                language="graphql"
+                                                                                height="100%"
+                                                                                placeholder="query { users { id name } }"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex flex-col h-full border rounded-xl overflow-hidden bg-white shadow-sm border-gray-100">
+                                                                        <div className="flex items-center justify-between px-4 py-2 bg-gray-50/50 border-b border-gray-100">
+                                                                            <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">GraphQL Variables (JSON)</Label>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <SnippetsSelector
+                                                                                    type="body"
+                                                                                    onSelect={(content) => graphqlVariablesEditorRef.current?.insertText(content)}
+                                                                                />
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-6 w-6 text-gray-400 hover:text-primary transition-colors"
+                                                                                    onClick={() => graphqlVariablesEditorRef.current?.beautify()}
+                                                                                    title="Beautify (Cmd+B)"
+                                                                                >
+                                                                                    <Brush className="w-3 h-3" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <CodeEditor
+                                                                                ref={graphqlVariablesEditorRef}
+                                                                                value={activeRequest.body.graphqlVariables || ''}
+                                                                                onChange={(value) => updateActiveRequest({
+                                                                                    body: { ...activeRequest.body, graphqlVariables: value }
+                                                                                })}
+                                                                                language="json"
+                                                                                height="100%"
+                                                                                placeholder='{ "id": "123" }'
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
                                                             {(activeRequest.body.type === 'form-data' || activeRequest.body.type === 'x-www-form-urlencoded') && (
                                                                 <KeyValueEditor
                                                                     type="formData"
@@ -2824,38 +2898,6 @@ export default function APITestingPage() {
                                                     )}
                                                 </TabsContent>
 
-                                                <TabsContent value="variables" className="m-0">
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">GraphQL Variables (JSON)</Label>
-                                                            <div className="flex items-center gap-1">
-                                                                <SnippetsSelector
-                                                                    type="body"
-                                                                    onSelect={(content) => graphqlVariablesEditorRef.current?.insertText(content)}
-                                                                />
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-8 w-8 text-gray-400 hover:text-primary transition-colors"
-                                                                    onClick={() => graphqlVariablesEditorRef.current?.beautify()}
-                                                                    title="Beautify (Cmd+B)"
-                                                                >
-                                                                    <Brush className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                        <CodeEditor
-                                                            ref={graphqlVariablesEditorRef}
-                                                            value={activeRequest.body.graphqlVariables || ''}
-                                                            onChange={(value) => updateActiveRequest({
-                                                                body: { ...activeRequest.body, graphqlVariables: value }
-                                                            })}
-                                                            language="json"
-                                                            height="400px"
-                                                            placeholder='{"userId": 123}'
-                                                        />
-                                                    </div>
-                                                </TabsContent>
 
                                                 <TabsContent value="scripts" className="m-0 space-y-6">
                                                     <div>
