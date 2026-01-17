@@ -25,12 +25,12 @@ export interface KeyValuePair {
 }
 
 interface KeyValueEditorProps {
-    type: 'params' | 'headers' | 'formData' | 'pathVariables'
+    type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables'
     pairs: KeyValuePair[]
-    onUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => void
-    onAdd: (type: 'params' | 'headers' | 'formData' | 'pathVariables') => void
-    onRemove: (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string) => void
-    onBulkUpdate: (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => void
+    onUpdate: (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => void
+    onAdd: (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables') => void
+    onRemove: (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', id: string) => void
+    onBulkUpdate: (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', pairs: KeyValuePair[]) => void
     projectId?: string  // For file uploads
     onFileUpload?: (pairId: string, file: File) => Promise<void>  // Callback to upload file
 }
@@ -108,7 +108,7 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
         <div className="space-y-4">
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                    {type}
+                    {type === 'urlencoded' ? 'x-www-form-urlencoded' : type}
                 </span>
                 <Button
                     variant="ghost"

@@ -97,6 +97,7 @@ interface APIRequest {
         content: string
         rawType?: 'text' | 'json' | 'xml' | 'html' | 'javascript'
         formData?: KeyValuePair[]
+        urlencodedData?: KeyValuePair[]
         graphqlVariables?: string
     }
     auth: {
@@ -327,7 +328,7 @@ const createNewRequest = (protocol: APIRequest['protocol'] = 'http'): APIRequest
     headers: [
         { id: 'h1', key: 'Content-Type', value: 'application/json', description: 'Standard content type', enabled: true }
     ],
-    body: { type: 'none', content: '', rawType: 'json' },
+    body: { type: 'none', content: '', rawType: 'json', formData: [], urlencodedData: [] },
     auth: { type: 'none' },
     preRequestScript: '',
     testScript: ''
@@ -1470,9 +1471,10 @@ export default function APITestingPage() {
 
                     toast.success(`Request completed: ${result.status || proxyResponse.status}`)
                     return // Early return since we handled the response
-                } else if (activeRequest.body.type === 'x-www-form-urlencoded' && activeRequest.body.formData) {
+                } else if (activeRequest.body.type === 'x-www-form-urlencoded') {
                     const params = new URLSearchParams()
-                    activeRequest.body.formData.filter(f => f.enabled && f.key).forEach(f => {
+                    const urlencodedData = activeRequest.body.urlencodedData || []
+                    urlencodedData.filter(f => f.enabled && f.key).forEach(f => {
                         params.append(interpolateVariables(f.key), interpolateVariables(f.value))
                     })
                     body = params.toString()
@@ -1543,7 +1545,7 @@ export default function APITestingPage() {
 
     // Add key-value pair
     // Add key-value pair
-    const addKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables') => {
+    const addKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables') => {
         if (!activeRequest) return
         const newPair: KeyValuePair = { id: Math.random().toString(36).substr(2, 9), key: '', value: '', description: '', enabled: true }
 
@@ -1560,12 +1562,19 @@ export default function APITestingPage() {
                     formData: [...(activeRequest.body.formData || []), newPair]
                 }
             })
+        } else if (type === 'urlencoded') {
+            updateActiveRequest({
+                body: {
+                    ...activeRequest.body,
+                    urlencodedData: [...(activeRequest.body.urlencodedData || []), newPair]
+                }
+            })
         }
     }
 
     // Update key-value pair
     // Update key-value pair
-    const updateKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => {
+    const updateKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', id: string, updates: Partial<KeyValuePair>) => {
         if (!activeRequest) return
         const updateFn = (pairs: KeyValuePair[]) =>
             pairs.map(p => p.id === id ? { ...p, ...updates } : p)
@@ -1581,6 +1590,13 @@ export default function APITestingPage() {
                 body: {
                     ...activeRequest.body,
                     formData: updateFn(activeRequest.body.formData || [])
+                }
+            })
+        } else if (type === 'urlencoded') {
+            updateActiveRequest({
+                body: {
+                    ...activeRequest.body,
+                    urlencodedData: updateFn(activeRequest.body.urlencodedData || [])
                 }
             })
         }
@@ -1621,7 +1637,7 @@ export default function APITestingPage() {
 
     // Remove key-value pair
     // Remove key-value pair
-    const removeKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'pathVariables', id: string) => {
+    const removeKeyValuePair = (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', id: string) => {
         if (!activeRequest) return
         const filterFn = (pairs: KeyValuePair[]) => pairs.filter(p => p.id !== id)
 
@@ -1636,6 +1652,13 @@ export default function APITestingPage() {
                 body: {
                     ...activeRequest.body,
                     formData: filterFn(activeRequest.body.formData || [])
+                }
+            })
+        } else if (type === 'urlencoded') {
+            updateActiveRequest({
+                body: {
+                    ...activeRequest.body,
+                    urlencodedData: filterFn(activeRequest.body.urlencodedData || [])
                 }
             })
         }
@@ -1677,12 +1700,13 @@ export default function APITestingPage() {
 
     // Handle bulk updates from KeyValueEditor
     // Handle bulk updates from KeyValueEditor
-    const handleBulkUpdate = (type: 'params' | 'headers' | 'formData' | 'pathVariables', pairs: KeyValuePair[]) => {
+    const handleBulkUpdate = (type: 'params' | 'headers' | 'formData' | 'urlencoded' | 'pathVariables', pairs: KeyValuePair[]) => {
         if (!activeRequest) return
         if (type === 'params') updateActiveRequest({ params: pairs })
         else if (type === 'pathVariables') updateActiveRequest({ pathVariables: pairs })
         else if (type === 'headers') updateActiveRequest({ headers: pairs })
         else if (type === 'formData') updateActiveRequest({ body: { ...activeRequest.body, formData: pairs } })
+        else if (type === 'urlencoded') updateActiveRequest({ body: { ...activeRequest.body, urlencodedData: pairs } })
     }
 
     return (
@@ -2867,7 +2891,7 @@ export default function APITestingPage() {
                                                                 </div>
                                                             )}
 
-                                                            {(activeRequest.body.type === 'form-data' || activeRequest.body.type === 'x-www-form-urlencoded') && (
+                                                            {activeRequest.body.type === 'form-data' && (
                                                                 <KeyValueEditor
                                                                     type="formData"
                                                                     pairs={activeRequest.body.formData || []}
@@ -2877,6 +2901,17 @@ export default function APITestingPage() {
                                                                     onBulkUpdate={handleBulkUpdate}
                                                                     projectId={projectId as string}
                                                                     onFileUpload={handleFileUpload}
+                                                                />
+                                                            )}
+
+                                                            {activeRequest.body.type === 'x-www-form-urlencoded' && (
+                                                                <KeyValueEditor
+                                                                    type="urlencoded"
+                                                                    pairs={activeRequest.body.urlencodedData || []}
+                                                                    onAdd={addKeyValuePair}
+                                                                    onUpdate={updateKeyValuePair}
+                                                                    onRemove={removeKeyValuePair}
+                                                                    onBulkUpdate={handleBulkUpdate}
                                                                 />
                                                             )}
 
