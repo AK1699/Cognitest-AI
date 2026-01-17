@@ -2262,6 +2262,7 @@ export default function APITestingPage() {
                                 environments={environments}
                                 selectedEnvironmentId={selectedEnvId}
                                 onEnvironmentChange={setSelectedEnvId}
+                                openRequests={openRequests}
                                 onRun={(config) => {
                                     console.log('Running with config:', config)
                                     toast.success(`Started run for ${runnerTabs.find(t => t.id === activeRunnerTabId)?.target.name}`)

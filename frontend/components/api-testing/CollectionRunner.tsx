@@ -44,6 +44,7 @@ interface CollectionRunnerProps {
     environments: Environment[];
     selectedEnvironmentId: string | null;
     onEnvironmentChange?: (id: string | null) => void;
+    openRequests?: any[]; // For syncing unsaved changes
 }
 
 export function CollectionRunner({
@@ -52,7 +53,8 @@ export function CollectionRunner({
     onRun,
     environments,
     selectedEnvironmentId,
-    onEnvironmentChange
+    onEnvironmentChange,
+    openRequests = []
 }: CollectionRunnerProps) {
     const [view, setView] = useState<'config' | 'results'>('config');
     const [runResults, setRunResults] = useState<any>(null);
@@ -69,8 +71,13 @@ export function CollectionRunner({
             }
         };
         extractRequests(target);
-        return requests;
-    }, [target]);
+
+        // Sync with open requests for unsaved changes (like test scripts)
+        return requests.map(r => {
+            const openReq = openRequests.find(or => or.id === r.id);
+            return openReq ? { ...r, ...openReq } : r;
+        });
+    }, [target, openRequests]);
 
     const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>(allRequests.map(r => r.id));
     const [config, setConfig] = useState({
@@ -114,24 +121,80 @@ export function CollectionRunner({
         // Find selected environment name
         const env = environments.find(e => e.id === selectedEnvId);
 
+        const executed = allRequests
+            .filter(r => selectedRequestIds.includes(r.id))
+            .map(r => {
+                const status = Math.random() > 0.95 ? 403 : 200;
+                const responseTime = Math.floor(Math.random() * 500) + 100;
+                const size = Math.floor(Math.random() * 2000) + 500;
+
+                // Extract tests from script or use defaults if script exists
+                let testResults: { name: string, passed: boolean }[] = [];
+                if (r.testScript && r.testScript.trim().length > 0) {
+                    // Try to extract ct.test("...", ...) patterns
+                    const testMatches = Array.from(r.testScript.matchAll(/ct\.test\(["'](.+?)["']/g));
+                    const extractedTests = testMatches.map((m: any) => m[1]);
+
+                    // Try to extract expected status from .status(nnn) assertions
+                    const statusMatch = r.testScript.match(/\.status\((\d+)\)/);
+                    const expectedStatus = statusMatch ? parseInt(statusMatch[1], 10) : null;
+
+                    if (extractedTests.length > 0) {
+                        testResults = extractedTests.map(name => {
+                            // Determine if this is a status assertion
+                            const isStatusTest = name.toLowerCase().includes('status');
+                            let passed = true;
+
+                            if (isStatusTest && expectedStatus !== null) {
+                                // Compare expected status with simulated status
+                                passed = status === expectedStatus;
+                            } else {
+                                // For non-status tests, simulate with high pass rate
+                                passed = status < 400 && Math.random() > 0.05;
+                            }
+
+                            return { name, passed };
+                        });
+                    } else {
+                        // Default tests if script exists but no ct.test found
+                        testResults = [
+                            { name: 'Status code is 200', passed: status === 200 },
+                            { name: 'Response time is less than 500ms', passed: responseTime < 500 },
+                            { name: 'Content-Type is present', passed: true }
+                        ];
+                    }
+                }
+
+                return {
+                    ...r,
+                    status,
+                    responseTime,
+                    size,
+                    testResults
+                };
+            });
+
+        const failedRequests = executed.filter(r => r.status >= 400).length;
+        const failedAssertions = executed.reduce((acc, r) => acc + (r.testResults?.filter((t: any) => !t.passed).length || 0), 0);
+        const passedAssertions = executed.reduce((acc, r) => acc + (r.testResults?.filter((t: any) => t.passed).length || 0), 0);
+
+        const totalResponseTime = executed.reduce((acc, r) => acc + r.responseTime, 0);
+        const avgResponseTime = executed.length > 0 ? Math.round(totalResponseTime / executed.length) : 0;
+        const totalDuration = totalResponseTime + (config.delay * executed.length);
+
         // Mock run execution for immediate feedback
         const mockResults = {
             id: crypto.randomUUID(),
             startTime: new Date(),
-            duration: 790,
+            duration: totalDuration,
             iterations: config.iterations,
-            total: selectedRequestIds.length * config.iterations,
-            failed: 1,
-            avgResponseTime: 625,
+            total: executed.length * config.iterations,
+            failed: failedRequests + failedAssertions,
+            passedAssertions,
+            failedAssertions,
+            avgResponseTime: avgResponseTime,
             environment: env?.name || 'No Environment',
-            executed: allRequests
-                .filter(r => selectedRequestIds.includes(r.id))
-                .map(r => ({
-                    ...r,
-                    status: Math.random() > 0.8 ? 403 : 200,
-                    responseTime: Math.floor(Math.random() * 500) + 100,
-                    size: Math.floor(Math.random() * 2000) + 500
-                }))
+            executed: executed
         };
         setRunResults(mockResults);
         setView('results');
@@ -146,8 +209,10 @@ export function CollectionRunner({
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3">
                             <h2 className="text-lg font-bold text-gray-900">{target.name} - Run results</h2>
-                            {runResults.failed > 0 && (
+                            {runResults.failed > 0 ? (
                                 <Badge className="bg-red-500 hover:bg-red-600 text-white border-0 font-bold px-2 py-0.5 rounded text-[10px]">ERROR</Badge>
+                            ) : (
+                                <Badge className="bg-green-500 hover:bg-green-600 text-white border-0 font-bold px-2 py-0.5 rounded text-[10px]">PASS</Badge>
                             )}
                         </div>
                         <div className="h-4 w-[1px] bg-gray-300 mx-2" />
@@ -192,8 +257,16 @@ export function CollectionRunner({
                             <span className="text-sm font-medium text-gray-900">{runResults.total}</span>
                         </div>
                         <div className="space-y-1">
-                            <span className="text-xs font-semibold text-red-500 block uppercase tracking-wider">Errors</span>
-                            <span className="text-xl font-bold text-red-500">{runResults.failed}</span>
+                            <span className="text-xs font-semibold text-green-500 block uppercase tracking-wider">Passed</span>
+                            <span className="text-xl font-bold text-green-500">{runResults.passedAssertions || 0}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className={`text-xs font-semibold block uppercase tracking-wider ${runResults.failedAssertions > 0 ? 'text-red-500' : 'text-gray-500'}`}>Failed</span>
+                            <span className={`text-xl font-bold ${runResults.failedAssertions > 0 ? 'text-red-500' : 'text-gray-900'}`}>{runResults.failedAssertions || 0}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <span className={`text-xs font-semibold block uppercase tracking-wider ${runResults.failed > 0 ? 'text-red-500' : 'text-gray-500'}`}>Errors</span>
+                            <span className={`text-xl font-bold ${runResults.failed > 0 ? 'text-red-500' : 'text-gray-900'}`}>{runResults.failed}</span>
                         </div>
                     </div>
 
@@ -285,12 +358,23 @@ export function CollectionRunner({
                                                 </div>
                                             </div>
 
-                                            {/* Expanded Status/Tests (simplified) */}
-                                            <div className="pl-16 pl-2 pb-2">
-                                                {req.status >= 400 ? (
-                                                    <div className="text-xs text-gray-400 italic">No tests found</div>
+                                            {/* Expanded Status/Tests */}
+                                            <div className="pl-16 pb-2 space-y-1">
+                                                {req.testResults && req.testResults.length > 0 ? (
+                                                    req.testResults.map((test: any, i: number) => (
+                                                        <div key={i} className="flex items-center gap-2 text-[11px]">
+                                                            {test.passed ? (
+                                                                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                                            ) : (
+                                                                <XCircle className="w-3.5 h-3.5 text-red-500" />
+                                                            )}
+                                                            <span className={test.passed ? 'text-gray-900 font-medium' : 'text-red-600 font-medium'}>
+                                                                {test.name}
+                                                            </span>
+                                                        </div>
+                                                    ))
                                                 ) : (
-                                                    <div className="text-xs text-gray-400 italic">No tests found</div>
+                                                    <div className="text-xs text-gray-400 italic pl-1">No tests found</div>
                                                 )}
                                             </div>
                                         </div>
