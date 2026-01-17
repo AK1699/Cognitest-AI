@@ -3226,61 +3226,95 @@ export default function APITestingPage() {
                                                         )}
                                                     </TabsContent>
 
-                                                    <TabsContent value="test-results" className="m-0 p-0 h-full overflow-auto bg-gray-50/30">
-                                                        {testResults.length > 0 ? (
-                                                            <div className="flex flex-col h-full">
-                                                                <div className="p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
-                                                                    <div className="flex items-center gap-6">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                                            <span className="text-xs font-bold text-gray-700">PASSED</span>
-                                                                            <Badge variant="outline" className="h-5 min-w-[20px] justify-center bg-green-50 text-green-700 border-green-100 text-[10px] font-black">
-                                                                                {testResults.filter(t => t.passed).length}
-                                                                            </Badge>
+                                                    <TabsContent value="test-results" className="m-0 p-0 h-full overflow-hidden bg-gray-50/30">
+                                                        <Tabs defaultValue="tests" className="flex flex-col h-full">
+                                                            <div className="flex items-center justify-between px-4 border-b border-gray-100 bg-white flex-shrink-0">
+                                                                <TabsList className="h-10 bg-transparent p-0 gap-6 border-none shadow-none">
+                                                                    <TabsTrigger value="tests" className="text-[10px] font-black uppercase tracking-widest h-10 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all p-0">
+                                                                        Tests {testResults.length > 0 && `(${testResults.length})`}
+                                                                    </TabsTrigger>
+                                                                    <TabsTrigger value="logs" className="text-[10px] font-black uppercase tracking-widest h-10 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all p-0">
+                                                                        Console {scriptLogs.length > 0 && `(${scriptLogs.length})`}
+                                                                    </TabsTrigger>
+                                                                </TabsList>
+                                                                {testResults.length > 0 && (
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                                                            <span className="text-[10px] font-bold text-gray-500">{testResults.filter(t => t.passed).length} PASSED</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-2 h-2 rounded-full bg-red-500" />
-                                                                            <span className="text-xs font-bold text-gray-700">FAILED</span>
-                                                                            <Badge variant="outline" className="h-5 min-w-[20px] justify-center bg-red-50 text-red-700 border-red-100 text-[10px] font-black">
-                                                                                {testResults.filter(t => !t.passed).length}
-                                                                            </Badge>
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                                                            <span className="text-[10px] font-bold text-gray-500">{testResults.filter(t => !t.passed).length} FAILED</span>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                                <div className="divide-y divide-gray-100 bg-white">
-                                                                    {testResults.map((test, idx) => (
-                                                                        <div key={idx} className="flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors group">
-                                                                            <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${test.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                                                {test.passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                                                                            </div>
-                                                                            <div className="flex-1 min-w-0">
-                                                                                <p className={`text-xs font-bold leading-normal ${test.passed ? 'text-gray-700' : 'text-red-700'}`}>
-                                                                                    {test.name}
-                                                                                </p>
-                                                                                {!test.passed && test.error && (
-                                                                                    <p className="text-[10px] text-red-500 mt-1 font-medium bg-red-50/50 p-2 rounded border border-red-100/50">
-                                                                                        {test.error}
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
-                                                                            <Badge variant="outline" className={`h-5 text-[9px] font-black uppercase tracking-tighter ${test.passed ? 'text-green-600 bg-green-50 group-hover:bg-green-100 border-green-100' : 'text-red-600 bg-red-50 group-hover:bg-red-100 border-red-100'}`}>
-                                                                                {test.passed ? 'Pass' : 'Fail'}
-                                                                            </Badge>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex-1 overflow-auto">
+                                                                <TabsContent value="tests" className="m-0 p-0">
+                                                                    {testResults.length > 0 ? (
+                                                                        <div className="divide-y divide-gray-100 bg-white">
+                                                                            {testResults.map((test, idx) => (
+                                                                                <div key={idx} className="flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors group">
+                                                                                    <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${test.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                                                        {test.passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <p className={`text-xs font-bold leading-normal ${test.passed ? 'text-gray-700' : 'text-red-700'}`}>
+                                                                                            {test.name}
+                                                                                        </p>
+                                                                                        {!test.passed && test.error && (
+                                                                                            <p className="text-[10px] text-red-500 mt-1 font-medium bg-red-50/50 p-2 rounded border border-red-100/50">
+                                                                                                {test.error}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <Badge variant="outline" className={`h-5 text-[9px] font-black uppercase tracking-tighter ${test.passed ? 'text-green-600 bg-green-50 group-hover:bg-green-100 border-green-100' : 'text-red-600 bg-red-50 group-hover:bg-red-100 border-red-100'}`}>
+                                                                                        {test.passed ? 'Pass' : 'Fail'}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
-                                                                    ))}
-                                                                </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col items-center justify-center py-20 text-center p-8 text-gray-400">
+                                                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                                                                                <Beaker className="w-6 h-6 opacity-20" />
+                                                                            </div>
+                                                                            <p className="text-sm font-bold text-gray-900 mb-1">No tests executed</p>
+                                                                            <p className="text-xs leading-relaxed max-w-[200px] font-medium">
+                                                                                Add tests in the Scripts tab to verify your API responses automatically.
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
+                                                                </TabsContent>
+
+                                                                <TabsContent value="logs" className="m-0 p-0">
+                                                                    {scriptLogs.length > 0 ? (
+                                                                        <div className="bg-white divide-y divide-gray-100">
+                                                                            {scriptLogs.map((log, idx) => (
+                                                                                <div key={idx} className="p-3 text-[11px] font-mono whitespace-pre-wrap">
+                                                                                    <span className="text-gray-400 mr-2">[{idx + 1}]</span>
+                                                                                    <span className={log.startsWith('Script Error:') ? 'text-red-600 font-bold' : 'text-gray-700'}>
+                                                                                        {log}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col items-center justify-center py-20 text-center p-8 text-gray-400">
+                                                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                                                                                <Terminal className="w-6 h-6 opacity-20" />
+                                                                            </div>
+                                                                            <p className="text-sm font-bold text-gray-900 mb-1">No logs captured</p>
+                                                                            <p className="text-xs leading-relaxed max-w-[200px] font-medium">
+                                                                                Use <code className="bg-gray-100 px-1 rounded">ct.log()</code> to output messages to this console.
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
+                                                                </TabsContent>
                                                             </div>
-                                                        ) : (
-                                                            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8 text-center">
-                                                                <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
-                                                                    <Beaker className="w-8 h-8 opacity-20" />
-                                                                </div>
-                                                                <p className="text-sm font-bold text-gray-700 mb-1">No tests executed</p>
-                                                                <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
-                                                                    Add tests in the Scripts tab to verify your API responses automatically.
-                                                                </p>
-                                                            </div>
-                                                        )}
+                                                        </Tabs>
                                                     </TabsContent>
                                                 </div>
                                             </Tabs>

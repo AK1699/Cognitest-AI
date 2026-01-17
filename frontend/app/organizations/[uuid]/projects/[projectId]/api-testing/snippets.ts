@@ -12,28 +12,28 @@ export const SNIPPETS: Snippet[] = [
         id: 'set-env-var',
         name: 'Set an environment variable',
         description: 'Set a value for an environment variable',
-        content: 'pm.environment.set("variable_key", "variable_value");',
+        content: 'ct.environment.set("variable_key", "variable_value");',
         type: 'pre-request',
     },
     {
         id: 'get-env-var',
         name: 'Get an environment variable',
         description: 'Get the value of an environment variable',
-        content: 'const value = pm.environment.get("variable_key");',
+        content: 'const value = ct.environment.get("variable_key");',
         type: 'pre-request',
     },
     {
         id: 'clear-env-var',
         name: 'Clear an environment variable',
         description: 'Remove an environment variable',
-        content: 'pm.environment.unset("variable_key");',
+        content: 'ct.environment.unset("variable_key");',
         type: 'pre-request',
     },
     {
         id: 'send-request',
         name: 'Send a request',
         description: 'Send an asynchronous HTTP request',
-        content: `pm.sendRequest("https://postman-echo.com/get", (err, response) => {
+        content: `ct.sendRequest("https://postman-echo.com/get", (err, response) => {
     console.log(response.json());
 });`,
         type: 'pre-request',
@@ -44,8 +44,8 @@ export const SNIPPETS: Snippet[] = [
         id: 'status-200',
         name: 'Status code: Code is 200',
         description: 'Check if the response status code is 200',
-        content: `pm.test("Status code is 200", () => {
-    pm.response.to.have.status(200);
+        content: `ct.test("Status code is 200", () => {
+    ct.response.to.have.status(200);
 });`,
         type: 'post-request',
     },
@@ -53,9 +53,9 @@ export const SNIPPETS: Snippet[] = [
         id: 'response-body-json',
         name: 'Response body: JSON value check',
         description: 'Check a value in the JSON response body',
-        content: `pm.test("Your test name", () => {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.value).to.eql(100);
+        content: `ct.test("Your test name", () => {
+    const jsonData = ct.response.json();
+    ct.expect(jsonData.value).to.eql(100);
 });`,
         type: 'post-request',
     },
@@ -63,8 +63,8 @@ export const SNIPPETS: Snippet[] = [
         id: 'response-time',
         name: 'Response time is less than 200ms',
         description: 'Check if the response time is within limits',
-        content: `pm.test("Response time is less than 200ms", () => {
-    pm.expect(pm.response.responseTime).to.be.below(200);
+        content: `ct.test("Response time is less than 200ms", () => {
+    ct.expect(ct.response.responseTime).to.be.below(200);
 });`,
         type: 'post-request',
     },
@@ -72,8 +72,8 @@ export const SNIPPETS: Snippet[] = [
         id: 'status-is-one-of',
         name: 'Status code: Successful POST request',
         description: 'Check if the status code is 201 or 202',
-        content: `pm.test("Successful POST request", () => {
-    pm.expect(pm.response.code).to.be.oneOf([201, 202]);
+        content: `ct.test("Successful POST request", () => {
+    ct.expect(ct.response.code).to.be.oneOf([201, 202]);
 });`,
         type: 'post-request',
     },
@@ -81,8 +81,8 @@ export const SNIPPETS: Snippet[] = [
         id: 'header-exists',
         name: 'Response headers: Content-Type check',
         description: 'Check if a header exists in the response',
-        content: `pm.test("Content-Type is present", () => {
-    pm.response.to.have.header("Content-Type");
+        content: `ct.test("Content-Type is present", () => {
+    ct.response.to.have.header("Content-Type");
 });`,
         type: 'post-request',
     },
