@@ -1,8 +1,13 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import Editor, { Monaco, OnMount } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
+
+export interface CodeEditorHandle {
+    beautify: () => void;
+    insertText: (text: string) => void;
+}
 
 interface CodeEditorProps {
     value: string
@@ -16,7 +21,7 @@ interface CodeEditorProps {
     className?: string
 }
 
-export function CodeEditor({
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(({
     value,
     onChange,
     language,
@@ -26,11 +31,34 @@ export function CodeEditor({
     minimap = false,
     lineNumbers = true,
     className = ''
-}: CodeEditorProps) {
+}, ref) => {
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+    const monacoRef = useRef<Monaco | null>(null)
+
+    useImperativeHandle(ref, () => ({
+        beautify: () => {
+            if (editorRef.current) {
+                editorRef.current.getAction('editor.action.formatDocument')?.run();
+            }
+        },
+        insertText: (text: string) => {
+            if (editorRef.current && monacoRef.current) {
+                const selection = editorRef.current.getSelection();
+                const range = selection ? selection : new monacoRef.current.Range(1, 1, 1, 1);
+                editorRef.current.executeEdits('snippets', [
+                    {
+                        range: range,
+                        text: text,
+                        forceMoveMarkers: true
+                    }
+                ]);
+            }
+        }
+    }));
 
     const handleEditorDidMount: OnMount = useCallback((editor, monaco) => {
         editorRef.current = editor
+        monacoRef.current = monaco
 
         // Register GraphQL language if not already registered
         if (language === 'graphql') {
@@ -61,13 +89,18 @@ export function CodeEditor({
             })
         }
 
-        // Add JSON formatting command
+        // Add Beautify command (Cmd+B / Ctrl+B)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+            editor.getAction('editor.action.formatDocument')?.run()
+        })
+
+        // Standard formatting shortcut (Shift+Alt+F)
         editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
             editor.getAction('editor.action.formatDocument')?.run()
         })
 
         // Focus the editor
-        editor.focus()
+        // editor.focus() // Don't auto-focus every editor on mount if multiple exist
     }, [language])
 
     const handleEditorChange = useCallback((value: string | undefined) => {
@@ -133,6 +166,8 @@ export function CodeEditor({
             />
         </div>
     )
-}
+})
+
+CodeEditor.displayName = 'CodeEditor'
 
 export default CodeEditor

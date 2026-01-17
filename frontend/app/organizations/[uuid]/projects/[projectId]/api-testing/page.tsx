@@ -9,7 +9,7 @@ import {
     Settings, Settings2, Clock, Copy, Check, AlertCircle, Loader2,
     Sparkles, MessageSquare, Code2, Eye, FileText, Cookie,
     Link2, Lock, Key, Hash, Terminal, Wand2, Trash2, GripVertical, Edit2,
-    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap, WrapText, Search, Binary, Beaker
+    Globe, Hexagon, Shapes, Box, Network, Activity, Radio, Zap, WrapText, Search, Binary, Beaker, Brush
 } from 'lucide-react'
 import { HttpIcon } from '@/components/icons/HttpIcon'
 import { GraphqlIcon } from '@/components/icons/GraphqlIcon'
@@ -40,7 +40,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CodeEditor } from '@/components/api-testing/CodeEditor'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EnvironmentManager, type Environment, type EnvironmentVariable } from '@/components/api-testing/EnvironmentManager'
@@ -48,6 +47,8 @@ import { HighlightedInput } from '@/components/api-testing/HighlightedInput'
 import { CollectionRunner } from '@/components/api-testing/CollectionRunner'
 import { JsonTable } from './JsonTable'
 import { KeyValueEditor, type KeyValuePair } from './KeyValueEditor'
+import { SnippetsSelector } from './SnippetsSelector'
+import { CodeEditor, type CodeEditorHandle } from '@/components/api-testing/CodeEditor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Select,
@@ -431,6 +432,12 @@ export default function APITestingPage() {
     const [environments, setEnvironments] = useState<Environment[]>([])
     const [environmentsLoading, setEnvironmentsLoading] = useState(true)
     const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null)
+
+    // Editor Refs for Beautify/Snippets
+    const bodyEditorRef = useRef<CodeEditorHandle>(null)
+    const preRequestScriptEditorRef = useRef<CodeEditorHandle>(null)
+    const testScriptEditorRef = useRef<CodeEditorHandle>(null)
+    const graphqlVariablesEditorRef = useRef<CodeEditorHandle>(null)
     const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false)
     const [envDropdownOpen, setEnvDropdownOpen] = useState(false)
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
@@ -2660,7 +2667,7 @@ export default function APITestingPage() {
                                                     {activeRequest.protocol === 'http' && (
                                                         <>
                                                             <div className="flex items-center gap-6 flex-wrap pb-2 border-b border-gray-50 mb-4">
-                                                                {['none', 'json', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary'].map(type => (
+                                                                {['none', 'form-data', 'x-www-form-urlencoded', 'raw', 'binary'].map(type => (
                                                                     <label key={type} className="flex items-center gap-2 cursor-pointer group">
                                                                         <div className="relative flex items-center justify-center">
                                                                             <input
@@ -2681,38 +2688,57 @@ export default function APITestingPage() {
                                                                 ))}
                                                             </div>
 
-                                                            {(activeRequest.body.type === 'json' || activeRequest.body.type === 'raw') && (
+                                                            {(activeRequest.body.type === 'raw' || (activeRequest.body.type as string) === 'json') && (
                                                                 <div className="space-y-4">
-                                                                    {activeRequest.body.type === 'raw' && (
-                                                                        <div className="flex items-center gap-2 mb-2">
-                                                                            <span className="text-xs font-medium text-gray-500">FORMAT:</span>
-                                                                            <Select
-                                                                                value={activeRequest.body.rawType || 'text'}
-                                                                                onValueChange={(val) => updateActiveRequest({
-                                                                                    body: { ...activeRequest.body, rawType: val as any }
-                                                                                })}
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        {activeRequest.body.type === 'raw' ? (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-xs font-medium text-gray-500">FORMAT:</span>
+                                                                                <Select
+                                                                                    value={activeRequest.body.rawType || 'text'}
+                                                                                    onValueChange={(val) => updateActiveRequest({
+                                                                                        body: { ...activeRequest.body, rawType: val as any }
+                                                                                    })}
+                                                                                >
+                                                                                    <SelectTrigger className="h-7 w-28 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        <SelectItem value="text">Plain Text</SelectItem>
+                                                                                        <SelectItem value="json">JSON</SelectItem>
+                                                                                        <SelectItem value="xml">XML</SelectItem>
+                                                                                        <SelectItem value="html">HTML</SelectItem>
+                                                                                        <SelectItem value="javascript">JavaScript</SelectItem>
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        ) : <div />}
+
+                                                                        <div className="flex items-center gap-1">
+                                                                            <SnippetsSelector
+                                                                                type="body"
+                                                                                onSelect={(content) => bodyEditorRef.current?.insertText(content)}
+                                                                            />
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-8 w-8 text-gray-400 hover:text-primary transition-colors"
+                                                                                onClick={() => bodyEditorRef.current?.beautify()}
+                                                                                title="Beautify (Cmd+B)"
                                                                             >
-                                                                                <SelectTrigger className="h-7 w-28 text-xs">
-                                                                                    <SelectValue />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    <SelectItem value="text">Plain Text</SelectItem>
-                                                                                    <SelectItem value="json">JSON</SelectItem>
-                                                                                    <SelectItem value="xml">XML</SelectItem>
-                                                                                    <SelectItem value="html">HTML</SelectItem>
-                                                                                    <SelectItem value="javascript">JavaScript</SelectItem>
-                                                                                </SelectContent>
-                                                                            </Select>
+                                                                                <Brush className="w-4 h-4" />
+                                                                            </Button>
                                                                         </div>
-                                                                    )}
+                                                                    </div>
                                                                     <CodeEditor
+                                                                        ref={bodyEditorRef}
                                                                         value={activeRequest.body.content}
                                                                         onChange={(value) => updateActiveRequest({
                                                                             body: { ...activeRequest.body, content: value }
                                                                         })}
-                                                                        language={activeRequest.body.type === 'json' ? 'json' : (activeRequest.body.rawType || 'text')}
+                                                                        language={(activeRequest.body.type as string === 'json' || activeRequest.body.rawType === 'json') ? 'json' : (activeRequest.body.rawType || 'text')}
                                                                         height="400px"
-                                                                        placeholder={activeRequest.body.type === 'json' ? '{"key": "value"}' : 'Raw body content'}
+                                                                        placeholder={(activeRequest.body.type as string === 'json' || activeRequest.body.rawType === 'json') ? '{"key": "value"}' : 'Raw body content'}
                                                                     />
                                                                 </div>
                                                             )}
@@ -2750,8 +2776,26 @@ export default function APITestingPage() {
 
                                                 <TabsContent value="variables" className="m-0">
                                                     <div className="space-y-4">
-                                                        <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">GraphQL Variables (JSON)</Label>
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest">GraphQL Variables (JSON)</Label>
+                                                            <div className="flex items-center gap-1">
+                                                                <SnippetsSelector
+                                                                    type="body"
+                                                                    onSelect={(content) => graphqlVariablesEditorRef.current?.insertText(content)}
+                                                                />
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-gray-400 hover:text-primary transition-colors"
+                                                                    onClick={() => graphqlVariablesEditorRef.current?.beautify()}
+                                                                    title="Beautify (Cmd+B)"
+                                                                >
+                                                                    <Brush className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
                                                         <CodeEditor
+                                                            ref={graphqlVariablesEditorRef}
                                                             value={activeRequest.body.graphqlVariables || ''}
                                                             onChange={(value) => updateActiveRequest({
                                                                 body: { ...activeRequest.body, graphqlVariables: value }
@@ -2766,10 +2810,28 @@ export default function APITestingPage() {
                                                 <TabsContent value="scripts" className="m-0 space-y-6">
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <Label className="text-sm font-semibold text-gray-700">Pre-request Script</Label>
-                                                            <span className="text-xs text-gray-400">JavaScript • Runs before request</span>
+                                                            <div className="flex flex-col">
+                                                                <Label className="text-sm font-semibold text-gray-700">Pre-request Script</Label>
+                                                                <span className="text-[10px] text-gray-400 font-medium">JavaScript • Runs before request</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <SnippetsSelector
+                                                                    type="pre-request"
+                                                                    onSelect={(content) => preRequestScriptEditorRef.current?.insertText(content)}
+                                                                />
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-gray-400 hover:text-primary transition-colors"
+                                                                    onClick={() => preRequestScriptEditorRef.current?.beautify()}
+                                                                    title="Beautify (Cmd+B)"
+                                                                >
+                                                                    <Brush className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                         <CodeEditor
+                                                            ref={preRequestScriptEditorRef}
                                                             value={activeRequest.preRequestScript || ''}
                                                             onChange={(value) => updateActiveRequest({ preRequestScript: value })}
                                                             language="javascript"
@@ -2779,10 +2841,28 @@ export default function APITestingPage() {
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <Label className="text-sm font-semibold text-gray-700">Post-request Script</Label>
-                                                            <span className="text-xs text-gray-400">JavaScript • Runs after response</span>
+                                                            <div className="flex flex-col">
+                                                                <Label className="text-sm font-semibold text-gray-700">Post-request Script</Label>
+                                                                <span className="text-[10px] text-gray-400 font-medium">JavaScript • Runs after response</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <SnippetsSelector
+                                                                    type="post-request"
+                                                                    onSelect={(content) => testScriptEditorRef.current?.insertText(content)}
+                                                                />
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-gray-400 hover:text-primary transition-colors"
+                                                                    onClick={() => testScriptEditorRef.current?.beautify()}
+                                                                    title="Beautify (Cmd+B)"
+                                                                >
+                                                                    <Brush className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                         <CodeEditor
+                                                            ref={testScriptEditorRef}
                                                             value={activeRequest.testScript || ''}
                                                             onChange={(value) => updateActiveRequest({ testScript: value })}
                                                             language="javascript"
