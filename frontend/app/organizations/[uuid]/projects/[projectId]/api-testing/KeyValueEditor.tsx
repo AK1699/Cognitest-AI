@@ -128,24 +128,24 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                     className="font-mono text-sm min-h-[200px] resize-y bg-white border-gray-300 focus:border-primary/40 transition-all p-4 rounded-xl shadow-sm"
                 />
             ) : (
-                <div className="space-y-0 relative">
+                <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm ring-1 ring-black/5">
                     {/* Header Row - Different for form-data */}
                     {type === 'formData' ? (
-                        <div className="grid grid-cols-[36px_1fr_70px_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
-                            <div className="flex justify-center"></div>
-                            <div className="pl-2">Key</div>
-                            <div className="pl-2"></div>
-                            <div className="pl-2">Value</div>
-                            <div className="pl-2">Description</div>
-                            <div></div>
+                        <div className="grid grid-cols-[40px_1fr_80px_1.5fr_1fr_40px] gap-0 text-[11px] font-bold text-gray-400 px-0 uppercase tracking-widest bg-gray-50/50 border-b-2 border-gray-300">
+                            <div className="flex justify-center h-10 border-r border-gray-200 items-center"></div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Key</div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Type</div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Value</div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Description</div>
+                            <div className="h-10 flex items-center"></div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 text-[10px] font-black text-gray-500 px-1 uppercase tracking-widest mb-2 border-b border-gray-200 pb-2">
-                            <div className="flex justify-center"></div>
-                            <div className="pl-2">Key</div>
-                            <div className="pl-2">Value</div>
-                            <div className="pl-2">Description</div>
-                            <div></div>
+                        <div className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-0 text-[11px] font-bold text-gray-400 px-0 uppercase tracking-widest bg-gray-50/50 border-b-2 border-gray-300">
+                            <div className="flex justify-center h-10 border-r border-gray-200 items-center"></div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Key</div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Value</div>
+                            <div className="pl-3 h-10 border-r border-gray-200 flex items-center">Description</div>
+                            <div className="h-10 flex items-center"></div>
                         </div>
                     )}
                     <div className="divide-y divide-gray-200">
@@ -157,8 +157,8 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                             // Form-data layout with type selector
                             if (type === 'formData') {
                                 return (
-                                    <div key={pair.id} className="grid grid-cols-[36px_1fr_70px_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
-                                        <div className="flex justify-center">
+                                    <div key={pair.id} className="grid grid-cols-[40px_1fr_80px_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors">
+                                        <div className="flex justify-center h-10 border-r border-gray-200 items-center">
                                             <input
                                                 type="checkbox"
                                                 checked={pair.enabled}
@@ -167,31 +167,31 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                             />
                                         </div>
                                         {/* Key Input */}
-                                        <div className="relative">
+                                        <div className="relative border-r border-gray-200 h-10 flex items-center">
                                             <input
                                                 value={pair.key}
                                                 onChange={(e) => onUpdate(type, pair.id, { key: e.target.value })}
                                                 placeholder="Key"
-                                                className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
+                                                className="h-full w-full text-[13px] bg-transparent border-none focus:ring-0 px-3 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
                                             />
                                         </div>
                                         {/* Type Selector Dropdown */}
-                                        <div className="flex items-center justify-center">
+                                        <div className="flex items-center justify-center border-r border-gray-200 h-10">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <button className="h-7 px-2 text-[11px] font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded flex items-center gap-1 transition-colors border border-gray-200">
+                                                    <button className="h-7 px-1.5 text-[10px] font-bold text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded flex items-center gap-1 transition-colors border border-gray-200 uppercase tracking-tighter">
                                                         {valueType === 'file' ? (
                                                             <>
-                                                                <FileText className="w-3 h-3" />
+                                                                <FileText className="w-2.5 h-2.5" />
                                                                 File
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <Type className="w-3 h-3" />
+                                                                <Type className="w-2.5 h-2.5" />
                                                                 Text
                                                             </>
                                                         )}
-                                                        <ChevronDown className="w-3 h-3 text-gray-400" />
+                                                        <ChevronDown className="w-2.5 h-2.5 text-gray-400" />
                                                     </button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="start" className="w-28">
@@ -213,9 +213,9 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                             </DropdownMenu>
                                         </div>
                                         {/* Value Input or File Selector */}
-                                        <div className="relative">
+                                        <div className="relative border-r border-gray-200 h-10 flex items-center font-mono">
                                             {valueType === 'file' ? (
-                                                <div className="flex items-center h-9 px-2">
+                                                <div className="flex items-center h-full px-3 w-full">
                                                     <input
                                                         type="file"
                                                         id={`file-input-${pair.id}`}
@@ -241,7 +241,7 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                                     />
                                                     <label
                                                         htmlFor={`file-input-${pair.id}`}
-                                                        className="cursor-pointer text-[13px] text-gray-500 hover:text-primary transition-colors flex items-center gap-2"
+                                                        className="cursor-pointer text-[13px] text-gray-500 hover:text-primary transition-colors flex items-center gap-2 w-full"
                                                     >
                                                         {pair.uploading ? (
                                                             <span className="text-blue-500 animate-pulse">Uploading...</span>
@@ -260,19 +260,21 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                                     value={pair.value}
                                                     onChange={(e) => onUpdate(type, pair.id, { value: e.target.value })}
                                                     placeholder="Value"
-                                                    className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
+                                                    className="h-full w-full text-[13px] bg-transparent border-none focus:ring-0 px-3 text-gray-600 placeholder:text-gray-300 placeholder:font-normal"
                                                 />
                                             )}
                                         </div>
                                         {/* Description */}
-                                        <input
-                                            value={pair.description}
-                                            onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
-                                            placeholder="Add description..."
-                                            className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
-                                        />
+                                        <div className="border-r border-gray-200 h-10 flex items-center">
+                                            <input
+                                                value={pair.description}
+                                                onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
+                                                placeholder="Add description..."
+                                                className="h-full w-full text-[12px] bg-transparent border-none focus:ring-0 px-3 text-gray-400 italic placeholder:text-gray-200"
+                                            />
+                                        </div>
                                         {/* Delete Button */}
-                                        <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
+                                        <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all h-10">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -288,8 +290,8 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
 
                             // Default layout for other types (params, headers, pathVariables)
                             return (
-                                <div key={pair.id} className="grid grid-cols-[36px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors py-0.5">
-                                    <div className="flex justify-center">
+                                <div key={pair.id} className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-0 items-center group/kv hover:bg-gray-50 transition-colors">
+                                    <div className="flex justify-center h-10 border-r border-gray-200 items-center">
                                         <input
                                             type="checkbox"
                                             checked={pair.enabled}
@@ -297,14 +299,14 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                             className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/20 accent-primary"
                                         />
                                     </div>
-                                    <div className="relative">
+                                    <div className="relative border-r border-gray-200 h-10 flex items-center">
                                         <input
                                             value={pair.key}
                                             onChange={(e) => onUpdate(type, pair.id, { key: e.target.value })}
                                             onFocus={() => setActiveRowId(pair.id)}
                                             onBlur={() => setTimeout(() => setActiveRowId(null), 200)}
                                             placeholder="Key"
-                                            className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
+                                            className="h-full w-full text-[13px] bg-transparent border-none focus:ring-0 px-3 text-gray-800 font-medium placeholder:text-gray-300 placeholder:font-normal"
                                         />
                                         {suggestions.length > 0 && (
                                             <div className="absolute top-full left-0 w-full z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -324,14 +326,14 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                             </div>
                                         )}
                                     </div>
-                                    <div className="relative">
+                                    <div className="relative border-r border-gray-200 h-10 flex items-center font-mono">
                                         <input
                                             value={pair.value}
                                             onChange={(e) => onUpdate(type, pair.id, { value: e.target.value })}
                                             onFocus={() => setActiveValueRowId(pair.id)}
                                             onBlur={() => setTimeout(() => setActiveValueRowId(null), 200)}
                                             placeholder="Value"
-                                            className="h-9 w-full text-[13px] bg-transparent border-none focus:ring-0 px-2 text-gray-600 font-mono placeholder:text-gray-300 placeholder:font-normal"
+                                            className="h-full w-full text-[13px] bg-transparent border-none focus:ring-0 px-3 text-gray-600 placeholder:text-gray-300 placeholder:font-normal"
                                         />
                                         {valueSuggestions.length > 0 && (
                                             <div className="absolute top-full left-0 w-full z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -351,13 +353,15 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                                             </div>
                                         )}
                                     </div>
-                                    <input
-                                        value={pair.description}
-                                        onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
-                                        placeholder="Add description..."
-                                        className="h-9 text-[12px] bg-transparent border-none focus:ring-0 px-2 text-gray-400 italic placeholder:text-gray-200"
-                                    />
-                                    <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all">
+                                    <div className="border-r border-gray-200 h-10 flex items-center">
+                                        <input
+                                            value={pair.description}
+                                            onChange={(e) => onUpdate(type, pair.id, { description: e.target.value })}
+                                            placeholder="Add description..."
+                                            className="h-full w-full text-[12px] bg-transparent border-none focus:ring-0 px-3 text-gray-400 italic placeholder:text-gray-200"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-center opacity-0 group-hover/kv:opacity-100 transition-all h-10">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -372,7 +376,7 @@ export const KeyValueEditor = ({ type, pairs, onUpdate, onAdd, onRemove, onBulkU
                         })}
                     </div>
 
-                    <div className="pt-3">
+                    <div className="p-2 border-t border-gray-100 bg-gray-50/30">
                         <Button
                             variant="ghost"
                             size="sm"
