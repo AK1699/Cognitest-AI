@@ -222,6 +222,18 @@ export const webAutomationApi = {
         return response.data
     },
 
+    // Proactive health scan
+    scanTestFlowHealth: async (flowId: string) => {
+        const response = await api.post(`/api/v1/web-automation/self-heal/scan/${flowId}`)
+        return response.data
+    },
+
+    // Bulk apply all fixes
+    applyAllPendingFixes: async (projectId: string) => {
+        const response = await api.post(`/api/v1/web-automation/self-heal/apply-all?project_id=${projectId}`)
+        return response.data
+    },
+
     // Apply healing fix
     applyHealingFix: async (stepId: string, suggestion: { value: string, type: string }): Promise<void> => {
         await api.post(`/api/v1/web-automation/healing/apply`, { step_id: stepId, suggestion })
@@ -326,6 +338,12 @@ export interface SelfHealDashboard {
         notify_on_issues: boolean
         visual_matching: boolean
         confidence_threshold: number
+    }
+    analytics?: {
+        total_healed: number
+        success_rate: number
+        strategy_distribution: Record<string, number>
+        trends: Array<{ date: string, count: number }>
     }
 }
 

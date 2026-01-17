@@ -9,6 +9,7 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
+  Zap,
   Download,
   Eye,
 } from 'lucide-react'
@@ -260,11 +261,33 @@ export default function ExecutionResults({ executionRunId }: ExecutionResultsPro
               )}
 
               {step.healing_applied && selectedStep?.id === step.id && (
-                <div className="mt-2 p-2 bg-yellow-50 rounded text-sm">
-                  <p className="font-semibold">Healing Applied:</p>
-                  <pre className="text-xs mt-1">
-                    {JSON.stringify(step.healing_applied, null, 2)}
-                  </pre>
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap className="w-4 h-4 text-yellow-600" />
+                    <span className="font-bold text-yellow-800">AI Self-Healed</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">From</div>
+                      <div className="font-mono text-xs bg-white border border-gray-200 p-2 rounded text-red-500 line-through truncate">
+                        {step.healing_applied.original || 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">To (Healed)</div>
+                      <div className="font-mono text-xs bg-white border border-green-200 p-2 rounded text-green-600 truncate">
+                        {step.healing_applied.healed || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                  {step.healing_applied.strategy && (
+                    <div className="mt-3 text-xs text-yellow-700 flex items-center justify-between">
+                      <span>Strategy: <span className="font-semibold capitalize">{step.healing_applied.strategy.replace('_', ' ')}</span></span>
+                      {step.healing_applied.confidence && (
+                        <span className="font-bold">{Math.round(step.healing_applied.confidence * 100)}% Confidence</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
