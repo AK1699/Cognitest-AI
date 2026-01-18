@@ -1086,6 +1086,21 @@ async def generate_test_steps(
 # Store WebSocket connections for browser sessions
 browser_session_connections: dict[str, WebSocket] = {}
 
+# Set of session_ids currently executing tests (prevents cleanup on disconnect)
+active_executions: set[str] = set()
+
+
+async def safe_send_json(websocket: WebSocket, data: dict):
+    """Safely send JSON message, ignore failures if connection is closed."""
+    try:
+        if websocket.client_state.name == "CONNECTED":
+            await websocket.send_json(data)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 
 @router.get("/device-presets")
 async def get_device_presets():
@@ -1187,14 +1202,14 @@ async def websocket_browser_session(
             if websocket.client_state.name != "CONNECTED":
                 return
             
-            await websocket.send_json(data)
+            await safe_send_json(websocket, data)
         except Exception as e:
             # Silently ignore send failures (connection may have closed)
             pass
     
     try:
         # Send initial connected message
-        await websocket.send_json({
+        await safe_send_json(websocket, {
             "type": "connected",
             "session_id": session_id,
             "message": "WebSocket connected. Send launch command to start browser."
@@ -1221,7 +1236,7 @@ async def websocket_browser_session(
                     if record_video and project_id:
                         video_dir = f"./artifacts/{project_id}/videos"
                     
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "launching",
                         "message": "Launching browser..."
                     })
@@ -1248,7 +1263,7 @@ async def websocket_browser_session(
                                 "error": "Failed to launch browser. Make sure Playwright browsers are installed (run: playwright install)"
                             })
                     except Exception as e:
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "error",
                             "error": f"Browser launch failed: {str(e)}"
                         })
@@ -1269,7 +1284,7 @@ async def websocket_browser_session(
                 
                 elif action == "stop":
                     await browser_session_manager.stop_session(session_id)
-                    await websocket.send_json({
+                    await safe_send_json(websocket, {
                         "type": "session_stopped",
                         "session_id": session_id
                     })
@@ -1281,7 +1296,7 @@ async def websocket_browser_session(
                     session = browser_session_manager.get_session(session_id)
                     if session and x is not None and y is not None:
                         result = await session.click_at_point(x, y)
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "element_clicked",
                             **result
                         })
@@ -1295,7 +1310,7 @@ async def websocket_browser_session(
                     session = browser_session_manager.get_session(session_id)
                     if session and x is not None and y is not None:
                         element_info = await session.get_element_at_point(x, y)
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "element_info",
                             "element": element_info,
                             "x": x,
@@ -1309,7 +1324,7 @@ async def websocket_browser_session(
                     session = browser_session_manager.get_session(session_id)
                     if session:
                         result = await session.type_text(text)
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "typed",
                             **result
                         })
@@ -1319,7 +1334,7 @@ async def websocket_browser_session(
                     session = browser_session_manager.get_session(session_id)
                     if session:
                         result = await session.press_key(key)
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "key_pressed",
                             **result
                         })
@@ -1330,22 +1345,25 @@ async def websocket_browser_session(
                     session = browser_session_manager.get_session(session_id)
                     if session:
                         result = await session.scroll_page(direction, amount)
-                        await websocket.send_json({
+                        await safe_send_json(websocket, {
                             "type": "scrolled",
                             **result
                         })
                 
                 elif action == "execute_test":
                     # Execute test steps on the existing browser session
+                    active_executions.add(session_id)
                     flow_id = message.get("flowId")
                     session = browser_session_manager.get_session(session_id)
                     
                     if not session:
-                        await websocket.send_json({"type": "error", "error": "No active browser session"})
+                        active_executions.discard(session_id)
+                        await safe_send_json(websocket, {"type": "error", "error": "No active browser session"})
                         continue
                     
                     if not flow_id:
-                        await websocket.send_json({"type": "error", "error": "No flowId provided"})
+                        active_executions.discard(session_id)
+                        await safe_send_json(websocket, {"type": "error", "error": "No flowId provided"})
                         continue
                     
                     try:
@@ -1360,7 +1378,8 @@ async def websocket_browser_session(
                             test_flow = result.scalar_one_or_none()
                             
                             if not test_flow:
-                                await websocket.send_json({"type": "error", "error": "Test flow not found"})
+                                active_executions.discard(session_id)
+                                await safe_send_json(websocket, {"type": "error", "error": "Test flow not found"})
                                 break
                             
                             # Create execution run record
@@ -1391,7 +1410,7 @@ async def websocket_browser_session(
                             await db.refresh(execution_run)
                             
                             # Notify test execution started
-                            await websocket.send_json({
+                            await safe_send_json(websocket, {
                                 "type": "test_execution_started",
                                 "flowId": str(flow_id),
                                 "executionId": str(execution_run.id),
@@ -1416,6 +1435,89 @@ async def websocket_browser_session(
                             execution_variables = {}  # Store extracted data during execution
                             start_time = datetime.utcnow()
                             
+                            # Helper function for silent self-healing on selector-based actions
+                            async def execute_with_healing(
+                                action_name: str,
+                                action_fn,  # async function that takes (selector) or (locator) and executes
+                                original_selector: str,
+                                step_index: int,
+                                step_id: str,
+                                step_type: str,
+                                use_locator: bool = False  # If True, action_fn expects a Playwright locator instead of selector
+                            ) -> tuple[bool, Optional[dict], str]:
+                                """
+                                Execute a selector-based action with silent self-healing.
+                                Keeps step in 'running' state while AI analyzes DOM.
+                                Returns: (was_healed, healing_info, selector_used)
+                                """
+                                nonlocal was_healed, healing_info
+                                
+                                # Check if browser/page is still open before proceeding
+                                if not session.page or session.page.is_closed():
+                                    raise Exception("Browser page has been closed")
+                                
+                                # First try with original selector
+                                try:
+                                    if use_locator:
+                                        locator = session.page.locator(original_selector)
+                                        await locator.wait_for(timeout=5000, state="visible")
+                                        result = action_fn(locator)
+                                        # Handle both sync and async functions
+                                        if hasattr(result, '__await__'):
+                                            await result
+                                    else:
+                                        result = action_fn(original_selector)
+                                        if hasattr(result, '__await__'):
+                                            await result
+                                    return False, None, original_selector
+                                except Exception as primary_err:
+                                    error_msg = str(primary_err).lower()
+                                    # Don't try healing if browser is closed
+                                    if "closed" in error_msg or "destroyed" in error_msg:
+                                        raise primary_err
+                                    
+                                    if not healing_enabled or not ai_service:
+                                        raise primary_err
+                                    
+                                    # Check again if browser is still open before healing
+                                    if not session.page or session.page.is_closed():
+                                        raise Exception("Browser page closed during execution")
+                                    
+                                    # Send step_healing message to keep UI in loading state
+                                    await safe_send_json(websocket, {
+                                        "type": "step_healing",
+                                        "stepIndex": step_index,
+                                        "message": f"AI analyzing DOM to find correct locator for {action_name}...",
+                                        "originalSelector": original_selector
+                                    })
+                                    
+                                    # Try self-healing with SelfHealingLocator
+                                    healer = SelfHealingLocator(original_selector, alternatives, ai_service)
+                                    try:
+                                        healed_locator, heal_info = await healer.find_element(session.page, step_id, step_type)
+                                        if healed_locator and heal_info:
+                                            # Execute action with healed locator
+                                            if use_locator:
+                                                result = action_fn(healed_locator)
+                                                if hasattr(result, '__await__'):
+                                                    await result
+                                            else:
+                                                healed_selector = heal_info.get("healed", original_selector)
+                                                result = action_fn(healed_selector)
+                                                if hasattr(result, '__await__'):
+                                                    await result
+                                            
+                                            # Return healing success info
+                                            return True, heal_info, heal_info.get("healed", original_selector)
+                                        else:
+                                            raise primary_err
+                                    except Exception as heal_err:
+                                        heal_msg = str(heal_err).lower()
+                                        if "closed" in heal_msg or "destroyed" in heal_msg:
+                                            raise heal_err
+                                        raise primary_err
+                            
+
                             # Execute each step
                             for i, step in enumerate(steps):
                                 step_start = datetime.utcnow()
@@ -1447,7 +1549,7 @@ async def websocket_browser_session(
                                     db.add(step_result)
                                     skipped_count += 1
                                     
-                                    await websocket.send_json({
+                                    await safe_send_json(websocket, {
                                         "type": "step_completed",
                                         "stepIndex": i,
                                         "status": "skipped",
@@ -1517,7 +1619,7 @@ async def websocket_browser_session(
                                     ""
                                 )
                                 
-                                await websocket.send_json({
+                                await safe_send_json(websocket, {
                                     "type": "step_started",
                                     "stepIndex": i,
                                     "stepType": step_type,
@@ -1547,46 +1649,31 @@ async def websocket_browser_session(
                                     
                                     elif step_type == "click":
                                         if selector_used:
-                                            try:
-                                                await session.click_element(selector_used)
-                                            except Exception as click_err:
-                                                # Try self-healing if enabled
-                                                if healing_enabled and ai_service:
-                                                    healer = SelfHealingLocator(selector_used, alternatives, ai_service)
-                                                    try:
-                                                        locator, healing_info = await healer.find_element(session.page, step_id, step_type)
-                                                        if locator and healing_info:
-                                                            await locator.click()
-                                                            was_healed = True
-                                                            selector_used = healing_info.get("healed", selector_used)
-                                                        else:
-                                                            raise click_err
-                                                    except Exception:
-                                                        raise click_err
-                                                else:
-                                                    raise click_err
+                                            # Use silent self-healing wrapper
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Click",
+                                                action_fn=lambda loc: loc.click(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "type" or step_type == "fill":
                                         value = step_data.get("value") or step.get("value") or ""
                                         if selector_used:
-                                            try:
-                                                await session.type_into_element(selector_used, value)
-                                            except Exception as type_err:
-                                                # Try self-healing if enabled
-                                                if healing_enabled and ai_service:
-                                                    healer = SelfHealingLocator(selector_used, alternatives, ai_service)
-                                                    try:
-                                                        locator, healing_info = await healer.find_element(session.page, step_id, step_type)
-                                                        if locator and healing_info:
-                                                            await locator.fill(value)
-                                                            was_healed = True
-                                                            selector_used = healing_info.get("healed", selector_used)
-                                                        else:
-                                                            raise type_err
-                                                    except Exception:
-                                                        raise type_err
-                                                else:
-                                                    raise type_err
+                                            # Use silent self-healing wrapper
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Type",
+                                                action_fn=lambda loc: loc.fill(value),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
+                                    
                                     elif step_type == "wait":
                                         timeout = step_data.get("timeout") or step.get("timeout") or 1000
                                         import asyncio
@@ -1740,39 +1827,103 @@ Respond with JSON only:
                                         
                                         # Store actual URL for action_details
                                     
-                                    # Additional browser actions
+                                    # Additional browser actions with self-healing
                                     elif step_type == "double_click":
                                         if selector_used:
-                                            await session.double_click(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Double Click",
+                                                action_fn=lambda loc: loc.dblclick(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "right_click":
                                         if selector_used:
-                                            await session.right_click(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Right Click",
+                                                action_fn=lambda loc: loc.click(button="right"),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "hover":
                                         if selector_used:
-                                            await session.hover(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Hover",
+                                                action_fn=lambda loc: loc.hover(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "focus":
                                         if selector_used:
-                                            await session.focus(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Focus",
+                                                action_fn=lambda loc: loc.focus(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "clear":
                                         if selector_used:
-                                            await session.clear_input(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Clear",
+                                                action_fn=lambda loc: loc.clear(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "select":
                                         value = step_data.get("value") or step.get("value") or ""
                                         if selector_used:
-                                            await session.select_option(selector_used, value)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Select",
+                                                action_fn=lambda loc: loc.select_option(value),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "check":
                                         if selector_used:
-                                            await session.check(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Check",
+                                                action_fn=lambda loc: loc.check(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "uncheck":
                                         if selector_used:
-                                            await session.uncheck(selector_used)
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Uncheck",
+                                                action_fn=lambda loc: loc.uncheck(),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     elif step_type == "go_back":
                                         await session.go_back()
@@ -2094,7 +2245,7 @@ Respond with JSON only:
                                         print(f"[LOG] {substituted_message}")
                                         
                                         # Also send to websocket for frontend console
-                                        await websocket.send_json({
+                                        await safe_send_json(websocket, {
                                             "type": "log_message",
                                             "level": step_data.get("level") or step.get("level") or "info",
                                             "message": substituted_message,
@@ -2258,7 +2409,7 @@ Respond with JSON only:
                                             print(f"[API] Stored response in {variable_name} - status: {status_code}")
                                         
                                         # Send result to frontend
-                                        await websocket.send_json({
+                                        await safe_send_json(websocket, {
                                             "type": "api_response",
                                             "stepIndex": i,
                                             "status": status_code,
@@ -2301,7 +2452,7 @@ Respond with JSON only:
                                                     raise Exception(f"Snippet not found: {snippet_id}")
                                                 
                                                 # Send snippet info to frontend
-                                                await websocket.send_json({
+                                                await safe_send_json(websocket, {
                                                     "type": "snippet_started",
                                                     "stepIndex": i,
                                                     "snippetId": str(snippet_id),
@@ -2344,7 +2495,7 @@ Respond with JSON only:
                                                     sub_comparison = sub_step.get("comparison", "")
                                                     
                                                     # Notify frontend about sub-step starting
-                                                    await websocket.send_json({
+                                                    await safe_send_json(websocket, {
                                                         "type": "snippet_substep_started",
                                                         "stepIndex": i,
                                                         "subStepIndex": sub_idx,
@@ -2492,7 +2643,7 @@ Respond with JSON only:
                                                             print(f"[SNIPPET] Unsupported step type in snippet: {sub_step_type}")
                                                         
                                                         # Notify sub-step completed successfully
-                                                        await websocket.send_json({
+                                                        await safe_send_json(websocket, {
                                                             "type": "snippet_substep_completed",
                                                             "stepIndex": i,
                                                             "subStepIndex": sub_idx,
@@ -2500,7 +2651,7 @@ Respond with JSON only:
                                                         })
                                                     except Exception as sub_step_err:
                                                         # Notify sub-step failed
-                                                        await websocket.send_json({
+                                                        await safe_send_json(websocket, {
                                                             "type": "snippet_substep_completed",
                                                             "stepIndex": i,
                                                             "subStepIndex": sub_idx,
@@ -2625,7 +2776,7 @@ Respond with JSON only:
                                     )
                                     db.add(healing_event)
                                 
-                                await websocket.send_json({
+                                await safe_send_json(websocket, {
                                     "type": "step_completed",
                                     "stepIndex": i,
                                     "status": step_status.value,
@@ -2677,7 +2828,7 @@ Respond with JSON only:
                                 except Exception as video_err:
                                     print(f"Failed to save video artifact: {video_err}")
                             
-                            await websocket.send_json({
+                            await safe_send_json(websocket, {
                                 "type": "test_execution_completed",
                                 "flowId": str(flow_id),
                                 "executionId": str(execution_run.id),
@@ -2686,15 +2837,22 @@ Respond with JSON only:
                                 "failedSteps": failed_count,
                                 "durationMs": total_duration
                             })
+                            
+                            # Cleanup: remove from active executions and stop session
+                            active_executions.discard(session_id)
+                            await browser_session_manager.stop_session(session_id)
                             break
                     except Exception as e:
-                        await websocket.send_json({
+                        active_executions.discard(session_id)
+                        # Always cleanup on fatal error
+                        await browser_session_manager.stop_session(session_id)
+                        await safe_send_json(websocket, {
                             "type": "error",
                             "error": f"Test execution failed: {str(e)}"
                         })
                 
                 elif action == "ping":
-                    await websocket.send_json({"type": "pong"})
+                    await safe_send_json(websocket, {"type": "pong"})
                 
             except json.JSONDecodeError:
                 if data == "ping":
@@ -2705,8 +2863,12 @@ Respond with JSON only:
     except Exception as e:
         print(f"Browser session WebSocket error: {e}")
     finally:
-        # Cleanup
-        await browser_session_manager.stop_session(session_id)
+        # Only cleanup if no execution is in progress for this session
+        # If execution is in progress, the test will complete and cleanup itself
+        is_executing = session_id in active_executions
+        if not is_executing:
+            await browser_session_manager.stop_session(session_id)
+        
         if session_id in browser_session_connections:
             del browser_session_connections[session_id]
 
