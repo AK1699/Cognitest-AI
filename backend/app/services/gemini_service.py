@@ -21,6 +21,25 @@ class GeminiService(SharedGeminiService):
     def __init__(self):
         super().__init__(settings)
 
+    async def generate_content(self, prompt: str) -> str:
+        """
+        Generate content from a simple string prompt.
+        Compatible with google-generativeai API naming.
+        """
+        try:
+            # Use the inherited generate_completion method
+            messages = [{"role": "user", "content": prompt}]
+            # We default to json_mode=True as this method is primarily used by web automation
+            # which expects structured JSON responses
+            return await self.generate_completion(
+                messages=messages,
+                temperature=0.7,
+                json_mode=True
+            )
+        except Exception as e:
+            logger.error(f"Gemini content generation failed: {e}")
+            raise ValueError(f"Failed to generate content: {str(e)}")
+
     async def generate_with_prompt(
         self,
         template: str,

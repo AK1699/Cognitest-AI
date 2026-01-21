@@ -84,44 +84,73 @@ class SelfHealingLocator:
         """
         Use AI to suggest alternative selectors
         """
-        # Get Simplified DOM snapshot
-        simplified_dom = await page.evaluate("""
-            () => {
-                function simplify(node, depth) {
-                    if (depth > 20) return ''; // limit depth
-                    if (node.nodeType === 3) { // Text node
-                        const text = node.textContent.trim();
-                        return text.length > 0 ? text.substring(0, 50) : '';
-                    }
-                    if (node.nodeType !== 1) return ''; // Only elements
+        try:
+            # Get Simplified DOM snapshot with timeout protection
+            # Note: page.evaluate does not accept timeout, so we wrap in asyncio.wait_for
+            dom_extraction = page.evaluate("""
+                () => {
+                    const MAX_LENGTH = 15000;
+                    let currentLength = 0;
+                    let truncated = false;
 
-                    const tag = node.tagName.toLowerCase();
-                    if (['script', 'style', 'svg', 'path', 'noscript', 'meta', 'link'].includes(tag)) return '';
-
-                    let attrs = '';
-                    const allow = ['id', 'class', 'name', 'role', 'type', 'placeholder', 'aria-label', 'data-testid', 'href', 'title', 'alt', 'for'];
-                    for (const a of allow) {
-                        if (node.hasAttribute(a)) {
-                            attrs += ` ${a}="${node.getAttribute(a)}"`;
+                    function simplify(node, depth) {
+                        if (truncated || depth > 10) return ''; // Reduced depth limit
+                        if (currentLength >= MAX_LENGTH) {
+                            truncated = true;
+                            return '';
                         }
-                    }
 
-                    let content = '';
-                    for (const child of node.childNodes) {
-                        content += simplify(child, depth + 1);
-                    }
+                        if (node.nodeType === 3) { // Text node
+                            const text = node.textContent.trim();
+                            if (text.length > 0) {
+                                const val = text.substring(0, 50);
+                                currentLength += val.length;
+                                return val;
+                            }
+                            return '';
+                        }
+                        if (node.nodeType !== 1) return ''; // Only elements
 
-                    // Prune empty non-interactive elements to save space
-                    const isInteractive = ['button', 'a', 'input', 'select', 'textarea', 'label'].includes(tag);
-                    if (!content.trim() && !isInteractive && !node.hasAttribute('id') && !node.hasAttribute('data-testid')) {
-                        return '';
-                    }
+                        const tag = node.tagName.toLowerCase();
+                        if (['script', 'style', 'svg', 'path', 'noscript', 'meta', 'link'].includes(tag)) return '';
 
-                    return `<${tag}${attrs}>${content}</${tag}>`;
+                        let attrs = '';
+                        const allow = ['id', 'class', 'name', 'role', 'type', 'placeholder', 'aria-label', 'data-testid', 'href', 'title', 'alt', 'for'];
+                        for (const a of allow) {
+                            if (node.hasAttribute(a)) {
+                                attrs += ` ${a}="${node.getAttribute(a)}"`;
+                            }
+                        }
+
+                        let content = '';
+                        // Limit child processing to avoid huge loops
+                        const children = Array.from(node.childNodes).slice(0, 50);
+                        for (const child of children) {
+                            content += simplify(child, depth + 1);
+                            if (truncated) break;
+                        }
+
+                        // Prune empty non-interactive elements to save space
+                        const isInteractive = ['button', 'a', 'input', 'select', 'textarea', 'label'].includes(tag);
+                        if (!content.trim() && !isInteractive && !node.hasAttribute('id') && !node.hasAttribute('data-testid')) {
+                            return '';
+                        }
+
+                        const result = `<${tag}${attrs}>${content}</${tag}>`;
+                        currentLength += result.length;
+                        return result;
+                    }
+                    try {
+                        return simplify(document.body, 0);
+                    } catch (e) {
+                        return "Error generating DOM snapshot: " + e.message;
+                    }
                 }
-                return simplify(document.body, 0);
-            }
-        """)
+            """)
+            simplified_dom = await asyncio.wait_for(dom_extraction, timeout=10.0)
+        except Exception as e:
+            print(f"AI Healing: DOM simplification failed: {e}")
+            return None, None
 
         page_url = page.url
         
@@ -137,7 +166,7 @@ class SelfHealingLocator:
         {json.dumps([alt["value"] for alt in self.alternatives], indent=2)}
         
         Here's the current page DOM (simplified for analysis):
-        {simplified_dom[:15000]}
+        {simplified_dom}
         
         Please suggest 3 alternative CSS selectors that might locate the intended element.
         Consider:
@@ -155,7 +184,11 @@ class SelfHealingLocator:
         """
         
         # Call AI service
-        ai_response = await self.ai_service.generate_content(prompt)
+        try:
+            ai_response = await self.ai_service.generate_content(prompt)
+        except Exception as e:
+            print(f"AI Healing: AI service call failed: {e}")
+            return None, None
         
         try:
             # Parse AI response
@@ -291,7 +324,25 @@ class SelfHealingAssertion:
              return str(actual_value).lower() == str(expected_value).lower()
         
         if assertion_type == "element_count":
-             return str(actual_value) == str(expected_value)
+             # Handle numeric comparison for element count
+             try:
+                 actual_int = int(actual_value)
+                 expected_int = int(expected_value)
+
+                 if operator == "equals":
+                     return actual_int == expected_int
+                 elif operator == "greater":
+                     return actual_int > expected_int
+                 elif operator == "less":
+                     return actual_int < expected_int
+                 elif operator == "at_least":
+                     return actual_int >= expected_int
+                 elif operator == "at_most":
+                     return actual_int <= expected_int
+                 else:
+                     return actual_int == expected_int
+             except ValueError:
+                 return str(actual_value) == str(expected_value)
 
         return self.compare_values(actual_value, expected_value, operator)
 
@@ -830,16 +881,19 @@ class WebAutomationExecutor:
             # Execute action based on type
             healing_info = await self.execute_action(step_type, step_data, test_flow)
             
-            # Capture screenshot
-            screenshot = await self.page.screenshot()
-            step_result.screenshot_url = f"screenshots/{self.execution_run.id}/{step_id}.png"
-            # TODO: Save screenshot to storage
-            
-            await self.emit_live_update("screenUpdate", {
-                "step_id": step_id,
-                "screenshot": f"data:image/png;base64,{screenshot.hex()}",
-                "url": self.page.url
-            })
+            # Capture screenshot (safe execution)
+            try:
+                screenshot = await self.page.screenshot()
+                step_result.screenshot_url = f"screenshots/{self.execution_run.id}/{step_id}.png"
+                # TODO: Save screenshot to storage
+
+                await self.emit_live_update("screenUpdate", {
+                    "step_id": step_id,
+                    "screenshot": f"data:image/png;base64,{screenshot.hex()}",
+                    "url": self.page.url
+                })
+            except Exception as s_e:
+                print(f"Screenshot failed (non-fatal): {s_e}")
             
             # Update step result
             step_result.status = StepStatus.PASSED
@@ -1780,7 +1834,23 @@ class WebAutomationExecutor:
             if isinstance(selector, str):
                 count = await self.page.locator(selector).count()
             else:
-                count = await self.page.locator(selector.get("css", selector.get("primary", ""))).count()
+                # If we have a healed locator from the block above (implied by execution flow if we used get_locator_with_healing),
+                # we technically don't have it in scope unless we assigned it.
+                # However, get_locator_with_healing was called inside the try/except block just to check for existence?
+                # The logic above was:
+                # try:
+                #     locator, _ = await self.get_locator_with_healing(...)
+                # except: pass
+                #
+                # This doesn't actually help "count" if the selector is wrong, unless we use that locator.
+                # Let's fix this to use the healed locator if we can.
+
+                try:
+                    locator, _ = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                    count = await locator.count()
+                except Exception:
+                    # Fallback to raw selector if healing failed entirely or errored
+                    count = await self.page.locator(selector.get("css", selector.get("primary", ""))).count()
             
             self.variables["element_count"] = str(count)
             
