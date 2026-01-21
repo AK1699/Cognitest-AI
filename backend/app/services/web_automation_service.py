@@ -1808,49 +1808,30 @@ class WebAutomationExecutor:
             expected_count = action_data.get("expected_count", 0)
             comparison = action_data.get("comparison", "equals")  # equals, greater, less, at_least, at_most
             
-            # Use healing locator first to find the element base if needed
-            # For count, we usually just use the selector directly.
-            # But if the count is 0 because the selector changed, we might want healing.
-            # However, healing usually requires finding ONE element. Count can be 0 or many.
-
             selector = selector_data.get("primary") or selector_data.get("css") or selector_data
             final_selector = selector
             if not isinstance(selector, str):
                 final_selector = selector.get("css", selector.get("primary", ""))
 
-            # If we expect > 0, we can try to find at least one element with healing
-            if expected_count > 0 or comparison in ["greater", "at_least"]:
-                 try:
-                     locator, _ = await self.get_locator_with_healing(selector_data, action_type, test_flow)
-                     # If healing worked, we might have a new selector in locator
-                     # But get_locator_with_healing returns a locator for the *first* element usually.
-                     # We can't easily extract the selector back from locator object in playwright python API publicly reliably
-                     # So we rely on the fact that if get_locator_with_healing succeeded, it means at least one element exists.
-                     # But we need the COUNT.
-                     pass
-                 except:
-                     pass
+            count = 0
+            used_healed_locator = False
 
-            if isinstance(selector, str):
-                count = await self.page.locator(selector).count()
-            else:
-                # If we have a healed locator from the block above (implied by execution flow if we used get_locator_with_healing),
-                # we technically don't have it in scope unless we assigned it.
-                # However, get_locator_with_healing was called inside the try/except block just to check for existence?
-                # The logic above was:
-                # try:
-                #     locator, _ = await self.get_locator_with_healing(...)
-                # except: pass
-                #
-                # This doesn't actually help "count" if the selector is wrong, unless we use that locator.
-                # Let's fix this to use the healed locator if we can.
+            # If we expect elements to exist, try healing if necessary
+            # Note: get_locator_with_healing will attempt to find at least one visible element
+            should_attempt_healing = expected_count > 0 or comparison in ["greater", "at_least"]
 
+            if should_attempt_healing:
                 try:
                     locator, _ = await self.get_locator_with_healing(selector_data, action_type, test_flow)
                     count = await locator.count()
+                    used_healed_locator = True
                 except Exception:
-                    # Fallback to raw selector if healing failed entirely or errored
-                    count = await self.page.locator(selector.get("css", selector.get("primary", ""))).count()
+                    # Healing failed or nothing found, proceed to fallback
+                    pass
+
+            if not used_healed_locator:
+                # Fallback to raw selector (implicit 0 if not found, or actual count if existing but healing logic skipped/failed)
+                count = await self.page.locator(final_selector).count()
             
             self.variables["element_count"] = str(count)
             
