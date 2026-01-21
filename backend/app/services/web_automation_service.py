@@ -84,8 +84,45 @@ class SelfHealingLocator:
         """
         Use AI to suggest alternative selectors
         """
-        # Get DOM snapshot
-        dom_html = await page.content()
+        # Get Simplified DOM snapshot
+        simplified_dom = await page.evaluate("""
+            () => {
+                function simplify(node, depth) {
+                    if (depth > 20) return ''; // limit depth
+                    if (node.nodeType === 3) { // Text node
+                        const text = node.textContent.trim();
+                        return text.length > 0 ? text.substring(0, 50) : '';
+                    }
+                    if (node.nodeType !== 1) return ''; // Only elements
+
+                    const tag = node.tagName.toLowerCase();
+                    if (['script', 'style', 'svg', 'path', 'noscript', 'meta', 'link'].includes(tag)) return '';
+
+                    let attrs = '';
+                    const allow = ['id', 'class', 'name', 'role', 'type', 'placeholder', 'aria-label', 'data-testid', 'href', 'title', 'alt', 'for'];
+                    for (const a of allow) {
+                        if (node.hasAttribute(a)) {
+                            attrs += ` ${a}="${node.getAttribute(a)}"`;
+                        }
+                    }
+
+                    let content = '';
+                    for (const child of node.childNodes) {
+                        content += simplify(child, depth + 1);
+                    }
+
+                    // Prune empty non-interactive elements to save space
+                    const isInteractive = ['button', 'a', 'input', 'select', 'textarea', 'label'].includes(tag);
+                    if (!content.trim() && !isInteractive && !node.hasAttribute('id') && !node.hasAttribute('data-testid')) {
+                        return '';
+                    }
+
+                    return `<${tag}${attrs}>${content}</${tag}>`;
+                }
+                return simplify(document.body, 0);
+            }
+        """)
+
         page_url = page.url
         
         # Prepare AI prompt
@@ -99,8 +136,8 @@ class SelfHealingLocator:
         Failed alternatives tried:
         {json.dumps([alt["value"] for alt in self.alternatives], indent=2)}
         
-        Here's the current page DOM (truncated to relevant section):
-        {dom_html[:5000]}
+        Here's the current page DOM (simplified for analysis):
+        {simplified_dom[:15000]}
         
         Please suggest 3 alternative CSS selectors that might locate the intended element.
         Consider:
@@ -205,10 +242,12 @@ class SelfHealingAssertion:
         try:
             # Try standard assertion
             success = await self.standard_assert(page, assertion)
+            if not success:
+                raise Exception("Assertion failed")
             return success, None
         except Exception as e:
             # Get actual value
-            actual_value = await self.get_actual_value(page, selector, assertion_type)
+            actual_value = await self.get_actual_value(page, selector, assertion_type, assertion)
             
             # Ask AI if this is a legitimate change
             healing_info = await self.suggest_assertion_update(
@@ -233,8 +272,8 @@ class SelfHealingAssertion:
                 })
                 return success, healing_info
             
-            # Healing not applicable, raise original error
-            raise
+            # Healing not applicable, return failure
+            return False, None
     
     async def standard_assert(self, page: Page, assertion: Dict[str, Any]) -> bool:
         """
@@ -243,28 +282,39 @@ class SelfHealingAssertion:
         assertion_type = assertion.get("type")
         selector = assertion.get("selector")
         expected_value = assertion.get("expectedValue")
+        operator = assertion.get("operator", "equals")
         
-        if assertion_type == "text":
-            locator = page.locator(selector)
-            actual_text = await locator.text_content()
-            return actual_text == expected_value
+        actual_value = await self.get_actual_value(page, selector, assertion_type, assertion)
         
-        elif assertion_type == "visible":
-            locator = page.locator(selector)
-            return await locator.is_visible()
+        if assertion_type == "visible":
+             # expected_value is likely boolean or string "true"/"false"
+             return str(actual_value).lower() == str(expected_value).lower()
         
-        elif assertion_type == "url":
-            return page.url == expected_value
-        
-        elif assertion_type == "attribute":
-            locator = page.locator(selector)
-            attr_name = assertion.get("attributeName")
-            actual_value = await locator.get_attribute(attr_name)
-            return actual_value == expected_value
-        
+        if assertion_type == "element_count":
+             return str(actual_value) == str(expected_value)
+
+        return self.compare_values(actual_value, expected_value, operator)
+
+    def compare_values(self, actual, expected, operator):
+        if not isinstance(actual, str):
+            actual = str(actual)
+        if not isinstance(expected, str):
+            expected = str(expected)
+
+        if operator == "equals":
+            return actual == expected
+        elif operator == "contains":
+            return expected in actual
+        elif operator == "starts_with":
+            return actual.startswith(expected)
+        elif operator == "ends_with":
+            return actual.endswith(expected)
+        elif operator == "regex":
+            import re
+            return bool(re.search(expected, actual))
         return False
     
-    async def get_actual_value(self, page: Page, selector: str, assertion_type: str) -> str:
+    async def get_actual_value(self, page: Page, selector: str, assertion_type: str, assertion: Dict[str, Any] = None) -> str:
         """
         Get actual value from page
         """
@@ -272,6 +322,8 @@ class SelfHealingAssertion:
             if assertion_type == "text":
                 locator = page.locator(selector)
                 return await locator.text_content() or ""
+            elif assertion_type == "title":
+                return await page.title()
             elif assertion_type == "url":
                 return page.url
             elif assertion_type == "visible":
@@ -279,9 +331,14 @@ class SelfHealingAssertion:
                 return str(await locator.is_visible())
             elif assertion_type == "attribute":
                 locator = page.locator(selector)
-                return await locator.get_attribute("value") or ""
+                attr_name = assertion.get("attributeName") if assertion else "value"
+                return await locator.get_attribute(attr_name) or ""
+            elif assertion_type == "element_count":
+                 locator = page.locator(selector)
+                 return str(await locator.count())
         except Exception:
             return "ERROR: Could not retrieve value"
+        return ""
     
     async def suggest_assertion_update(
         self,
@@ -859,44 +916,34 @@ class WebAutomationExecutor:
                 action_data.get("expected_title") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_title = await self.page.title()
             
-            passed = False
-            if comparison == "equals":
-                passed = actual_title == expected_title
-            elif comparison == "contains":
-                passed = expected_title in actual_title
-            elif comparison == "starts_with":
-                passed = actual_title.startswith(expected_title)
-            elif comparison == "ends_with":
-                passed = actual_title.endswith(expected_title)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_title, actual_title))
-            
-            if not passed:
+            assertion = {
+                "type": "title",
+                "expectedValue": expected_title,
+                "operator": comparison
+            }
+            assertor = SelfHealingAssertion(self.ai_service)
+            success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+            if not success:
+                actual_title = await self.page.title()
                 raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
-        
+
         elif action_type == "assert_url":
             # Check expected_url first, fallback to value (frontend uses 'value' field)
             expected_url = self.substitute_variables(
                 action_data.get("expected_url") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_url = self.page.url
             
-            passed = False
-            if comparison == "equals":
-                passed = actual_url == expected_url
-            elif comparison == "contains":
-                passed = expected_url in actual_url
-            elif comparison == "starts_with":
-                passed = actual_url.startswith(expected_url)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_url, actual_url))
-            
-            if not passed:
+            assertion = {
+                "type": "url",
+                "expectedValue": expected_url,
+                "operator": comparison
+            }
+            assertor = SelfHealingAssertion(self.ai_service)
+            success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+            if not success:
+                actual_url = self.page.url
                 raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
         
         elif action_type == "wait":
@@ -1707,7 +1754,29 @@ class WebAutomationExecutor:
             expected_count = action_data.get("expected_count", 0)
             comparison = action_data.get("comparison", "equals")  # equals, greater, less, at_least, at_most
             
+            # Use healing locator first to find the element base if needed
+            # For count, we usually just use the selector directly.
+            # But if the count is 0 because the selector changed, we might want healing.
+            # However, healing usually requires finding ONE element. Count can be 0 or many.
+
             selector = selector_data.get("primary") or selector_data.get("css") or selector_data
+            final_selector = selector
+            if not isinstance(selector, str):
+                final_selector = selector.get("css", selector.get("primary", ""))
+
+            # If we expect > 0, we can try to find at least one element with healing
+            if expected_count > 0 or comparison in ["greater", "at_least"]:
+                 try:
+                     locator, _ = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                     # If healing worked, we might have a new selector in locator
+                     # But get_locator_with_healing returns a locator for the *first* element usually.
+                     # We can't easily extract the selector back from locator object in playwright python API publicly reliably
+                     # So we rely on the fact that if get_locator_with_healing succeeded, it means at least one element exists.
+                     # But we need the COUNT.
+                     pass
+                 except:
+                     pass
+
             if isinstance(selector, str):
                 count = await self.page.locator(selector).count()
             else:
@@ -1728,18 +1797,35 @@ class WebAutomationExecutor:
                 passed = count <= expected_count
             
             if not passed:
-                raise Exception(f"Element count assertion failed: found {count}, expected {comparison} {expected_count}")
+                # Use SelfHealingAssertion for context-aware healing if possible
+                assertion = {
+                    "type": "element_count",
+                    "selector": final_selector,
+                    "expectedValue": str(expected_count),
+                    "operator": comparison
+                }
+                assertor = SelfHealingAssertion(self.ai_service)
+                # Note: standard_assert for element_count currently just returns string comparison
+                # We might want to improve this in future
+                success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+                if not success:
+                    raise Exception(f"Element count assertion failed: found {count}, expected {comparison} {expected_count}")
 
         elif action_type == "assert_not_visible":
             selector_data = action_data.get("selector", {})
             selector = selector_data.get("primary") or selector_data.get("css") or selector_data
-            if isinstance(selector, str):
-                is_visible = await self.page.locator(selector).is_visible()
-            else:
-                is_visible = await self.page.locator(selector.get("css", "")).is_visible()
+            final_selector = selector
+            if not isinstance(selector, str):
+                final_selector = selector.get("css", "")
+
+            is_visible = await self.page.locator(final_selector).is_visible()
             
             if is_visible:
-                raise Exception(f"Element is visible but expected to be hidden: {selector}")
+                # If it IS visible, maybe the selector is pointing to something else or context changed?
+                # But 'not visible' healing is tricky. If it's visible, it failed.
+                # AI could check if it's "effectively" not visible (e.g. obscured)?
+                # For now, just raise
+                raise Exception(f"Element is visible but expected to be hidden: {final_selector}")
 
         elif action_type == "soft_assert":
             # Like assert but doesn't stop execution
