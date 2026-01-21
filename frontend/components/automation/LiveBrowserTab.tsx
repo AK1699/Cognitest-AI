@@ -125,7 +125,7 @@ export default function LiveBrowserTab({
         index: number
         name: string
         type: string
-        status: 'pending' | 'running' | 'passed' | 'failed' | 'healed'
+        status: 'pending' | 'running' | 'passed' | 'failed'
         error?: string
         selector?: string
         value?: string
@@ -137,16 +137,6 @@ export default function LiveBrowserTab({
         cookie_name?: string
         logMessage?: string
         apiStatus?: number
-        // AI Self-Healing fields
-        healingInProgress?: boolean
-        healingMessage?: string
-        healingInfo?: {
-            originalSelector: string
-            healedSelector: string
-            strategy: 'alternative' | 'ai' | 'similarity'
-            confidence?: number
-            aiReasoning?: string
-        }
         // Snippet-specific fields
         snippetName?: string
         subSteps?: Array<{
@@ -164,6 +154,7 @@ export default function LiveBrowserTab({
             comparison?: string
         }>
     }>>([])
+
     // Element Inspector
     const [inspectMode, setInspectMode] = useState(true) // Enable inspector by default
     const [selectedElement, setSelectedElement] = useState<any>(null)
@@ -390,36 +381,10 @@ export default function LiveBrowserTab({
                 break
 
             case 'step_completed':
-                console.log(`Step ${data.stepIndex + 1} ${data.status}`, data.healed ? '[AI HEALED]' : '', data.error || '')
+                console.log(`Step ${data.stepIndex + 1} ${data.status}`, data.error || '')
                 setExecutingSteps(prev => prev.map((step, i) =>
                     i === data.stepIndex
-                        ? {
-                            ...step,
-                            status: data.healed ? 'healed' as const : (data.status as 'passed' | 'failed'),
-                            error: data.error,
-                            healingInProgress: false,
-                            healingInfo: data.healed && data.healing_info ? {
-                                originalSelector: data.healing_info.original || step.selector || '',
-                                healedSelector: data.healing_info.healed || '',
-                                strategy: data.healing_info.strategy || 'ai',
-                                confidence: data.healing_info.confidence_score,
-                                aiReasoning: data.healing_info.ai_reasoning
-                            } : undefined
-                        }
-                        : step
-                ))
-                break
-
-            case 'step_healing':
-                console.log(`Step ${data.stepIndex + 1}: AI healing in progress - ${data.message}`)
-                setExecutingSteps(prev => prev.map((step, i) =>
-                    i === data.stepIndex
-                        ? {
-                            ...step,
-                            status: 'running' as const,
-                            healingInProgress: true,
-                            healingMessage: data.message
-                        }
+                        ? { ...step, status: data.status as 'passed' | 'failed', error: data.error }
                         : step
                 ))
                 break
@@ -1407,27 +1372,21 @@ export default function LiveBrowserTab({
                                                     ? 'border-blue-300 ring-2 ring-blue-100'
                                                     : step.status === 'passed'
                                                         ? 'border-gray-200'
-                                                        : step.status === 'healed'
-                                                            ? 'border-amber-300 ring-2 ring-amber-100'
-                                                            : step.status === 'failed'
-                                                                ? 'border-red-300'
-                                                                : 'border-gray-100 opacity-60'
+                                                        : step.status === 'failed'
+                                                            ? 'border-red-300'
+                                                            : 'border-gray-100 opacity-60'
                                                     }`}
                                             >
                                                 <div className={`flex items-start p-3 ${step.status === 'running' ? 'bg-blue-50/50' :
-                                                    step.status === 'failed' ? 'bg-red-50/50' :
-                                                        step.status === 'healed' ? 'bg-amber-50/50' : ''
+                                                    step.status === 'failed' ? 'bg-red-50/50' : ''
                                                     }`}>
                                                     {/* Step Number Circle */}
                                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${step.status === 'passed' ? 'bg-green-500 text-white' :
-                                                        step.status === 'healed' ? 'bg-amber-500 text-white' :
-                                                            step.status === 'running' ? 'bg-blue-500 text-white' :
-                                                                step.status === 'failed' ? 'bg-red-500 text-white' :
-                                                                    'bg-gray-200 text-gray-500'
+                                                        step.status === 'running' ? 'bg-blue-500 text-white' :
+                                                            step.status === 'failed' ? 'bg-red-500 text-white' :
+                                                                'bg-gray-200 text-gray-500'
                                                         }`}>
                                                         {step.status === 'passed' ? (
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                        ) : step.status === 'healed' ? (
                                                             <CheckCircle2 className="w-4 h-4" />
                                                         ) : step.status === 'running' ? (
                                                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1481,38 +1440,9 @@ export default function LiveBrowserTab({
                                                                 )}
                                                             </span>
                                                             {step.status === 'running' && (
-                                                                <span className="text-xs text-blue-600 animate-pulse">
-                                                                    {step.healingInProgress ? 'AI Healing...' : 'Running...'}
-                                                                </span>
-                                                            )}
-                                                            {step.status === 'healed' && (
-                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                                                    ✨ AI Self-Healed
-                                                                </span>
+                                                                <span className="text-xs text-blue-600 animate-pulse">Running...</span>
                                                             )}
                                                         </div>
-
-                                                        {/* AI Healing Info - Show old/new locator comparison */}
-                                                        {step.healingInfo && (
-                                                            <div className="mt-2 p-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-md border border-amber-200">
-                                                                <div className="flex items-center gap-2 text-xs">
-                                                                    <span className="text-gray-500">Original:</span>
-                                                                    <code className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-mono line-through truncate max-w-[200px]" title={step.healingInfo.originalSelector}>
-                                                                        {step.healingInfo.originalSelector}
-                                                                    </code>
-                                                                    <span className="text-amber-500">→</span>
-                                                                    <span className="text-gray-500">Healed:</span>
-                                                                    <code className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-mono truncate max-w-[200px]" title={step.healingInfo.healedSelector}>
-                                                                        {step.healingInfo.healedSelector}
-                                                                    </code>
-                                                                </div>
-                                                                {step.healingInfo.aiReasoning && (
-                                                                    <p className="mt-1 text-xs text-gray-600 italic">
-                                                                        💡 {step.healingInfo.aiReasoning}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        )}
 
                                                         {/* Details Row */}
                                                         <div className="flex flex-wrap gap-1.5">

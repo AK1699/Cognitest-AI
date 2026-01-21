@@ -18,6 +18,7 @@ from app.models.web_automation import (
     HealingType, HealingStrategy
 )
 from app.services.gemini_service import GeminiService
+from app.services.self_heal_service import SelfHealService
 
 
 class SelfHealingLocator:
@@ -445,6 +446,7 @@ class WebAutomationExecutor:
     def __init__(self, db: Session):
         self.db = db
         self.ai_service = GeminiService()
+        self.self_heal_service = SelfHealService(db)
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
@@ -458,6 +460,18 @@ class WebAutomationExecutor:
     
     async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
         """Emit live update to all registered callbacks"""
+        from datetime import datetime
+        message = {
+            "execution_run_id": str(self.execution_run.id) if self.execution_run else None,
+            "type": update_type,
+            "payload": payload,
+            "recorded_at": datetime.utcnow().isoformat()
+        }
+        for callback in self.ws_callbacks:
+            try:
+                await callback(message)
+            except Exception as e:
+                print(f"WebSocket callback error: {str(e)}")
 
     def substitute_variables(self, text: str) -> str:
         """
@@ -521,21 +535,6 @@ class WebAutomationExecutor:
             
         # Updated regex to support dot notation in variable names
         return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_.]*)\}', replace, text)
-
-    async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
-        """Emit live update to all registered callbacks"""
-        message = {
-            "type": update_type,
-            "execution_run_id": str(self.execution_run.id) if self.execution_run else None,
-            "payload": payload,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        for callback in self.ws_callbacks:
-            try:
-                await callback(message)
-            except Exception as e:
-                print(f"WebSocket callback error: {str(e)}")
     
     async def execute_test_flow(
         self,
@@ -885,19 +884,16 @@ class WebAutomationExecutor:
             # Execute action based on type
             healing_info = await self.execute_action(step_type, step_data, test_flow)
             
-            # Capture screenshot (safe execution)
-            try:
-                screenshot = await self.page.screenshot()
-                step_result.screenshot_url = f"screenshots/{self.execution_run.id}/{step_id}.png"
-                # TODO: Save screenshot to storage
+            # Capture screenshot
+            screenshot = await self.page.screenshot()
+            step_result.screenshot_url = f"screenshots/{self.execution_run.id}/{step_id}.png"
+            # TODO: Save screenshot to storage
 
-                await self.emit_live_update("screenUpdate", {
-                    "step_id": step_id,
-                    "screenshot": f"data:image/png;base64,{screenshot.hex()}",
-                    "url": self.page.url
-                })
-            except Exception as s_e:
-                print(f"Screenshot failed (non-fatal): {s_e}")
+            await self.emit_live_update("screenUpdate", {
+                "step_id": step_id,
+                "screenshot": f"data:image/png;base64,{screenshot.hex()}",
+                "url": self.page.url
+            })
             
             # Update step result
             step_result.status = StepStatus.PASSED
@@ -905,6 +901,11 @@ class WebAutomationExecutor:
                 step_result.was_healed = True
                 step_result.healing_applied = healing_info
                 self.execution_run.healed_steps += 1
+                # Live updates for healing
+                await self.emit_live_update("healingApplied", {
+                    "step_id": step_id,
+                    "healing_info": healing_info
+                })
             
             self.execution_run.passed_steps += 1
             
@@ -2099,6 +2100,24 @@ class WebAutomationExecutor:
                 )
                 self.db.add(healing_event)
                 self.db.commit()
+                self.db.refresh(healing_event)
+
+                # Emit live update for healing
+                await self.emit_live_update("healingApplied", {
+                    "step_id": step_id,
+                    "type": healing_info["type"],
+                    "strategy": healing_info["strategy"],
+                    "original": healing_info["original"],
+                    "healed": healing_info["healed"],
+                    "confidence": healing_info.get("confidence_score", 0.8)
+                })
+
+                # Auto-update locator patterns if enabled
+                if test_flow.auto_update_selectors:
+                    await self.self_heal_service.auto_update_locator(
+                        healing_event.id,
+                        confidence_threshold=test_flow.healing_confidence_threshold
+                    )
             
             return locator, healing_info
         else:
