@@ -41,7 +41,8 @@ class SelfHealingLocator:
             locator = page.locator(self.primary_selector)
             await locator.wait_for(timeout=5000, state="visible")
             return locator, None
-        except PlaywrightError as e:
+        except Exception as e:
+            # Catch ALL exceptions including PlaywrightError and unexpected ones
             print(f"Primary selector failed: {self.primary_selector} - {str(e)}")
         
         # Strategy 2: Try alternative selectors
@@ -59,7 +60,7 @@ class SelfHealingLocator:
                     "success": True
                 }
                 return locator, healing_info
-            except PlaywrightError:
+            except Exception:
                 continue
         
         # Strategy 3: AI-powered healing
@@ -89,12 +90,12 @@ class SelfHealingLocator:
             # Note: page.evaluate does not accept timeout, so we wrap in asyncio.wait_for
             dom_extraction = page.evaluate("""
                 () => {
-                    const MAX_LENGTH = 15000;
+                    const MAX_LENGTH = 10000;
                     let currentLength = 0;
                     let truncated = false;
 
                     function simplify(node, depth) {
-                        if (truncated || depth > 10) return ''; // Reduced depth limit
+                        if (truncated || depth > 5) return ''; // Reduced depth limit to prevent crashes
                         if (currentLength >= MAX_LENGTH) {
                             truncated = true;
                             return '';
@@ -757,29 +758,32 @@ class WebAutomationExecutor:
         self,
         browser_type: BrowserType,
         execution_mode: ExecutionMode,
-        options: Dict[str, Any] = None # Added default None
+        options: Dict[str, Any] = None
     ):
         """
         Initialize browser instance
         """
-        self.playwright = await async_playwright().start() # Changed from local playwright variable
+        if options is None:
+            options = {}
+
+        self.playwright = await async_playwright().start()
         
         launch_options = {
-            "headless": mode == ExecutionMode.HEADLESS,
+            "headless": execution_mode == ExecutionMode.HEADLESS,
             **options.get("launch_options", {})
         }
         
         # Select browser
         if browser_type == BrowserType.CHROME:
-            self.browser = await playwright.chromium.launch(channel="chrome", **launch_options)
+            self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_options)
         elif browser_type == BrowserType.FIREFOX:
-            self.browser = await playwright.firefox.launch(**launch_options)
+            self.browser = await self.playwright.firefox.launch(**launch_options)
         elif browser_type == BrowserType.SAFARI:
-            self.browser = await playwright.webkit.launch(**launch_options)
+            self.browser = await self.playwright.webkit.launch(**launch_options)
         elif browser_type == BrowserType.EDGE:
-            self.browser = await playwright.chromium.launch(channel="msedge", **launch_options)
+            self.browser = await self.playwright.chromium.launch(channel="msedge", **launch_options)
         else:
-            self.browser = await playwright.chromium.launch(**launch_options)
+            self.browser = await self.playwright.chromium.launch(**launch_options)
         
         # Create context
         context_options = {
@@ -789,7 +793,7 @@ class WebAutomationExecutor:
             **options.get("context_options", {})
         }
         
-        if mode == ExecutionMode.HEADED:
+        if execution_mode == ExecutionMode.HEADED:
             context_options["record_video_dir"] = "videos/"
         
         self.context = await self.browser.new_context(**context_options)
@@ -947,7 +951,13 @@ class WebAutomationExecutor:
             locator, healing_info = await self.get_locator_with_healing(
                 selector_data, action_type, test_flow
             )
-            await locator.click()
+            try:
+                await locator.click()
+            except PlaywrightError as e:
+                # If target closed, it's fatal, but we want to log it clearly
+                if "Target closed" in str(e):
+                    raise Exception(f"Browser crashed during click: {str(e)}")
+                raise e
         
         elif action_type == "type":
             selector_data = action_data.get("selector", {})
@@ -955,7 +965,12 @@ class WebAutomationExecutor:
             locator, healing_info = await self.get_locator_with_healing(
                 selector_data, action_type, test_flow
             )
-            await locator.fill(value)
+            try:
+                await locator.fill(value)
+            except PlaywrightError as e:
+                if "Target closed" in str(e):
+                     raise Exception(f"Browser crashed during type: {str(e)}")
+                raise e
         
         elif action_type == "assert":
             assertion = action_data.get("assertion", {})
