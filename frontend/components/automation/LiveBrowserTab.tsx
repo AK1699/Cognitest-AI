@@ -33,7 +33,9 @@ import {
     Info,
     AlertTriangle,
     Search,
-    Keyboard
+    Keyboard,
+    Sparkles,
+    BrainCircuit
 } from 'lucide-react'
 import { webAutomationApi } from '@/lib/api/webAutomation'
 
@@ -153,7 +155,7 @@ export default function LiveBrowserTab({
             index: number
             name: string
             type: string
-            status: 'pending' | 'running' | 'passed' | 'failed'
+            status: 'pending' | 'running' | 'passed' | 'failed' | 'healed'
             error?: string
             selector?: string
             value?: string
@@ -162,6 +164,15 @@ export default function LiveBrowserTab({
             expectedUrl?: string
             expectedTitle?: string
             comparison?: string
+            healingInProgress?: boolean
+            healingMessage?: string
+            healingInfo?: {
+                originalSelector: string
+                healedSelector: string
+                strategy: 'alternative' | 'ai' | 'similarity'
+                confidence?: number
+                aiReasoning?: string
+            }
         }>
     }>>([])
     // Element Inspector
@@ -399,11 +410,11 @@ export default function LiveBrowserTab({
                             error: data.error,
                             healingInProgress: false,
                             healingInfo: data.healed && data.healing_info ? {
-                                originalSelector: data.healing_info.original || step.selector || '',
-                                healedSelector: data.healing_info.healed || '',
-                                strategy: data.healing_info.strategy || 'ai',
-                                confidence: data.healing_info.confidence_score,
-                                aiReasoning: data.healing_info.ai_reasoning
+                                originalSelector: data.healing_info.originalSelector || data.healing_info.original || data.healing_info.original_value || step.selector || '',
+                                healedSelector: data.healing_info.healedSelector || data.healing_info.healed || data.healing_info.healed_value || '',
+                                strategy: data.healing_info.strategy?.toLowerCase() || 'ai',
+                                confidence: data.healing_info.confidence_score || data.healing_info.confidence,
+                                aiReasoning: data.healing_info.ai_reasoning || data.healing_info.reasoning
                             } : undefined
                         }
                         : step
@@ -414,12 +425,26 @@ export default function LiveBrowserTab({
                 console.log(`Step ${data.stepIndex + 1}: AI healing in progress - ${data.message}`)
                 setExecutingSteps(prev => prev.map((step, i) =>
                     i === data.stepIndex
-                        ? {
-                            ...step,
-                            status: 'running' as const,
-                            healingInProgress: true,
-                            healingMessage: data.message
-                        }
+                        ? data.subStepIndex !== undefined && step.subSteps
+                            ? {
+                                ...step,
+                                subSteps: step.subSteps.map((subStep, si) =>
+                                    si === data.subStepIndex
+                                        ? {
+                                            ...subStep,
+                                            status: 'running' as const,
+                                            healingInProgress: true,
+                                            healingMessage: data.message
+                                        }
+                                        : subStep
+                                )
+                            }
+                            : {
+                                ...step,
+                                status: 'running' as const,
+                                healingInProgress: true,
+                                healingMessage: data.message
+                            }
                         : step
                 ))
                 break
@@ -484,8 +509,16 @@ export default function LiveBrowserTab({
                                 si === data.subStepIndex
                                     ? {
                                         ...subStep,
-                                        status: data.status as 'passed' | 'failed',
-                                        error: data.error
+                                        status: data.healed ? 'healed' as const : (data.status as 'passed' | 'failed'),
+                                        error: data.error,
+                                        healingInProgress: false,
+                                        healingInfo: data.healed && data.healing_info ? {
+                                            originalSelector: data.healing_info.originalSelector || data.healing_info.original || data.healing_info.original_value || subStep.selector || '',
+                                            healedSelector: data.healing_info.healedSelector || data.healing_info.healed || data.healing_info.healed_value || '',
+                                            strategy: data.healing_info.strategy?.toLowerCase() || 'ai',
+                                            confidence: data.healing_info.confidence_score || data.healing_info.confidence,
+                                            aiReasoning: data.healing_info.ai_reasoning || data.healing_info.reasoning
+                                        } : undefined
                                     }
                                     : subStep
                             )
@@ -497,19 +530,6 @@ export default function LiveBrowserTab({
             case 'test_execution_completed':
                 console.log('Test execution completed:', data.flowId)
                 testRunInitiatedRef.current = false
-                // Stop the browser session after test completes
-                setTimeout(() => {
-                    console.log('Stopping browser session...')
-                    // Send stop action via WebSocket
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(JSON.stringify({ action: 'stop' }))
-                        wsRef.current.close()
-                    }
-                    setSessionId(null)
-                    setSessionStatus('stopped')
-                    setScreenshot(null)
-                    stopTimer()
-                }, 1500) // Wait 1.5 seconds so user can see final result
                 onTestComplete?.()
                 break
 
@@ -1482,35 +1502,75 @@ export default function LiveBrowserTab({
                                                             </span>
                                                             {step.status === 'running' && (
                                                                 <span className="text-xs text-blue-600 animate-pulse">
-                                                                    {step.healingInProgress ? 'AI Healing...' : 'Running...'}
+                                                                    Running...
                                                                 </span>
                                                             )}
                                                             {step.status === 'healed' && (
-                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                                                    ✨ AI Self-Healed
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 animate-in fade-in zoom-in duration-300">
+                                                                    <Sparkles className="w-3 h-3 mr-1 text-amber-500" />
+                                                                    AI SELF-HEALED
                                                                 </span>
                                                             )}
                                                         </div>
 
-                                                        {/* AI Healing Info - Show old/new locator comparison */}
+                                                        {/* AI Healing Info - Premium Card */}
                                                         {step.healingInfo && (
-                                                            <div className="mt-2 p-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-md border border-amber-200">
-                                                                <div className="flex items-center gap-2 text-xs">
-                                                                    <span className="text-gray-500">Original:</span>
-                                                                    <code className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-mono line-through truncate max-w-[200px]" title={step.healingInfo.originalSelector}>
-                                                                        {step.healingInfo.originalSelector}
-                                                                    </code>
-                                                                    <span className="text-amber-500">→</span>
-                                                                    <span className="text-gray-500">Healed:</span>
-                                                                    <code className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-mono truncate max-w-[200px]" title={step.healingInfo.healedSelector}>
-                                                                        {step.healingInfo.healedSelector}
-                                                                    </code>
+                                                            <div className="mt-3 overflow-hidden rounded-lg border border-amber-100 bg-white shadow-sm transition-all animate-in slide-in-from-top-2 duration-500">
+                                                                <div className="bg-amber-500 px-3 py-1.5 flex items-center gap-2">
+                                                                    <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+                                                                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">
+                                                                        AI Self-Healing Applied
+                                                                    </span>
                                                                 </div>
-                                                                {step.healingInfo.aiReasoning && (
-                                                                    <p className="mt-1 text-xs text-gray-600 italic">
-                                                                        💡 {step.healingInfo.aiReasoning}
-                                                                    </p>
-                                                                )}
+                                                                <div className="p-3 space-y-3">
+                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                        <div className="space-y-1">
+                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight font-sans">Original Selector</span>
+                                                                            <div className="font-mono text-[11px] p-2 bg-red-50 text-red-600 line-through rounded border border-red-100 break-all leading-relaxed whitespace-pre-wrap">
+                                                                                {step.healingInfo.originalSelector}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight font-sans">Healed Selector</span>
+                                                                            <div className="font-mono text-[11px] p-2 bg-green-50 text-green-700 font-bold rounded border border-green-100 break-all leading-relaxed whitespace-pre-wrap">
+                                                                                {step.healingInfo.healedSelector}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center justify-between gap-4 pt-2 border-t border-gray-100">
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight font-sans">Strategy</span>
+                                                                            <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] border border-gray-200 capitalize font-medium">
+                                                                                {step.healingInfo.strategy || 'AI Analysis'}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex-1 max-w-[120px]">
+                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase font-sans">Confidence</span>
+                                                                                <span className="text-[10px] font-bold text-green-600">{step.healingInfo.confidence || 95}%</span>
+                                                                            </div>
+                                                                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    className="h-full bg-green-500 rounded-full transition-all duration-1000"
+                                                                                    style={{ width: `${step.healingInfo.confidence || 95}%` }}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {step.healingInfo.aiReasoning && (
+                                                                        <div className="pt-2 border-t border-gray-100">
+                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight font-sans block mb-1">AI Reasoning</span>
+                                                                            <div className="p-2 bg-blue-50/50 rounded border border-blue-100">
+                                                                                <p className="text-[11px] text-gray-600 italic flex items-start gap-2 leading-normal">
+                                                                                    <BrainCircuit className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+                                                                                    {step.healingInfo.aiReasoning}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         )}
 

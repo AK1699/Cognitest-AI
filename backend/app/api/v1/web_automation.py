@@ -1450,72 +1450,93 @@ async def websocket_browser_session(
                                 Keeps step in 'running' state while AI analyzes DOM.
                                 Returns: (was_healed, healing_info, selector_used)
                                 """
-                                nonlocal was_healed, healing_info
                                 
-                                # Check if browser/page is still open before proceeding
-                                if not session.page or session.page.is_closed():
-                                    raise Exception("Browser page has been closed")
-                                
-                                # First try with original selector
-                                try:
-                                    if use_locator:
-                                        locator = session.page.locator(original_selector)
-                                        await locator.wait_for(timeout=5000, state="visible")
-                                        result = action_fn(locator)
-                                        # Handle both sync and async functions
-                                        if hasattr(result, '__await__'):
-                                            await result
-                                    else:
-                                        result = action_fn(original_selector)
-                                        if hasattr(result, '__await__'):
-                                            await result
-                                    return False, None, original_selector
-                                except Exception as primary_err:
-                                    error_msg = str(primary_err).lower()
-                                    # Don't try healing if browser is closed
-                                    if "closed" in error_msg or "destroyed" in error_msg:
-                                        raise primary_err
-                                    
-                                    if not healing_enabled or not ai_service:
-                                        raise primary_err
-                                    
-                                    # Check again if browser is still open before healing
-                                    if not session.page or session.page.is_closed():
-                                        raise Exception("Browser page closed during execution")
-                                    
-                                    # Send step_healing message to keep UI in loading state
-                                    await safe_send_json(websocket, {
-                                        "type": "step_healing",
-                                        "stepIndex": step_index,
-                                        "message": f"AI analyzing DOM to find correct locator for {action_name}...",
-                                        "originalSelector": original_selector
-                                    })
-                                    
-                                    # Try self-healing with SelfHealingLocator
-                                    healer = SelfHealingLocator(original_selector, alternatives, ai_service)
+                                max_total_retries = 3
+                                for attempt in range(max_total_retries):
                                     try:
-                                        healed_locator, heal_info = await healer.find_element(session.page, step_id, step_type)
-                                        if healed_locator and heal_info:
-                                            # Execute action with healed locator
+                                        # Ensure we have an active page before proceeding
+                                        page = await session.get_active_page()
+                                        if not page:
+                                            if attempt < max_total_retries - 1:
+                                                await asyncio.sleep(2)
+                                                continue
+                                            raise Exception(f"Browser page has been closed and no other tabs are available. (Page count: {len(session.context.pages) if session.context else 'N/A'}, Status: {session.status})")
+                                        
+                                        # Layer 1: Try with original selector
+                                        try:
                                             if use_locator:
-                                                result = action_fn(healed_locator)
+                                                locator = page.locator(original_selector)
+                                                await locator.wait_for(timeout=3000 if attempt == 0 else 5000, state="visible")
+                                                result = action_fn(locator)
+                                                # Handle both sync and async functions
                                                 if hasattr(result, '__await__'):
                                                     await result
                                             else:
-                                                healed_selector = heal_info.get("healed", original_selector)
-                                                result = action_fn(healed_selector)
+                                                result = action_fn(original_selector)
                                                 if hasattr(result, '__await__'):
                                                     await result
+                                            return False, None, original_selector
+                                        except Exception as primary_err:
+                                            error_msg = str(primary_err).lower()
                                             
-                                            # Return healing success info
-                                            return True, heal_info, heal_info.get("healed", original_selector)
-                                        else:
-                                            raise primary_err
-                                    except Exception as heal_err:
-                                        heal_msg = str(heal_err).lower()
-                                        if "closed" in heal_msg or "destroyed" in heal_msg:
-                                            raise heal_err
-                                        raise primary_err
+                                            # Verify if page is actually closed and try recovery before AI healing
+                                            page = await session.get_active_page()
+                                            if not page:
+                                                if attempt < max_total_retries - 1:
+                                                    await asyncio.sleep(2)
+                                                    continue
+                                                raise primary_err
+                                            
+                                            if not healing_enabled or not ai_service:
+                                                if attempt < max_total_retries - 1:
+                                                    await asyncio.sleep(2)
+                                                    continue
+                                                raise primary_err
+                                            
+                                            # Layer 2: Silent AI Healing
+                                            # Send step_healing message WITHOUT a message to remain "silent"
+                                            await safe_send_json(websocket, {
+                                                "type": "step_healing",
+                                                "stepIndex": step_index,
+                                                "message": "", # Silent
+                                                "originalSelector": original_selector
+                                            })
+                                            
+                                            # Try self-healing with SelfHealingLocator
+                                            healer = SelfHealingLocator(original_selector, alternatives, ai_service)
+                                            try:
+                                                healed_locator, h_info = await healer.find_element(page, step_id, step_type)
+                                                if healed_locator and h_info:
+                                                    # Execute action with healed locator
+                                                    if use_locator:
+                                                        result = action_fn(healed_locator)
+                                                        if hasattr(result, '__await__'): await result
+                                                    else:
+                                                        healed_selector = h_info.get("healed", original_selector)
+                                                        result = action_fn(healed_selector)
+                                                        if hasattr(result, '__await__'): await result
+                                                    
+                                                    # Return healing success info
+                                                    return True, h_info, h_info.get("healed", original_selector)
+                                                else:
+                                                    # Recursive Retry (Layer 3)
+                                                    if attempt < max_total_retries - 1:
+                                                        await asyncio.sleep(2)
+                                                        continue
+                                                    raise primary_err
+                                            except Exception as heal_err:
+                                                # Recursive Retry if healing itself fails
+                                                if attempt < max_total_retries - 1:
+                                                    await asyncio.sleep(2)
+                                                    continue
+                                                raise primary_err
+                                    except Exception as e:
+                                        if attempt < max_total_retries - 1:
+                                            await asyncio.sleep(2)
+                                            continue
+                                        raise e
+                                
+                                return False, None, original_selector
                             
 
                             # Execute each step
@@ -1676,13 +1697,19 @@ async def websocket_browser_session(
                                     
                                     elif step_type == "wait":
                                         timeout = step_data.get("timeout") or step.get("timeout") or 1000
-                                        import asyncio
                                         await asyncio.sleep(timeout / 1000)
-                                    elif step_type == "assert":
+                                    elif step_type == "assert" or step_type == "assert_visible":
                                         if selector_used:
-                                            element_info = await session.get_element_info(selector_used)
-                                            if not element_info:
-                                                raise Exception(f"Assertion failed: Element not found: {selector_used}")
+                                            # Use silent self-healing wrapper
+                                            was_healed, healing_info, selector_used = await execute_with_healing(
+                                                action_name="Assertion",
+                                                action_fn=lambda loc: loc.wait_for(state="visible", timeout=3000),
+                                                original_selector=selector_used,
+                                                step_index=i,
+                                                step_id=step_id,
+                                                step_type=step_type,
+                                                use_locator=True
+                                            )
                                     
                                     # Assert Title - compare expected vs actual page title
                                     elif step_type == "assert_title":
@@ -1696,7 +1723,8 @@ async def websocket_browser_session(
                                         comparison = step_data.get("comparison") or step.get("comparison") or "equals"
                                         
                                         # Get actual page title from Playwright
-                                        actual_title = await session.page.title()
+                                        page = await session.get_active_page()
+                                        actual_title = await page.title() if page else ""
                                         
                                         passed = False
                                         if comparison == "equals":
@@ -1720,7 +1748,7 @@ async def websocket_browser_session(
 
 Expected Title: "{expected_title}"
 Actual Title: "{actual_title}"
-Page URL: {session.page.url}
+Page URL: {(await session.get_active_page()).url if session.page else "unknown"}
 Comparison Type: {comparison}
 
 Determine if the actual title is a VALID page title that represents the same or similar page content.
@@ -1732,6 +1760,14 @@ Rules for accepting:
 
 Respond with JSON only:
 {{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
+                                                    
+                                                    # Emit live update that healing is in progress
+                                                    await safe_send_json(websocket, {
+                                                        "type": "step_healing",
+                                                        "stepIndex": i,
+                                                        "message": "", # Silent
+                                                        "originalSelector": expected_title
+                                                    })
                                                     
                                                     ai_response = await ai_service.generate_content(heal_prompt)
                                                     heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
@@ -1768,7 +1804,8 @@ Respond with JSON only:
                                         comparison = step_data.get("comparison") or step.get("comparison") or "equals"
                                         
                                         # Get actual page URL from Playwright
-                                        actual_url = session.page.url
+                                        page = await session.get_active_page()
+                                        actual_url = page.url if page else ""
                                         
                                         passed = False
                                         if comparison == "equals":
@@ -1803,6 +1840,14 @@ Rules for accepting:
 
 Respond with JSON only:
 {{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
+                                                    
+                                                    # Emit live update that healing is in progress
+                                                    await safe_send_json(websocket, {
+                                                        "type": "step_healing",
+                                                        "stepIndex": i,
+                                                        "message": "", # Silent
+                                                        "originalSelector": expected_url
+                                                    })
                                                     
                                                     ai_response = await ai_service.generate_content(heal_prompt)
                                                     heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
@@ -2510,7 +2555,78 @@ Respond with JSON only:
                                                         "comparison": sub_comparison
                                                     })
                                                     
+                                                    sub_was_healed = False
+                                                    sub_healing_info = None
+                                                    
                                                     try:
+                                                        # Helper for snippet sub-step healing
+                                                        async def execute_substep_with_healing(sub_act_name, sub_act_fn, sub_sel, sub_step_idx):
+                                                            sub_max_retries = 2
+                                                            for sub_attempt in range(sub_max_retries + 1):
+                                                                try:
+                                                                    # Ensure active page
+                                                                    page = await session.get_active_page()
+                                                                    if not page:
+                                                                        if sub_attempt < sub_max_retries:
+                                                                            await asyncio.sleep(2)
+                                                                            continue
+                                                                        raise Exception(f"Browser page has been closed. (Page count: {len(session.context.pages) if session.context else 'N/A'})")
+
+                                                                    # Primary attempt
+                                                                    locator = page.locator(sub_sel)
+                                                                    await locator.wait_for(timeout=3000 if sub_attempt == 0 else 5000, state="visible")
+                                                                    res = sub_act_fn(locator)
+                                                                    if hasattr(res, '__await__'): await res
+                                                                    return False, None, sub_sel
+                                                                except Exception as e:
+                                                                    error_msg = str(e).lower()
+                                                                    page = await session.get_active_page()
+                                                                    if not page:
+                                                                        if ("closed" in error_msg or "destroyed" in error_msg) and sub_attempt == sub_max_retries:
+                                                                            raise e
+                                                                        await asyncio.sleep(2)
+                                                                        continue 
+
+                                                                    # Try primary again on recovered page
+                                                                    try:
+                                                                        locator = page.locator(sub_sel)
+                                                                        await locator.wait_for(timeout=2000, state="visible")
+                                                                        res = sub_act_fn(locator)
+                                                                        if hasattr(res, '__await__'): await res
+                                                                        return False, None, sub_sel
+                                                                    except: pass
+                                                                        
+                                                                    if not healing_enabled or not ai_service: raise e
+                                                                    
+                                                                    # Step healing (Silent)
+                                                                    await safe_send_json(websocket, {
+                                                                        "type": "step_healing",
+                                                                        "stepIndex": i,
+                                                                        "subStepIndex": sub_step_idx,
+                                                                        "message": "", # Silent
+                                                                        "originalSelector": sub_sel,
+                                                                        "original_selector": sub_sel
+                                                                    })
+                                                                    
+                                                                    sub_alts = sub_step.get("alternatives") or []
+                                                                    sub_healer = SelfHealingLocator(sub_sel, sub_alts, ai_service)
+                                                                    try:
+                                                                        h_loc, h_info = await sub_healer.find_element(page, "", sub_step_type)
+                                                                        if h_loc and h_info:
+                                                                            res = sub_act_fn(h_loc)
+                                                                            if hasattr(res, '__await__'): await res
+                                                                            return True, h_info, h_info.get("healed", sub_sel)
+                                                                        else:
+                                                                            if sub_attempt < sub_max_retries:
+                                                                                await asyncio.sleep(2)
+                                                                                continue
+                                                                            raise e
+                                                                    except Exception:
+                                                                        if sub_attempt < sub_max_retries:
+                                                                            await asyncio.sleep(2)
+                                                                            continue
+                                                                        raise e
+
                                                         # Execute based on step type - comprehensive support
                                                         if sub_step_type == "navigate":
                                                             url = sub_step.get("url") or sub_value
@@ -2518,25 +2634,28 @@ Respond with JSON only:
                                                                 await session.navigate(url)
                                                         elif sub_step_type == "click":
                                                             if sub_selector:
-                                                                await session.click_element(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Click", lambda l: l.click(), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type in ("type", "fill"):
                                                             if sub_selector:
-                                                                await session.type_into_element(sub_selector, sub_value)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Type", lambda l: l.fill(sub_value), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "wait":
                                                             timeout = sub_step.get("timeout") or 1000
-                                                            import asyncio
                                                             await asyncio.sleep(timeout / 1000)
-                                                        elif sub_step_type == "assert":
+                                                        elif sub_step_type == "assert" or sub_step_type == "assert_visible":
                                                             if sub_selector:
-                                                                el_info = await session.get_element_info(sub_selector)
-                                                                if not el_info:
-                                                                    raise Exception(f"Snippet assertion failed: {sub_selector}")
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Assertion", lambda l: l.wait_for(state="visible", timeout=3000), sub_selector, sub_idx
+                                                                )
                                                         
                                                         # Assert URL - check current page URL
                                                         elif sub_step_type == "assert_url":
                                                             expected_url = sub_step.get("expected_url") or sub_step.get("value") or sub_value or ""
                                                             comparison = sub_step.get("comparison") or "contains"
-                                                            actual_url = session.page.url
+                                                            actual_url = (await session.get_active_page()).url if session.page else ""
                                                             passed = False
                                                             if comparison == "equals":
                                                                 passed = actual_url == expected_url
@@ -2547,6 +2666,32 @@ Respond with JSON only:
                                                             elif comparison == "regex":
                                                                 import re
                                                                 passed = bool(re.search(expected_url, actual_url))
+                                                                
+                                                            if not passed and healing_enabled and ai_service:
+                                                                # Try healing
+                                                                try:
+                                                                    heal_prompt = f"Analyze URL assertion: expected '{expected_url}', got '{actual_url}'. Context: Snippet {snippet.name}"
+                                                                    await safe_send_json(websocket, {
+                                                                        "type": "step_healing",
+                                                                        "stepIndex": i,
+                                                                        "subStepIndex": sub_idx,
+                                                                        "message": "", # Silent
+                                                                        "originalSelector": expected_url
+                                                                    })
+                                                                    ai_response = await ai_service.generate_content(heal_prompt)
+                                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                                    if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
+                                                                        sub_was_healed = True
+                                                                        sub_healing_info = {
+                                                                            "type": HealingType.ASSERTION.value,
+                                                                            "strategy": HealingStrategy.AI.value,
+                                                                            "original": expected_url,
+                                                                            "healed": actual_url,
+                                                                            "ai_reasoning": heal_result.get("reasoning", "")
+                                                                        }
+                                                                        passed = True
+                                                                except: pass
+                                                                
                                                             if not passed:
                                                                 raise Exception(f"Snippet URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
                                                         
@@ -2554,7 +2699,8 @@ Respond with JSON only:
                                                         elif sub_step_type == "assert_title":
                                                             expected_title = sub_step.get("expected_title") or sub_step.get("value") or sub_value or ""
                                                             comparison = sub_step.get("comparison") or "equals"
-                                                            actual_title = await session.page.title()
+                                                            page = await session.get_active_page()
+                                                            actual_title = await page.title() if page else ""
                                                             passed = False
                                                             if comparison == "equals":
                                                                 passed = actual_title == expected_title
@@ -2562,33 +2708,72 @@ Respond with JSON only:
                                                                 passed = expected_title in actual_title
                                                             elif comparison == "starts_with":
                                                                 passed = actual_title.startswith(expected_title)
+                                                                
+                                                            if not passed and healing_enabled and ai_service:
+                                                                try:
+                                                                    heal_prompt = f"Analyze title: expected '{expected_title}', got '{actual_title}'"
+                                                                    await safe_send_json(websocket, {
+                                                                        "type": "step_healing",
+                                                                        "stepIndex": i,
+                                                                        "subStepIndex": sub_idx,
+                                                                        "message": "", # Silent
+                                                                        "originalSelector": expected_title
+                                                                    })
+                                                                    ai_response = await ai_service.generate_content(heal_prompt)
+                                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                                    if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
+                                                                        sub_was_healed = True
+                                                                        sub_healing_info = {
+                                                                            "type": HealingType.ASSERTION.value,
+                                                                            "strategy": HealingStrategy.AI.value,
+                                                                            "original": expected_title,
+                                                                            "healed": actual_title,
+                                                                            "ai_reasoning": heal_result.get("reasoning", "")
+                                                                        }
+                                                                        passed = True
+                                                                except: pass
+                                                                
                                                             if not passed:
                                                                 raise Exception(f"Snippet title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
                                                         
                                                         # Additional click actions
                                                         elif sub_step_type == "double_click":
                                                             if sub_selector:
-                                                                await session.double_click(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Double Click", lambda l: l.dblclick(), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "right_click":
                                                             if sub_selector:
-                                                                await session.right_click(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Right Click", lambda l: l.click(button="right"), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "hover":
                                                             if sub_selector:
-                                                                await session.hover(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Hover", lambda l: l.hover(), sub_selector, sub_idx
+                                                                )
                                                         
                                                         # Form actions
                                                         elif sub_step_type == "clear":
                                                             if sub_selector:
-                                                                await session.clear_input(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Clear", lambda l: l.clear(), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "select":
                                                             if sub_selector:
-                                                                await session.select_option(sub_selector, sub_value)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Select", lambda l: l.select_option(sub_value), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "check":
                                                             if sub_selector:
-                                                                await session.check(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Check", lambda l: l.check(), sub_selector, sub_idx
+                                                                )
                                                         elif sub_step_type == "uncheck":
                                                             if sub_selector:
-                                                                await session.uncheck(sub_selector)
+                                                                sub_was_healed, sub_healing_info, sub_selector = await execute_substep_with_healing(
+                                                                    "Uncheck", lambda l: l.uncheck(), sub_selector, sub_idx
+                                                                )
                                                         
                                                         # Keyboard
                                                         elif sub_step_type == "press":
@@ -2647,7 +2832,9 @@ Respond with JSON only:
                                                             "type": "snippet_substep_completed",
                                                             "stepIndex": i,
                                                             "subStepIndex": sub_idx,
-                                                            "status": "passed"
+                                                            "status": "passed",
+                                                            "healed": sub_was_healed,
+                                                            "healing_info": sub_healing_info if sub_was_healed else None
                                                         })
                                                     except Exception as sub_step_err:
                                                         # Notify sub-step failed
@@ -2772,7 +2959,7 @@ Respond with JSON only:
                                         success=True,
                                         confidence_score=healing_info.get("confidence_score", 0.8),
                                         ai_reasoning=healing_info.get("ai_reasoning", ""),
-                                        page_url=session.page.url
+                                        page_url=(await session.get_active_page()).url if session.page else ""
                                     )
                                     db.add(healing_event)
                                 
@@ -2838,14 +3025,14 @@ Respond with JSON only:
                                 "durationMs": total_duration
                             })
                             
-                            # Cleanup: remove from active executions and stop session
+                            # Keep session alive for live browser debugging
                             active_executions.discard(session_id)
-                            await browser_session_manager.stop_session(session_id)
-                            break
+                            # await browser_session_manager.stop_session(session_id)
+                            # break  # Keep websocket alive for debugging
                     except Exception as e:
                         active_executions.discard(session_id)
-                        # Always cleanup on fatal error
-                        await browser_session_manager.stop_session(session_id)
+                        # Keep session alive even on error for debugging
+                        # await browser_session_manager.stop_session(session_id)
                         await safe_send_json(websocket, {
                             "type": "error",
                             "error": f"Test execution failed: {str(e)}"
@@ -2866,8 +3053,9 @@ Respond with JSON only:
         # Only cleanup if no execution is in progress for this session
         # If execution is in progress, the test will complete and cleanup itself
         is_executing = session_id in active_executions
-        if not is_executing:
-            await browser_session_manager.stop_session(session_id)
+        # Keep session alive for live browser debugging
+        # if not is_executing:
+        #     await browser_session_manager.stop_session(session_id)
         
         if session_id in browser_session_connections:
             del browser_session_connections[session_id]

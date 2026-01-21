@@ -5,6 +5,9 @@ Core execution engine for no-code test automation with self-healing
 import asyncio
 import json
 import time
+import aiohttp
+import base64
+from urllib.parse import urlencode
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -17,6 +20,7 @@ from app.models.web_automation import (
     BrowserType, ExecutionMode, ExecutionRunStatus, StepStatus,
     HealingType, HealingStrategy
 )
+from app.models.snippet import TestSnippet
 from app.services.gemini_service import GeminiService
 
 
@@ -31,55 +35,95 @@ class SelfHealingLocator:
         self.ai_service = ai_service
         self.healing_history = []
     
-    async def find_element(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Optional[Dict[str, Any]]]:
+    async def find_element(self, page: Page, step_id: str, step_type: str, retry_count: int = 2) -> tuple[Any, Optional[Dict[str, Any]]]:
         """
-        Find element with progressive fallback strategies
-        Returns: (element, healing_info)
+        Find element with progressive fallback strategies.
+        Recursive: if all strategies fail, retries the whole cycle after a short wait.
         """
-        # Strategy 1: Try primary selector
-        try:
-            locator = page.locator(self.primary_selector)
-            await locator.wait_for(timeout=5000, state="visible")
-            return locator, None
-        except PlaywrightError as e:
-            print(f"Primary selector failed: {self.primary_selector} - {str(e)}")
-        
-        # Strategy 2: Try alternative selectors
-        for idx, alt in enumerate(self.alternatives):
-            try:
-                locator = page.locator(alt["value"])
-                await locator.wait_for(timeout=3000, state="visible")
+        for attempt in range(retry_count + 1):
+            if attempt > 0:
+                print(f"Recursive healing attempt {attempt}/{retry_count} for {self.primary_selector}")
+                await asyncio.sleep(2) # Wait for page stability
                 
-                healing_info = {
-                    "type": HealingType.LOCATOR.value,
-                    "strategy": HealingStrategy.ALTERNATIVE.value,
-                    "original": self.primary_selector,
-                    "healed": alt["value"],
-                    "alternative_index": idx,
-                    "success": True
-                }
-                return locator, healing_info
-            except PlaywrightError:
-                continue
+            # Strategy 1: Try primary selector
+            try:
+                # Re-verify page is still alive or try to recover it
+                if hasattr(page, 'is_closed') and page.is_closed():
+                    print("Page closed during healing primary check, trying recovery...")
+                    # This assumes page belongs to a session that has get_active_page
+                    # If not, we'll try to get it from the session if available
+                    recovered_page = await self._recover_page(page)
+                    if recovered_page: page = recovered_page
+                    else: raise PlaywrightError("Page closed and unrecoverable")
+
+                locator = page.locator(self.primary_selector)
+                await locator.wait_for(timeout=3000 if attempt == 0 else 5000, state="visible")
+                return locator, None
+            except PlaywrightError as e:
+                error_msg = str(e).lower()
+                if "closed" in error_msg or "destroyed" in error_msg:
+                    print(f"Primary selector failed due to closure: {error_msg}. Trying recovery for next strategy...")
+                    recovered_page = await self._recover_page(page)
+                    if recovered_page: 
+                        page = recovered_page
+                        continue # Retry this strategy or move to next with new page
+                
+                print(f"Primary selector failed: {self.primary_selector} - attempt {attempt}")
+            
+            # Strategy 2: Try alternative selectors
+            for idx, alt in enumerate(self.alternatives):
+                try:
+                    locator = page.locator(alt["value"])
+                    await locator.wait_for(timeout=2000, state="visible")
+                    
+                    healing_info = {
+                        "type": HealingType.LOCATOR.value,
+                        "strategy": HealingStrategy.ALTERNATIVE.value,
+                        "original": self.primary_selector,
+                        "healed": alt["value"],
+                        "alternative_index": idx,
+                        "success": True
+                    }
+                    return locator, healing_info
+                except PlaywrightError:
+                    continue
+            
+            # Strategy 3: AI-powered healing
+            try:
+                healed_locator, healing_info = await self.ai_heal(page, step_id, step_type)
+                if healed_locator:
+                    return healed_locator, healing_info
+            except Exception as e:
+                print(f"AI healing failed: {str(e)}")
+            
+            # Strategy 4: Similarity-based matching
+            try:
+                healed_locator, healing_info = await self.similarity_heal(page)
+                if healed_locator:
+                    return healed_locator, healing_info
+            except Exception as e:
+                print(f"Similarity healing failed: {str(e)}")
         
-        # Strategy 3: AI-powered healing
-        try:
-            healed_locator, healing_info = await self.ai_heal(page, step_id, step_type)
-            if healed_locator:
-                return healed_locator, healing_info
-        except Exception as e:
-            print(f"AI healing failed: {str(e)}")
-        
-        # Strategy 4: Similarity-based matching
-        try:
-            healed_locator, healing_info = await self.similarity_heal(page)
-            if healed_locator:
-                return healed_locator, healing_info
-        except Exception as e:
-            print(f"Similarity healing failed: {str(e)}")
-        
-        raise Exception(f"Unable to locate element with any strategy: {self.primary_selector}")
+        raise Exception(f"Unable to locate element with any strategy (tried {retry_count+1} cycles): {self.primary_selector}")
     
+    async def _recover_page(self, current_page: Page) -> Optional[Page]:
+        """Try to find ANY active page in the context if current one is closed"""
+        try:
+            if current_page and not current_page.is_closed():
+                return current_page
+                
+            context = getattr(current_page, 'context', None)
+            if context:
+                pages = context.pages
+                active_pages = [p for p in pages if not p.is_closed()]
+                if active_pages:
+                    # Prefer pages with content
+                    meaningful = [p for p in active_pages if "about:blank" not in p.url]
+                    return meaningful[-1] if meaningful else active_pages[-1]
+        except Exception as e:
+            print(f"SelfHealingLocator: Error recovering page: {e}")
+        return None
+
     async def ai_heal(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Dict[str, Any]]:
         """
         Use AI to suggest alternative selectors
@@ -191,7 +235,8 @@ class SelfHealingAssertion:
     async def assert_with_healing(
         self, 
         page: Page, 
-        assertion: Dict[str, Any]
+        assertion: Dict[str, Any],
+        healing_callback=None
     ) -> tuple[bool, Optional[Dict[str, Any]]]:
         """
         Validate assertion with AI-powered healing
@@ -207,6 +252,10 @@ class SelfHealingAssertion:
             success = await self.standard_assert(page, assertion)
             return success, None
         except Exception as e:
+            # Notify about healing progress
+            if healing_callback:
+                await healing_callback(f"AI analyzing assertion failure: {assertion_type}")
+            
             # Get actual value
             actual_value = await self.get_actual_value(page, selector, assertion_type)
             
@@ -489,6 +538,7 @@ class WebAutomationExecutor:
             
             # Execute each step
             for idx, node in enumerate(test_flow.nodes):
+                self.current_step_index = idx
                 await self.execute_step(node, idx, test_flow)
             
             # Calculate summary
@@ -763,10 +813,10 @@ class WebAutomationExecutor:
         
         step_result.started_at = datetime.utcnow()
         
-        await self.emit_live_update("stepStarted", {
-            "step_id": step_id,
-            "step_type": step_type,
-            "step_name": step_result.step_name
+        await self.emit_live_update("step_started", {
+            "stepIndex": step_order,
+            "stepType": step_type,
+            "stepName": step_result.step_name
         })
         
         try:
@@ -793,10 +843,11 @@ class WebAutomationExecutor:
             
             self.execution_run.passed_steps += 1
             
-            await self.emit_live_update("stepCompleted", {
-                "step_id": step_id,
+            await self.emit_live_update("step_completed", {
+                "stepIndex": step_order,
                 "status": "passed",
-                "healed": bool(healing_info)
+                "healed": bool(healing_info),
+                "healing_info": healing_info
             })
             
         except Exception as e:
@@ -804,8 +855,10 @@ class WebAutomationExecutor:
             step_result.error_message = str(e)
             self.execution_run.failed_steps += 1
             
-            await self.emit_live_update("stepFailed", {
-                "step_id": step_id,
+            await self.emit_live_update("step_completed", {
+                "stepIndex": step_order,
+                "status": "failed",
+                "healed": False,
                 "error": str(e)
             })
         
@@ -849,55 +902,55 @@ class WebAutomationExecutor:
         elif action_type == "assert":
             assertion = action_data.get("assertion", {})
             assertor = SelfHealingAssertion(self.ai_service)
-            success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+            
+            async def h_cb(msg):
+                await self.emit_live_update("step_healing", {
+                    "stepIndex": getattr(self, "current_step_index", 0),
+                    "message": msg,
+                    "original_selector": assertion.get("selector", "")
+                })
+
+            success, healing_info = await assertor.assert_with_healing(self.page, assertion, healing_callback=h_cb)
             if not success:
                 raise Exception(f"Assertion failed: {assertion}")
         
         elif action_type == "assert_title":
-            # Check expected_title first, fallback to value (frontend uses 'value' field)
             expected_title = self.substitute_variables(
                 action_data.get("expected_title") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_title = await self.page.title()
             
-            passed = False
-            if comparison == "equals":
-                passed = actual_title == expected_title
-            elif comparison == "contains":
-                passed = expected_title in actual_title
-            elif comparison == "starts_with":
-                passed = actual_title.startswith(expected_title)
-            elif comparison == "ends_with":
-                passed = actual_title.endswith(expected_title)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_title, actual_title))
-            
-            if not passed:
-                raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+            assertion = {"type": "title", "expectedValue": expected_title, "comparison": comparison}
+            assertor = SelfHealingAssertion(self.ai_service)
+
+            async def h_cb(msg):
+                await self.emit_live_update("step_healing", {
+                    "stepIndex": getattr(self, "current_step_index", 0),
+                    "message": msg
+                })
+
+            success, healing_info = await assertor.assert_with_healing(self.page, assertion, healing_callback=h_cb)
+            if not success:
+                raise Exception(f"Title assertion failed: expected '{expected_title}'")
         
         elif action_type == "assert_url":
-            # Check expected_url first, fallback to value (frontend uses 'value' field)
             expected_url = self.substitute_variables(
                 action_data.get("expected_url") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_url = self.page.url
             
-            passed = False
-            if comparison == "equals":
-                passed = actual_url == expected_url
-            elif comparison == "contains":
-                passed = expected_url in actual_url
-            elif comparison == "starts_with":
-                passed = actual_url.startswith(expected_url)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_url, actual_url))
-            
-            if not passed:
-                raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+            assertion = {"type": "url", "expectedValue": expected_url, "comparison": comparison}
+            assertor = SelfHealingAssertion(self.ai_service)
+
+            async def h_cb(msg):
+                await self.emit_live_update("step_healing", {
+                    "stepIndex": getattr(self, "current_step_index", 0),
+                    "message": msg
+                })
+
+            success, healing_info = await assertor.assert_with_healing(self.page, assertion, healing_callback=h_cb)
+            if not success:
+                raise Exception(f"URL assertion failed: expected '{expected_url}'")
         
         elif action_type == "wait":
             wait_type = action_data.get("waitType", "time")
@@ -1265,6 +1318,16 @@ class WebAutomationExecutor:
                     step_type = step.get("action") or step.get("actionType")
                     step_data = step.get("data", step)
                     await self.execute_action(step_type, step_data, test_flow)
+
+        # --- API Calls ---
+        elif action_type == "make_api_call" or action_type == "api_call":
+            await self.make_api_call(action_data)
+
+        # --- Snippets (Reusable Step Groups) ---
+        elif action_type == "call_snippet":
+            snippet_id = action_data.get("snippet_id")
+            if snippet_id:
+                await self.call_snippet(snippet_id, action_data.get("parameters", {}), test_flow)
 
         # --- Random Data Generation ---
         elif action_type == "random-data" or action_type == "random_data":
@@ -1928,6 +1991,13 @@ class WebAutomationExecutor:
         alternatives = selector_data.get("alternatives", [])
         
         if test_flow.healing_enabled:
+            # Emit live update that healing is in progress
+            await self.emit_live_update("step_healing", {
+                "stepIndex": getattr(self, "current_step_index", 0),
+                "message": f"AI analyzing DOM to heal broken locator: {primary}",
+                "original_selector": primary
+            })
+            
             healer = SelfHealingLocator(primary, alternatives, self.ai_service)
             locator, healing_info = await healer.find_element(self.page, "", step_type)
             
@@ -1953,3 +2023,101 @@ class WebAutomationExecutor:
             # No healing, use primary selector only
             locator = self.page.locator(primary)
             return locator, None
+
+    async def make_api_call(self, action_data: Dict[str, Any]):
+        """Execute API call step with parameter substitution"""
+        url = self.substitute_variables(action_data.get("url", ""))
+        method = action_data.get("method", "GET").upper()
+        timeout = action_data.get("timeout", 30000) / 1000
+        
+        request_headers = {}
+        headers_data = action_data.get("headers", {})
+        if isinstance(headers_data, list):
+            for h in headers_data:
+                if h.get("enabled", True) and h.get("key"):
+                    request_headers[h["key"]] = self.substitute_variables(h.get("value", ""))
+        elif isinstance(headers_data, dict):
+            request_headers = {k: self.substitute_variables(v) for k, v in headers_data.items()}
+            
+        # Handle body
+        body_type = action_data.get("body_type", "none")
+        json_body = None
+        request_data = None
+        
+        if body_type == "raw":
+            raw_body = self.substitute_variables(action_data.get("body", ""))
+            if action_data.get("body_raw_type") == "json":
+                request_headers.setdefault("Content-Type", "application/json")
+                try: json_body = json.loads(raw_body)
+                except: request_data = raw_body
+            else: request_data = raw_body
+        
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            kwargs = {"headers": request_headers}
+            if json_body is not None: kwargs["json"] = json_body
+            elif request_data is not None: kwargs["data"] = request_data
+            
+            async with session.request(method, url, **kwargs) as resp:
+                text = await resp.text()
+                # Store response if variable provided
+                var_name = action_data.get("variable_name")
+                if var_name:
+                    try: self.variables[var_name] = json.loads(text)
+                    except: self.variables[var_name] = text
+
+    async def call_snippet(self, snippet_id: str, param_values: Dict[str, Any], test_flow: TestFlow):
+        """Execute snippet steps with parameter substitution and healing"""
+        from app.models.snippet import TestSnippet
+        snippet = await self.db.get(TestSnippet, snippet_id) if isinstance(snippet_id, UUID) else await self.db.get(TestSnippet, UUID(snippet_id))
+        if not snippet:
+            raise Exception(f"Snippet not found: {snippet_id}")
+            
+        # Backup variables and inject snippet parameters
+        old_vars = self.variables.copy()
+        for key, val in param_values.items():
+            sub_val = self.substitute_variables(str(val))
+            self.variables[key] = sub_val
+            
+        await self.emit_live_update("snippet_started", {
+            "stepIndex": getattr(self, "current_step_index", 0),
+            "snippetName": snippet.name,
+            "totalSubSteps": len(snippet.steps)
+        })
+        
+        try:
+            for idx, sub_step in enumerate(snippet.steps):
+                sub_step_type = sub_step.get("action") or sub_step.get("type")
+                sub_step_name = sub_step.get("name") or f"Sub-step {idx+1}"
+                
+                await self.emit_live_update("snippet_substep_started", {
+                    "stepIndex": getattr(self, "current_step_index", 0),
+                    "subStepIndex": idx,
+                    "subStepName": sub_step_name,
+                    "subStepType": sub_step_type
+                })
+                
+                # Execute sub-step logic (simplified version of execute_step)
+                sub_was_healed = False
+                sub_healing_info = None
+                try:
+                    sub_healing_info = await self.execute_action(sub_step_type, sub_step.get("data", sub_step), test_flow)
+                    sub_was_healed = bool(sub_healing_info)
+                    
+                    await self.emit_live_update("snippet_substep_completed", {
+                        "stepIndex": getattr(self, "current_step_index", 0),
+                        "subStepIndex": idx,
+                        "status": "passed",
+                        "healed": sub_was_healed,
+                        "healing_info": sub_healing_info
+                    })
+                except Exception as sub_err:
+                    await self.emit_live_update("snippet_substep_completed", {
+                        "stepIndex": getattr(self, "current_step_index", 0),
+                        "subStepIndex": idx,
+                        "status": "failed",
+                        "error": str(sub_err)
+                    })
+                    raise sub_err
+        finally:
+            # Restore variables (keeping any newly set variables from snippet if desired, but typically snippets are isolated)
+            self.variables = old_vars

@@ -214,17 +214,56 @@ class BrowserSession:
     
     def _setup_event_listeners(self):
         """Setup Playwright event listeners for console and network"""
+        if not self.context:
+            return
+            
+        # Context-level listeners
+        self.context.on("page", self._handle_new_page)
         
-        # Console messages
-        self.page.on("console", self._handle_console)
-        
-        # Network requests
-        self.page.on("request", self._handle_request)
-        self.page.on("response", self._handle_response)
-        self.page.on("requestfailed", self._handle_request_failed)
-        
-        # Navigation
-        self.page.on("framenavigated", self._handle_navigation)
+        # Attach to initial page
+        if self.page:
+            self._attach_page_listeners(self.page)
+            
+    def _attach_page_listeners(self, page: Page):
+        """Attach all required listeners to a specific page"""
+        try:
+            page.on("console", self._handle_console)
+            page.on("request", self._handle_request)
+            page.on("response", self._handle_response)
+            page.on("requestfailed", self._handle_request_failed)
+            page.on("framenavigated", self._handle_navigation)
+            page.on("close", lambda p: asyncio.create_task(self._handle_page_closed(p)))
+        except Exception as e:
+            print(f"Error attaching listeners to page: {e}")
+
+    async def _handle_new_page(self, page: Page):
+        """Handle new tab/popup creation"""
+        self._attach_page_listeners(page)
+        self.page = page  # Automatically switch to newest tab
+        self.current_url = page.url
+        await self._emit_update({
+            "type": "tab_switched",
+            "url": self.current_url,
+            "page_count": len(self.context.pages) if self.context else 1
+        })
+
+    async def _handle_page_closed(self, page: Page):
+        """Handle page closure by switching to another active page if available"""
+        if self.page == page:
+            if self.context and self.context.pages:
+                # Find the last non-closed page
+                active_pages = [p for p in self.context.pages if not p.is_closed()]
+                if active_pages:
+                    self.page = active_pages[-1]
+                    self.current_url = self.page.url
+                    await self._emit_update({
+                        "type": "tab_switched",
+                        "url": self.current_url,
+                        "message": "Primary tab closed, switched to neighbor tab"
+                    })
+                else:
+                    self.page = None
+                    self.current_url = ""
     
     async def _handle_console(self, msg):
         """Handle console message"""
@@ -334,8 +373,22 @@ class BrowserSession:
     
     async def _screenshot_loop(self):
         """Continuously capture and stream screenshots"""
-        while self.is_streaming and self.page:
+        while self.is_streaming:
             try:
+                # Ensure we have a valid, open page
+                if not self.page or self.page.is_closed():
+                    # Try to recover from context pages if primary is lost
+                    if self.context and self.context.pages:
+                        active_pages = [p for p in self.context.pages if not p.is_closed()]
+                        if active_pages:
+                            self.page = active_pages[-1]
+                        else:
+                            await asyncio.sleep(1)
+                            continue
+                    else:
+                        await asyncio.sleep(1)
+                        continue
+
                 # Capture screenshot as JPEG for smaller size
                 screenshot = await self.page.screenshot(
                     type="jpeg",
@@ -365,8 +418,13 @@ class BrowserSession:
     async def navigate(self, url: str) -> bool:
         """Navigate to URL"""
         try:
-            await self.page.goto(url, wait_until="domcontentloaded")
-            self.current_url = self.page.url
+            # Ensure we have an active page before navigating
+            page = await self.get_active_page()
+            if not page:
+                return False
+                
+            await page.goto(url, wait_until="domcontentloaded")
+            self.current_url = page.url
             return True
         except Exception as e:
             await self._emit_update({
@@ -374,6 +432,59 @@ class BrowserSession:
                 "error": f"Navigation failed: {str(e)}"
             })
             return False
+            
+    async def get_active_page(self, wait_timeout_ms: int = 4000) -> Optional[Page]:
+        """
+        Hyper-aggressive page recovery. Tries to find an active page, and if 
+        the context is alive but truly empty, it creates a new page as a fallback.
+        """
+        start_time = asyncio.get_event_loop().time()
+        
+        while (asyncio.get_event_loop().time() - start_time) * 1000 < wait_timeout_ms:
+            # 1. Check if current page is still valid
+            if self.page and not self.page.is_closed():
+                return self.page
+                
+            # 2. Try to recover from other pages in the context
+            if self.context:
+                try:
+                    pages = self.context.pages
+                    active_pages = [p for p in pages if not p.is_closed()]
+                    if active_pages:
+                        # Prefer page with a real URL (not about:blank)
+                        meaningful = [p for p in active_pages if "about:blank" not in p.url]
+                        self.page = meaningful[-1] if meaningful else active_pages[-1]
+                        self.current_url = self.page.url
+                        await self._emit_update({
+                            "type": "tab_switched",
+                            "url": self.current_url,
+                            "message": "Automatically recovered active page from context"
+                        })
+                        return self.page
+                except Exception as e:
+                    # Context might be in a transient state
+                    pass
+            
+            # Wait a bit before retrying
+            await asyncio.sleep(0.5)
+            
+        # 3. Final Fallback: If context exists but is empty, create a new page to keep session alive
+        if self.context:
+            try:
+                # Double check context state before creating page
+                if not getattr(self.context, "_closed", False):
+                    self.page = await self.context.new_page()
+                    self.current_url = "about:blank"
+                    await self._emit_update({
+                        "type": "tab_switched",
+                        "url": self.current_url,
+                        "message": "All pages were closed. Created a new blank page to keep session alive."
+                    })
+                    return self.page
+            except Exception as e:
+                print(f"Failed to create fallback page: {e}")
+                
+        return None
     
     async def highlight_element(self, selector: str, duration_ms: int = 2000):
         """Highlight an element on the page"""
