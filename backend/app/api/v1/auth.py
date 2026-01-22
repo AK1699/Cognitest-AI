@@ -47,6 +47,7 @@ from app.utils.google_oauth import (
 from app.utils import microsoft_oauth
 from app.utils import apple_oauth
 import random
+import secrets
 import string
 import uuid
 
@@ -277,8 +278,8 @@ async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Dep
         # For security reasons, don't reveal if the email is not registered
         return {"message": "If an account with that email exists, a password reset code has been sent."}
 
-    # Generate a random 6-digit code
-    code = ''.join(random.choices(string.digits, k=6))
+    # Generate a secure random 6-digit code
+    code = ''.join(secrets.choice(string.digits) for _ in range(6))
 
     # Calculate expiration time (15 minutes from now)
     from datetime import datetime, timedelta
