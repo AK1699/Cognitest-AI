@@ -46,9 +46,9 @@ from app.utils.google_oauth import (
 )
 from app.utils import microsoft_oauth
 from app.utils import apple_oauth
-import random
 import string
 import uuid
+import secrets
 
 router = APIRouter()
 
@@ -166,7 +166,18 @@ async def login(credentials: UserLogin, response: Response, db: AsyncSession = D
     result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    if not user:
+        # Dummy verification to prevent timing attacks
+        # Using a fixed dummy hash (bcrypt hash of "dummy") to simulate work
+        dummy_hash = "$2b$12$E0eY5XgYmgqhYog3jzHW2.l6bJFYrmNIJb3CuSXenm3geiCvT7vcC"
+        verify_password(credentials.password, dummy_hash)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -277,8 +288,8 @@ async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Dep
         # For security reasons, don't reveal if the email is not registered
         return {"message": "If an account with that email exists, a password reset code has been sent."}
 
-    # Generate a random 6-digit code
-    code = ''.join(random.choices(string.digits, k=6))
+    # Generate a cryptographically secure 6-digit code
+    code = ''.join(secrets.choice(string.digits) for _ in range(6))
 
     # Calculate expiration time (15 minutes from now)
     from datetime import datetime, timedelta
