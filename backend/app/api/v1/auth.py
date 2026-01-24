@@ -13,7 +13,8 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     create_password_reset_token,
-    decode_password_reset_token
+    decode_password_reset_token,
+    DUMMY_PASSWORD_HASH
 )
 from app.core.config import settings
 from app.models.user import User
@@ -166,7 +167,14 @@ async def login(credentials: UserLogin, response: Response, db: AsyncSession = D
     result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    if user:
+        is_password_valid = verify_password(credentials.password, user.hashed_password)
+    else:
+        # Prevent timing attacks by performing a dummy verification
+        verify_password(credentials.password, DUMMY_PASSWORD_HASH)
+        is_password_valid = False
+
+    if not is_password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
