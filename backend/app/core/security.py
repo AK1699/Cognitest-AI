@@ -48,6 +48,13 @@ def decode_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
+
+# Generate a dummy hash for use in timing attack prevention.
+# We generate this once at module level so it's consistent and available.
+# This prevents timing attacks by ensuring verify_password takes roughly
+# the same amount of time regardless of whether the user exists.
+DUMMY_PASSWORD_HASH = get_password_hash("dummy_password_for_timing_protection")
+
 def create_password_reset_token(data: dict) -> str:
     """Create a JWT password reset token."""
     to_encode = data.copy()
