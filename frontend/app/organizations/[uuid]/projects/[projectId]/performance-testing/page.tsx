@@ -57,7 +57,7 @@ export default function PerformanceTestingPage() {
     const projectId = params.projectId as string
     const uuid = params.uuid as string
 
-    const [activeModule, setActiveModule] = useState<'overview' | 'tests' | 'lighthouse' | 'load' | 'stress' | 'spike' | 'endurance' | 'volume' | 'scalability' | 'capacity' | 'results'>('overview')
+    const [activeModule, setActiveModule] = useState<'overview' | 'tests' | 'lighthouse' | 'load' | 'stress' | 'spike' | 'soak' | 'volume' | 'scalability' | 'capacity' | 'results'>('overview')
     const [targetUrl, setTargetUrl] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [showWizard, setShowWizard] = useState(false)
@@ -132,7 +132,7 @@ export default function PerformanceTestingPage() {
                     setProgress(prev => Math.max(prev, serverProgress, prev < 90 ? prev + 5 : prev))
 
                     // NEW: Update real-time metrics even while running
-                    if (test.test_type === 'load' || test.test_type === 'stress' || test.test_type === 'spike') {
+                    if (['load', 'stress', 'spike', 'endurance', 'soak'].includes(test.test_type)) {
                         const metrics = test.metrics || {}
                         if (metrics.rps_timeline && metrics.rps_timeline.length > 0) {
                             setLoadTestResult({
@@ -267,8 +267,8 @@ export default function PerformanceTestingPage() {
             setActiveModule('spike')
             pollTestStatus(testId)
         }
-        else if (testType === 'endurance') {
-            setActiveModule('endurance')
+        else if (testType === 'endurance' || testType === 'soak') {
+            setActiveModule('soak')
             pollTestStatus(testId)
         }
     }
@@ -338,6 +338,144 @@ export default function PerformanceTestingPage() {
         }
     }
 
+    // Stress test state
+    const [stressTestConfig, setStressTestConfig] = useState({
+        startVUs: 10,
+        maxVUs: 500,
+        stepIncrease: 50,
+        stepDuration: 30
+    })
+    const [isRunningStressTest, setIsRunningStressTest] = useState(false)
+
+    const handleStressTest = async () => {
+        if (!targetUrl) return
+        setIsRunningStressTest(true)
+        setLoadTestResult(null)
+
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/stress-test?project_id=${projectId}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify({
+                    target_url: targetUrl,
+                    target_method: "GET",
+                    target_headers: {},
+                    start_vus: stressTestConfig.startVUs,
+                    max_vus: stressTestConfig.maxVUs,
+                    step_duration_seconds: stressTestConfig.stepDuration,
+                    step_increase: stressTestConfig.stepIncrease
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                pollTestStatus(data.id)
+            } else {
+                toast.error('Failed to start stress test')
+            }
+        } catch (error: any) {
+            console.error('Stress test failed:', error)
+            toast.error(error.message || 'Failed to start stress test')
+        } finally {
+            setIsRunningStressTest(false)
+        }
+    }
+
+    // Spike test state
+    const [spikeTestConfig, setSpikeTestConfig] = useState({
+        normalLoad: 10,
+        spikeLoad: 1000,
+        duration: 120
+    })
+    const [isRunningSpikeTest, setIsRunningSpikeTest] = useState(false)
+
+    const handleSpikeTest = async () => {
+        if (!targetUrl) return
+        setIsRunningSpikeTest(true)
+
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/spike-test?project_id=${projectId}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify({
+                    target_url: targetUrl,
+                    target_method: "GET",
+                    target_headers: {},
+                    base_users: spikeTestConfig.normalLoad,
+                    spike_users: spikeTestConfig.spikeLoad,
+                    total_duration_seconds: spikeTestConfig.duration,
+                    spike_duration_seconds: Math.floor(spikeTestConfig.duration * 0.4) // Approximate
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                pollTestStatus(data.id)
+            } else {
+                toast.error('Failed to start spike test')
+            }
+        } catch (error: any) {
+            console.error('Spike test failed:', error)
+            toast.error(error.message || 'Failed to start spike test')
+        } finally {
+            setIsRunningSpikeTest(false)
+        }
+    }
+
+    // Soak test state
+    const [soakTestConfig, setSoakTestConfig] = useState({
+        virtualUsers: 50,
+        durationHours: 4
+    })
+    const [isRunningSoakTest, setIsRunningSoakTest] = useState(false)
+
+    const handleSoakTest = async () => {
+        if (!targetUrl) return
+        setIsRunningSoakTest(true)
+
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/soak-test?project_id=${projectId}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify({
+                    target_url: targetUrl,
+                    target_method: "GET",
+                    target_headers: {},
+                    virtual_users: soakTestConfig.virtualUsers,
+                    duration_seconds: soakTestConfig.durationHours * 3600,
+                    ramp_up_seconds: 60
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                pollTestStatus(data.id)
+            } else {
+                toast.error('Failed to start soak test')
+            }
+        } catch (error: any) {
+            console.error('Soak test failed:', error)
+            toast.error(error.message || 'Failed to start soak test')
+        } finally {
+            setIsRunningSoakTest(false)
+        }
+    }
+
     const handleTestExecutionComplete = async (testId: string) => {
         try {
             const token = localStorage.getItem('access_token')
@@ -368,7 +506,7 @@ export default function PerformanceTestingPage() {
                     })
                     setTargetUrl(test.target_url)
                     setActiveModule('lighthouse')
-                } else if (test.test_type === 'load' || test.test_type === 'stress') {
+                } else if (['load', 'stress', 'spike', 'endurance', 'soak'].includes(test.test_type)) {
                     setLoadTestResult({
                         p50: metrics.latency_p50,
                         p75: metrics.latency_p75,
@@ -392,7 +530,14 @@ export default function PerformanceTestingPage() {
                         avgRps: metrics.requests_per_second
                     })
                     setTargetUrl(test.target_url)
-                    setActiveModule(test.test_type === 'load' ? 'load' : 'stress' as any)
+
+                    // Map test type to module
+                    let moduleName = 'load'
+                    if (test.test_type === 'stress') moduleName = 'stress'
+                    else if (test.test_type === 'spike') moduleName = 'spike'
+                    else if (test.test_type === 'endurance' || test.test_type === 'soak') moduleName = 'endurance'
+
+                    setActiveModule(moduleName as any)
                 } else {
                     setActiveModule('results')
                 }
@@ -486,6 +631,26 @@ export default function PerformanceTestingPage() {
                         Stress Test
                     </button>
                     <button
+                        onClick={() => setActiveModule('spike')}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'spike'
+                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                            }`}
+                    >
+                        <Zap className="w-4 h-4" />
+                        Spike Test
+                    </button>
+                    <button
+                        onClick={() => setActiveModule('soak')}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'soak'
+                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                            }`}
+                    >
+                        <Clock className="w-4 h-4" />
+                        Soak Test
+                    </button>
+                    <button
                         onClick={() => setActiveModule('results')}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'results'
                             ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
@@ -550,7 +715,7 @@ export default function PerformanceTestingPage() {
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div
                                 className="bg-white rounded-xl p-6 border shadow-sm cursor-pointer hover:border-teal-300 transition-colors"
                                 onClick={() => setActiveModule('lighthouse')}
@@ -592,6 +757,36 @@ export default function PerformanceTestingPage() {
                                     <div>
                                         <h3 className="font-semibold text-gray-900">Stress Test</h3>
                                         <p className="text-sm text-gray-500">Find breaking point</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                className="bg-white rounded-xl p-6 border shadow-sm cursor-pointer hover:border-red-300 transition-colors"
+                                onClick={() => setActiveModule('spike')}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
+                                        <Zap className="w-6 h-6 text-red-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">Spike Test</h3>
+                                        <p className="text-sm text-gray-500">Test sudden bursts</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                className="bg-white rounded-xl p-6 border shadow-sm cursor-pointer hover:border-indigo-300 transition-colors"
+                                onClick={() => setActiveModule('soak')}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                        <Clock className="w-6 h-6 text-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">Soak Test</h3>
+                                        <p className="text-sm text-gray-500">Long duration monitoring</p>
                                     </div>
                                 </div>
                             </div>
@@ -1039,6 +1234,8 @@ export default function PerformanceTestingPage() {
                                         <Label htmlFor="stress-url">Target URL</Label>
                                         <Input
                                             id="stress-url"
+                                            value={targetUrl}
+                                            onChange={(e) => setTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/stress-endpoint"
                                             className="mt-1"
                                         />
@@ -1047,7 +1244,8 @@ export default function PerformanceTestingPage() {
                                         <Label>Start VUs</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="10"
+                                            value={stressTestConfig.startVUs}
+                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, startVUs: parseInt(e.target.value) || 1 }))}
                                             min="1"
                                             max="100"
                                             className="mt-1"
@@ -1057,16 +1255,25 @@ export default function PerformanceTestingPage() {
                                         <Label>Max VUs</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="500"
+                                            value={stressTestConfig.maxVUs}
+                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, maxVUs: parseInt(e.target.value) || 100 }))}
                                             min="10"
                                             max="1000"
                                             className="mt-1"
                                         />
                                     </div>
                                     <div className="flex items-end">
-                                        <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                                            <Activity className="w-4 h-4 mr-2" />
-                                            Start Stress Test
+                                        <Button
+                                            className="w-full bg-orange-600 hover:bg-orange-700"
+                                            onClick={handleStressTest}
+                                            disabled={!targetUrl || isRunningStressTest}
+                                        >
+                                            {isRunningStressTest ? (
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Activity className="w-4 h-4 mr-2" />
+                                            )}
+                                            {isRunningStressTest ? 'Running...' : 'Start Stress Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1101,6 +1308,8 @@ export default function PerformanceTestingPage() {
                                         <Label htmlFor="spike-url">Target URL</Label>
                                         <Input
                                             id="spike-url"
+                                            value={targetUrl}
+                                            onChange={(e) => setTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/endpoint"
                                             className="mt-1"
                                         />
@@ -1109,7 +1318,8 @@ export default function PerformanceTestingPage() {
                                         <Label>Normal Load (VUs)</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="10"
+                                            value={spikeTestConfig.normalLoad}
+                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, normalLoad: parseInt(e.target.value) || 10 }))}
                                             className="mt-1"
                                         />
                                     </div>
@@ -1117,14 +1327,23 @@ export default function PerformanceTestingPage() {
                                         <Label>Spike Load (VUs)</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="1000"
+                                            value={spikeTestConfig.spikeLoad}
+                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, spikeLoad: parseInt(e.target.value) || 1000 }))}
                                             className="mt-1"
                                         />
                                     </div>
                                     <div className="flex items-end">
-                                        <Button className="w-full bg-red-600 hover:bg-red-700">
-                                            <Zap className="w-4 h-4 mr-2" />
-                                            Start Spike Test
+                                        <Button
+                                            className="w-full bg-red-600 hover:bg-red-700"
+                                            onClick={handleSpikeTest}
+                                            disabled={!targetUrl || isRunningSpikeTest}
+                                        >
+                                            {isRunningSpikeTest ? (
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Zap className="w-4 h-4 mr-2" />
+                                            )}
+                                            {isRunningSpikeTest ? 'Running...' : 'Start Spike Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1142,22 +1361,24 @@ export default function PerformanceTestingPage() {
                     )
                 }
 
-                {/* Endurance Test Tab */}
+                {/* Soak Test Tab */}
                 {
-                    activeModule === 'endurance' && (
+                    activeModule === 'soak' && (
                         <div className="space-y-6">
                             <div className="mb-6">
-                                <h2 className="text-xl font-semibold text-gray-900">Endurance/Soak Testing</h2>
+                                <h2 className="text-xl font-semibold text-gray-900">Soak Testing</h2>
                                 <p className="text-sm text-gray-500">Run sustained load for extended periods to detect memory leaks</p>
                             </div>
 
                             <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Configure Endurance Test</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Configure Soak Test</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="md:col-span-2">
                                         <Label htmlFor="endurance-url">Target URL</Label>
                                         <Input
                                             id="endurance-url"
+                                            value={targetUrl}
+                                            onChange={(e) => setTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/endpoint"
                                             className="mt-1"
                                         />
@@ -1166,7 +1387,8 @@ export default function PerformanceTestingPage() {
                                         <Label>Virtual Users</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="50"
+                                            value={soakTestConfig.virtualUsers}
+                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, virtualUsers: parseInt(e.target.value) || 50 }))}
                                             className="mt-1"
                                         />
                                     </div>
@@ -1174,16 +1396,25 @@ export default function PerformanceTestingPage() {
                                         <Label>Duration (hours)</Label>
                                         <Input
                                             type="number"
-                                            defaultValue="4"
+                                            value={soakTestConfig.durationHours}
+                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, durationHours: parseInt(e.target.value) || 4 }))}
                                             min="1"
                                             max="24"
                                             className="mt-1"
                                         />
                                     </div>
                                     <div className="flex items-end">
-                                        <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-                                            <Clock className="w-4 h-4 mr-2" />
-                                            Start Endurance Test
+                                        <Button
+                                            className="w-full bg-indigo-600 hover:bg-indigo-700"
+                                            onClick={handleSoakTest}
+                                            disabled={!targetUrl || isRunningSoakTest}
+                                        >
+                                            {isRunningSoakTest ? (
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Clock className="w-4 h-4 mr-2" />
+                                            )}
+                                            {isRunningSoakTest ? 'Running...' : 'Start Soak Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1194,8 +1425,8 @@ export default function PerformanceTestingPage() {
 
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Long-Term Performance</h3>
-                                <p className="text-gray-500">Start an endurance test to monitor system health over time.</p>
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Soak Analysis</h3>
+                                <p className="text-gray-500">Start a soak test to monitor system health over time.</p>
                             </div>
                         </div>
                     )

@@ -21,12 +21,13 @@ from app.models.performance import TestType, TestStatus, PerformanceSchedule
 from app.services.performance_testing_service import PerformanceTestingService
 from sqlalchemy import select
 from app.schemas.performance import (
-    PerformanceTestCreate, PerformanceTestUpdate, PerformanceTestResponse,
     PerformanceTestDetailResponse, PerformanceTestListResponse,
     PerformanceMetricsResponse, TestExecutionListResponse,
     PerformanceAlertResponse, AcknowledgeAlertRequest,
     LighthouseScanRequest, LoadTestRequest, StressTestRequest,
-    PerformanceDashboardStats, PerformanceTrendResponse
+    SpikeTestRequest, SoakTestRequest,
+    PerformanceDashboardStats, PerformanceTrendResponse,
+    PerformanceTestResponse, PerformanceTestCreate
 )
 
 router = APIRouter()
@@ -164,16 +165,108 @@ async def run_stress_test(
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick stress test"""
+    # Calculate stages dynamically based on request
+    steps = int((request.max_vus - request.start_vus) / request.step_increase)
+    stages = [
+        {"duration": request.step_duration_seconds, "target": request.start_vus + (request.step_increase * i)}
+        for i in range(steps + 1)
+    ]
+    
     test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Stress Test: {request.target_url}",
         test_type=TestType.STRESS,
         target_url=request.target_url,
-        virtual_users=request.max_vus, # Use max as the target for simple execution logic
-        stages=[ # Simple stage mapping
-            {"duration": request.step_duration_seconds, "target": request.start_vus + (request.step_increase * i)}
-            for i in range(5) # Example stages
-        ]
+        virtual_users=request.max_vus,
+        stages=stages
+    )
+    
+    # Start execution in background
+    test.status = TestStatus.RUNNING
+    test.started_at = datetime.utcnow()
+    await service.db.commit()
+    await service.db.refresh(test)
+    background_tasks.add_task(run_test_background, test.id)
+    
+    return test
+
+
+@router.post("/spike-test", response_model=PerformanceTestResponse)
+async def run_spike_test(
+    background_tasks: BackgroundTasks,
+    project_id: UUID,
+    request: SpikeTestRequest,
+    current_user: User = Depends(get_current_user),
+    service: PerformanceTestingService = Depends(get_performance_service)
+):
+    """Run a quick spike test"""
+    # Create spike stages
+    # 1. Warmup (20%)
+    # 2. Spike (10% ramp up)
+    # 3. Hold Spike (40%)
+    # 4. Ramp Down (10%)
+    # 5. Cooldown (20%)
+    
+    total_duration = request.total_duration_seconds
+    warmup = int(total_duration * 0.2)
+    spike_up = int(total_duration * 0.1)
+    spike_hold = int(total_duration * 0.4)
+    spike_down = int(total_duration * 0.1)
+    cooldown = int(total_duration * 0.2)
+    
+    stages = [
+        {"duration": warmup, "target": request.base_users},
+        {"duration": spike_up, "target": request.spike_users},
+        {"duration": spike_hold, "target": request.spike_users},
+        {"duration": spike_down, "target": request.base_users},
+        {"duration": cooldown, "target": request.base_users}
+    ]
+    
+    test = await _create_and_run_test(
+        project_id, service, current_user,
+        name=f"Spike Test: {request.target_url}",
+        test_type=TestType.SPIKE,
+        target_url=request.target_url,
+        virtual_users=request.spike_users,
+        duration_seconds=request.total_duration_seconds,
+        stages=stages
+    )
+    
+    # Start execution in background
+    test.status = TestStatus.RUNNING
+    test.started_at = datetime.utcnow()
+    await service.db.commit()
+    await service.db.refresh(test)
+    background_tasks.add_task(run_test_background, test.id)
+    
+    return test
+
+
+@router.post("/soak-test", response_model=PerformanceTestResponse)
+async def run_soak_test(
+    background_tasks: BackgroundTasks,
+    project_id: UUID,
+    request: SoakTestRequest,
+    current_user: User = Depends(get_current_user),
+    service: PerformanceTestingService = Depends(get_performance_service)
+):
+    """Run a soak/endurance test"""
+    test = await _create_and_run_test(
+        project_id, service, current_user,
+        name=f"Soak Test: {request.target_url}",
+        test_type=TestType.ENDURANCE,
+        target_url=request.target_url,
+        virtual_users=request.virtual_users,
+        duration_seconds=request.duration_seconds,
+        ramp_up_seconds=request.ramp_up_seconds,
+        target_method=request.target_method,
+        target_headers=request.target_headers,
+        target_body=request.target_body,
+        # Thresholds
+        thresholds={
+            "latency_p95": request.max_p95_latency_ms,
+            "error_rate": request.max_error_rate
+        } if request.max_p95_latency_ms or request.max_error_rate else {}
     )
     
     # Start execution in background

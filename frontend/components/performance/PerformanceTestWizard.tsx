@@ -13,7 +13,8 @@ import {
     Check,
     Smartphone,
     Monitor,
-    Loader2
+    Loader2,
+    Clock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
-export type TestType = 'lighthouse' | 'load' | 'stress' | 'spike' | 'api'
+export type TestType = 'lighthouse' | 'load' | 'stress' | 'spike' | 'api' | 'soak'
 
 interface PerformanceTestWizardProps {
     projectId: string
@@ -42,6 +43,14 @@ interface TestConfig {
     virtualUsers: number
     durationSeconds: number
     rampUpSeconds: number
+    // Stress options
+    startVUs: number
+    maxVUs: number
+    stepDuration: number
+    stepIncrease: number
+    // Spike options
+    spikeUsers: number
+    spikeDuration: number
     // Thresholds
     maxLatencyP95: number | null
     maxErrorRate: number | null
@@ -77,6 +86,12 @@ const testTypeInfo = {
         description: 'Simulate sudden traffic bursts to test recovery',
         color: 'red'
     },
+    soak: {
+        icon: Clock, // We need to import Clock
+        name: 'Soak Test',
+        description: 'Run sustained load for extended periods to detect memory leaks',
+        color: 'indigo'
+    },
     api: {
         icon: Globe,
         name: 'API Performance',
@@ -97,6 +112,12 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         virtualUsers: 50,
         durationSeconds: 60,
         rampUpSeconds: 10,
+        startVUs: 10,
+        maxVUs: 500,
+        stepDuration: 30,
+        stepIncrease: 50,
+        spikeUsers: 1000,
+        spikeDuration: 60,
         maxLatencyP95: null,
         maxErrorRate: null,
         minPerformanceScore: null,
@@ -127,13 +148,12 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         setIsSubmitting(true)
         try {
             // Build request payload
-            const payload = {
+            const payload: any = {
                 name: config.name || `${testTypeInfo[config.testType].name}: ${config.targetUrl.slice(0, 30)}`,
-                test_type: config.testType,
+                test_type: config.testType === 'soak' ? 'endurance' : config.testType,
                 target_url: config.targetUrl,
                 description: config.description,
                 device_type: config.deviceType,
-                virtual_users: config.virtualUsers,
                 duration_seconds: config.durationSeconds,
                 ramp_up_seconds: config.rampUpSeconds,
                 target_method: config.method,
@@ -144,6 +164,37 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                     ...(config.maxErrorRate && { error_rate: config.maxErrorRate }),
                     ...(config.minPerformanceScore && { performance_score: config.minPerformanceScore }),
                 }
+            }
+
+            // Type specific mappings
+            if (config.testType === 'stress') {
+                payload.virtual_users = config.maxVUs // Use max as main VU count
+                // We rely on backend runtime generation or we could construct stages here
+                // For Wizard, let's keep it simple and just pass params if backend supports it
+                // But backend create_test generic endpoint mostly looks at virtual_users. 
+                // We'll pass the specific fields in config or mapped to what create_test expects?
+                // Actually, backend create_test accepts kwargs. performance_testing_service.py line 62.
+                // But PerformanceTestCreate schema is strict.
+                // We should construct stages here to be safe for generic endpoint.
+
+                const steps = Math.floor((config.maxVUs - config.startVUs) / config.stepIncrease)
+                payload.stages = Array.from({ length: steps + 1 }, (_, i) => ({
+                    duration: config.stepDuration,
+                    target: config.startVUs + (config.stepIncrease * i)
+                }))
+            } else if (config.testType === 'spike') {
+                payload.virtual_users = config.spikeUsers
+                // Spike stages
+                const duration = config.durationSeconds
+                payload.stages = [
+                    { duration: Math.floor(duration * 0.2), target: Math.floor(config.spikeUsers * 0.1) },
+                    { duration: Math.floor(duration * 0.1), target: config.spikeUsers },
+                    { duration: Math.floor(duration * 0.4), target: config.spikeUsers },
+                    { duration: Math.floor(duration * 0.1), target: Math.floor(config.spikeUsers * 0.1) },
+                    { duration: Math.floor(duration * 0.2), target: Math.floor(config.spikeUsers * 0.1) }
+                ]
+            } else {
+                payload.virtual_users = config.virtualUsers
             }
 
             onComplete(payload)
@@ -359,58 +410,146 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
 
                 {step === 3 && config.testType !== 'lighthouse' && (
                     <div className="space-y-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Load Configuration</h3>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                            {config.testType === 'load' ? 'Load Configuration' :
+                                config.testType === 'stress' ? 'Stress Configuration' :
+                                    config.testType === 'spike' ? 'Spike Configuration' :
+                                        'Soak Configuration'}
+                        </h3>
 
-                        <div>
-                            <Label className="flex justify-between">
-                                <span>Virtual Users</span>
-                                <span className="text-brand-600 font-semibold">{config.virtualUsers}</span>
-                            </Label>
-                            <Slider
-                                value={[config.virtualUsers]}
-                                onValueChange={([v]: number[]) => updateConfig('virtualUsers', v)}
-                                min={1}
-                                max={500}
-                                step={1}
-                                className="mt-3"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                                Number of concurrent virtual users to simulate
-                            </p>
-                        </div>
+                        {/* LOAD & SOAK Config */}
+                        {(config.testType === 'load' || config.testType === 'soak') && (
+                            <>
+                                <div>
+                                    <Label className="flex justify-between">
+                                        <span>Virtual Users</span>
+                                        <span className="text-brand-600 font-semibold">{config.virtualUsers}</span>
+                                    </Label>
+                                    <Slider
+                                        value={[config.virtualUsers]}
+                                        onValueChange={([v]: number[]) => updateConfig('virtualUsers', v)}
+                                        min={1}
+                                        max={config.testType === 'soak' ? 1000 : 500}
+                                        step={10}
+                                        className="mt-3"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Number of concurrent virtual users to simulate
+                                    </p>
+                                </div>
 
-                        <div>
-                            <Label className="flex justify-between">
-                                <span>Duration (seconds)</span>
-                                <span className="text-brand-600 font-semibold">{config.durationSeconds}s</span>
-                            </Label>
-                            <Slider
-                                value={[config.durationSeconds]}
-                                onValueChange={([v]: number[]) => updateConfig('durationSeconds', v)}
-                                min={10}
-                                max={300}
-                                step={10}
-                                className="mt-3"
-                            />
-                        </div>
+                                <div>
+                                    <Label className="flex justify-between">
+                                        <span>Duration (seconds)</span>
+                                        <span className="text-brand-600 font-semibold">{config.durationSeconds}s</span>
+                                    </Label>
+                                    <Slider
+                                        value={[config.durationSeconds]}
+                                        onValueChange={([v]: number[]) => updateConfig('durationSeconds', v)}
+                                        min={10}
+                                        max={config.testType === 'soak' ? 86400 : 600}
+                                        step={config.testType === 'soak' ? 300 : 10}
+                                        className="mt-3"
+                                    />
+                                </div>
 
-                        <div>
-                            <Label className="flex justify-between">
-                                <span>Ramp-up Time (seconds)</span>
-                                <span className="text-brand-600 font-semibold">{config.rampUpSeconds}s</span>
-                            </Label>
-                            <Slider
-                                value={[config.rampUpSeconds]}
-                                onValueChange={([v]: number[]) => updateConfig('rampUpSeconds', v)}
-                                min={0}
-                                max={60}
-                                step={5}
-                                className="mt-3"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                                Time to gradually increase to target VUs
-                            </p>
-                        </div>
+                                <div>
+                                    <Label className="flex justify-between">
+                                        <span>Ramp-up Time (seconds)</span>
+                                        <span className="text-brand-600 font-semibold">{config.rampUpSeconds}s</span>
+                                    </Label>
+                                    <Slider
+                                        value={[config.rampUpSeconds]}
+                                        onValueChange={([v]: number[]) => updateConfig('rampUpSeconds', v)}
+                                        min={0}
+                                        max={60}
+                                        step={5}
+                                        className="mt-3"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* STRESS Config */}
+                        {config.testType === 'stress' && (
+                            <>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="startVUs">Start VUs</Label>
+                                        <Input
+                                            id="startVUs"
+                                            type="number"
+                                            value={config.startVUs}
+                                            onChange={(e) => updateConfig('startVUs', parseInt(e.target.value) || 1)}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="maxVUs">Max VUs</Label>
+                                        <Input
+                                            id="maxVUs"
+                                            type="number"
+                                            value={config.maxVUs}
+                                            onChange={(e) => updateConfig('maxVUs', parseInt(e.target.value) || 100)}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="stepIncrease">Step Increase</Label>
+                                        <Input
+                                            id="stepIncrease"
+                                            type="number"
+                                            value={config.stepIncrease}
+                                            onChange={(e) => updateConfig('stepIncrease', parseInt(e.target.value) || 10)}
+                                            className="mt-1"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Users added per step</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="stepDuration">Step Duration (s)</Label>
+                                        <Input
+                                            id="stepDuration"
+                                            type="number"
+                                            value={config.stepDuration}
+                                            onChange={(e) => updateConfig('stepDuration', parseInt(e.target.value) || 30)}
+                                            className="mt-1"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Time to hold each step</p>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* SPIKE Config */}
+                        {config.testType === 'spike' && (
+                            <>
+                                <div>
+                                    <Label htmlFor="spikeUsers">Spike Load (VUs)</Label>
+                                    <Input
+                                        id="spikeUsers"
+                                        type="number"
+                                        value={config.spikeUsers}
+                                        onChange={(e) => updateConfig('spikeUsers', parseInt(e.target.value) || 500)}
+                                        className="mt-1"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Maximum users during spike</p>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="spikeDuration">Total Duration (seconds)</Label>
+                                    <Input
+                                        id="spikeDuration"
+                                        type="number"
+                                        value={config.durationSeconds} // Reuse durationSeconds
+                                        onChange={(e) => updateConfig('durationSeconds', parseInt(e.target.value) || 120)}
+                                        className="mt-1"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 
