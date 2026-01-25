@@ -40,21 +40,21 @@ interface TestConfig {
     // Lighthouse options
     deviceType: 'mobile' | 'desktop'
     // Load test options
-    virtualUsers: number
-    durationSeconds: number
-    rampUpSeconds: number
+    virtualUsers: number | string
+    durationSeconds: number | string
+    rampUpSeconds: number | string
     // Stress options
-    startVUs: number
-    maxVUs: number
-    stepDuration: number
-    stepIncrease: number
+    startVUs: number | string
+    maxVUs: number | string
+    stepDuration: number | string
+    stepIncrease: number | string
     // Spike options
-    spikeUsers: number
-    spikeDuration: number
+    spikeUsers: number | string
+    spikeDuration: number | string
     // Thresholds
-    maxLatencyP95: number | null
-    maxErrorRate: number | null
-    minPerformanceScore: number | null
+    maxLatencyP95: number | string | null
+    maxErrorRate: number | string | null
+    minPerformanceScore: number | string | null
     // Headers/Body for API tests
     method: 'GET' | 'POST' | 'PUT' | 'DELETE'
     headers: Record<string, string>
@@ -154,21 +154,21 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 target_url: config.targetUrl,
                 description: config.description,
                 device_type: config.deviceType,
-                duration_seconds: config.durationSeconds,
-                ramp_up_seconds: config.rampUpSeconds,
+                duration_seconds: Number(config.durationSeconds) || 60,
+                ramp_up_seconds: Number(config.rampUpSeconds) || 0,
                 target_method: config.method,
                 target_headers: config.headers,
                 target_body: config.body,
                 thresholds: {
-                    ...(config.maxLatencyP95 && { latency_p95: config.maxLatencyP95 }),
-                    ...(config.maxErrorRate && { error_rate: config.maxErrorRate }),
-                    ...(config.minPerformanceScore && { performance_score: config.minPerformanceScore }),
+                    ...(config.maxLatencyP95 && { latency_p95: Number(config.maxLatencyP95) }),
+                    ...(config.maxErrorRate && { error_rate: Number(config.maxErrorRate) }),
+                    ...(config.minPerformanceScore && { performance_score: Number(config.minPerformanceScore) }),
                 }
             }
 
             // Type specific mappings
             if (config.testType === 'stress') {
-                payload.virtual_users = config.maxVUs // Use max as main VU count
+                payload.virtual_users = Number(config.maxVUs) // Use max as main VU count
                 // We rely on backend runtime generation or we could construct stages here
                 // For Wizard, let's keep it simple and just pass params if backend supports it
                 // But backend create_test generic endpoint mostly looks at virtual_users. 
@@ -177,24 +177,30 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 // But PerformanceTestCreate schema is strict.
                 // We should construct stages here to be safe for generic endpoint.
 
-                const steps = Math.floor((config.maxVUs - config.startVUs) / config.stepIncrease)
+                const startVUs = Number(config.startVUs) || 10
+                const maxVUs = Number(config.maxVUs) || 500
+                const stepIncrease = Number(config.stepIncrease) || 50
+                const stepDuration = Number(config.stepDuration) || 30
+
+                const steps = Math.floor((maxVUs - startVUs) / stepIncrease)
                 payload.stages = Array.from({ length: steps + 1 }, (_, i) => ({
-                    duration: config.stepDuration,
-                    target: config.startVUs + (config.stepIncrease * i)
+                    duration: stepDuration,
+                    target: startVUs + (stepIncrease * i)
                 }))
             } else if (config.testType === 'spike') {
-                payload.virtual_users = config.spikeUsers
+                const spikeUsers = Number(config.spikeUsers) || 1000
+                payload.virtual_users = spikeUsers
                 // Spike stages
-                const duration = config.durationSeconds
+                const duration = Number(config.durationSeconds) || 120
                 payload.stages = [
-                    { duration: Math.floor(duration * 0.2), target: Math.floor(config.spikeUsers * 0.1) },
-                    { duration: Math.floor(duration * 0.1), target: config.spikeUsers },
-                    { duration: Math.floor(duration * 0.4), target: config.spikeUsers },
-                    { duration: Math.floor(duration * 0.1), target: Math.floor(config.spikeUsers * 0.1) },
-                    { duration: Math.floor(duration * 0.2), target: Math.floor(config.spikeUsers * 0.1) }
+                    { duration: Math.floor(duration * 0.2), target: Math.floor(spikeUsers * 0.1) },
+                    { duration: Math.floor(duration * 0.1), target: spikeUsers },
+                    { duration: Math.floor(duration * 0.4), target: spikeUsers },
+                    { duration: Math.floor(duration * 0.1), target: Math.floor(spikeUsers * 0.1) },
+                    { duration: Math.floor(duration * 0.2), target: Math.floor(spikeUsers * 0.1) }
                 ]
             } else {
-                payload.virtual_users = config.virtualUsers
+                payload.virtual_users = Number(config.virtualUsers) || 50
             }
 
             onComplete(payload)
@@ -210,14 +216,46 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
             case 1:
                 return true // Test type already selected
             case 2:
+                // Test basic config step
+                if (!config.name || !config.targetUrl) return false
                 return config.targetUrl.trim().length > 0
             case 3:
                 if (config.testType === 'lighthouse') {
-                    return true // Device selection is optional
+                    const perfScore = config.minPerformanceScore === null ? 0 : Number(config.minPerformanceScore)
+                    if (config.minPerformanceScore !== null && (perfScore < 0 || perfScore > 100)) return false
+                    return true
                 }
-                return config.virtualUsers > 0 && config.durationSeconds > 0
+
+                const vus = Number(config.virtualUsers)
+                const duration = Number(config.durationSeconds)
+
+                if (config.testType === 'load') {
+                    if (vus < 1 || vus > 2000) return false
+                    if (duration < 10 || duration > 3600) return false
+                }
+
+                if (config.testType === 'stress') {
+                    const startVUs = Number(config.startVUs)
+                    const maxVUs = Number(config.maxVUs)
+                    if (startVUs < 1 || startVUs > 1000) return false
+                    if (maxVUs < 10 || maxVUs > 2000) return false
+                }
+
+                if (config.testType === 'spike') {
+                    const baseUsers = Number(config.virtualUsers)
+                    const spikeUsers = Number(config.spikeUsers)
+                    if (baseUsers < 1 || baseUsers > 1000) return false
+                    if (spikeUsers < 10 || spikeUsers > 2000) return false
+                }
+
+                return true
             case 4:
-                return true // Thresholds are optional
+                // Check thresholds
+                const latency = config.maxLatencyP95 === null ? 0 : Number(config.maxLatencyP95)
+                const errorRate = config.maxErrorRate === null ? 0 : Number(config.maxErrorRate)
+                if (config.maxLatencyP95 !== null && (latency < 0 || latency > 10000)) return false
+                if (config.maxErrorRate !== null && (errorRate < 0 || errorRate > 100)) return false
+                return true
             default:
                 return true
         }
@@ -426,7 +464,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                         <span className="text-brand-600 font-semibold">{config.virtualUsers}</span>
                                     </Label>
                                     <Slider
-                                        value={[config.virtualUsers]}
+                                        value={[Number(config.virtualUsers)]}
                                         onValueChange={([v]: number[]) => updateConfig('virtualUsers', v)}
                                         min={1}
                                         max={config.testType === 'soak' ? 1000 : 500}
@@ -444,7 +482,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                         <span className="text-brand-600 font-semibold">{config.durationSeconds}s</span>
                                     </Label>
                                     <Slider
-                                        value={[config.durationSeconds]}
+                                        value={[Number(config.durationSeconds)]}
                                         onValueChange={([v]: number[]) => updateConfig('durationSeconds', v)}
                                         min={10}
                                         max={config.testType === 'soak' ? 86400 : 600}
@@ -459,7 +497,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                         <span className="text-brand-600 font-semibold">{config.rampUpSeconds}s</span>
                                     </Label>
                                     <Slider
-                                        value={[config.rampUpSeconds]}
+                                        value={[Number(config.rampUpSeconds)]}
                                         onValueChange={([v]: number[]) => updateConfig('rampUpSeconds', v)}
                                         min={0}
                                         max={60}
@@ -480,9 +518,11 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                             id="startVUs"
                                             type="number"
                                             value={config.startVUs}
-                                            onChange={(e) => updateConfig('startVUs', parseInt(e.target.value) || 1)}
-                                            className="mt-1"
+                                            onChange={(e) => updateConfig('startVUs', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            className={cn("mt-1", (Number(config.startVUs) > 1000 || Number(config.startVUs) < 1) && config.startVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(config.startVUs) > 1000 && <p className="text-xs text-red-500 mt-1">Maximum reached (1000)</p>}
+                                        {Number(config.startVUs) < 1 && config.startVUs !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
                                     </div>
                                     <div>
                                         <Label htmlFor="maxVUs">Max VUs</Label>
@@ -490,9 +530,11 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                             id="maxVUs"
                                             type="number"
                                             value={config.maxVUs}
-                                            onChange={(e) => updateConfig('maxVUs', parseInt(e.target.value) || 100)}
-                                            className="mt-1"
+                                            onChange={(e) => updateConfig('maxVUs', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            className={cn("mt-1", (Number(config.maxVUs) > 2000 || Number(config.maxVUs) < 10) && config.maxVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(config.maxVUs) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum reached (2000)</p>}
+                                        {Number(config.maxVUs) < 10 && config.maxVUs !== '' && <p className="text-xs text-red-500 mt-1">Min 10</p>}
                                     </div>
                                 </div>
 
@@ -503,10 +545,11 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                             id="stepIncrease"
                                             type="number"
                                             value={config.stepIncrease}
-                                            onChange={(e) => updateConfig('stepIncrease', parseInt(e.target.value) || 10)}
-                                            className="mt-1"
+                                            onChange={(e) => updateConfig('stepIncrease', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            className={cn("mt-1", (Number(config.stepIncrease) > 500 || Number(config.stepIncrease) < 1) && config.stepIncrease !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">Users added per step</p>
+                                        {Number(config.stepIncrease) > 500 && <p className="text-xs text-red-500 mt-1">Max 500</p>}
+                                        {Number(config.stepIncrease) < 1 && config.stepIncrease !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
                                     </div>
                                     <div>
                                         <Label htmlFor="stepDuration">Step Duration (s)</Label>
@@ -514,10 +557,11 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                             id="stepDuration"
                                             type="number"
                                             value={config.stepDuration}
-                                            onChange={(e) => updateConfig('stepDuration', parseInt(e.target.value) || 30)}
-                                            className="mt-1"
+                                            onChange={(e) => updateConfig('stepDuration', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            className={cn("mt-1", (Number(config.stepDuration) > 3600 || Number(config.stepDuration) < 1) && config.stepDuration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">Time to hold each step</p>
+                                        {Number(config.stepDuration) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
+                                        {Number(config.stepDuration) < 1 && config.stepDuration !== '' && <p className="text-xs text-red-500 mt-1">Min 1s</p>}
                                     </div>
                                 </div>
                             </>
@@ -532,10 +576,11 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                         id="spikeUsers"
                                         type="number"
                                         value={config.spikeUsers}
-                                        onChange={(e) => updateConfig('spikeUsers', parseInt(e.target.value) || 500)}
-                                        className="mt-1"
+                                        onChange={(e) => updateConfig('spikeUsers', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                        className={cn("mt-1", (Number(config.spikeUsers) > 2000 || Number(config.spikeUsers) < 1) && config.spikeUsers !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">Maximum users during spike</p>
+                                    {Number(config.spikeUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Max 2000</p>}
+                                    {Number(config.spikeUsers) < 1 && config.spikeUsers !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
                                 </div>
 
                                 <div>
@@ -543,10 +588,12 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                     <Input
                                         id="spikeDuration"
                                         type="number"
-                                        value={config.durationSeconds} // Reuse durationSeconds
-                                        onChange={(e) => updateConfig('durationSeconds', parseInt(e.target.value) || 120)}
-                                        className="mt-1"
+                                        value={config.durationSeconds}
+                                        onChange={(e) => updateConfig('durationSeconds', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                        className={cn("mt-1", (Number(config.durationSeconds) > 3600 || Number(config.durationSeconds) < 10) && config.durationSeconds !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
+                                    {Number(config.durationSeconds) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
+                                    {Number(config.durationSeconds) < 10 && config.durationSeconds !== '' && <p className="text-xs text-red-500 mt-1">Min 10s</p>}
                                 </div>
                             </>
                         )}
@@ -568,7 +615,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                 type="number"
                                 placeholder="e.g., 500"
                                 value={config.maxLatencyP95 || ''}
-                                onChange={(e) => updateConfig('maxLatencyP95', e.target.value ? parseInt(e.target.value) : null)}
+                                onChange={(e) => updateConfig('maxLatencyP95', e.target.value ? Math.min(10000, Math.max(0, parseInt(e.target.value) || 0)) : null)}
                                 className="mt-1"
                             />
                         </div>
@@ -580,7 +627,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                                 type="number"
                                 placeholder="e.g., 1"
                                 value={config.maxErrorRate || ''}
-                                onChange={(e) => updateConfig('maxErrorRate', e.target.value ? parseFloat(e.target.value) : null)}
+                                onChange={(e) => updateConfig('maxErrorRate', e.target.value ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : null)}
                                 className="mt-1"
                             />
                         </div>

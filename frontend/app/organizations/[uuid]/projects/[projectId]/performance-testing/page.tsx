@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import { UserNav } from '@/components/layout/user-nav'
 import {
     Zap,
@@ -30,6 +31,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
     PerformanceTestWizard,
     PerformanceGauge,
@@ -68,6 +71,21 @@ export default function PerformanceTestingPage() {
     const [isLoadTestModalOpen, setIsLoadTestModalOpen] = useState(false)
     const [refreshTrigger, setRefreshTrigger] = useState(0)
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isLighthouseLoading, setIsLighthouseLoading] = useState(false)
+    const [isLoadLoading, setIsLoadLoading] = useState(false)
+    const [isStressLoading, setIsStressLoading] = useState(false)
+    const [isSpikeLoading, setIsSpikeLoading] = useState(false)
+    const [isSoakLoading, setIsSoakLoading] = useState(false)
+
+    // Lighthouse Options State
+    const [lhDevice, setLhDevice] = useState<'mobile' | 'desktop'>('mobile')
+    const [lhMode, setLhMode] = useState<'navigation' | 'timespan' | 'snapshot'>('navigation')
+    const [lhCategories, setLhCategories] = useState({
+        performance: true,
+        accessibility: true,
+        bestPractices: true,
+        seo: true
+    })
 
     // Stats from API
     const [stats, setStats] = useState({
@@ -122,8 +140,18 @@ export default function PerformanceTestingPage() {
                     setProgress(100)
                     await handleTestExecutionComplete(testId)
                     setIsLoading(false)
+                    if (test.test_type === 'lighthouse' || test.test_type === 'pagespeed') setIsLighthouseLoading(false)
+                    else if (test.test_type === 'load') setIsLoadLoading(false)
+                    else if (test.test_type === 'stress') setIsStressLoading(false)
+                    else if (test.test_type === 'spike') setIsSpikeLoading(false)
+                    else if (test.test_type === 'endurance' || test.test_type === 'soak') setIsSoakLoading(false)
                 } else if (test.status === 'failed' || test.status === 'cancelled') {
                     setIsLoading(false)
+                    if (test.test_type === 'lighthouse' || test.test_type === 'pagespeed') setIsLighthouseLoading(false)
+                    else if (test.test_type === 'load') setIsLoadLoading(false)
+                    else if (test.test_type === 'stress') setIsStressLoading(false)
+                    else if (test.test_type === 'spike') setIsSpikeLoading(false)
+                    else if (test.test_type === 'endurance' || test.test_type === 'soak') setIsSoakLoading(false)
                     console.error('Test failed:', test.error_message)
                     // Optionally show error toast here
                 } else {
@@ -165,15 +193,26 @@ export default function PerformanceTestingPage() {
                 }
             } else {
                 setIsLoading(false)
+                setIsLighthouseLoading(false)
+                setIsLoadLoading(false)
+                setIsStressLoading(false)
+                setIsSpikeLoading(false)
+                setIsSoakLoading(false)
             }
         } catch (error) {
             console.error('Polling failed:', error)
             setIsLoading(false)
+            setIsLighthouseLoading(false)
+            setIsLoadLoading(false)
+            setIsStressLoading(false)
+            setIsSpikeLoading(false)
+            setIsSoakLoading(false)
         }
     }
 
     const handleLighthouseScan = async () => {
         if (!targetUrl) return
+        setIsLighthouseLoading(true)
         setIsLoading(true)
         setProgress(0)
         setLighthouseResult(null)
@@ -188,7 +227,9 @@ export default function PerformanceTestingPage() {
                 },
                 body: JSON.stringify({
                     target_url: targetUrl,
-                    device_type: 'mobile'
+                    device_type: lhDevice,
+                    mode: lhMode,
+                    categories: lhCategories
                 })
             })
             if (response.ok) {
@@ -211,15 +252,17 @@ export default function PerformanceTestingPage() {
                         ttfb: metrics.time_to_first_byte || 0
                     })
                     setIsLoading(false)
+                    setIsLighthouseLoading(false)
                     fetchDashboardData()
                 }
             } else {
                 console.error('Lighthouse scan failed:', response.statusText)
+                setIsLoading(false)
             }
         } catch (error) {
             console.error('Lighthouse scan failed:', error)
-        } finally {
-            // Loading state handled in poll
+            setIsLoading(false)
+            setIsLighthouseLoading(false)
         }
     }
 
@@ -247,6 +290,12 @@ export default function PerformanceTestingPage() {
 
     const handleTestRunStarted = (testId: string, testType: string) => {
         setIsLoading(true)
+        if (testType === 'lighthouse') setIsLighthouseLoading(true)
+        else if (testType === 'load') setIsLoadLoading(true)
+        else if (testType === 'stress') setIsStressLoading(true)
+        else if (testType === 'spike') setIsSpikeLoading(true)
+        else if (testType === 'soak' || testType === 'endurance') setIsSoakLoading(true)
+
         setProgress(5)
 
         // Switch to the relevant tab to show results
@@ -274,7 +323,11 @@ export default function PerformanceTestingPage() {
     }
 
     // Load test state
-    const [loadTestConfig, setLoadTestConfig] = useState({
+    const [loadTestConfig, setLoadTestConfig] = useState<{
+        virtualUsers: number | string
+        duration: number | string
+        rampUp: number | string
+    }>({
         virtualUsers: 50,
         duration: 60,
         rampUp: 10
@@ -283,8 +336,11 @@ export default function PerformanceTestingPage() {
 
     const handleLoadTest = async () => {
         if (!targetUrl) return
+        setIsLoadLoading(true)
+        setIsLoading(true)
         setIsRunningLoadTest(true)
         setLoadTestResult(null)
+        setProgress(0)
 
         try {
             const token = localStorage.getItem('access_token')
@@ -299,9 +355,9 @@ export default function PerformanceTestingPage() {
                     target_url: targetUrl,
                     target_method: "GET",
                     target_headers: {},
-                    virtual_users: loadTestConfig.virtualUsers,
-                    duration_seconds: loadTestConfig.duration,
-                    ramp_up_seconds: loadTestConfig.rampUp
+                    virtual_users: Number(loadTestConfig.virtualUsers) || 50,
+                    duration_seconds: Number(loadTestConfig.duration) || 60,
+                    ramp_up_seconds: Number(loadTestConfig.rampUp) || 10
                 })
             })
 
@@ -328,10 +384,12 @@ export default function PerformanceTestingPage() {
                     }
                 }
 
+                setIsLoading(false)
                 toast.error(errorMessage)
             }
         } catch (error: any) {
             console.error('Load test failed:', error)
+            setIsLoading(false)
             toast.error(error.message || 'Failed to start load test')
         } finally {
             setIsRunningLoadTest(false)
@@ -339,7 +397,12 @@ export default function PerformanceTestingPage() {
     }
 
     // Stress test state
-    const [stressTestConfig, setStressTestConfig] = useState({
+    const [stressTestConfig, setStressTestConfig] = useState<{
+        startVUs: number | string
+        maxVUs: number | string
+        stepIncrease: number | string
+        stepDuration: number | string
+    }>({
         startVUs: 10,
         maxVUs: 500,
         stepIncrease: 50,
@@ -349,8 +412,11 @@ export default function PerformanceTestingPage() {
 
     const handleStressTest = async () => {
         if (!targetUrl) return
+        setIsStressLoading(true)
+        setIsLoading(true)
         setIsRunningStressTest(true)
         setLoadTestResult(null)
+        setProgress(0)
 
         try {
             const token = localStorage.getItem('access_token')
@@ -365,10 +431,10 @@ export default function PerformanceTestingPage() {
                     target_url: targetUrl,
                     target_method: "GET",
                     target_headers: {},
-                    start_vus: stressTestConfig.startVUs,
-                    max_vus: stressTestConfig.maxVUs,
-                    step_duration_seconds: stressTestConfig.stepDuration,
-                    step_increase: stressTestConfig.stepIncrease
+                    start_vus: Number(stressTestConfig.startVUs) || 10,
+                    max_vus: Number(stressTestConfig.maxVUs) || 500,
+                    step_duration_seconds: Number(stressTestConfig.stepDuration) || 30,
+                    step_increase: Number(stressTestConfig.stepIncrease) || 50
                 })
             })
 
@@ -376,10 +442,12 @@ export default function PerformanceTestingPage() {
                 const data = await response.json()
                 pollTestStatus(data.id)
             } else {
+                setIsLoading(false)
                 toast.error('Failed to start stress test')
             }
         } catch (error: any) {
             console.error('Stress test failed:', error)
+            setIsLoading(false)
             toast.error(error.message || 'Failed to start stress test')
         } finally {
             setIsRunningStressTest(false)
@@ -387,7 +455,11 @@ export default function PerformanceTestingPage() {
     }
 
     // Spike test state
-    const [spikeTestConfig, setSpikeTestConfig] = useState({
+    const [spikeTestConfig, setSpikeTestConfig] = useState<{
+        normalLoad: number | string
+        spikeLoad: number | string
+        duration: number | string
+    }>({
         normalLoad: 10,
         spikeLoad: 1000,
         duration: 120
@@ -396,7 +468,10 @@ export default function PerformanceTestingPage() {
 
     const handleSpikeTest = async () => {
         if (!targetUrl) return
+        setIsSpikeLoading(true)
+        setIsLoading(true)
         setIsRunningSpikeTest(true)
+        setProgress(0)
 
         try {
             const token = localStorage.getItem('access_token')
@@ -411,10 +486,10 @@ export default function PerformanceTestingPage() {
                     target_url: targetUrl,
                     target_method: "GET",
                     target_headers: {},
-                    base_users: spikeTestConfig.normalLoad,
-                    spike_users: spikeTestConfig.spikeLoad,
-                    total_duration_seconds: spikeTestConfig.duration,
-                    spike_duration_seconds: Math.floor(spikeTestConfig.duration * 0.4) // Approximate
+                    base_users: Number(spikeTestConfig.normalLoad) || 10,
+                    spike_users: Number(spikeTestConfig.spikeLoad) || 1000,
+                    total_duration_seconds: Number(spikeTestConfig.duration) || 120,
+                    spike_duration_seconds: Math.floor((Number(spikeTestConfig.duration) || 120) * 0.4) // Approximate
                 })
             })
 
@@ -422,10 +497,12 @@ export default function PerformanceTestingPage() {
                 const data = await response.json()
                 pollTestStatus(data.id)
             } else {
+                setIsLoading(false)
                 toast.error('Failed to start spike test')
             }
         } catch (error: any) {
             console.error('Spike test failed:', error)
+            setIsLoading(false)
             toast.error(error.message || 'Failed to start spike test')
         } finally {
             setIsRunningSpikeTest(false)
@@ -433,7 +510,10 @@ export default function PerformanceTestingPage() {
     }
 
     // Soak test state
-    const [soakTestConfig, setSoakTestConfig] = useState({
+    const [soakTestConfig, setSoakTestConfig] = useState<{
+        virtualUsers: number | string
+        durationHours: number | string
+    }>({
         virtualUsers: 50,
         durationHours: 4
     })
@@ -441,7 +521,10 @@ export default function PerformanceTestingPage() {
 
     const handleSoakTest = async () => {
         if (!targetUrl) return
+        setIsSoakLoading(true)
+        setIsLoading(true)
         setIsRunningSoakTest(true)
+        setProgress(0)
 
         try {
             const token = localStorage.getItem('access_token')
@@ -456,8 +539,8 @@ export default function PerformanceTestingPage() {
                     target_url: targetUrl,
                     target_method: "GET",
                     target_headers: {},
-                    virtual_users: soakTestConfig.virtualUsers,
-                    duration_seconds: soakTestConfig.durationHours * 3600,
+                    virtual_users: Number(soakTestConfig.virtualUsers) || 50,
+                    duration_seconds: (Number(soakTestConfig.durationHours) || 4) * 3600,
                     ramp_up_seconds: 60
                 })
             })
@@ -466,10 +549,12 @@ export default function PerformanceTestingPage() {
                 const data = await response.json()
                 pollTestStatus(data.id)
             } else {
+                setIsLoading(false)
                 toast.error('Failed to start soak test')
             }
         } catch (error: any) {
             console.error('Soak test failed:', error)
+            setIsLoading(false)
             toast.error(error.message || 'Failed to start soak test')
         } finally {
             setIsRunningSoakTest(false)
@@ -867,45 +952,134 @@ export default function PerformanceTestingPage() {
                             <p className="text-sm text-gray-500">Analyze Core Web Vitals and page performance</p>
                         </div>
 
-                        {/* URL Input */}
                         <div className="bg-white rounded-xl p-6 border shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Scan</h3>
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <Label htmlFor="lighthouse-url">Target URL</Label>
-                                    <Input
-                                        id="lighthouse-url"
-                                        placeholder="https://example.com"
-                                        value={targetUrl}
-                                        onChange={(e) => setTargetUrl(e.target.value)}
-                                        className="mt-1"
-                                    />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-6 border-b pb-4">Configuration</h3>
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                    {/* URL Input */}
+                                    <div className="md:col-span-2">
+                                        <Label htmlFor="lighthouse-url" className="text-sm font-medium text-gray-700">Target URL</Label>
+                                        <Input
+                                            id="lighthouse-url"
+                                            placeholder="https://example.com"
+                                            value={targetUrl}
+                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            className="mt-2"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-2">The URL to perform the audit on.</p>
+                                    </div>
+
+                                    {/* Device Select */}
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-700">Device</Label>
+                                        <RadioGroup
+                                            defaultValue="mobile"
+                                            value={lhDevice}
+                                            onValueChange={(val: any) => setLhDevice(val)}
+                                            className="mt-3 space-y-2"
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="mobile" id="lh-mobile" />
+                                                <Label htmlFor="lh-mobile" className="font-normal cursor-pointer">Mobile</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="desktop" id="lh-desktop" />
+                                                <Label htmlFor="lh-desktop" className="font-normal cursor-pointer">Desktop</Label>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+
+                                    {/* Run Button */}
+                                    <div className="flex items-end">
+                                        <Button
+                                            className="bg-teal-600 hover:bg-teal-700 w-full"
+                                            onClick={handleLighthouseScan}
+                                            disabled={isLighthouseLoading || !targetUrl}
+                                        >
+                                            {isLighthouseLoading ? (
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Play className="w-4 h-4 mr-2" />
+                                            )}
+                                            {lhMode === 'navigation' ? 'Analyze page load' :
+                                                lhMode === 'timespan' ? 'Start timespan' :
+                                                    'Analyze page state'}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="w-40">
-                                    <Label>Device</Label>
-                                    <Select defaultValue="mobile">
-                                        <SelectTrigger className="mt-1">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="mobile">Mobile</SelectItem>
-                                            <SelectItem value="desktop">Desktop</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="flex items-end">
-                                    <Button
-                                        className="bg-teal-600 hover:bg-teal-700"
-                                        onClick={handleLighthouseScan}
-                                        disabled={isLoading || !targetUrl}
-                                    >
-                                        {isLoading ? (
-                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                        ) : (
-                                            <Play className="w-4 h-4 mr-2" />
-                                        )}
-                                        Run Audit
-                                    </Button>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+                                    {/* Mode Select */}
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-700">Audit Mode</Label>
+                                        <RadioGroup
+                                            defaultValue="navigation"
+                                            value={lhMode}
+                                            onValueChange={(val: any) => setLhMode(val)}
+                                            className="mt-3 space-y-3"
+                                        >
+                                            <div className="flex items-start space-x-3">
+                                                <RadioGroupItem value="navigation" id="mode-nav" className="mt-1" />
+                                                <div>
+                                                    <Label htmlFor="mode-nav" className="font-medium cursor-pointer">Navigation (Default)</Label>
+                                                    <p className="text-xs text-gray-500">Analyze a single page load.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start space-x-3">
+                                                <RadioGroupItem value="timespan" id="mode-time" className="mt-1" />
+                                                <div>
+                                                    <Label htmlFor="mode-time" className="font-medium cursor-pointer">Timespan</Label>
+                                                    <p className="text-xs text-gray-500">Analyze a period of time.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start space-x-3">
+                                                <RadioGroupItem value="snapshot" id="mode-snap" className="mt-1" />
+                                                <div>
+                                                    <Label htmlFor="mode-snap" className="font-medium cursor-pointer">Snapshot</Label>
+                                                    <p className="text-xs text-gray-500">Analyze the page at a specific state.</p>
+                                                </div>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+
+                                    {/* Categories */}
+                                    <div>
+                                        <Label className="text-sm font-medium text-gray-700">Categories</Label>
+                                        <div className="mt-3 grid grid-cols-2 gap-4">
+                                            <div className="flex items-center space-x-3">
+                                                <Checkbox
+                                                    id="cat-perf"
+                                                    checked={lhCategories.performance}
+                                                    onCheckedChange={(checked) => setLhCategories(prev => ({ ...prev, performance: checked }))}
+                                                />
+                                                <Label htmlFor="cat-perf" className="font-normal cursor-pointer">Performance</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-3">
+                                                <Checkbox
+                                                    id="cat-acc"
+                                                    checked={lhCategories.accessibility}
+                                                    onCheckedChange={(checked) => setLhCategories(prev => ({ ...prev, accessibility: checked }))}
+                                                />
+                                                <Label htmlFor="cat-acc" className="font-normal cursor-pointer">Accessibility</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-3">
+                                                <Checkbox
+                                                    id="cat-bp"
+                                                    checked={lhCategories.bestPractices}
+                                                    onCheckedChange={(checked) => setLhCategories(prev => ({ ...prev, bestPractices: checked }))}
+                                                />
+                                                <Label htmlFor="cat-bp" className="font-normal cursor-pointer">Best practices</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-3">
+                                                <Checkbox
+                                                    id="cat-seo"
+                                                    checked={lhCategories.seo}
+                                                    onCheckedChange={(checked) => setLhCategories(prev => ({ ...prev, seo: checked }))}
+                                                />
+                                                <Label htmlFor="cat-seo" className="font-normal cursor-pointer">SEO</Label>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1046,7 +1220,7 @@ export default function PerformanceTestingPage() {
                             </div>
                         )}
 
-                        {isLoading && !lighthouseResult && (
+                        {isLighthouseLoading && !lighthouseResult && (
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <RefreshCw className="w-16 h-16 text-teal-600 mx-auto mb-4 animate-spin" />
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Running Audit...</h3>
@@ -1101,47 +1275,54 @@ export default function PerformanceTestingPage() {
                                     <Input
                                         type="number"
                                         value={loadTestConfig.virtualUsers}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, virtualUsers: parseInt(e.target.value) || 50 }))}
-                                        min="1"
-                                        max="500"
-                                        className="mt-1"
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, virtualUsers: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                        className={cn("mt-1", (Number(loadTestConfig.virtualUsers) > 2000 || Number(loadTestConfig.virtualUsers) < 1) && loadTestConfig.virtualUsers !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
+                                    {Number(loadTestConfig.virtualUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (2000)</p>}
+                                    {Number(loadTestConfig.virtualUsers) < 1 && loadTestConfig.virtualUsers !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                 </div>
                                 <div>
                                     <Label>Duration (sec)</Label>
                                     <Input
                                         type="number"
                                         value={loadTestConfig.duration}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: parseInt(e.target.value) || 60 }))}
-                                        min="1"
-                                        max="300"
-                                        className="mt-1"
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                        className={cn("mt-1", (Number(loadTestConfig.duration) > 3600 || Number(loadTestConfig.duration) < 1) && loadTestConfig.duration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
+                                    {Number(loadTestConfig.duration) > 3600 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (3600s)</p>}
+                                    {Number(loadTestConfig.duration) < 1 && loadTestConfig.duration !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                 </div>
-                            </div>
-                            <div className="mt-4">
-                                <Button
-                                    onClick={handleLoadTest}
-                                    disabled={!targetUrl || isRunningLoadTest}
-                                    className="bg-purple-600 hover:bg-purple-700"
-                                >
-                                    {isRunningLoadTest ? (
-                                        <>
-                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Running Test...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-4 h-4 mr-2" />
-                                            Start Test
-                                        </>
-                                    )}
-                                </Button>
+                                <div className="flex items-end">
+                                    <Button
+                                        onClick={handleLoadTest}
+                                        disabled={
+                                            !targetUrl ||
+                                            isLoadLoading ||
+                                            Number(loadTestConfig.virtualUsers) < 1 ||
+                                            Number(loadTestConfig.virtualUsers) > 2000 ||
+                                            Number(loadTestConfig.duration) < 1 ||
+                                            Number(loadTestConfig.duration) > 3600
+                                        }
+                                        className="bg-purple-600 hover:bg-purple-700 w-full"
+                                    >
+                                        {isLoadLoading ? (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                Running...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play className="w-4 h-4 mr-2" />
+                                                Start
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
                         {/* Progress Bar for Load Test */}
-                        {isLoading && activeModule === 'load' && (
+                        {isLoadLoading && activeModule === 'load' && (
                             <div className="bg-white rounded-xl p-8 border border-purple-100 shadow-sm text-center">
                                 <RefreshCw className="w-16 h-16 text-purple-600 mx-auto mb-4 animate-spin" />
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Executing Load Test...</h3>
@@ -1188,7 +1369,6 @@ export default function PerformanceTestingPage() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* Latency Distribution */}
                                     <LatencyDistributionChart
                                         p50={loadTestResult.p50}
                                         p75={loadTestResult.p75}
@@ -1197,11 +1377,7 @@ export default function PerformanceTestingPage() {
                                         p99={loadTestResult.p99}
                                         max={loadTestResult.max}
                                     />
-
-                                    {/* Real-time Metrics */}
                                     <RealTimeMetricsChart data={loadTestResult.timeline} />
-
-                                    {/* Virtual Users Chart */}
                                     <VirtualUsersChart data={loadTestResult.vuTimeline} />
                                 </div>
                             </>
@@ -1245,35 +1421,42 @@ export default function PerformanceTestingPage() {
                                         <Input
                                             type="number"
                                             value={stressTestConfig.startVUs}
-                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, startVUs: parseInt(e.target.value) || 1 }))}
-                                            min="1"
-                                            max="100"
-                                            className="mt-1"
+                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, startVUs: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                            className={cn("mt-1", (Number(stressTestConfig.startVUs) > 1000 || Number(stressTestConfig.startVUs) < 1) && stressTestConfig.startVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(stressTestConfig.startVUs) > 1000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (1000)</p>}
+                                        {Number(stressTestConfig.startVUs) < 1 && stressTestConfig.startVUs !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div>
                                         <Label>Max VUs</Label>
                                         <Input
                                             type="number"
                                             value={stressTestConfig.maxVUs}
-                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, maxVUs: parseInt(e.target.value) || 100 }))}
-                                            min="10"
-                                            max="1000"
-                                            className="mt-1"
+                                            onChange={(e) => setStressTestConfig(prev => ({ ...prev, maxVUs: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                            className={cn("mt-1", (Number(stressTestConfig.maxVUs) > 2000 || Number(stressTestConfig.maxVUs) < 1) && stressTestConfig.maxVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(stressTestConfig.maxVUs) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (2000)</p>}
+                                        {Number(stressTestConfig.maxVUs) < 1 && stressTestConfig.maxVUs !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div className="flex items-end">
                                         <Button
                                             className="w-full bg-orange-600 hover:bg-orange-700"
                                             onClick={handleStressTest}
-                                            disabled={!targetUrl || isRunningStressTest}
+                                            disabled={
+                                                !targetUrl ||
+                                                isStressLoading ||
+                                                Number(stressTestConfig.startVUs) < 1 ||
+                                                Number(stressTestConfig.startVUs) > 1000 ||
+                                                Number(stressTestConfig.maxVUs) < 1 ||
+                                                Number(stressTestConfig.maxVUs) > 2000
+                                            }
                                         >
-                                            {isRunningStressTest ? (
+                                            {isStressLoading ? (
                                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                                             ) : (
                                                 <Activity className="w-4 h-4 mr-2" />
                                             )}
-                                            {isRunningStressTest ? 'Running...' : 'Start Stress Test'}
+                                            {isStressLoading ? 'Running...' : 'Start Stress Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1281,6 +1464,19 @@ export default function PerformanceTestingPage() {
                                     The test will gradually increase virtual users from the start value to max, recording the breaking point.
                                 </p>
                             </div>
+
+                            {/* Progress Bar for Stress Test */}
+                            {isStressLoading && activeModule === 'stress' && (
+                                <div className="bg-white rounded-xl p-8 border border-orange-100 shadow-sm text-center">
+                                    <RefreshCw className="w-16 h-16 text-orange-600 mx-auto mb-4 animate-spin" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Executing Stress Test...</h3>
+                                    <p className="text-gray-500 mb-4">Ramping up from {stressTestConfig.startVUs} to {stressTestConfig.maxVUs} VUs</p>
+                                    <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+                                        <div className="bg-orange-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2">{progress}% completed</p>
+                                </div>
+                            )}
 
                             {/* Chart placeholder */}
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
@@ -1319,31 +1515,42 @@ export default function PerformanceTestingPage() {
                                         <Input
                                             type="number"
                                             value={spikeTestConfig.normalLoad}
-                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, normalLoad: parseInt(e.target.value) || 10 }))}
-                                            className="mt-1"
+                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, normalLoad: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                            className={cn("mt-1", (Number(spikeTestConfig.normalLoad) > 1000 || Number(spikeTestConfig.normalLoad) < 1) && spikeTestConfig.normalLoad !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(spikeTestConfig.normalLoad) > 1000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (1000)</p>}
+                                        {Number(spikeTestConfig.normalLoad) < 1 && spikeTestConfig.normalLoad !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div>
                                         <Label>Spike Load (VUs)</Label>
                                         <Input
                                             type="number"
                                             value={spikeTestConfig.spikeLoad}
-                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, spikeLoad: parseInt(e.target.value) || 1000 }))}
-                                            className="mt-1"
+                                            onChange={(e) => setSpikeTestConfig(prev => ({ ...prev, spikeLoad: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                            className={cn("mt-1", (Number(spikeTestConfig.spikeLoad) > 2000 || Number(spikeTestConfig.spikeLoad) < 1) && spikeTestConfig.spikeLoad !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(spikeTestConfig.spikeLoad) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (2000)</p>}
+                                        {Number(spikeTestConfig.spikeLoad) < 1 && spikeTestConfig.spikeLoad !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div className="flex items-end">
                                         <Button
                                             className="w-full bg-red-600 hover:bg-red-700"
                                             onClick={handleSpikeTest}
-                                            disabled={!targetUrl || isRunningSpikeTest}
+                                            disabled={
+                                                !targetUrl ||
+                                                isSpikeLoading ||
+                                                Number(spikeTestConfig.normalLoad) < 1 ||
+                                                Number(spikeTestConfig.normalLoad) > 1000 ||
+                                                Number(spikeTestConfig.spikeLoad) < 1 ||
+                                                Number(spikeTestConfig.spikeLoad) > 2000
+                                            }
                                         >
-                                            {isRunningSpikeTest ? (
+                                            {isSpikeLoading ? (
                                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                                             ) : (
                                                 <Zap className="w-4 h-4 mr-2" />
                                             )}
-                                            {isRunningSpikeTest ? 'Running...' : 'Start Spike Test'}
+                                            {isSpikeLoading ? 'Running...' : 'Start Spike Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1351,6 +1558,19 @@ export default function PerformanceTestingPage() {
                                     Simulates a sudden surge of users (e.g., flash sale) to test system resilience.
                                 </p>
                             </div>
+
+                            {/* Progress Bar for Spike Test */}
+                            {isSpikeLoading && activeModule === 'spike' && (
+                                <div className="bg-white rounded-xl p-8 border border-red-100 shadow-sm text-center">
+                                    <RefreshCw className="w-16 h-16 text-red-600 mx-auto mb-4 animate-spin" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Executing Spike Test...</h3>
+                                    <p className="text-gray-500 mb-4">Simulating burst of {spikeTestConfig.spikeLoad} users</p>
+                                    <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+                                        <div className="bg-red-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2">{progress}% completed</p>
+                                </div>
+                            )}
 
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -1388,33 +1608,44 @@ export default function PerformanceTestingPage() {
                                         <Input
                                             type="number"
                                             value={soakTestConfig.virtualUsers}
-                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, virtualUsers: parseInt(e.target.value) || 50 }))}
-                                            className="mt-1"
+                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, virtualUsers: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                            className={cn("mt-1", (Number(soakTestConfig.virtualUsers) > 2000 || Number(soakTestConfig.virtualUsers) < 1) && soakTestConfig.virtualUsers !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(soakTestConfig.virtualUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (2000)</p>}
+                                        {Number(soakTestConfig.virtualUsers) < 1 && soakTestConfig.virtualUsers !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div>
                                         <Label>Duration (hours)</Label>
                                         <Input
                                             type="number"
                                             value={soakTestConfig.durationHours}
-                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, durationHours: parseInt(e.target.value) || 4 }))}
+                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, durationHours: e.target.value === '' ? '' : parseInt(e.target.value) }))}
                                             min="1"
                                             max="24"
-                                            className="mt-1"
+                                            className={cn("mt-1", (Number(soakTestConfig.durationHours) > 24 || Number(soakTestConfig.durationHours) < 1) && soakTestConfig.durationHours !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
+                                        {Number(soakTestConfig.durationHours) > 24 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (24)</p>}
+                                        {Number(soakTestConfig.durationHours) < 1 && soakTestConfig.durationHours !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div className="flex items-end">
                                         <Button
                                             className="w-full bg-indigo-600 hover:bg-indigo-700"
                                             onClick={handleSoakTest}
-                                            disabled={!targetUrl || isRunningSoakTest}
+                                            disabled={
+                                                !targetUrl ||
+                                                isSoakLoading ||
+                                                Number(soakTestConfig.virtualUsers) < 1 ||
+                                                Number(soakTestConfig.virtualUsers) > 2000 ||
+                                                Number(soakTestConfig.durationHours) < 1 ||
+                                                Number(soakTestConfig.durationHours) > 24
+                                            }
                                         >
-                                            {isRunningSoakTest ? (
+                                            {isSoakLoading ? (
                                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                                             ) : (
                                                 <Clock className="w-4 h-4 mr-2" />
                                             )}
-                                            {isRunningSoakTest ? 'Running...' : 'Start Soak Test'}
+                                            {isSoakLoading ? 'Running...' : 'Start Soak Test'}
                                         </Button>
                                     </div>
                                 </div>
@@ -1422,6 +1653,19 @@ export default function PerformanceTestingPage() {
                                     Tests system stability over extended periods to identify memory leaks and resource degradation.
                                 </p>
                             </div>
+
+                            {/* Progress Bar for Soak Test */}
+                            {isSoakLoading && activeModule === 'soak' && (
+                                <div className="bg-white rounded-xl p-8 border border-indigo-100 shadow-sm text-center">
+                                    <RefreshCw className="w-16 h-16 text-indigo-600 mx-auto mb-4 animate-spin" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Executing Soak Test...</h3>
+                                    <p className="text-gray-500 mb-4">Sustaining {soakTestConfig.virtualUsers} users for {soakTestConfig.durationHours} hours</p>
+                                    <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+                                        <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2">{progress}% completed</p>
+                                </div>
+                            )}
 
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -1689,19 +1933,19 @@ export default function PerformanceTestingPage() {
                         </div>
                     )
                 }
-            </div >
 
-            {/* Create Test Wizard Dialog */}
-            < Dialog open={showWizard} onOpenChange={setShowWizard} >
-                <DialogContent className="max-w-2xl p-0 overflow-hidden">
-                    <DialogTitle className="sr-only">Create Performance Test</DialogTitle>
-                    <PerformanceTestWizard
-                        projectId={projectId}
-                        onComplete={handleTestCreated}
-                        onCancel={() => setShowWizard(false)}
-                    />
-                </DialogContent>
-            </Dialog >
+                {/* Create Test Wizard Dialog */}
+                <Dialog open={showWizard} onOpenChange={setShowWizard}>
+                    <DialogContent className="max-w-2xl p-0 overflow-hidden">
+                        <DialogTitle className="sr-only">Create Performance Test</DialogTitle>
+                        <PerformanceTestWizard
+                            projectId={projectId}
+                            onComplete={handleTestCreated}
+                            onCancel={() => setShowWizard(false)}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
     )
 }

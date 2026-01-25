@@ -19,13 +19,13 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
     }
 
     return (
-      <div className="relative inline-flex">
+      <div className="relative inline-flex items-center cursor-pointer">
         <input
           type="checkbox"
           ref={ref}
           checked={checked}
           onChange={handleChange}
-          className="sr-only"
+          className="absolute inset-0 z-10 opacity-0 cursor-pointer disabled:cursor-not-allowed"
           {...props}
         />
         <div

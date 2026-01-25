@@ -470,8 +470,8 @@ export default function ArtifactsTab({ projectId }: ArtifactsTabProps) {
                                 Cancel
                             </Button>
                             <Button
+                                variant="destructive"
                                 size="sm"
-                                className="bg-red-600 hover:bg-red-700 text-white"
                                 onClick={() => confirmDelete(deleteConfirm)}
                             >
                                 Delete

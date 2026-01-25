@@ -254,8 +254,8 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
                             Confirm Action
                         </DialogTitle>
                         <DialogDescription className="pt-4 flex flex-col gap-3 text-base leading-relaxed">
-                            <span>
-                                Are you sure you want to delete <span className="font-semibold text-gray-900 break-words">"{testToDelete?.name}"</span>?
+                            <span className="break-all">
+                                Are you sure you want to delete <span className="font-semibold text-gray-900">"{testToDelete?.name}"</span>?
                             </span>
                             <span>
                                 This action cannot be undone and will delete all associated history and reports.
@@ -272,6 +272,7 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
                             Cancel
                         </Button>
                         <Button
+                            variant="destructive"
                             className="bg-red-600 hover:bg-red-700 text-white border-none shadow-sm focus:ring-red-500"
                             onClick={confirmDelete}
                             disabled={isDeleting}

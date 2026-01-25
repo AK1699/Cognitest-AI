@@ -62,10 +62,32 @@ async def _create_and_run_test(
     
     # We need to get org_id. Service could derive it but method sign needs it.
     # Hack for now: Pass a dummy UUID if service re-fetches or make service fetch it.
-    # Actually, let's fix this properly by fetching project.
     from app.models.project import Project
+    from app.models.performance import PerformanceTest
     from sqlalchemy import select
     
+    # Check for existing test for the same project, type and URL
+    stmt = select(PerformanceTest).where(
+        PerformanceTest.project_id == project_id,
+        PerformanceTest.test_type == test_type,
+        PerformanceTest.target_url == target_url
+    )
+    result = await service.db.execute(stmt)
+    existing_test = result.scalar_one_or_none()
+    
+    if existing_test:
+        # Update existing test configuration instead of creating new one
+        existing_test.name = name
+        existing_test.triggered_by = user.id
+        # Update connection/device details from kwargs
+        for key, value in kwargs.items():
+            if hasattr(existing_test, key):
+                setattr(existing_test, key, value)
+        
+        await service.db.commit()
+        await service.db.refresh(existing_test)
+        return existing_test
+
     result = await service.db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
@@ -80,7 +102,6 @@ async def _create_and_run_test(
         target_url=target_url,
         **kwargs
     )
-    
     
     return test
 
