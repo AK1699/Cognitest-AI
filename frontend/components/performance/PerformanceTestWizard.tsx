@@ -72,6 +72,22 @@ interface TestConfig {
     body: string
 }
 
+const methodColors: Record<string, string> = {
+    GET: "text-emerald-600",
+    POST: "text-blue-600",
+    PUT: "text-amber-600",
+    DELETE: "text-red-600",
+    PATCH: "text-purple-600"
+}
+
+const methodBadgeColors: Record<string, string> = {
+    GET: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    POST: "bg-blue-100 text-blue-700 border-blue-200",
+    PUT: "bg-amber-100 text-amber-700 border-amber-200",
+    DELETE: "bg-red-100 text-red-700 border-red-200",
+    PATCH: "bg-purple-100 text-purple-700 border-purple-200"
+}
+
 const testTypeInfo = {
     lighthouse: {
         icon: Zap,
@@ -421,13 +437,17 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                 <Label>HTTP Method</Label>
                                 <Select value={config.method} onValueChange={(v) => updateConfig('method', v as any)}>
                                     <SelectTrigger className="mt-1">
-                                        <SelectValue />
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn("font-bold text-xs", methodColors[config.method])}>{config.method}</span>
+                                            <SelectValue />
+                                        </div>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="GET">GET</SelectItem>
-                                        <SelectItem value="POST">POST</SelectItem>
-                                        <SelectItem value="PUT">PUT</SelectItem>
-                                        <SelectItem value="DELETE">DELETE</SelectItem>
+                                        {Object.entries(methodColors).map(([method, color]) => (
+                                            <SelectItem key={method} value={method}>
+                                                <span className={cn("font-bold text-xs", color)}>{method}</span>
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -759,6 +779,12 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                         <div>
                                             <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Load Profile</p>
                                             <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-gray-500">Method:</span>
+                                                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", methodBadgeColors[config.method])}>
+                                                        {config.method}
+                                                    </span>
+                                                </div>
                                                 <p className="text-sm text-gray-900"><span className="text-gray-500">Users:</span> {config.virtualUsers} VUs</p>
                                                 <p className="text-sm text-gray-900"><span className="text-gray-500">Duration:</span> {config.durationSeconds}s</p>
                                             </div>

@@ -63,7 +63,11 @@ export default function PerformanceTestingPage() {
     const uuid = params.uuid as string
 
     const [activeModule, setActiveModule] = useState<'overview' | 'tests' | 'lighthouse' | 'load' | 'stress' | 'spike' | 'soak' | 'volume' | 'scalability' | 'capacity' | 'results'>('overview')
-    const [targetUrl, setTargetUrl] = useState('')
+    const [lhTargetUrl, setLhTargetUrl] = useState('')
+    const [loadTargetUrl, setLoadTargetUrl] = useState('')
+    const [stressTargetUrl, setStressTargetUrl] = useState('')
+    const [spikeTargetUrl, setSpikeTargetUrl] = useState('')
+    const [soakTargetUrl, setSoakTargetUrl] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [showWizard, setShowWizard] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -235,7 +239,7 @@ export default function PerformanceTestingPage() {
     }
 
     const handleLighthouseScan = async () => {
-        if (!targetUrl) return
+        if (!lhTargetUrl) return
         setIsLighthouseLoading(true)
         setIsLoading(true)
         setProgress(0)
@@ -250,7 +254,7 @@ export default function PerformanceTestingPage() {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
-                    target_url: targetUrl,
+                    target_url: lhTargetUrl,
                     device_type: lhDevice,
                     mode: lhMode,
                     categories: lhCategories
@@ -432,7 +436,7 @@ export default function PerformanceTestingPage() {
     const [isRunningLoadTest, setIsRunningLoadTest] = useState(false)
 
     const handleLoadTest = async () => {
-        if (!targetUrl) return
+        if (!loadTargetUrl) return
         setIsLoadLoading(true)
         setIsLoading(true)
         setIsRunningLoadTest(true)
@@ -449,7 +453,7 @@ export default function PerformanceTestingPage() {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
-                    target_url: targetUrl,
+                    target_url: loadTargetUrl,
                     target_method: "GET",
                     target_headers: {},
                     virtual_users: Number(loadTestConfig.virtualUsers) || 50,
@@ -508,7 +512,7 @@ export default function PerformanceTestingPage() {
     const [isRunningStressTest, setIsRunningStressTest] = useState(false)
 
     const handleStressTest = async () => {
-        if (!targetUrl) return
+        if (!stressTargetUrl) return
         setIsStressLoading(true)
         setIsLoading(true)
         setIsRunningStressTest(true)
@@ -525,7 +529,7 @@ export default function PerformanceTestingPage() {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
-                    target_url: targetUrl,
+                    target_url: stressTargetUrl,
                     target_method: "GET",
                     target_headers: {},
                     start_vus: Number(stressTestConfig.startVUs) || 10,
@@ -564,7 +568,7 @@ export default function PerformanceTestingPage() {
     const [isRunningSpikeTest, setIsRunningSpikeTest] = useState(false)
 
     const handleSpikeTest = async () => {
-        if (!targetUrl) return
+        if (!spikeTargetUrl) return
         setIsSpikeLoading(true)
         setIsLoading(true)
         setIsRunningSpikeTest(true)
@@ -580,7 +584,7 @@ export default function PerformanceTestingPage() {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
-                    target_url: targetUrl,
+                    target_url: spikeTargetUrl,
                     target_method: "GET",
                     target_headers: {},
                     base_users: Number(spikeTestConfig.normalLoad) || 10,
@@ -617,7 +621,7 @@ export default function PerformanceTestingPage() {
     const [isRunningSoakTest, setIsRunningSoakTest] = useState(false)
 
     const handleSoakTest = async () => {
-        if (!targetUrl) return
+        if (!soakTargetUrl) return
         setIsSoakLoading(true)
         setIsLoading(true)
         setIsRunningSoakTest(true)
@@ -633,7 +637,7 @@ export default function PerformanceTestingPage() {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify({
-                    target_url: targetUrl,
+                    target_url: soakTargetUrl,
                     target_method: "GET",
                     target_headers: {},
                     virtual_users: Number(soakTestConfig.virtualUsers) || 50,
@@ -716,13 +720,23 @@ export default function PerformanceTestingPage() {
                         successRate: 100 - (metrics.error_rate || 0),
                         avgRps: metrics.requests_per_second
                     })
-                    setTargetUrl(test.target_url)
 
                     // Map test type to module
                     let moduleName = 'load'
-                    if (test.test_type === 'stress') moduleName = 'stress'
-                    else if (test.test_type === 'spike') moduleName = 'spike'
-                    else if (test.test_type === 'endurance' || test.test_type === 'soak') moduleName = 'endurance'
+                    if (test.test_type === 'stress') {
+                        moduleName = 'stress'
+                        setStressTargetUrl(test.target_url)
+                    }
+                    else if (test.test_type === 'spike') {
+                        moduleName = 'spike'
+                        setSpikeTargetUrl(test.target_url)
+                    }
+                    else if (test.test_type === 'endurance' || test.test_type === 'soak') {
+                        moduleName = 'soak'
+                        setSoakTargetUrl(test.target_url)
+                    } else {
+                        setLoadTargetUrl(test.target_url)
+                    }
 
                     setActiveModule(moduleName as any)
                 } else {
@@ -766,7 +780,29 @@ export default function PerformanceTestingPage() {
                     diagnostics: metrics.diagnostics || [],
                     raw_response: metrics.raw_response
                 })
-                setTargetUrl(test.target_url)
+                setLhTargetUrl(test.target_url)
+                if (test.device_type) setLhDevice(test.device_type)
+                if (test.audit_mode) setLhMode(test.audit_mode as any)
+
+                if (test.categories) {
+                    const cats = typeof test.categories === 'string' ? JSON.parse(test.categories) : test.categories
+                    if (Array.isArray(cats)) {
+                        const newCats: any = {
+                            performance: cats.includes('performance'),
+                            accessibility: cats.includes('accessibility'),
+                            bestPractices: cats.includes('best-practices') || cats.includes('bestPractices'),
+                            seo: cats.includes('seo')
+                        }
+                        setLhCategories(newCats)
+                    } else if (typeof cats === 'object') {
+                        setLhCategories({
+                            performance: !!cats.performance,
+                            accessibility: !!cats.accessibility,
+                            bestPractices: !!(cats.bestPractices || cats['best-practices']),
+                            seo: !!cats.seo
+                        })
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to load lighthouse report:', error)
@@ -1110,8 +1146,8 @@ export default function PerformanceTestingPage() {
                                         <Input
                                             id="lighthouse-url"
                                             placeholder="https://example.com"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            value={lhTargetUrl}
+                                            onChange={(e) => setLhTargetUrl(e.target.value)}
                                             className="mt-2"
                                         />
                                         <p className="text-xs text-gray-500 mt-2">The URL to perform the audit on.</p>
@@ -1142,7 +1178,7 @@ export default function PerformanceTestingPage() {
                                         <Button
                                             className="bg-teal-600 hover:bg-teal-700 w-full"
                                             onClick={handleLighthouseScan}
-                                            disabled={isLighthouseLoading || !targetUrl}
+                                            disabled={isLighthouseLoading || !lhTargetUrl}
                                         >
                                             {isLighthouseLoading ? (
                                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -1329,7 +1365,7 @@ export default function PerformanceTestingPage() {
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <RefreshCw className="w-16 h-16 text-teal-600 mx-auto mb-4 animate-spin" />
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Running Audit...</h3>
-                                <p className="text-gray-500 mb-4">Analyzing performance for {targetUrl}</p>
+                                <p className="text-gray-500 mb-4">Analyzing performance for {lhTargetUrl}</p>
                                 <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                                     <div className="bg-teal-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                                 </div>
@@ -1355,8 +1391,8 @@ export default function PerformanceTestingPage() {
                                     <Label htmlFor="load-url">Target URL</Label>
                                     <Input
                                         id="load-url"
-                                        value={targetUrl}
-                                        onChange={(e) => setTargetUrl(e.target.value)}
+                                        value={loadTargetUrl}
+                                        onChange={(e) => setLoadTargetUrl(e.target.value)}
                                         placeholder="https://api.example.com/endpoint"
                                         className="mt-1"
                                     />
@@ -1401,7 +1437,7 @@ export default function PerformanceTestingPage() {
                                     <Button
                                         onClick={handleLoadTest}
                                         disabled={
-                                            !targetUrl ||
+                                            !loadTargetUrl ||
                                             isLoadLoading ||
                                             Number(loadTestConfig.virtualUsers) < 1 ||
                                             Number(loadTestConfig.virtualUsers) > 2000 ||
@@ -1431,7 +1467,7 @@ export default function PerformanceTestingPage() {
                             <div className="bg-white rounded-xl p-8 border border-purple-100 shadow-sm text-center">
                                 <RefreshCw className="w-16 h-16 text-purple-600 mx-auto mb-4 animate-spin" />
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Executing Load Test...</h3>
-                                <p className="text-gray-500 mb-4">Simulating {loadTestConfig.virtualUsers} users on {targetUrl}</p>
+                                <p className="text-gray-500 mb-4">Simulating {loadTestConfig.virtualUsers} users on {loadTargetUrl}</p>
                                 <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
                                     <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                                 </div>
@@ -1515,8 +1551,8 @@ export default function PerformanceTestingPage() {
                                         <Label htmlFor="stress-url">Target URL</Label>
                                         <Input
                                             id="stress-url"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            value={stressTargetUrl}
+                                            onChange={(e) => setStressTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/stress-endpoint"
                                             className="mt-1"
                                         />
@@ -1548,7 +1584,7 @@ export default function PerformanceTestingPage() {
                                             className="w-full bg-orange-600 hover:bg-orange-700"
                                             onClick={handleStressTest}
                                             disabled={
-                                                !targetUrl ||
+                                                !stressTargetUrl ||
                                                 isStressLoading ||
                                                 Number(stressTestConfig.startVUs) < 1 ||
                                                 Number(stressTestConfig.startVUs) > 1000 ||
@@ -1609,8 +1645,8 @@ export default function PerformanceTestingPage() {
                                         <Label htmlFor="spike-url">Target URL</Label>
                                         <Input
                                             id="spike-url"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            value={spikeTargetUrl}
+                                            onChange={(e) => setSpikeTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/endpoint"
                                             className="mt-1"
                                         />
@@ -1642,7 +1678,7 @@ export default function PerformanceTestingPage() {
                                             className="w-full bg-red-600 hover:bg-red-700"
                                             onClick={handleSpikeTest}
                                             disabled={
-                                                !targetUrl ||
+                                                !spikeTargetUrl ||
                                                 isSpikeLoading ||
                                                 Number(spikeTestConfig.normalLoad) < 1 ||
                                                 Number(spikeTestConfig.normalLoad) > 1000 ||
@@ -1702,8 +1738,8 @@ export default function PerformanceTestingPage() {
                                         <Label htmlFor="endurance-url">Target URL</Label>
                                         <Input
                                             id="endurance-url"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            value={soakTargetUrl}
+                                            onChange={(e) => setSoakTargetUrl(e.target.value)}
                                             placeholder="https://api.example.com/endpoint"
                                             className="mt-1"
                                         />
@@ -1737,7 +1773,7 @@ export default function PerformanceTestingPage() {
                                             className="w-full bg-indigo-600 hover:bg-indigo-700"
                                             onClick={handleSoakTest}
                                             disabled={
-                                                !targetUrl ||
+                                                !soakTargetUrl ||
                                                 isSoakLoading ||
                                                 Number(soakTestConfig.virtualUsers) < 1 ||
                                                 Number(soakTestConfig.virtualUsers) > 2000 ||
