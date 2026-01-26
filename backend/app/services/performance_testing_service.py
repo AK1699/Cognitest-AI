@@ -136,6 +136,26 @@ class PerformanceTestingService:
         )
         return result.scalar_one_or_none()
     
+    async def update_test(
+        self,
+        test_id: UUID,
+        update_data: Dict[str, Any]
+    ) -> Optional[PerformanceTest]:
+        """Update an existing performance test configuration"""
+        test = await self.get_test(test_id)
+        if not test:
+            return None
+            
+        # Update fields if present in update_data
+        for key, value in update_data.items():
+            if value is not None and hasattr(test, key):
+                setattr(test, key, value)
+        
+        test.updated_at = datetime.utcnow()
+        await self.db.commit()
+        await self.db.refresh(test)
+        return test
+    
     async def list_tests(
         self,
         project_id: UUID,

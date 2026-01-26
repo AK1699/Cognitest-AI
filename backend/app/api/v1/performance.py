@@ -27,7 +27,7 @@ from app.schemas.performance import (
     LighthouseScanRequest, LoadTestRequest, StressTestRequest,
     SpikeTestRequest, SoakTestRequest,
     PerformanceDashboardStats, PerformanceTrendResponse,
-    PerformanceTestResponse, PerformanceTestCreate
+    PerformanceTestResponse, PerformanceTestCreate, PerformanceTestUpdate
 )
 
 router = APIRouter()
@@ -385,6 +385,20 @@ async def get_performance_test(
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     return test
+
+@router.put("/tests/{test_id}", response_model=PerformanceTestResponse)
+async def update_performance_test(
+    test_id: UUID,
+    update_data: PerformanceTestUpdate,
+    current_user: User = Depends(get_current_user),
+    service: PerformanceTestingService = Depends(get_performance_service)
+):
+    """Update an existing performance test configuration"""
+    test = await service.update_test(test_id, update_data.model_dump(exclude_unset=True))
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return test
+
 
 @router.delete("/tests/{test_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_performance_test(

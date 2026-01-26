@@ -54,9 +54,11 @@ class LocalLighthouseService:
                 "--chrome-flags=--headless=new",
             ]
             
-            # Add preset for desktop
+            # Add preset and flags for desktop
             if strategy.lower() == "desktop":
-                cmd.append("--preset=desktop")
+                cmd.extend(["--preset=desktop", "--form-factor=desktop", "--throttling-preset=desktop-dense-4g"])
+            else:
+                cmd.extend(["--form-factor=mobile"])
             
             # Run lighthouse in subprocess
             process = await asyncio.create_subprocess_exec(

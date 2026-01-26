@@ -78,6 +78,7 @@ export default function PerformanceTestingPage() {
     const [isStressLoading, setIsStressLoading] = useState(false)
     const [isSpikeLoading, setIsSpikeLoading] = useState(false)
     const [isSoakLoading, setIsSoakLoading] = useState(false)
+    const [testToEdit, setTestToEdit] = useState<any>(null)
 
     // Lighthouse Options State
     const [lhDevice, setLhDevice] = useState<'mobile' | 'desktop'>('mobile')
@@ -292,7 +293,7 @@ export default function PerformanceTestingPage() {
         }
     }
 
-    const handleTestCreated = async (testConfig: any) => {
+    const handleTestCreated = async (testConfig: any, shouldRun: boolean = true) => {
         try {
             const token = localStorage.getItem('access_token')
             const response = await fetch(`${API_URL}/api/v1/performance/tests?project_id=${projectId}`, {
@@ -310,18 +311,22 @@ export default function PerformanceTestingPage() {
                 fetchDashboardData()
                 setRefreshTrigger(prev => prev + 1)
 
-                // Immediately trigger execution
-                const execResponse = await fetch(`${API_URL}/api/v1/performance/tests/${test.id}/execute`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                })
+                if (shouldRun) {
+                    // Immediately trigger execution
+                    const execResponse = await fetch(`${API_URL}/api/v1/performance/tests/${test.id}/execute`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                    })
 
-                if (execResponse.ok) {
-                    toast.success('Test created and started')
-                    handleTestRunStarted(test.id, test.test_type)
+                    if (execResponse.ok) {
+                        toast.success('Test created and started')
+                        handleTestRunStarted(test.id, test.test_type)
+                    } else {
+                        toast.success('Test created successfully')
+                    }
                 } else {
-                    toast.success('Test created successfully')
+                    toast.success('Test configuration saved')
                 }
             } else {
                 const error = await response.json().catch(() => ({}))
@@ -329,6 +334,53 @@ export default function PerformanceTestingPage() {
             }
         } catch (error) {
             console.error('Failed to create test:', error)
+            toast.error('An unexpected error occurred')
+        }
+    }
+
+    const handleUpdateTest = async (testConfig: any, shouldRun: boolean = true) => {
+        if (!testToEdit) return
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/tests/${testToEdit.id}`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                body: JSON.stringify(testConfig)
+            })
+            if (response.ok) {
+                const test = await response.json()
+                setShowWizard(false)
+                setTestToEdit(null)
+                fetchDashboardData()
+                setRefreshTrigger(prev => prev + 1)
+
+                if (shouldRun) {
+                    // Immediately trigger execution
+                    const execResponse = await fetch(`${API_URL}/api/v1/performance/tests/${test.id}/execute`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                    })
+
+                    if (execResponse.ok) {
+                        toast.success('Test updated and started')
+                        handleTestRunStarted(test.id, test.test_type)
+                    } else {
+                        toast.success('Test updated successfully')
+                    }
+                } else {
+                    toast.success('Test configuration updated')
+                }
+            } else {
+                const error = await response.json().catch(() => ({}))
+                toast.error(error.detail || 'Failed to update test')
+            }
+        } catch (error) {
+            console.error('Failed to update test:', error)
             toast.error('An unexpected error occurred')
         }
     }
@@ -1032,6 +1084,10 @@ export default function PerformanceTestingPage() {
                             projectId={projectId}
                             refreshTrigger={refreshTrigger}
                             onTestExecuted={handleTestRunStarted}
+                            onEditTest={(test) => {
+                                setTestToEdit(test)
+                                setShowWizard(true)
+                            }}
                         />
                     </div>
                 )}
@@ -1214,7 +1270,7 @@ export default function PerformanceTestingPage() {
                                                         )}
                                                     >
                                                         <div className={cn("text-xs font-semibold truncate", isSelected ? "text-teal-700" : "text-gray-900")}>
-                                                            {hostname}
+                                                            {item.name || hostname}
                                                         </div>
                                                         <div className="text-[10px] text-gray-500 flex items-center justify-between">
                                                             <span>{date.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
@@ -1989,8 +2045,13 @@ export default function PerformanceTestingPage() {
                         <DialogTitle className="sr-only">Create Performance Test</DialogTitle>
                         <PerformanceTestWizard
                             projectId={projectId}
-                            onComplete={handleTestCreated}
-                            onCancel={() => setShowWizard(false)}
+                            editMode={!!testToEdit}
+                            initialData={testToEdit}
+                            onComplete={testToEdit ? handleUpdateTest : handleTestCreated}
+                            onCancel={() => {
+                                setShowWizard(false)
+                                setTestToEdit(null)
+                            }}
                         />
                     </DialogContent>
                 </Dialog>

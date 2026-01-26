@@ -30,8 +30,10 @@ export type TestType = 'lighthouse' | 'load' | 'stress' | 'spike' | 'api' | 'soa
 
 interface PerformanceTestWizardProps {
     projectId: string
-    onComplete: (test: any) => void
+    onComplete: (test: any, shouldRun?: boolean) => void
     onCancel: () => void
+    editMode?: boolean
+    initialData?: any
 }
 
 interface TestConfig {
@@ -109,37 +111,37 @@ const testTypeInfo = {
     }
 }
 
-export function PerformanceTestWizard({ projectId, onComplete, onCancel }: PerformanceTestWizardProps) {
+export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMode = false, initialData }: PerformanceTestWizardProps) {
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [config, setConfig] = useState<TestConfig>({
-        testType: 'lighthouse',
-        name: '',
-        targetUrl: '',
-        description: '',
-        deviceType: 'mobile',
-        auditMode: 'navigation',
-        categories: {
+        testType: initialData?.test_type === 'endurance' ? 'soak' : initialData?.test_type || 'lighthouse',
+        name: initialData?.name || '',
+        targetUrl: initialData?.target_url || '',
+        description: initialData?.description || '',
+        deviceType: initialData?.device_type || 'mobile',
+        auditMode: initialData?.audit_mode || 'navigation',
+        categories: initialData?.categories || {
             performance: true,
             accessibility: true,
             bestPractices: true,
             seo: true
         },
-        virtualUsers: 50,
-        durationSeconds: 60,
-        rampUpSeconds: 10,
+        virtualUsers: initialData?.virtual_users || 50,
+        durationSeconds: initialData?.duration_seconds || 60,
+        rampUpSeconds: initialData?.ramp_up_seconds || 10,
         startVUs: 10,
-        maxVUs: 500,
+        maxVUs: initialData?.test_type === 'stress' ? initialData?.virtual_users : 500,
         stepDuration: 30,
         stepIncrease: 50,
-        spikeUsers: 1000,
+        spikeUsers: initialData?.test_type === 'spike' ? initialData?.virtual_users : 1000,
         spikeDuration: 60,
-        maxLatencyP95: null,
-        maxErrorRate: null,
-        minPerformanceScore: null,
-        method: 'GET',
-        headers: {},
-        body: ''
+        maxLatencyP95: initialData?.thresholds?.latency_p95 || null,
+        maxErrorRate: initialData?.thresholds?.error_rate || null,
+        minPerformanceScore: initialData?.thresholds?.performance_score || null,
+        method: initialData?.target_method || 'GET',
+        headers: initialData?.target_headers || {},
+        body: initialData?.target_body || ''
     })
 
     const totalSteps = config.testType === 'lighthouse' ? 4 : 5
@@ -160,7 +162,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         }
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (shouldRun: boolean = true) => {
         setIsSubmitting(true)
         try {
             // Build request payload
@@ -221,7 +223,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 payload.virtual_users = Number(config.virtualUsers) || 50
             }
 
-            await onComplete(payload)
+            await onComplete(payload, shouldRun)
         } catch (error) {
             console.error('Failed to create test:', error)
         } finally {
@@ -287,8 +289,8 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         <div className="bg-white w-full">
             {/* Header */}
             <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-4">
-                <h2 className="text-xl font-semibold text-white">Create Performance Test</h2>
-                <p className="text-brand-50 text-sm">Configure your test in a few simple steps</p>
+                <h2 className="text-xl font-semibold text-white">{editMode ? 'Edit' : 'Create'} Performance Test</h2>
+                <p className="text-brand-50 text-sm">{editMode ? 'Modify your test configuration' : 'Configure your test in a few simple steps'}</p>
             </div>
 
             {/* Progress Steps */}
@@ -817,16 +819,31 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                         Next <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                 ) : (
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || !canProceed()}
-                    >
-                        {isSubmitting ? (
-                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
-                        ) : (
-                            <><Play className="w-4 h-4 mr-2" /> Create & Run Test</>
-                        )}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => handleSubmit(false)}
+                            disabled={isSubmitting || !canProceed()}
+                            className="border-teal-600 text-teal-600 hover:bg-teal-50"
+                        >
+                            {isSubmitting ? (
+                                editMode ? 'Updating...' : 'Saving...'
+                            ) : (
+                                editMode ? <>Update Only</> : <>Save Only</>
+                            )}
+                        </Button>
+                        <Button
+                            onClick={() => handleSubmit(true)}
+                            disabled={isSubmitting || !canProceed()}
+                            className="bg-teal-600 hover:bg-teal-700"
+                        >
+                            {isSubmitting ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {editMode ? 'Updating...' : 'Creating...'}</>
+                            ) : (
+                                <><Play className="w-4 h-4 mr-2" /> {editMode ? 'Update & Run' : 'Create & Run Test'}</>
+                            )}
+                        </Button>
+                    </div>
                 )}
             </div>
         </div>

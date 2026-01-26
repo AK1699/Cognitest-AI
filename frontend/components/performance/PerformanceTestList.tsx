@@ -14,7 +14,8 @@ import {
     Smartphone,
     Monitor,
     Loader2,
-    AlertTriangle
+    AlertTriangle,
+    Edit2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +39,7 @@ interface PerformanceTestListProps {
     projectId: string
     refreshTrigger?: number
     onTestExecuted?: (testId: string, testType: string) => void
+    onEditTest?: (test: any) => void
 }
 
 interface PerformanceTest {
@@ -53,6 +55,8 @@ interface PerformanceTest {
     device_type?: string
     virtual_users?: number
     duration_seconds?: number
+    audit_mode?: string
+    test_location?: string
 }
 
 const testTypeIcons = {
@@ -66,7 +70,7 @@ const testTypeIcons = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
-export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecuted }: PerformanceTestListProps) {
+export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecuted, onEditTest }: PerformanceTestListProps) {
     const [tests, setTests] = useState<PerformanceTest[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [executingId, setExecutingId] = useState<string | null>(null)
@@ -183,6 +187,13 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem
+                                            className="cursor-pointer"
+                                            onClick={() => onEditTest?.(test)}
+                                        >
+                                            <Edit2 className="w-4 h-4 mr-2" />
+                                            Edit Configuration
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
                                             className="text-red-600 focus:text-red-600 cursor-pointer"
                                             onClick={() => setTestToDelete(test)}
                                         >
@@ -198,23 +209,26 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
                                 <p className="text-sm text-gray-500 line-clamp-1" title={test.target_url}>{test.target_url}</p>
                             </div>
 
-                            {/* Config summary */}
-                            <div className="grid grid-cols-2 gap-2 mb-4 text-sm text-gray-600">
+                            <div className="grid grid-cols-2 gap-2 mb-4 text-[11px] text-gray-600">
                                 {test.test_type === 'lighthouse' ? (
                                     <>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded">
-                                            {test.device_type === 'desktop' ? <Monitor className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                            {test.device_type === 'desktop' ? <Monitor className="w-3 h-3 text-brand-600" /> : <Smartphone className="w-3 h-3 text-brand-600" />}
                                             <span className="capitalize">{test.device_type || 'Mobile'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                            <Zap className="w-3 h-3 text-brand-600" />
+                                            <span className="capitalize truncate">{test.audit_mode || 'Navigation'}</span>
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded">
-                                            <TrendingUp className="w-3.5 h-3.5" />
+                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                            <TrendingUp className="w-3 h-3 text-brand-600" />
                                             <span>{test.virtual_users || 0} VUs</span>
                                         </div>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded">
-                                            <Clock className="w-3.5 h-3.5" />
+                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                            <Clock className="w-3 h-3 text-brand-600" />
                                             <span>{test.duration_seconds || 0}s</span>
                                         </div>
                                     </>

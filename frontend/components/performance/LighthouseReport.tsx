@@ -96,7 +96,7 @@ export const LighthouseReport: React.FC<LighthouseReportProps> = ({ data }) => {
                 </div>
                 <div className="flex items-center gap-6">
                     <span className="flex items-center gap-1.5 uppercase tracking-wider font-semibold text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                        {configSettings?.emulatedFormFactor === 'desktop' ? 'Desktop' : 'Mobile'}
+                        {(configSettings?.formFactor === 'desktop' || configSettings?.emulatedFormFactor === 'desktop') ? 'Desktop' : 'Mobile'}
                     </span>
                     <a
                         href={lighthouseResult.requestedUrl}

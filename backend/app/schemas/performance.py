@@ -121,10 +121,32 @@ class PerformanceTestCreate(BaseModel):
 
 
 class PerformanceTestUpdate(BaseModel):
-    """Update an existing performance test"""
+    """Update an existing performance test configuration"""
     name: Optional[str] = Field(None, min_length=1, max_length=500)
     description: Optional[str] = None
+    target_url: Optional[str] = Field(None, min_length=1, max_length=2000)
+    target_method: Optional[str] = None
+    target_headers: Optional[Dict[str, str]] = None
+    target_body: Optional[str] = None
+    
+    # Config
+    device_type: Optional[DeviceType] = None
+    connection_type: Optional[ConnectionType] = None
+    test_location: Optional[str] = None
+    audit_mode: Optional[str] = None
+    categories: Optional[Any] = None
+    
+    virtual_users: Optional[int] = Field(None, ge=1, le=10000)
+    duration_seconds: Optional[int] = Field(None, ge=1, le=3600)
+    ramp_up_seconds: Optional[int] = Field(None, ge=0, le=300)
+    ramp_down_seconds: Optional[int] = Field(None, ge=0, le=300)
+    load_profile: Optional[LoadProfile] = None
+    stages: Optional[List[Dict[str, int]]] = None
+    
+    # Thresholds
     thresholds: Optional[Dict[str, float]] = None
+    
+    # Metadata
     tags: Optional[List[str]] = None
     notes: Optional[str] = None
 

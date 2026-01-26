@@ -4,7 +4,7 @@
     "description": "Performance testing dependencies for Cognitest backend",
     "private": true,
     "dependencies": {
-        "lighthouse": "^11.0.0",
+        "lighthouse": "13.0.1",
         "chrome-launcher": "^1.1.0"
     }
 }
