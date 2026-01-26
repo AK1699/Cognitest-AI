@@ -23,7 +23,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Shield,
-    Globe
+    Globe,
+    History as HistoryIcon
 } from 'lucide-react'
 import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 import { Button } from '@/components/ui/button'
@@ -48,7 +49,8 @@ import {
     demoReportData,
     HistoricalTrendChart,
     generateDemoTrendData,
-    PerformanceTestList
+    PerformanceTestList,
+    LighthouseReport,
 } from '@/components/performance'
 import { toast } from 'sonner'
 
@@ -86,6 +88,8 @@ export default function PerformanceTestingPage() {
         bestPractices: true,
         seo: true
     })
+    const [lighthouseHistory, setLighthouseHistory] = useState<any[]>([])
+    const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
 
     // Stats from API
     const [stats, setStats] = useState({
@@ -97,7 +101,26 @@ export default function PerformanceTestingPage() {
 
     useEffect(() => {
         fetchDashboardData()
+        fetchLighthouseHistory()
     }, [projectId])
+
+    const fetchLighthouseHistory = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/tests?project_id=${projectId}&page=1&page_size=20`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                credentials: 'include'
+            })
+            if (response.ok) {
+                const data = await response.json()
+                // Filter for lighthouse tests
+                const lhTests = (data.items || []).filter((t: any) => t.test_type === 'lighthouse' || t.test_type === 'pagespeed')
+                setLighthouseHistory(lhTests)
+            }
+        } catch (error) {
+            console.error('Failed to fetch lighthouse history:', error)
+        }
+    }
 
     const fetchDashboardData = async () => {
         setLoading(true)
@@ -249,7 +272,10 @@ export default function PerformanceTestingPage() {
                         fid: metrics.first_input_delay || 0,
                         cls: metrics.cumulative_layout_shift || 0,
                         fcp: metrics.first_contentful_paint || 0,
-                        ttfb: metrics.time_to_first_byte || 0
+                        ttfb: metrics.time_to_first_byte || 0,
+                        opportunities: metrics.opportunities || [],
+                        diagnostics: metrics.diagnostics || [],
+                        raw_response: metrics.raw_response
                     })
                     setIsLoading(false)
                     setIsLighthouseLoading(false)
@@ -587,10 +613,15 @@ export default function PerformanceTestingPage() {
                         fid: metrics.first_input_delay || 0,
                         cls: metrics.cumulative_layout_shift || 0,
                         fcp: metrics.first_contentful_paint || 0,
-                        ttfb: metrics.time_to_first_byte || 0
+                        ttfb: metrics.time_to_first_byte || 0,
+                        opportunities: metrics.opportunities || [],
+                        diagnostics: metrics.diagnostics || [],
+                        raw_response: metrics.raw_response
                     })
                     setTargetUrl(test.target_url)
+                    setSelectedHistoryId(testId)
                     setActiveModule('lighthouse')
+                    fetchLighthouseHistory()
                 } else if (['load', 'stress', 'spike', 'endurance', 'soak'].includes(test.test_type)) {
                     setLoadTestResult({
                         p50: metrics.latency_p50,
@@ -629,6 +660,48 @@ export default function PerformanceTestingPage() {
             }
         } catch (error) {
             console.error('Failed to fetch test details:', error)
+        }
+    }
+
+    const loadLighthouseReport = async (testId: string) => {
+        setIsLoading(true)
+        setIsLighthouseLoading(true)
+        setSelectedHistoryId(testId)
+        try {
+            const token = localStorage.getItem('access_token')
+            const response = await fetch(`${API_URL}/api/v1/performance/tests/${testId}`, {
+                method: 'GET',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                const test = await response.json()
+                console.log('Test details response:', test)
+                const metrics = test.metrics || {}
+                console.log('Metric raw_response:', metrics.raw_response)
+
+                setLighthouseResult({
+                    performance: metrics.performance_score || 0,
+                    accessibility: metrics.accessibility_score || 0,
+                    bestPractices: metrics.best_practices_score || 0,
+                    seo: metrics.seo_score || 0,
+                    lcp: metrics.largest_contentful_paint || 0,
+                    fid: metrics.first_input_delay || 0,
+                    cls: metrics.cumulative_layout_shift || 0,
+                    fcp: metrics.first_contentful_paint || 0,
+                    ttfb: metrics.time_to_first_byte || 0,
+                    opportunities: metrics.opportunities || [],
+                    diagnostics: metrics.diagnostics || [],
+                    raw_response: metrics.raw_response
+                })
+                setTargetUrl(test.target_url)
+            }
+        } catch (error) {
+            console.error('Failed to load lighthouse report:', error)
+        } finally {
+            setIsLoading(false)
+            setIsLighthouseLoading(false)
         }
     }
 
@@ -1084,141 +1157,98 @@ export default function PerformanceTestingPage() {
                             </div>
                         </div>
 
-                        {/* Core Web Vitals Explanation */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                        <Timer className="w-5 h-5 text-green-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900">LCP</h4>
-                                        <p className="text-xs text-gray-500">Largest Contentful Paint</p>
+                        {/* Core Web Vitals Explanation (Moved inside main content if needed, but keeping it here for now) */}
+
+                        {/* Results or Placeholder with History Sidebar */}
+                        <div className="flex flex-col md:flex-row gap-6">
+                            {/* History Sidebar */}
+                            {lighthouseHistory.length > 0 && (
+                                <div className="w-full md:w-64 flex-shrink-0">
+                                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col h-full sticky top-6">
+                                        <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+                                            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                                <HistoryIcon className="w-4 h-4 text-teal-600" />
+                                                Audit History
+                                            </h3>
+                                            <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded-full font-medium">
+                                                {lighthouseHistory.length}
+                                            </span>
+                                        </div>
+                                        <div className="overflow-y-auto max-h-[800px] divide-y divide-gray-100">
+                                            {lighthouseHistory.map((item) => {
+                                                const date = new Date(item.created_at)
+                                                const isSelected = selectedHistoryId === item.id
+                                                let hostname = 'Unknown'
+                                                try {
+                                                    hostname = new URL(item.target_url).hostname
+                                                } catch (e) {
+                                                    hostname = item.target_url
+                                                }
+
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => loadLighthouseReport(item.id)}
+                                                        className={cn(
+                                                            "w-full text-left p-3 hover:bg-gray-50 transition-all flex flex-col gap-1 border-l-4",
+                                                            isSelected ? "bg-teal-50 border-l-teal-600" : "border-l-transparent"
+                                                        )}
+                                                    >
+                                                        <div className={cn("text-xs font-semibold truncate", isSelected ? "text-teal-700" : "text-gray-900")}>
+                                                            {hostname}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 flex items-center justify-between">
+                                                            <span>{date.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                                                            <span className="font-mono">{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-600">
-                                    Measures loading performance. Should occur within 2.5 seconds.
-                                </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                                        <Activity className="w-5 h-5 text-blue-600" />
+                            )}
+
+                            {/* Main Results Area */}
+                            <div className="flex-1 min-w-0">
+                                {lighthouseResult ? (
+                                    <LighthouseReport data={lighthouseResult.raw_response} />
+                                ) : (
+                                    <div className="bg-white rounded-xl p-12 border shadow-sm text-center">
+                                        <Zap className="w-20 h-20 text-teal-100 mx-auto mb-6" />
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2">Run Your First Audit</h3>
+                                        <p className="text-gray-500 max-w-sm mx-auto mb-8">
+                                            Enter a URL above and click "Analyze" to see performance, accessibility, best practices, and SEO scores.
+                                        </p>
+                                        {!isLighthouseLoading && (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mt-8 pt-8 border-t">
+                                                <div className="text-center">
+                                                    <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-3">
+                                                        <TrendingUp className="w-5 h-5 text-teal-600" />
+                                                    </div>
+                                                    <h4 className="text-xs font-bold text-gray-900">Performance</h4>
+                                                    <p className="text-[10px] text-gray-500 mt-1">Optimize speed and responsiveness</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                                                        <Shield className="w-5 h-5 text-blue-600" />
+                                                    </div>
+                                                    <h4 className="text-xs font-bold text-gray-900">Accessibility</h4>
+                                                    <p className="text-[10px] text-gray-500 mt-1">Ensure site works for everyone</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-3">
+                                                        <Globe className="w-5 h-5 text-purple-600" />
+                                                    </div>
+                                                    <h4 className="text-xs font-bold text-gray-900">SEO</h4>
+                                                    <p className="text-[10px] text-gray-500 mt-1">Improve search engine ranking</p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900">FID</h4>
-                                        <p className="text-xs text-gray-500">First Input Delay</p>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-gray-600">
-                                    Measures interactivity. Should be less than 100 milliseconds.
-                                </p>
-                            </div>
-                            <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                        <BarChart3 className="w-5 h-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900">CLS</h4>
-                                        <p className="text-xs text-gray-500">Cumulative Layout Shift</p>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-gray-600">
-                                    Measures visual stability. Should maintain a score of less than 0.1.
-                                </p>
+                                )}
                             </div>
                         </div>
-
-                        {/* Results or Placeholder */}
-                        {lighthouseResult ? (
-                            <div className="space-y-6">
-                                {/* Score Overview */}
-                                <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Scores</h3>
-                                    <ScoreBreakdownChart
-                                        performance={lighthouseResult.performance || 0}
-                                        accessibility={lighthouseResult.accessibility || 0}
-                                        bestPractices={lighthouseResult.bestPractices || 0}
-                                        seo={lighthouseResult.seo || 0}
-                                    />
-                                </div>
-
-                                {/* Core Web Vitals */}
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Core Web Vitals</h3>
-                                    <CoreWebVitalsChart
-                                        lcp={lighthouseResult.lcp || 0}
-                                        fid={lighthouseResult.fid || 0}
-                                        cls={lighthouseResult.cls || 0}
-                                        fcp={lighthouseResult.fcp}
-                                        ttfb={lighthouseResult.ttfb}
-                                    />
-                                </div>
-
-                                {/* Opportunities (Performance improvements) */}
-                                {console.log('Lighthouse result opportunities:', lighthouseResult.opportunities)}
-                                {lighthouseResult.opportunities && lighthouseResult.opportunities.length > 0 && (
-                                    <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Opportunities</h3>
-                                        <p className="text-sm text-gray-500 mb-4">These suggestions can help your page load faster</p>
-                                        <div className="space-y-3">
-                                            {lighthouseResult.opportunities.map((opp: any, idx: number) => (
-                                                <div key={idx} className="border-l-4 border-orange-500 pl-4 py-2">
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <h4 className="text-sm font-medium text-gray-900">{opp.title}</h4>
-                                                            {opp.description && (
-                                                                <p className="text-xs text-gray-600 mt-1">{opp.description}</p>
-                                                            )}
-                                                        </div>
-                                                        {opp.savings_ms > 0 && (
-                                                            <span className="ml-4 text-sm font-semibold text-orange-600">
-                                                                Est. savings: {(opp.savings_ms / 1000).toFixed(2)}s
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Diagnostics (Additional information) */}
-                                {lighthouseResult.diagnostics && lighthouseResult.diagnostics.length > 0 && (
-                                    <div className="bg-white rounded-xl p-6 border shadow-sm">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Diagnostics</h3>
-                                        <p className="text-sm text-gray-500 mb-4">More information about your page's performance</p>
-                                        <div className="space-y-2">
-                                            {lighthouseResult.diagnostics.map((diag: any, idx: number) => (
-                                                <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                                                    <div className="flex-1">
-                                                        <h4 className="text-sm font-medium text-gray-900">{diag.title}</h4>
-                                                        {diag.display_value && (
-                                                            <p className="text-xs text-gray-600 mt-1">{diag.display_value}</p>
-                                                        )}
-                                                    </div>
-                                                    {diag.score !== null && (
-                                                        <span className={`text-xs px-2 py-1 rounded ${diag.score >= 90 ? 'bg-green-100 text-green-700' :
-                                                            diag.score >= 50 ? 'bg-amber-100 text-amber-700' :
-                                                                'bg-red-100 text-red-700'
-                                                            }`}>
-                                                            {diag.score}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                                <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Run Your First Audit</h3>
-                                <p className="text-gray-500 mb-4">Enter a URL above and click "Run Audit" to analyze page performance.</p>
-                            </div>
-                        )}
 
                         {isLighthouseLoading && !lighthouseResult && (
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">

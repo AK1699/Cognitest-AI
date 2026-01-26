@@ -97,6 +97,7 @@ class PageSpeedInsightsService:
             metrics["tested_at"] = datetime.utcnow().isoformat()
             
             logger.info(f"PageSpeed audit complete. Score: {metrics.get('performance_score', 'N/A')}")
+            logger.info(f"DEBUG: raw_response added to metrics. Keys in raw_response: {list(data.keys())}")
             return metrics
             
         except aiohttp.ClientError as e:

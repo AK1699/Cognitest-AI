@@ -199,6 +199,9 @@ class PerformanceMetricsResponse(BaseModel):
     start_render_ms: Optional[float]
     visually_complete_ms: Optional[float]
     
+    # Raw Data
+    raw_response: Optional[Dict[str, Any]] = None
+    
     # Timestamps
     created_at: datetime
     updated_at: Optional[datetime]

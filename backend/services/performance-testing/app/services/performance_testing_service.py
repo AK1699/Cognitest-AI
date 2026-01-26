@@ -469,6 +469,11 @@ class PerformanceTestingService:
             # Raw data
             raw_response=result.get("raw_response"),
         )
+
+        if metrics.raw_response:
+             logger.info(f"DEBUG: PerformanceMetrics created with raw_response. Size: {len(str(metrics.raw_response))}")
+        else:
+             logger.warning("DEBUG: PerformanceMetrics created BUT raw_response is None!")
         
         self.db.add(metrics)
         await self.db.commit()
