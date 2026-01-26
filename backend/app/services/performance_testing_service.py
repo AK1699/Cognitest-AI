@@ -219,7 +219,7 @@ class PerformanceTestingService:
             # Route to appropriate handler
             if test.test_type == TestType.LIGHTHOUSE:
                 await self._execute_lighthouse_test(test)
-            elif test.test_type in [TestType.LOAD, TestType.STRESS, TestType.SPIKE]:
+            elif test.test_type in [TestType.LOAD, TestType.STRESS, TestType.SPIKE, TestType.ENDURANCE]:
                 await self._execute_load_test(test)
             elif test.test_type == TestType.API:
                 await self._execute_api_test(test)
@@ -329,7 +329,7 @@ class PerformanceTestingService:
         await self._store_lighthouse_metrics(test, result)
     
     async def _execute_load_test(self, test: PerformanceTest):
-        """Execute load/stress/spike test"""
+        """Execute load/stress/spike/endurance test"""
         if self.loader_service:
             logger.info(f"Running CLOUD load test for {test.target_url}")
             test.provider = TestProvider.LOADER_IO
@@ -340,6 +340,8 @@ class PerformanceTestingService:
             if test.test_type == TestType.STRESS:
                 load_type = LoadTestType.CLIENTS_PER_SECOND
             elif test.test_type == TestType.SPIKE:
+                load_type = LoadTestType.MAINTAIN_LOAD
+            elif test.test_type == TestType.ENDURANCE: # Soak test
                 load_type = LoadTestType.MAINTAIN_LOAD
             else:
                 load_type = LoadTestType.CLIENTS_PER_SECOND
@@ -405,7 +407,16 @@ class PerformanceTestingService:
                     {"duration": int(duration * 0.1), "target": base_vus},    # Spike DOWN
                     {"duration": int(duration * 0.2), "target": base_vus},    # Cooldown
                 ]
-            else: # LOAD or default
+            elif test.test_type == TestType.ENDURANCE:
+                # Sustained load for long duration
+                duration = test.duration_seconds or 3600
+                ramp_up = test.ramp_up_seconds or 60
+                hold_duration = max(0, duration - ramp_up)
+                stages = []
+                if ramp_up > 0:
+                    stages.append({"duration": ramp_up, "target": test.virtual_users})
+                stages.append({"duration": hold_duration, "target": test.virtual_users})
+            else: # LOAD or default or API
                 # Linear Ramp Up -> Hold -> (Instant down or define ramp down)
                 ramp_up = test.ramp_up_seconds or 0
                 total_duration = test.duration_seconds or 60
@@ -597,8 +608,17 @@ class PerformanceTestingService:
 
     async def _execute_api_test(self, test: PerformanceTest):
         """Execute simple API performance test"""
-        # For API tests, we use PageSpeed for now (simpler single-request timing)
-        await self._execute_lighthouse_test(test)
+        # API Tests should run as load tests (single user or small concurrency)
+        logger.info(f"Running API Performance Test as Load Test for {test.target_url}")
+        
+        # Ensure we have at least 1 user and short duration if not set
+        if not test.virtual_users:
+            test.virtual_users = 1
+        if not test.duration_seconds:
+            test.duration_seconds = 10
+            
+        await self.db.commit()
+        await self._execute_load_test(test)
     
     async def _store_lighthouse_metrics(self, test: PerformanceTest, result: Dict[str, Any]):
         """Store Lighthouse metrics in database"""

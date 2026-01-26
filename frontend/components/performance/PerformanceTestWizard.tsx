@@ -350,7 +350,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
             </div>
 
             {/* Step Content */}
-            <div className="p-6 min-h-[300px]">
+            <div className="p-6 min-h-[300px] max-h-[60vh] overflow-y-auto">
                 {/* Step 1: Test Type Selection */}
                 {step === 1 && (
                     <div className="space-y-4">
