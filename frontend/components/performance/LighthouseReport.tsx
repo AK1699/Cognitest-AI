@@ -36,6 +36,35 @@ const renderValue = (value: any) => {
     return String(value)
 }
 
+const SafeDescription = ({ text }: { text: string }) => {
+    if (!text) return null
+
+    // Simple parser for Lighthouse markdown-ish strings
+    // 1. Handle code backticks: `code` -> <code>code</code>
+    // 2. Handle links: [text](url) -> <a>text</a>
+
+    // We escape the text first to prevent literal HTML injection (like <input>)
+    const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+
+    // Process backticks
+    let html = escaped.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-teal-700 font-mono text-[10px]">$1</code>')
+
+    // Process links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-blue-600 hover:underline font-medium">$1</a>')
+
+    return (
+        <div
+            className="prose prose-sm max-w-none text-gray-500 break-words leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: html }}
+        />
+    )
+}
+
 interface LighthouseReportProps {
     data: any
 }
@@ -175,10 +204,9 @@ const CategoryDetails = ({ category, audits, categoryGroups }: any) => {
                 <div className="space-y-1">
                     <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{category.title}</h2>
                     {category.description && (
-                        <div
-                            className="text-sm text-gray-500 max-w-2xl mx-auto prose prose-sm prose-teal"
-                            dangerouslySetInnerHTML={{ __html: renderValue(category.description) }}
-                        />
+                        <div className="max-w-2xl mx-auto mt-2">
+                            <SafeDescription text={renderValue(category.description)} />
+                        </div>
                     )}
                 </div>
             </div>
@@ -437,7 +465,9 @@ const AuditItem = ({ audit, showSavings, type }: any) => {
                         <h4 className="text-sm font-medium text-gray-900 break-words">{renderValue(audit.title)}</h4>
                         {/* Only show description if expanded or if no details to expand for */}
                         {(expanded || !hasDetails) && (
-                            <div className="text-xs text-gray-500 mt-1 prose prose-sm max-w-none text-gray-500 break-words" dangerouslySetInnerHTML={{ __html: renderValue(audit.description) }} />
+                            <div className="mt-1">
+                                <SafeDescription text={renderValue(audit.description)} />
+                            </div>
                         )}
                     </div>
                 </div>
