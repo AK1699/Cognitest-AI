@@ -481,8 +481,8 @@ class PerformanceTestingService:
                 else:
                     current_target_vus = 0 # Done
                     
-                # Safety cap for local execution
-                current_target_vus = min(current_target_vus, 100) 
+                # Safety cap removed based on user preference
+                # current_target_vus = min(current_target_vus, 1000) 
                 
                 # Execute batch of requests equal to current concurrency
                 # Note: This is a synchronous batch approach (wait for all). 

@@ -78,15 +78,33 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
     const [isDeleting, setIsDeleting] = useState(false)
 
     const fetchTests = async () => {
+        if (!projectId) {
+            setIsLoading(false)
+            return
+        }
+
         try {
+            setIsLoading(true)
             const token = localStorage.getItem('access_token')
+
+            // Add timeout
+            const controller = new AbortController()
+            const id = setTimeout(() => controller.abort(), 10000)
+
             const response = await fetch(`${API_URL}/api/v1/performance/tests?project_id=${projectId}&page=1&page_size=100`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-                credentials: 'include'
+                credentials: 'include',
+                signal: controller.signal
             })
+
+            clearTimeout(id)
+
             if (response.ok) {
                 const data = await response.json()
                 setTests(data.items || [])
+            } else {
+                console.error(`Failed to fetch tests: ${response.status}`)
+                // Optionally handle 401 etc
             }
         } catch (error) {
             console.error('Failed to fetch tests:', error)

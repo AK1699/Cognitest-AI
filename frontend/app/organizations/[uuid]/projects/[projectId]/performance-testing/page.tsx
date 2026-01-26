@@ -533,11 +533,11 @@ export default function PerformanceTestingPage() {
         thinkTime: number | string;
         method?: "GET" | "POST" | "PUT" | "DELETE";
     }>({
-        virtualUsers: 50,
-        duration: 60,
-        rampUp: 10,
-        rampDown: 10,
-        thinkTime: 0,
+        virtualUsers: "",
+        duration: "",
+        rampUp: "",
+        rampDown: "",
+        thinkTime: "",
         method: "GET",
     });
     const [loadTestType, setLoadTestType] = useState<"simple" | "stages">(
@@ -643,10 +643,10 @@ export default function PerformanceTestingPage() {
         stepIncrease: number | string;
         stepDuration: number | string;
     }>({
-        startVUs: 10,
-        maxVUs: 500,
-        stepIncrease: 50,
-        stepDuration: 30,
+        startVUs: "",
+        maxVUs: "",
+        stepIncrease: "",
+        stepDuration: "",
     });
     const [isRunningStressTest, setIsRunningStressTest] = useState(false);
 
@@ -704,9 +704,9 @@ export default function PerformanceTestingPage() {
         spikeLoad: number | string;
         duration: number | string;
     }>({
-        normalLoad: 10,
-        spikeLoad: 1000,
-        duration: 120,
+        normalLoad: "",
+        spikeLoad: "",
+        duration: "",
     });
     const [isRunningSpikeTest, setIsRunningSpikeTest] = useState(false);
 
@@ -760,8 +760,8 @@ export default function PerformanceTestingPage() {
         virtualUsers: number | string;
         durationHours: number | string;
     }>({
-        virtualUsers: 50,
-        durationHours: 4,
+        virtualUsers: "",
+        durationHours: "",
     });
     const [isRunningSoakTest, setIsRunningSoakTest] = useState(false);
 
@@ -855,6 +855,7 @@ export default function PerformanceTestingPage() {
                     )
                 ) {
                     setLoadTestResult({
+                        type: test.test_type,
                         p50: metrics.latency_p50,
                         p75: metrics.latency_p75,
                         p90: metrics.latency_p90,
@@ -1951,12 +1952,13 @@ export default function PerformanceTestingPage() {
                                                                 }
                                                                 className={cn(
                                                                     "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                                    (Number(loadTestConfig.virtualUsers) > 2000 ||
+                                                                    (Number(loadTestConfig.virtualUsers) > 10000 ||
                                                                         Number(loadTestConfig.virtualUsers) < 1) &&
                                                                         loadTestConfig.virtualUsers !== ""
                                                                         ? "border-red-500 focus-visible:ring-red-500"
                                                                         : "",
                                                                 )}
+                                                                placeholder="0"
                                                             />
                                                         </div>
                                                     </div>
@@ -1986,6 +1988,7 @@ export default function PerformanceTestingPage() {
                                                                         ? "border-red-500 focus-visible:ring-red-500"
                                                                         : "",
                                                                 )}
+                                                                placeholder="0"
                                                             />
                                                         </div>
                                                     </div>
@@ -2096,6 +2099,7 @@ export default function PerformanceTestingPage() {
                                                                     ? "border-red-500 focus-visible:ring-red-500"
                                                                     : "",
                                                             )}
+                                                            placeholder="0"
                                                         />
                                                     </div>
                                                 </div>
@@ -2126,6 +2130,7 @@ export default function PerformanceTestingPage() {
                                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                                             : "",
                                                                     )}
+                                                                    placeholder="0"
                                                                 />
                                                             </div>
                                                         </div>
@@ -2154,6 +2159,7 @@ export default function PerformanceTestingPage() {
                                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                                             : "",
                                                                     )}
+                                                                    placeholder="0"
                                                                 />
                                                             </div>
                                                         </div>
@@ -2184,7 +2190,7 @@ export default function PerformanceTestingPage() {
                                                     isLoadLoading ||
                                                     (loadTestType === "simple" &&
                                                         (Number(loadTestConfig.virtualUsers) < 1 ||
-                                                            Number(loadTestConfig.virtualUsers) > 2000 ||
+                                                            Number(loadTestConfig.virtualUsers) > 10000 ||
                                                             parseDuration(loadTestConfig.duration) < 1 ||
                                                             parseDuration(loadTestConfig.duration) > 3600)) ||
                                                     (loadTestType === "stages" &&
@@ -2284,7 +2290,7 @@ export default function PerformanceTestingPage() {
                                                     </p>
                                                     <p className="text-xl font-black text-gray-900">
                                                         {loadTestType === "simple"
-                                                            ? loadTestConfig.duration
+                                                            ? `${(parseDuration(loadTestConfig.duration) || 0) + (parseDuration(loadTestConfig.rampUp) || 0) + (parseDuration(loadTestConfig.rampDown) || 0)}s`
                                                             : `${loadTestStages.length} Stages`}
                                                     </p>
                                                 </div>
@@ -2382,7 +2388,7 @@ export default function PerformanceTestingPage() {
                             </>
                         )}
 
-                        {!loadTestResult && !isLoadLoading && (
+                        {(!loadTestResult || loadTestResult.type !== "load") && !isLoadLoading && (
                             <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
                                 <LineChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">
@@ -2469,17 +2475,18 @@ export default function PerformanceTestingPage() {
                                                     }
                                                     className={cn(
                                                         "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(stressTestConfig.startVUs) > 1000 ||
+                                                        (Number(stressTestConfig.startVUs) > 10000 ||
                                                             Number(stressTestConfig.startVUs) < 1) &&
                                                             stressTestConfig.startVUs !== ""
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
-                                            {Number(stressTestConfig.startVUs) > 1000 && (
+                                            {Number(stressTestConfig.startVUs) > 10000 && (
                                                 <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 1000 VUs
+                                                    Max 10000 VUs
                                                 </p>
                                             )}
                                         </div>
@@ -2504,17 +2511,18 @@ export default function PerformanceTestingPage() {
                                                     }
                                                     className={cn(
                                                         "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(stressTestConfig.maxVUs) > 2000 ||
+                                                        (Number(stressTestConfig.maxVUs) > 10000 ||
                                                             Number(stressTestConfig.maxVUs) < 1) &&
                                                             stressTestConfig.maxVUs !== ""
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
-                                            {Number(stressTestConfig.maxVUs) > 2000 && (
+                                            {Number(stressTestConfig.maxVUs) > 10000 && (
                                                 <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 2000 VUs
+                                                    Max 10000 VUs
                                                 </p>
                                             )}
                                         </div>
@@ -2527,9 +2535,9 @@ export default function PerformanceTestingPage() {
                                                 !stressTargetUrl ||
                                                 isStressLoading ||
                                                 Number(stressTestConfig.startVUs) < 1 ||
-                                                Number(stressTestConfig.startVUs) > 1000 ||
+                                                Number(stressTestConfig.startVUs) > 10000 ||
                                                 Number(stressTestConfig.maxVUs) < 1 ||
-                                                Number(stressTestConfig.maxVUs) > 2000
+                                                Number(stressTestConfig.maxVUs) > 10000
                                             }
                                             className="h-14 w-full bg-orange-600 hover:bg-orange-700 text-white rounded-2xl shadow-lg shadow-orange-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
                                         >
@@ -2573,16 +2581,85 @@ export default function PerformanceTestingPage() {
                             </div>
                         )}
 
+
+
+                        {/* Metrics display */}
+                        {loadTestResult && loadTestResult.type === "stress" && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Requests/sec
+                                        </h4>
+                                        <p className="text-2xl font-bold text-orange-600 mt-1">
+                                            {loadTestResult?.avgRps
+                                                ? loadTestResult.avgRps.toFixed(1)
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Throughput</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            P95 Latency
+                                        </h4>
+                                        <p className="text-2xl font-bold text-orange-600 mt-1">
+                                            {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">95th percentile</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Success Rate
+                                        </h4>
+                                        <p
+                                            className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
+                                        >
+                                            {loadTestResult?.successRate
+                                                ? `${loadTestResult.successRate.toFixed(1)}%`
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Success rate</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Total Requests
+                                        </h4>
+                                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                                            {loadTestResult?.totalRequests
+                                                ? loadTestResult.totalRequests.toLocaleString()
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Completed</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <LatencyDistributionChart
+                                        p50={loadTestResult.p50}
+                                        p75={loadTestResult.p75}
+                                        p90={loadTestResult.p90}
+                                        p95={loadTestResult.p95}
+                                        p99={loadTestResult.p99}
+                                        max={loadTestResult.max}
+                                    />
+                                    <RealTimeMetricsChart data={loadTestResult.timeline} />
+                                    <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                                </div>
+                            </>
+                        )}
+
                         {/* Chart placeholder */}
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                Breaking Point Analysis
-                            </h3>
-                            <p className="text-gray-500">
-                                Start a stress test to identify system limits.
-                            </p>
-                        </div>
+                        {(!loadTestResult || loadTestResult.type !== "stress") && !isStressLoading && (
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Breaking Point Analysis
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a stress test to identify system limits.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -2658,12 +2735,13 @@ export default function PerformanceTestingPage() {
                                                     }
                                                     className={cn(
                                                         "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(spikeTestConfig.normalLoad) > 1000 ||
+                                                        (Number(spikeTestConfig.normalLoad) > 10000 ||
                                                             Number(spikeTestConfig.normalLoad) < 1) &&
                                                             spikeTestConfig.normalLoad !== ""
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
                                         </div>
@@ -2688,12 +2766,13 @@ export default function PerformanceTestingPage() {
                                                     }
                                                     className={cn(
                                                         "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(spikeTestConfig.spikeLoad) > 2000 ||
+                                                        (Number(spikeTestConfig.spikeLoad) > 10000 ||
                                                             Number(spikeTestConfig.spikeLoad) < 1) &&
                                                             spikeTestConfig.spikeLoad !== ""
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
                                         </div>
@@ -2706,9 +2785,9 @@ export default function PerformanceTestingPage() {
                                                 !spikeTargetUrl ||
                                                 isSpikeLoading ||
                                                 Number(spikeTestConfig.normalLoad) < 1 ||
-                                                Number(spikeTestConfig.normalLoad) > 1000 ||
+                                                Number(spikeTestConfig.normalLoad) > 10000 ||
                                                 Number(spikeTestConfig.spikeLoad) < 1 ||
-                                                Number(spikeTestConfig.spikeLoad) > 2000
+                                                Number(spikeTestConfig.spikeLoad) > 10000
                                             }
                                             className="h-14 w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
                                         >
@@ -2745,6 +2824,85 @@ export default function PerformanceTestingPage() {
                                         style={{ width: `${progress}%` }}
                                     ></div>
                                 </div>
+                            </div>
+                        )}
+
+
+                        {/* Metrics display */}
+                        {loadTestResult && loadTestResult.type === "spike" && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Requests/sec
+                                        </h4>
+                                        <p className="text-2xl font-bold text-red-600 mt-1">
+                                            {loadTestResult?.avgRps
+                                                ? loadTestResult.avgRps.toFixed(1)
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Throughput</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            P95 Latency
+                                        </h4>
+                                        <p className="text-2xl font-bold text-red-600 mt-1">
+                                            {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">95th percentile</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Success Rate
+                                        </h4>
+                                        <p
+                                            className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
+                                        >
+                                            {loadTestResult?.successRate
+                                                ? `${loadTestResult.successRate.toFixed(1)}%`
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Success rate</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Total Requests
+                                        </h4>
+                                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                                            {loadTestResult?.totalRequests
+                                                ? loadTestResult.totalRequests.toLocaleString()
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Completed</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <LatencyDistributionChart
+                                        p50={loadTestResult.p50}
+                                        p75={loadTestResult.p75}
+                                        p90={loadTestResult.p90}
+                                        p95={loadTestResult.p95}
+                                        p99={loadTestResult.p99}
+                                        max={loadTestResult.max}
+                                    />
+                                    <RealTimeMetricsChart data={loadTestResult.timeline} />
+                                    <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Chart placeholder */}
+                        {(!loadTestResult || loadTestResult.type !== "spike") && !isSpikeLoading && (
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Spike Analysis
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a spike test to analyze system stability.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -2829,11 +2987,12 @@ export default function PerformanceTestingPage() {
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
-                                            {Number(soakTestConfig.virtualUsers) > 2000 && (
+                                            {Number(soakTestConfig.virtualUsers) > 10000 && (
                                                 <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 2000 VUs
+                                                    Max 10000 VUs
                                                 </p>
                                             )}
                                         </div>
@@ -2877,6 +3036,7 @@ export default function PerformanceTestingPage() {
                                                             ? "border-red-500 focus-visible:ring-red-500"
                                                             : "",
                                                     )}
+                                                    placeholder="0"
                                                 />
                                             </div>
                                             {parseDuration(soakTestConfig.durationHours) > 86400 && (
@@ -2940,15 +3100,84 @@ export default function PerformanceTestingPage() {
                             </div>
                         )}
 
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                Soak Analysis
-                            </h3>
-                            <p className="text-gray-500">
-                                Start a soak test to monitor system health over time.
-                            </p>
-                        </div>
+
+
+                        {/* Metrics display */}
+                        {loadTestResult && (loadTestResult.type === "soak" || loadTestResult.type === "endurance") && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Requests/sec
+                                        </h4>
+                                        <p className="text-2xl font-bold text-indigo-600 mt-1">
+                                            {loadTestResult?.avgRps
+                                                ? loadTestResult.avgRps.toFixed(1)
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Throughput</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            P95 Latency
+                                        </h4>
+                                        <p className="text-2xl font-bold text-indigo-600 mt-1">
+                                            {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">95th percentile</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Success Rate
+                                        </h4>
+                                        <p
+                                            className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
+                                        >
+                                            {loadTestResult?.successRate
+                                                ? `${loadTestResult.successRate.toFixed(1)}%`
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Success rate</p>
+                                    </div>
+                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                        <h4 className="font-semibold text-gray-900 text-sm">
+                                            Total Requests
+                                        </h4>
+                                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                                            {loadTestResult?.totalRequests
+                                                ? loadTestResult.totalRequests.toLocaleString()
+                                                : "..."}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Completed</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <LatencyDistributionChart
+                                        p50={loadTestResult.p50}
+                                        p75={loadTestResult.p75}
+                                        p90={loadTestResult.p90}
+                                        p95={loadTestResult.p95}
+                                        p99={loadTestResult.p99}
+                                        max={loadTestResult.max}
+                                    />
+                                    <RealTimeMetricsChart data={loadTestResult.timeline} />
+                                    <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                                </div>
+                            </>
+                        )}
+
+                        {!loadTestResult && !isSoakLoading && (
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Soak Analysis
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a soak test to monitor system health over time.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -3233,7 +3462,7 @@ export default function PerformanceTestingPage() {
                                                 <Input
                                                     type="number"
                                                     defaultValue="500"
-                                                    placeholder="500ms"
+                                                    placeholder="0"
                                                     className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
                                                 />
                                             </div>

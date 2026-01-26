@@ -433,7 +433,7 @@ class LoadTestRequest(BaseModel):
     target_headers: Dict[str, str] = Field(default_factory=dict)
     target_body: Optional[str] = None
     
-    virtual_users: int = Field(default=10, ge=1, le=1000)
+    virtual_users: int = Field(default=10, ge=1, le=10000)
     duration_seconds: int = Field(default=60, ge=1, le=3600)  # Increased max duration
     ramp_up_seconds: int = Field(default=10, ge=0, le=60)
     
@@ -449,7 +449,7 @@ class SoakTestRequest(BaseModel):
     target_headers: Dict[str, str] = Field(default_factory=dict)
     target_body: Optional[str] = None
     
-    virtual_users: int = Field(default=50, ge=1, le=1000)
+    virtual_users: int = Field(default=50, ge=1, le=10000)
     duration_seconds: int = Field(default=3600, ge=300, le=86400) # Min 5 mins, Max 24 hours
     ramp_up_seconds: int = Field(default=60, ge=0, le=600)
     
@@ -464,7 +464,7 @@ class SpikeTestRequest(BaseModel):
     target_headers: Dict[str, str] = Field(default_factory=dict)
     
     base_users: int = Field(default=10, ge=1, le=500)
-    spike_users: int = Field(default=100, ge=10, le=2000)
+    spike_users: int = Field(default=100, ge=10, le=10000)
     spike_duration_seconds: int = Field(default=30, ge=5, le=300)
     total_duration_seconds: int = Field(default=120, ge=30, le=600)
 
@@ -476,7 +476,7 @@ class StressTestRequest(BaseModel):
     target_headers: Dict[str, str] = Field(default_factory=dict)
     
     start_vus: int = Field(default=10, ge=1, le=100)
-    max_vus: int = Field(default=200, ge=10, le=1000)
+    max_vus: int = Field(default=200, ge=10, le=10000)
     step_duration_seconds: int = Field(default=30, ge=1, le=300)
     step_increase: int = Field(default=20, ge=5, le=100)
 
