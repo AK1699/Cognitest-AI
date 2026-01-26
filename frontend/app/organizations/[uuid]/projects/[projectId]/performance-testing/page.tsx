@@ -24,7 +24,8 @@ import {
     ChevronRight,
     Shield,
     Globe,
-    History as HistoryIcon
+    History as HistoryIcon,
+    Info
 } from 'lucide-react'
 import { CircuitLogoIcon } from '@/components/ui/CircuitLogoIcon'
 import { Button } from '@/components/ui/button'
@@ -62,6 +63,22 @@ import { toast } from 'sonner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
+const parseDuration = (value: string | number): number => {
+    if (typeof value === 'number') return value
+    if (!value) return 0
+
+    const str = value.toString().toLowerCase().trim()
+    if (!isNaN(Number(str))) return parseFloat(str)
+
+    if (str.endsWith('ms')) return parseFloat(str.replace('ms', '')) / 1000
+    if (str.endsWith('s')) return parseFloat(str.replace('s', ''))
+    if (str.endsWith('m')) return parseFloat(str.replace('m', '')) * 60
+    if (str.endsWith('h')) return parseFloat(str.replace('h', '')) * 3600
+    if (str.endsWith('d')) return parseFloat(str.replace('d', '')) * 86400
+
+    return parseFloat(str) || 0
+}
+
 export default function PerformanceTestingPage() {
     const params = useParams()
     const router = useRouter()
@@ -89,6 +106,7 @@ export default function PerformanceTestingPage() {
     const [isSpikeLoading, setIsSpikeLoading] = useState(false)
     const [isSoakLoading, setIsSoakLoading] = useState(false)
     const [testToEdit, setTestToEdit] = useState<any>(null)
+    const [showAdvancedLoad, setShowAdvancedLoad] = useState(false)
 
     // Lighthouse Options State
     const [lhDevice, setLhDevice] = useState<'mobile' | 'desktop'>('mobile')
@@ -470,10 +488,10 @@ export default function PerformanceTestingPage() {
                     target_method: loadTestConfig.method || "GET",
                     target_headers: {},
                     virtual_users: Number(loadTestConfig.virtualUsers) || 50,
-                    duration_seconds: Number(loadTestConfig.duration) || 60,
-                    ramp_up_seconds: Number(loadTestConfig.rampUp) || 10,
-                    ramp_down_seconds: Number(loadTestConfig.rampDown) || 10,
-                    think_time: Number(loadTestConfig.thinkTime) || 0
+                    duration_seconds: parseDuration(loadTestConfig.duration) || 60,
+                    ramp_up_seconds: parseDuration(loadTestConfig.rampUp) || 10,
+                    ramp_down_seconds: parseDuration(loadTestConfig.rampDown) || 10,
+                    think_time: parseDuration(loadTestConfig.thinkTime) || 0
                 })
             })
 
@@ -549,7 +567,7 @@ export default function PerformanceTestingPage() {
                     target_headers: {},
                     start_vus: Number(stressTestConfig.startVUs) || 10,
                     max_vus: Number(stressTestConfig.maxVUs) || 500,
-                    step_duration_seconds: Number(stressTestConfig.stepDuration) || 30,
+                    step_duration_seconds: parseDuration(stressTestConfig.stepDuration) || 30,
                     step_increase: Number(stressTestConfig.stepIncrease) || 50
                 })
             })
@@ -602,10 +620,9 @@ export default function PerformanceTestingPage() {
                     target_url: spikeTargetUrl,
                     target_method: "GET",
                     target_headers: {},
-                    base_users: Number(spikeTestConfig.normalLoad) || 10,
-                    spike_users: Number(spikeTestConfig.spikeLoad) || 1000,
-                    total_duration_seconds: Number(spikeTestConfig.duration) || 120,
-                    spike_duration_seconds: Math.floor((Number(spikeTestConfig.duration) || 120) * 0.4) // Approximate
+                    normal_load: Number(spikeTestConfig.normalLoad) || 10,
+                    spike_load: Number(spikeTestConfig.spikeLoad) || 1000,
+                    duration_seconds: parseDuration(spikeTestConfig.duration) || 120
                 })
             })
 
@@ -656,7 +673,7 @@ export default function PerformanceTestingPage() {
                     target_method: "GET",
                     target_headers: {},
                     virtual_users: Number(soakTestConfig.virtualUsers) || 50,
-                    duration_seconds: (Number(soakTestConfig.durationHours) || 4) * 3600,
+                    duration_seconds: parseDuration(soakTestConfig.durationHours) || 14400,
                     ramp_up_seconds: 60
                 })
             })
@@ -1495,42 +1512,108 @@ export default function PerformanceTestingPage() {
                                     {Number(loadTestConfig.virtualUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Max 2000</p>}
                                 </div>
                                 <div>
-                                    <Label>Duration (sec)</Label>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Label>Duration</Label>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Supports formats: s (seconds), m (minutes), h (hours)</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Example: 30s, 5m, 1h</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         value={loadTestConfig.duration}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                                        className={cn("mt-1", (Number(loadTestConfig.duration) > 3600 || Number(loadTestConfig.duration) < 1) && loadTestConfig.duration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: e.target.value }))}
+                                        className={cn("mt-1", (parseDuration(loadTestConfig.duration) > 3600 || parseDuration(loadTestConfig.duration) < 1) && loadTestConfig.duration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
-                                    {Number(loadTestConfig.duration) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
+                                    {parseDuration(loadTestConfig.duration) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s (1h)</p>}
                                 </div>
                                 <div>
-                                    <Label>Ramp Up (sec)</Label>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Label>Ramp Up</Label>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Supports formats: s (seconds), m (minutes), h (hours)</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Example: 30s, 5m</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         value={loadTestConfig.rampUp}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampUp: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                                        className={cn("mt-1", (Number(loadTestConfig.rampUp) > 300 || Number(loadTestConfig.rampUp) < 0) && loadTestConfig.rampUp !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampUp: e.target.value }))}
+                                        className={cn("mt-1", (parseDuration(loadTestConfig.rampUp) > 300 || parseDuration(loadTestConfig.rampUp) < 0) && loadTestConfig.rampUp !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
-                                    {Number(loadTestConfig.rampUp) > 300 && <p className="text-xs text-red-500 mt-1">Max 300s</p>}
+                                    {parseDuration(loadTestConfig.rampUp) > 300 && <p className="text-xs text-red-500 mt-1">Max 300s (5m)</p>}
                                 </div>
-                                <div>
-                                    <Label>Ramp Down (sec)</Label>
-                                    <Input
-                                        type="number"
-                                        value={loadTestConfig.rampDown}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampDown: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                                        className={cn("mt-1", (Number(loadTestConfig.rampDown) > 300 || Number(loadTestConfig.rampDown) < 0) && loadTestConfig.rampDown !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                    />
-                                </div>
-                                <div>
-                                    <Label>Think Time (sec)</Label>
-                                    <Input
-                                        type="number"
-                                        value={loadTestConfig.thinkTime}
-                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, thinkTime: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                                        className={cn("mt-1", (Number(loadTestConfig.thinkTime) > 60 || Number(loadTestConfig.thinkTime) < 0) && loadTestConfig.thinkTime !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                    />
+                                {showAdvancedLoad && (
+                                    <>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Label>Ramp Down</Label>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Supports formats: s (seconds), m (minutes), h (hours)</p>
+                                                            <p className="text-xs text-gray-400 mt-1">Example: 30s, 5m</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                            <Input
+                                                type="text"
+                                                value={loadTestConfig.rampDown}
+                                                onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampDown: e.target.value }))}
+                                                className={cn("mt-1", (parseDuration(loadTestConfig.rampDown) > 300 || parseDuration(loadTestConfig.rampDown) < 0) && loadTestConfig.rampDown !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                            />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Label>Think Time</Label>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Delay between requests</p>
+                                                            <p className="text-xs text-gray-400 mt-1">Supports formats: 0s, 500ms, 1s</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                            <Input
+                                                type="text"
+                                                value={loadTestConfig.thinkTime}
+                                                onChange={(e) => setLoadTestConfig(prev => ({ ...prev, thinkTime: e.target.value }))}
+                                                className={cn("mt-1", (parseDuration(loadTestConfig.thinkTime) > 60 || parseDuration(loadTestConfig.thinkTime) < 0) && loadTestConfig.thinkTime !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                <div className="flex items-end pb-0.5">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowAdvancedLoad(!showAdvancedLoad)}
+                                        className="text-xs text-gray-500 w-full hover:text-gray-900"
+                                    >
+                                        {showAdvancedLoad ? 'Less Options' : 'More Options'}
+                                    </Button>
                                 </div>
                                 <div className="flex items-end">
                                     <Button
@@ -1540,8 +1623,8 @@ export default function PerformanceTestingPage() {
                                             isLoadLoading ||
                                             Number(loadTestConfig.virtualUsers) < 1 ||
                                             Number(loadTestConfig.virtualUsers) > 2000 ||
-                                            Number(loadTestConfig.duration) < 1 ||
-                                            Number(loadTestConfig.duration) > 3600
+                                            parseDuration(loadTestConfig.duration) < 1 ||
+                                            parseDuration(loadTestConfig.duration) > 3600
                                         }
                                         className="bg-purple-600 hover:bg-purple-700 w-full"
                                     >
@@ -1855,17 +1938,27 @@ export default function PerformanceTestingPage() {
                                         {Number(soakTestConfig.virtualUsers) < 1 && soakTestConfig.virtualUsers !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
                                     </div>
                                     <div>
-                                        <Label>Duration (hours)</Label>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Label>Duration</Label>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Supports formats: s (seconds), m (minutes), h (hours)</p>
+                                                        <p className="text-xs text-gray-400 mt-1">Example: 4h, 30m</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                         <Input
-                                            type="number"
+                                            type="text"
                                             value={soakTestConfig.durationHours}
-                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, durationHours: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                                            min="1"
-                                            max="24"
-                                            className={cn("mt-1", (Number(soakTestConfig.durationHours) > 24 || Number(soakTestConfig.durationHours) < 1) && soakTestConfig.durationHours !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                            onChange={(e) => setSoakTestConfig(prev => ({ ...prev, durationHours: e.target.value }))}
+                                            className={cn("mt-1", (parseDuration(soakTestConfig.durationHours) > 86400 || parseDuration(soakTestConfig.durationHours) < 1) && soakTestConfig.durationHours !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                         />
-                                        {Number(soakTestConfig.durationHours) > 24 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (24)</p>}
-                                        {Number(soakTestConfig.durationHours) < 1 && soakTestConfig.durationHours !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
+                                        {parseDuration(soakTestConfig.durationHours) > 86400 && <p className="text-xs text-red-500 mt-1">Max 24h</p>}
                                     </div>
                                     <div className="flex items-end">
                                         <Button
@@ -1876,8 +1969,8 @@ export default function PerformanceTestingPage() {
                                                 isSoakLoading ||
                                                 Number(soakTestConfig.virtualUsers) < 1 ||
                                                 Number(soakTestConfig.virtualUsers) > 2000 ||
-                                                Number(soakTestConfig.durationHours) < 1 ||
-                                                Number(soakTestConfig.durationHours) > 24
+                                                parseDuration(soakTestConfig.durationHours) < 1 ||
+                                                parseDuration(soakTestConfig.durationHours) > 86400
                                             }
                                         >
                                             {isSoakLoading ? (
