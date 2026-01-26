@@ -428,10 +428,16 @@ export default function PerformanceTestingPage() {
         virtualUsers: number | string
         duration: number | string
         rampUp: number | string
+        rampDown: number | string
+        thinkTime: number | string
+        method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     }>({
         virtualUsers: 50,
         duration: 60,
-        rampUp: 10
+        rampUp: 10,
+        rampDown: 10,
+        thinkTime: 0,
+        method: 'GET'
     })
     const [isRunningLoadTest, setIsRunningLoadTest] = useState(false)
 
@@ -442,6 +448,7 @@ export default function PerformanceTestingPage() {
         setIsRunningLoadTest(true)
         setLoadTestResult(null)
         setProgress(0)
+        setRefreshTrigger(prev => prev + 1) // Refresh saved tests list
 
         try {
             const token = localStorage.getItem('access_token')
@@ -454,11 +461,13 @@ export default function PerformanceTestingPage() {
                 },
                 body: JSON.stringify({
                     target_url: loadTargetUrl,
-                    target_method: "GET",
+                    target_method: loadTestConfig.method || "GET",
                     target_headers: {},
                     virtual_users: Number(loadTestConfig.virtualUsers) || 50,
                     duration_seconds: Number(loadTestConfig.duration) || 60,
-                    ramp_up_seconds: Number(loadTestConfig.rampUp) || 10
+                    ramp_up_seconds: Number(loadTestConfig.rampUp) || 10,
+                    ramp_down_seconds: Number(loadTestConfig.rampDown) || 10,
+                    think_time: Number(loadTestConfig.thinkTime) || 0
                 })
             })
 
@@ -693,7 +702,7 @@ export default function PerformanceTestingPage() {
                         diagnostics: metrics.diagnostics || [],
                         raw_response: metrics.raw_response
                     })
-                    setTargetUrl(test.target_url)
+                    setLhTargetUrl(test.target_url)
                     setSelectedHistoryId(testId)
                     setActiveModule('lighthouse')
                     fetchLighthouseHistory()
@@ -1386,7 +1395,7 @@ export default function PerformanceTestingPage() {
                         {/* Load Test Configuration */}
                         <div className="bg-white rounded-xl p-6 border shadow-sm">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Configure Load Test</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                                 <div className="md:col-span-2">
                                     <Label htmlFor="load-url">Target URL</Label>
                                     <Input
@@ -1399,15 +1408,28 @@ export default function PerformanceTestingPage() {
                                 </div>
                                 <div>
                                     <Label>Method</Label>
-                                    <Select defaultValue="GET">
+                                    <Select
+                                        defaultValue="GET"
+                                        value={loadTestConfig.method || "GET"}
+                                        onValueChange={(val) => setLoadTestConfig(prev => ({ ...prev, method: val as any }))}
+                                    >
                                         <SelectTrigger className="mt-1">
-                                            <SelectValue />
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn("font-bold text-xs",
+                                                    (loadTestConfig.method || "GET") === "GET" ? "text-emerald-600" :
+                                                        (loadTestConfig.method || "GET") === "POST" ? "text-blue-600" :
+                                                            (loadTestConfig.method || "GET") === "PUT" ? "text-amber-600" :
+                                                                (loadTestConfig.method || "GET") === "DELETE" ? "text-red-600" : "text-gray-600"
+                                                )}>
+                                                    {loadTestConfig.method || "GET"}
+                                                </span>
+                                            </div>
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="GET">GET</SelectItem>
-                                            <SelectItem value="POST">POST</SelectItem>
-                                            <SelectItem value="PUT">PUT</SelectItem>
-                                            <SelectItem value="DELETE">DELETE</SelectItem>
+                                            <SelectItem value="GET"><span className="font-bold text-xs text-emerald-600">GET</span></SelectItem>
+                                            <SelectItem value="POST"><span className="font-bold text-xs text-blue-600">POST</span></SelectItem>
+                                            <SelectItem value="PUT"><span className="font-bold text-xs text-amber-600">PUT</span></SelectItem>
+                                            <SelectItem value="DELETE"><span className="font-bold text-xs text-red-600">DELETE</span></SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1419,8 +1441,7 @@ export default function PerformanceTestingPage() {
                                         onChange={(e) => setLoadTestConfig(prev => ({ ...prev, virtualUsers: e.target.value === '' ? '' : parseInt(e.target.value) }))}
                                         className={cn("mt-1", (Number(loadTestConfig.virtualUsers) > 2000 || Number(loadTestConfig.virtualUsers) < 1) && loadTestConfig.virtualUsers !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
-                                    {Number(loadTestConfig.virtualUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (2000)</p>}
-                                    {Number(loadTestConfig.virtualUsers) < 1 && loadTestConfig.virtualUsers !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
+                                    {Number(loadTestConfig.virtualUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Max 2000</p>}
                                 </div>
                                 <div>
                                     <Label>Duration (sec)</Label>
@@ -1430,8 +1451,35 @@ export default function PerformanceTestingPage() {
                                         onChange={(e) => setLoadTestConfig(prev => ({ ...prev, duration: e.target.value === '' ? '' : parseInt(e.target.value) }))}
                                         className={cn("mt-1", (Number(loadTestConfig.duration) > 3600 || Number(loadTestConfig.duration) < 1) && loadTestConfig.duration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
                                     />
-                                    {Number(loadTestConfig.duration) > 3600 && <p className="text-xs text-red-500 mt-1">Maximum limit reached (3600s)</p>}
-                                    {Number(loadTestConfig.duration) < 1 && loadTestConfig.duration !== '' && <p className="text-xs text-red-500 mt-1">Minimum value is 1</p>}
+                                    {Number(loadTestConfig.duration) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
+                                </div>
+                                <div>
+                                    <Label>Ramp Up (sec)</Label>
+                                    <Input
+                                        type="number"
+                                        value={loadTestConfig.rampUp}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampUp: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                        className={cn("mt-1", (Number(loadTestConfig.rampUp) > 300 || Number(loadTestConfig.rampUp) < 0) && loadTestConfig.rampUp !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                    />
+                                    {Number(loadTestConfig.rampUp) > 300 && <p className="text-xs text-red-500 mt-1">Max 300s</p>}
+                                </div>
+                                <div>
+                                    <Label>Ramp Down (sec)</Label>
+                                    <Input
+                                        type="number"
+                                        value={loadTestConfig.rampDown}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, rampDown: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                        className={cn("mt-1", (Number(loadTestConfig.rampDown) > 300 || Number(loadTestConfig.rampDown) < 0) && loadTestConfig.rampDown !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Think Time (sec)</Label>
+                                    <Input
+                                        type="number"
+                                        value={loadTestConfig.thinkTime}
+                                        onChange={(e) => setLoadTestConfig(prev => ({ ...prev, thinkTime: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                        className={cn("mt-1", (Number(loadTestConfig.thinkTime) > 60 || Number(loadTestConfig.thinkTime) < 0) && loadTestConfig.thinkTime !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
+                                    />
                                 </div>
                                 <div className="flex items-end">
                                     <Button

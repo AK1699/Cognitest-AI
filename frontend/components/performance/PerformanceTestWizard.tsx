@@ -54,6 +54,8 @@ interface TestConfig {
     virtualUsers: number | string
     durationSeconds: number | string
     rampUpSeconds: number | string
+    rampDownSeconds: number | string
+    thinkTime: number | string
     // Stress options
     startVUs: number | string
     maxVUs: number | string
@@ -439,7 +441,6 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                     <SelectTrigger className="mt-1">
                                         <div className="flex items-center gap-2">
                                             <span className={cn("font-bold text-xs", methodColors[config.method])}>{config.method}</span>
-                                            <SelectValue />
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent>
@@ -617,6 +618,39 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                         step={5}
                                         className="mt-3"
                                     />
+                                </div>
+
+                                <div>
+                                    <Label className="flex justify-between">
+                                        <span>Ramp-down Time (seconds)</span>
+                                        <span className="text-brand-600 font-semibold">{config.rampDownSeconds || 0}s</span>
+                                    </Label>
+                                    <Slider
+                                        value={[Number(config.rampDownSeconds || 0)]}
+                                        onValueChange={([v]: number[]) => updateConfig('rampDownSeconds', v)}
+                                        min={0}
+                                        max={60}
+                                        step={5}
+                                        className="mt-3"
+                                    />
+                                </div>
+
+                                <div>
+                                    <Label className="flex justify-between">
+                                        <span>Think Time (seconds)</span>
+                                        <span className="text-brand-600 font-semibold">{config.thinkTime || 0}s</span>
+                                    </Label>
+                                    <Slider
+                                        value={[Number(config.thinkTime || 0)]}
+                                        onValueChange={([v]: number[]) => updateConfig('thinkTime', v)}
+                                        min={0}
+                                        max={10}
+                                        step={0.5}
+                                        className="mt-3"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Simulated delay between user actions
+                                    </p>
                                 </div>
                             </>
                         )}

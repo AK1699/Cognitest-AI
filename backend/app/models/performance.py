@@ -144,6 +144,7 @@ class PerformanceTest(Base):
     duration_seconds = Column(Integer, default=60)
     ramp_up_seconds = Column(Integer, default=10)
     ramp_down_seconds = Column(Integer, default=10)
+    think_time = Column(Float, default=0) # Delay between requests in seconds
     load_profile = Column(SQLEnum(LoadProfile, values_callable=lambda x: [e.value for e in x]), nullable=True)
     stages = Column(JSON, nullable=True)  # Custom stages: [{duration, target}]
     
@@ -251,6 +252,12 @@ class PerformanceMetrics(Base):
     data_received_bytes = Column(Integer, nullable=True)
     data_sent_bytes = Column(Integer, nullable=True)
     throughput_bytes_per_second = Column(Float, nullable=True)
+    
+    # Resource Metrics (server side)
+    cpu_usage = Column(Float, nullable=True) # Percentage
+    memory_usage = Column(Float, nullable=True) # Percentage
+    disk_io = Column(Float, nullable=True) # MB/s
+    network_io = Column(Float, nullable=True) # MB/s
     
     # Error Metrics
     error_count = Column(Integer, default=0)

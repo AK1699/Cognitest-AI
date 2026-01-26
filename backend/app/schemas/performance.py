@@ -109,6 +109,7 @@ class PerformanceTestCreate(BaseModel):
     duration_seconds: int = Field(default=60, ge=1, le=3600)
     ramp_up_seconds: int = Field(default=10, ge=0, le=300)
     ramp_down_seconds: int = Field(default=10, ge=0, le=300)
+    think_time: Optional[float] = Field(default=0, ge=0)
     load_profile: Optional[LoadProfile] = LoadProfile.RAMP_UP
     stages: Optional[List[Dict[str, int]]] = None  # [{duration: 30, target: 50}]
     
