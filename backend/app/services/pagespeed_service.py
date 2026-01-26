@@ -371,4 +371,6 @@ def get_pagespeed_service(api_key: Optional[str] = None) -> PageSpeedInsightsSer
     global _pagespeed_service
     if _pagespeed_service is None:
         _pagespeed_service = PageSpeedInsightsService(api_key=api_key)
+    elif api_key and not _pagespeed_service.api_key:
+        _pagespeed_service.api_key = api_key
     return _pagespeed_service

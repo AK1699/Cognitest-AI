@@ -86,6 +86,7 @@ class LocalLighthouseService:
             
             # Convert to PageSpeed API format
             metrics = self._parse_lighthouse_result(lighthouse_result)
+            metrics["raw_response"] = {"lighthouseResult": lighthouse_result}  # Match PageSpeed API structure
             metrics["tested_url"] = url
             metrics["strategy"] = strategy
             metrics["tested_at"] = datetime.utcnow().isoformat()

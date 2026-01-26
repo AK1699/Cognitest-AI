@@ -22,6 +22,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 
 export type TestType = 'lighthouse' | 'load' | 'stress' | 'spike' | 'api' | 'soak'
@@ -39,6 +41,13 @@ interface TestConfig {
     description: string
     // Lighthouse options
     deviceType: 'mobile' | 'desktop'
+    auditMode: 'navigation' | 'timespan' | 'snapshot'
+    categories: {
+        performance: boolean
+        accessibility: boolean
+        bestPractices: boolean
+        seo: boolean
+    }
     // Load test options
     virtualUsers: number | string
     durationSeconds: number | string
@@ -109,6 +118,13 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         targetUrl: '',
         description: '',
         deviceType: 'mobile',
+        auditMode: 'navigation',
+        categories: {
+            performance: true,
+            accessibility: true,
+            bestPractices: true,
+            seo: true
+        },
         virtualUsers: 50,
         durationSeconds: 60,
         rampUpSeconds: 10,
@@ -126,7 +142,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
         body: ''
     })
 
-    const totalSteps = config.testType === 'lighthouse' ? 3 : 4
+    const totalSteps = config.testType === 'lighthouse' ? 4 : 5
 
     const updateConfig = <K extends keyof TestConfig>(key: K, value: TestConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }))
@@ -154,6 +170,8 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 target_url: config.targetUrl,
                 description: config.description,
                 device_type: config.deviceType,
+                audit_mode: config.auditMode,
+                categories: config.categories,
                 duration_seconds: Number(config.durationSeconds) || 60,
                 ramp_up_seconds: Number(config.rampUpSeconds) || 0,
                 target_method: config.method,
@@ -203,7 +221,7 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 payload.virtual_users = Number(config.virtualUsers) || 50
             }
 
-            onComplete(payload)
+            await onComplete(payload)
         } catch (error) {
             console.error('Failed to create test:', error)
         } finally {
@@ -221,8 +239,9 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                 return config.targetUrl.trim().length > 0
             case 3:
                 if (config.testType === 'lighthouse') {
-                    const perfScore = config.minPerformanceScore === null ? 0 : Number(config.minPerformanceScore)
-                    if (config.minPerformanceScore !== null && (perfScore < 0 || perfScore > 100)) return false
+                    // Ensure at least one category is selected
+                    const hasCategory = Object.values(config.categories).some(v => v)
+                    if (!hasCategory) return false
                     return true
                 }
 
@@ -250,12 +269,15 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
 
                 return true
             case 4:
+                if (config.testType === 'lighthouse') return true // Review step
                 // Check thresholds
                 const latency = config.maxLatencyP95 === null ? 0 : Number(config.maxLatencyP95)
                 const errorRate = config.maxErrorRate === null ? 0 : Number(config.maxErrorRate)
                 if (config.maxLatencyP95 !== null && (latency < 0 || latency > 10000)) return false
                 if (config.maxErrorRate !== null && (errorRate < 0 || errorRate > 100)) return false
                 return true
+            case 5:
+                return true // Final review
             default:
                 return true
         }
@@ -291,11 +313,21 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                         </div>
                     ))}
                 </div>
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
-                    <span>Test Type</span>
-                    <span>Target</span>
-                    {config.testType !== 'lighthouse' && <span>Load Config</span>}
-                    <span>Thresholds</span>
+                <div className="flex justify-between mt-2 text-[10px] uppercase tracking-wider font-semibold text-gray-400 px-1">
+                    <span className={step === 1 ? "text-brand-600" : ""}>Type</span>
+                    <span className={step === 2 ? "text-brand-600" : ""}>Target</span>
+                    {config.testType !== 'lighthouse' ? (
+                        <>
+                            <span className={step === 3 ? "text-brand-600" : ""}>Load</span>
+                            <span className={step === 4 ? "text-brand-600" : ""}>Rules</span>
+                            <span className={step === 5 ? "text-brand-600" : ""}>Review</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className={step === 3 ? "text-brand-600" : ""}>Config</span>
+                            <span className={step === 4 ? "text-brand-600" : ""}>Review</span>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -401,46 +433,105 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                     </div>
                 )}
 
-                {/* Step 3: Device/Load Configuration */}
                 {step === 3 && config.testType === 'lighthouse' && (
                     <div className="space-y-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Device Configuration</h3>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Lighthouse Configuration</h3>
 
-                        <div>
-                            <Label className="mb-3 block">Select Device Type</Label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div
-                                    onClick={() => updateConfig('deviceType', 'mobile')}
-                                    className={cn(
-                                        "p-6 rounded-lg border-2 cursor-pointer text-center transition-all",
-                                        config.deviceType === 'mobile'
-                                            ? "border-brand-500 bg-brand-50"
-                                            : "border-gray-200 hover:border-brand-300"
-                                    )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Device Selection */}
+                            <div className="space-y-4">
+                                <Label className="block text-sm font-semibold text-gray-700">Device Type</Label>
+                                <RadioGroup
+                                    value={config.deviceType}
+                                    onValueChange={(v) => updateConfig('deviceType', v as any)}
+                                    className="flex flex-col space-y-2"
                                 >
-                                    <Smartphone className={cn(
-                                        "w-12 h-12 mx-auto mb-3",
-                                        config.deviceType === 'mobile' ? "text-brand-500" : "text-gray-400"
-                                    )} />
-                                    <h4 className="font-medium text-gray-900">Mobile</h4>
-                                    <p className="text-xs text-gray-500 mt-1">Simulates 4G network</p>
-                                </div>
-                                <div
-                                    onClick={() => updateConfig('deviceType', 'desktop')}
-                                    className={cn(
-                                        "p-6 rounded-lg border-2 cursor-pointer text-center transition-all",
-                                        config.deviceType === 'desktop'
-                                            ? "border-brand-500 bg-brand-50"
-                                            : "border-gray-200 hover:border-brand-300"
-                                    )}
-                                >
-                                    <Monitor className={cn(
-                                        "w-12 h-12 mx-auto mb-3",
-                                        config.deviceType === 'desktop' ? "text-brand-500" : "text-gray-400"
-                                    )} />
-                                    <h4 className="font-medium text-gray-900">Desktop</h4>
-                                    <p className="text-xs text-gray-500 mt-1">Fast connection</p>
-                                </div>
+                                    <div
+                                        className={cn(
+                                            "flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            config.deviceType === 'mobile' ? "border-brand-500 bg-brand-50" : "border-gray-200 hover:border-gray-300"
+                                        )}
+                                        onClick={() => updateConfig('deviceType', 'mobile')}
+                                    >
+                                        <RadioGroupItem value="mobile" id="mobile-radio" />
+                                        <Smartphone className={cn("w-4 h-4", config.deviceType === 'mobile' ? "text-brand-600" : "text-gray-400")} />
+                                        <Label htmlFor="mobile-radio" className="flex-1 cursor-pointer font-medium">Mobile</Label>
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            config.deviceType === 'desktop' ? "border-brand-500 bg-brand-50" : "border-gray-200 hover:border-gray-300"
+                                        )}
+                                        onClick={() => updateConfig('deviceType', 'desktop')}
+                                    >
+                                        <RadioGroupItem value="desktop" id="desktop-radio" />
+                                        <Monitor className={cn("w-4 h-4", config.deviceType === 'desktop' ? "text-brand-600" : "text-gray-400")} />
+                                        <Label htmlFor="desktop-radio" className="flex-1 cursor-pointer font-medium">Desktop</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
+                            {/* Audit Mode Selection */}
+                            <div className="space-y-4">
+                                <Label className="block text-sm font-semibold text-gray-700">Audit Mode</Label>
+                                <Select value={config.auditMode} onValueChange={(v) => updateConfig('auditMode', v as any)}>
+                                    <SelectTrigger className="w-full bg-white border-gray-200 rounded-xl h-[52px] focus:ring-brand-500 text-left px-4">
+                                        <div className="flex flex-col leading-tight">
+                                            <SelectValue placeholder="Select mode" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl shadow-xl border-gray-100">
+                                        <SelectItem value="navigation" className="py-3">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Navigation</span>
+                                                <span className="text-xs text-gray-500">Standard page load audit</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="timespan" className="py-3">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Timespan</span>
+                                                <span className="text-xs text-gray-500">Analyze user interactions over time</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="snapshot" className="py-3">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Snapshot</span>
+                                                <span className="text-xs text-gray-500">Audit a specific page state</span>
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        {/* Categories Selection */}
+                        <div className="space-y-4 pt-4 border-t border-gray-50">
+                            <Label className="block text-sm font-semibold text-gray-700">Audit Categories</Label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                                {[
+                                    { id: 'performance', label: 'Performance' },
+                                    { id: 'accessibility', label: 'Accessibility' },
+                                    { id: 'bestPractices', label: 'Best Practices' },
+                                    { id: 'seo', label: 'SEO' }
+                                ].map((cat) => (
+                                    <div key={cat.id} className="flex items-center space-x-3 group">
+                                        <Checkbox
+                                            id={cat.id}
+                                            checked={config.categories[cat.id as keyof typeof config.categories]}
+                                            onCheckedChange={(checked) => {
+                                                const newCats = { ...config.categories, [cat.id]: !!checked }
+                                                updateConfig('categories', newCats)
+                                            }}
+                                            className="w-5 h-5 rounded-md border-gray-300 data-[state=checked]:bg-brand-600 data-[state=checked]:border-brand-600 transition-colors"
+                                        />
+                                        <Label
+                                            htmlFor={cat.id}
+                                            className="text-sm font-medium text-gray-600 group-hover:text-brand-700 cursor-pointer transition-colors"
+                                        >
+                                            {cat.label}
+                                        </Label>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -634,27 +725,82 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel }: Perfo
                     </div>
                 )}
 
-                {/* Final Step for Lighthouse: Review */}
-                {step === 3 && config.testType === 'lighthouse' && (
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Test Summary</h4>
-                        <div className="text-sm space-y-1 text-gray-600">
-                            <p><span className="font-medium">Type:</span> Lighthouse Audit</p>
-                            <p><span className="font-medium">URL:</span> {config.targetUrl}</p>
-                            <p><span className="font-medium">Device:</span> {config.deviceType === 'mobile' ? 'Mobile' : 'Desktop'}</p>
-                        </div>
-                    </div>
-                )}
+                {/* Review Steps */}
+                {((step === 4 && config.testType === 'lighthouse') || (step === 5 && config.testType !== 'lighthouse')) && (
+                    <div className="space-y-6">
+                        <div className="bg-brand-50/50 rounded-2xl p-6 border border-brand-100">
+                            <h3 className="text-lg font-semibold text-brand-900 mb-4 flex items-center gap-2">
+                                <Settings className="w-5 h-5" />
+                                Review Test Configuration
+                            </h3>
 
-                {/* Final Step for Load tests: Review */}
-                {step === 4 && config.testType !== 'lighthouse' && (
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Test Summary</h4>
-                        <div className="text-sm space-y-1 text-gray-600">
-                            <p><span className="font-medium">Type:</span> {testTypeInfo[config.testType].name}</p>
-                            <p><span className="font-medium">URL:</span> {config.targetUrl}</p>
-                            <p><span className="font-medium">Virtual Users:</span> {config.virtualUsers}</p>
-                            <p><span className="font-medium">Duration:</span> {config.durationSeconds}s</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">General Info</p>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-gray-900"><span className="text-gray-500">Name:</span> {config.name || 'Untitled Test'}</p>
+                                            <p className="text-sm text-gray-900 font-medium truncate"><span className="text-gray-500 font-normal">URL:</span> {config.targetUrl}</p>
+                                            <p className="text-sm text-gray-900"><span className="text-gray-500">Type:</span> {testTypeInfo[config.testType].name}</p>
+                                        </div>
+                                    </div>
+
+                                    {config.testType === 'lighthouse' ? (
+                                        <div>
+                                            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Lighthouse Details</p>
+                                            <div className="space-y-1">
+                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Device:</span> {config.deviceType.charAt(0).toUpperCase() + config.deviceType.slice(1)}</p>
+                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Mode:</span> {config.auditMode.charAt(0).toUpperCase() + config.auditMode.slice(1)}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Load Profile</p>
+                                            <div className="space-y-1">
+                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Users:</span> {config.virtualUsers} VUs</p>
+                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Duration:</span> {config.durationSeconds}s</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-4">
+                                    {config.testType === 'lighthouse' ? (
+                                        <div>
+                                            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Categories</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                {Object.entries(config.categories)
+                                                    .filter(([_, enabled]) => enabled)
+                                                    .map(([key]) => (
+                                                        <span key={key} className="px-2 py-0.5 bg-brand-100 text-brand-700 text-[10px] font-bold rounded-full uppercase">
+                                                            {key.replace(/([A-Z])/g, ' $1')}
+                                                        </span>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Thresholds</p>
+                                            <div className="space-y-1">
+                                                <p className="text-sm text-gray-900">
+                                                    <span className="text-gray-500">Latency:</span> {config.maxLatencyP95 ? `${config.maxLatencyP95}ms` : 'None'}
+                                                </p>
+                                                <p className="text-sm text-gray-900">
+                                                    <span className="text-gray-500">Error Rate:</span> {config.maxErrorRate ? `${config.maxErrorRate}%` : 'None'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 items-start">
+                            <Activity className="w-5 h-5 text-blue-600 mt-0.5" />
+                            <div className="text-xs text-blue-800 leading-relaxed">
+                                <span className="font-bold">Pro Tip:</span> Your configurations are saved. You can trigger this test later from the "Saved Tests" list without having to re-configure everything.
+                            </div>
                         </div>
                     </div>
                 )}

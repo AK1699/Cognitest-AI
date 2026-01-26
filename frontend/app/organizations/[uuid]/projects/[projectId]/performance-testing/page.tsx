@@ -305,12 +305,31 @@ export default function PerformanceTestingPage() {
                 body: JSON.stringify(testConfig)
             })
             if (response.ok) {
+                const test = await response.json()
                 setShowWizard(false)
                 fetchDashboardData()
                 setRefreshTrigger(prev => prev + 1)
+
+                // Immediately trigger execution
+                const execResponse = await fetch(`${API_URL}/api/v1/performance/tests/${test.id}/execute`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                })
+
+                if (execResponse.ok) {
+                    toast.success('Test created and started')
+                    handleTestRunStarted(test.id, test.test_type)
+                } else {
+                    toast.success('Test created successfully')
+                }
+            } else {
+                const error = await response.json().catch(() => ({}))
+                toast.error(error.detail || 'Failed to create test')
             }
         } catch (error) {
             console.error('Failed to create test:', error)
+            toast.error('An unexpected error occurred')
         }
     }
 

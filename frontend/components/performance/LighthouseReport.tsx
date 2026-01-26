@@ -15,6 +15,27 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+// Helper to safely render localized strings or objects from Lighthouse
+const renderValue = (value: any) => {
+    if (!value) return ''
+    if (typeof value === 'string') return value
+    if (React.isValidElement(value)) return value
+    if (typeof value === 'object') {
+        // Handle Lighthouse IcuMessage or formatted objects
+        if (value.formattedValue) return value.formattedValue
+        if (value.value !== undefined) return String(value.value)
+        // Fallback for objects like {type, granularity, value}
+        if (value.type && value.value !== undefined) return String(value.value)
+        // If it's a complex object we can't stringify (like a React fiber), just return empty or a safe string
+        try {
+            return JSON.stringify(value)
+        } catch (e) {
+            return String(value)
+        }
+    }
+    return String(value)
+}
+
 interface LighthouseReportProps {
     data: any
 }
@@ -32,189 +53,295 @@ export const LighthouseReport: React.FC<LighthouseReportProps> = ({ data }) => {
     }
 
     const { lighthouseResult } = data
-    const { categories, audits, fetchTime, configSettings } = lighthouseResult
-    const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
-
-    // Helper to get score class
-    const getScoreClass = (score: number | null) => {
-        if (score === null) return 'bg-gray-100 text-gray-600'
-        if (score >= 0.9) return 'text-green-600'
-        if (score >= 0.5) return 'text-orange-500'
-        return 'text-red-500'
-    }
-
-    // Helper to get score background class (for bars/gauges)
-    const getScoreBgClass = (score: number | null) => {
-        if (score === null) return 'bg-gray-200'
-        if (score >= 0.9) return 'bg-green-500'
-        if (score >= 0.5) return 'bg-orange-500'
-        return 'bg-red-500'
-    }
-
-    const formatValue = (value: number | undefined, unit?: string) => {
-        if (value === undefined) return '-'
-        return `${Math.round(value * 10) / 10}${unit ? unit : ''}`
-    }
+    const { categories, audits, categoryGroups, fetchTime, configSettings } = lighthouseResult
+    const [activeCategory, setActiveCategory] = useState<string | null>(Object.keys(categories)[0])
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="bg-[#f1f3f4] rounded-xl shadow-lg border overflow-hidden font-sans">
             {/* Header / Meta Info */}
-            <div className="bg-gray-50 border-b p-4 flex flex-wrap items-center justify-between gap-4 text-xs text-gray-500">
-                <div className="flex items-center gap-4">
-                    <span>Generated: {new Date(fetchTime).toLocaleString()}</span>
-                    <span>Lighthouse {lighthouseResult.lighthouseVersion}</span>
+            <div className="bg-white border-b px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-6">
+                    <span className="font-medium">Lighthouse {lighthouseResult.lighthouseVersion}</span>
+                    <span className="text-gray-400">|</span>
+                    <span>{new Date(fetchTime).toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1">
+                <div className="flex items-center gap-6">
+                    <span className="flex items-center gap-1.5 uppercase tracking-wider font-semibold text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                         {configSettings?.emulatedFormFactor === 'desktop' ? 'Desktop' : 'Mobile'}
                     </span>
                     <a
                         href={lighthouseResult.requestedUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-teal-600 hover:underline flex items-center gap-1"
+                        className="text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1 font-medium"
                     >
                         {lighthouseResult.requestedUrl} <ExternalLink className="w-3 h-3" />
                     </a>
                 </div>
             </div>
 
-            {/* Top Level Gauges */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 border-b justify-items-center">
+            {/* Top Level Gauges (DevTools style) */}
+            <div className="bg-white border-b flex flex-wrap justify-center py-8 gap-8 md:gap-16 px-4">
                 {Object.values(categories).map((cat: any) => (
-                    <Gauge
+                    <button
                         key={cat.id}
-                        score={cat.score}
-                        title={cat.title}
-                    />
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={cn(
+                            "flex flex-col items-center gap-2 transition-all group",
+                            activeCategory === cat.id ? "scale-110" : "opacity-60 hover:opacity-100"
+                        )}
+                    >
+                        <Gauge
+                            score={cat.score}
+                            title={cat.title}
+                            size="large"
+                        />
+                        <div className={cn(
+                            "h-1 w-full rounded-full transition-all",
+                            activeCategory === cat.id ? "bg-teal-500" : "bg-transparent"
+                        )} />
+                    </button>
                 ))}
             </div>
 
-            {/* Metrics Section (Core Web Vitals) */}
-            <div className="p-6 border-b">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-gray-900">Metrics</h3>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedMetric(null)} className={!selectedMetric ? "bg-gray-100" : ""}>All</Button>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedMetric('FCP')} className={selectedMetric === 'FCP' ? "bg-teal-50 border-teal-200 text-teal-700" : ""}>FCP</Button>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedMetric('LCP')} className={selectedMetric === 'LCP' ? "bg-teal-50 border-teal-200 text-teal-700" : ""}>LCP</Button>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedMetric('TBT')} className={selectedMetric === 'TBT' ? "bg-teal-50 border-teal-200 text-teal-700" : ""}>TBT</Button>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedMetric('CLS')} className={selectedMetric === 'CLS' ? "bg-teal-50 border-teal-200 text-teal-700" : ""}>CLS</Button>
+            {/* Content Area */}
+            <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+                {Object.values(categories).map((cat: any) => (
+                    <div
+                        key={cat.id}
+                        id={`category-${cat.id}`}
+                        className={cn(
+                            "transition-opacity duration-300",
+                            activeCategory && activeCategory !== cat.id ? "hidden" : "block"
+                        )}
+                    >
+                        <CategoryDetails
+                            category={cat}
+                            audits={audits}
+                            categoryGroups={categoryGroups}
+                        />
                     </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-                    <MetricCard
-                        audit={audits['first-contentful-paint']}
-                        highlight={selectedMetric === 'FCP'}
-                    />
-                    <MetricCard
-                        audit={audits['largest-contentful-paint']}
-                        highlight={selectedMetric === 'LCP'}
-                    />
-                    <MetricCard
-                        audit={audits['total-blocking-time']}
-                        highlight={selectedMetric === 'TBT'}
-                    />
-                    <MetricCard
-                        audit={audits['cumulative-layout-shift']}
-                        highlight={selectedMetric === 'CLS'}
-                    />
-                    <MetricCard
-                        audit={audits['speed-index']}
-                        highlight={false}
-                    />
-                </div>
+                ))}
             </div>
-
-            {/* Opportunities Section */}
-            <AuditSection
-                title="Opportunities"
-                subtitle="These suggestions can help your page load faster."
-                audits={audits}
-                refs={categories.performance?.auditRefs}
-                filter={(ref: any) => ref.group === 'load-opportunities' && (audits[ref.id]?.score < 0.9)}
-                showSavings
-            />
-
-            {/* Diagnostics Section */}
-            <AuditSection
-                title="Diagnostics"
-                subtitle="More information about the performance of your application."
-                audits={audits}
-                refs={categories.performance?.auditRefs}
-                filter={(ref: any) => ref.group === 'diagnostics' && (audits[ref.id]?.score !== 1)} // Showing informational and warnings
-            />
-
-            {/* Passed Audits (Collapsed by default logic inside Section) */}
-            <AuditSection
-                title="Passed Audits"
-                audits={audits}
-                refs={categories.performance?.auditRefs}
-                filter={(ref: any) => audits[ref.id]?.score >= 0.9}
-                defaultOpen={false}
-                type="passed"
-            />
-
         </div>
     )
 }
 
 // Sub-components
 
-const Gauge = ({ score, title }: { score: number | null, title: string }) => {
+const CategoryDetails = ({ category, audits, categoryGroups }: any) => {
+    const isPerformance = category.id === 'performance'
+
+    // Group audits
+    const auditRefs = category.auditRefs || []
+
+    // 1. Issues (Failed Audits: score < 0.9)
+    const issues = auditRefs.filter((ref: any) => {
+        const audit = audits[ref.id]
+        return audit && audit.score !== null && audit.score < 0.9 && audit.scoreDisplayMode !== 'manual' && audit.scoreDisplayMode !== 'notApplicable'
+    })
+
+    // 2. Manual Checks
+    const manual = auditRefs.filter((ref: any) => {
+        const audit = audits[ref.id]
+        return audit && (audit.scoreDisplayMode === 'manual' || (audit.score === null && !audit.notApplicable))
+    })
+
+    // 3. Passed Audits
+    const passed = auditRefs.filter((ref: any) => {
+        const audit = audits[ref.id]
+        return audit && audit.score !== null && audit.score >= 0.9
+    })
+
+    // 4. Not Applicable
+    const notApplicable = auditRefs.filter((ref: any) => {
+        const audit = audits[ref.id]
+        return audit && (audit.scoreDisplayMode === 'notApplicable' || audit.notApplicable)
+    })
+
+    // Grouping issues by their defined groups
+    const groupedIssues: Record<string, any[]> = {}
+    issues.forEach((ref: any) => {
+        const group = ref.group || 'other'
+        if (!groupedIssues[group]) groupedIssues[group] = []
+        groupedIssues[group].push(ref)
+    })
+
+    return (
+        <div className="space-y-12 pb-12 animate-in fade-in duration-500">
+            {/* Category Header */}
+            <div className="flex flex-col items-center text-center space-y-4">
+                <Gauge score={category.score} title="" size="xl" />
+                <div className="space-y-1">
+                    <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{category.title}</h2>
+                    {category.description && (
+                        <div
+                            className="text-sm text-gray-500 max-w-2xl mx-auto prose prose-sm prose-teal"
+                            dangerouslySetInnerHTML={{ __html: renderValue(category.description) }}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* Performance Metrics (Special handling for performance) */}
+            {isPerformance && (
+                <div className="bg-white rounded-2xl p-8 border shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-lg font-bold text-gray-900">Metrics</h3>
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-gray-400 border-gray-200">Core Web Vitals</Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 lg:gap-x-12 gap-y-6">
+                        <MetricCard audit={audits['first-contentful-paint']} />
+                        <MetricCard audit={audits['largest-contentful-paint']} />
+                        <MetricCard audit={audits['total-blocking-time']} />
+                        <MetricCard audit={audits['cumulative-layout-shift']} />
+                        <MetricCard audit={audits['speed-index']} />
+                        <MetricCard audit={audits['interactive']} />
+                    </div>
+                </div>
+            )}
+
+            {/* Audit Groups (Issues) */}
+            <div className="space-y-6">
+                {Object.entries(groupedIssues).map(([groupId, refs]) => {
+                    const groupInfo = categoryGroups?.[groupId] || { title: groupId === 'other' ? 'Other' : groupId }
+                    return (
+                        <div key={groupId} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 bg-gray-50 border-b">
+                                <h4 className="font-bold text-[10px] uppercase tracking-[0.2em] text-gray-400">
+                                    {renderValue(groupInfo.title)}
+                                </h4>
+                                {groupInfo.description && (
+                                    <p className="text-xs text-gray-500 mt-1">{renderValue(groupInfo.description)}</p>
+                                )}
+                            </div>
+                            <div className="divide-y">
+                                {refs.map((ref: any) => (
+                                    <AuditItem
+                                        key={ref.id}
+                                        audit={audits[ref.id]}
+                                        showSavings={groupId === 'load-opportunities'}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Manual, Passed & Not Applicable Sections */}
+            <div className="space-y-3 pt-6 border-t">
+                {manual.length > 0 && (
+                    <CollapsibleSection title={`Additional items to manually check (${manual.length})`} type="manual">
+                        <div className="divide-y bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+                            {manual.map((ref: any) => (
+                                <AuditItem key={ref.id} audit={audits[ref.id]} type="manual" />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+                )}
+                {passed.length > 0 && (
+                    <CollapsibleSection title={`Passed Audits (${passed.length})`} type="passed">
+                        <div className="divide-y bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
+                            {passed.map((ref: any) => (
+                                <AuditItem key={ref.id} audit={audits[ref.id]} type="passed" />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+                )}
+                {notApplicable.length > 0 && (
+                    <CollapsibleSection title={`Not Applicable (${notApplicable.length})`} type="not-applicable">
+                        <div className="divide-y bg-white rounded-2xl border shadow-sm overflow-hidden">
+                            {notApplicable.map((ref: any) => (
+                                <AuditItem key={ref.id} audit={audits[ref.id]} type="not-applicable" />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+                )}
+            </div>
+        </div>
+    )
+}
+
+const CollapsibleSection = ({ title, children, type, defaultOpen = false }: any) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen)
+    return (
+        <div className="group">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-3 w-full py-2 text-left hover:bg-gray-100 px-4 rounded-lg transition-colors"
+            >
+                {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">
+                    {title}
+                </span>
+            </button>
+            {isOpen && <div className="mt-2">{children}</div>}
+        </div>
+    )
+}
+
+const Gauge = ({ score, title, size = 'medium' }: { score: number | null, title: string, size?: 'small' | 'medium' | 'large' | 'xl' }) => {
     // Determine color based on score
     const getColor = (s: number | null) => {
         if (s === null) return '#e5e7eb' // gray-200
-        if (s >= 0.9) return '#059669' // green-600
-        if (s >= 0.5) return '#f97316' // orange-500
-        return '#ef4444' // red-500
+        if (s >= 0.9) return '#0cce6a' // Lighthouse green
+        if (s >= 0.5) return '#ffa400' // Lighthouse orange
+        return '#ff4e42' // Lighthouse red
     }
 
     const value = score !== null ? Math.round(score * 100) : 0
     const color = getColor(score)
 
+    // Sizing
+    const sizes = {
+        small: { container: 'w-12 h-12', radius: 18, stroke: 4, font: 'text-[10px]' },
+        medium: { container: 'w-24 h-24', radius: 36, stroke: 8, font: 'text-2xl' },
+        large: { container: 'w-28 h-28', radius: 44, stroke: 10, font: 'text-3xl' },
+        xl: { container: 'w-32 h-32', radius: 52, stroke: 12, font: 'text-4xl' },
+    }
+    const s = sizes[size]
+
     // SVG Dash array calculation for circle
-    const radius = 36
-    const circumference = 2 * Math.PI * radius
+    const circumference = 2 * Math.PI * s.radius
     const offset = circumference - (value / 100) * circumference
 
     return (
-        <div className="flex flex-col items-center gap-3">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+        <div className="flex flex-col items-center gap-2">
+            <div className={cn("relative flex items-center justify-center", s.container)}>
+                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 120 120">
                     <circle
                         className="text-gray-100"
-                        strokeWidth="8"
+                        strokeWidth={s.stroke}
                         stroke="currentColor"
                         fill="transparent"
-                        r={radius}
-                        cx="50"
-                        cy="50"
+                        r={s.radius}
+                        cx="60"
+                        cy="60"
                     />
                     <circle
-                        strokeWidth="8"
+                        strokeWidth={s.stroke}
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
                         stroke={color}
                         fill="transparent"
-                        r={radius}
-                        cx="50"
-                        cy="50"
+                        r={s.radius}
+                        cx="60"
+                        cy="60"
                         className="transition-all duration-1000 ease-out"
                     />
                 </svg>
-                <div className={`absolute text-2xl font-bold ${score !== null ? '' : 'text-gray-400'}`} style={{ color: score !== null ? color : undefined }}>
+                <div className={cn("absolute font-bold font-mono", s.font)} style={{ color: score !== null ? color : '#9ca3af' }}>
                     {score !== null ? value : '?'}
                 </div>
             </div>
-            <span className="font-semibold text-gray-700 text-sm">{title}</span>
+            {title && <span className="font-bold text-gray-700 text-xs tracking-wide">{renderValue(title)}</span>}
         </div>
     )
 }
 
-const MetricCard = ({ audit, highlight }: { audit: any, highlight: boolean }) => {
+const MetricCard = ({ audit, highlight = false }: { audit: any, highlight?: boolean }) => {
     if (!audit) return null
 
     const getIcon = (score: number) => {
@@ -229,18 +356,18 @@ const MetricCard = ({ audit, highlight }: { audit: any, highlight: boolean }) =>
             highlight ? "bg-teal-50" : "bg-transparent",
             audit.score >= 0.9 ? "border-l-green-500" : audit.score >= 0.5 ? "border-l-orange-500" : "border-l-red-500"
         )}>
-            <div className="flex items-start justify-between">
-                <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    {audit.title}
+            <div className="flex items-start justify-between gap-4">
+                <div className="text-sm font-medium text-gray-700 flex-1 min-w-0 break-words">
+                    {renderValue(audit.title)}
                 </div>
                 <span className={cn(
-                    "text-lg font-mono font-bold",
+                    "text-lg font-mono font-bold flex-shrink-0",
                     audit.score >= 0.9 ? "text-green-600" : audit.score >= 0.5 ? "text-orange-600" : "text-red-600"
                 )}>
-                    {audit.displayValue}
+                    {renderValue(audit.displayValue)}
                 </span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">{audit.description?.split('.')[0]}.</p>
+            <p className="text-xs text-gray-400 mt-1 break-words">{renderValue(audit.description).split('.')[0]}.</p>
         </div>
     )
 }
@@ -263,7 +390,7 @@ const AuditSection = ({ title, subtitle, audits, refs, filter, showSavings, defa
             >
                 <div className="text-left">
                     <h3 className="text-lg font-bold text-gray-900 group-hover:text-teal-700 transition-colors flex items-center gap-2">
-                        {title}
+                        {renderValue(title)}
                         <Badge variant="secondary" className="text-xs font-normal">
                             {relevantAudits.length}
                         </Badge>
@@ -289,12 +416,12 @@ const AuditItem = ({ audit, showSavings, type }: any) => {
     const hasDetails = audit.details && audit.details.items && audit.details.items.length > 0
 
     return (
-        <div className="border-b last:border-0 pb-4">
+        <div className="border-b last:border-0 py-4 px-6 transition-colors">
             <div
-                className={cn("flex items-start justify-between gap-4 cursor-pointer", hasDetails && "hover:bg-gray-50 p-2 -m-2 rounded")}
+                className={cn("flex items-start justify-between gap-4 cursor-pointer", hasDetails && "hover:bg-gray-50 p-2 rounded")}
                 onClick={() => hasDetails && setExpanded(!expanded)}
             >
-                <div className="flex items-start gap-3 flex-1">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="mt-1 flex-shrink-0">
                         {type === 'passed' ? (
                             <div className="w-3 h-3 rounded-full bg-green-500" />
@@ -306,16 +433,16 @@ const AuditItem = ({ audit, showSavings, type }: any) => {
                             <div className="w-3 h-3 rotate-45 bg-red-500" />
                         )}
                     </div>
-                    <div>
-                        <h4 className="text-sm font-medium text-gray-900">{audit.title}</h4>
+                    <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-gray-900 break-words">{renderValue(audit.title)}</h4>
                         {/* Only show description if expanded or if no details to expand for */}
                         {(expanded || !hasDetails) && (
-                            <div className="text-xs text-gray-500 mt-1 prose prose-sm max-w-none text-gray-500" dangerouslySetInnerHTML={{ __html: audit.description }} />
+                            <div className="text-xs text-gray-500 mt-1 prose prose-sm max-w-none text-gray-500 break-words" dangerouslySetInnerHTML={{ __html: renderValue(audit.description) }} />
                         )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-right">
+                <div className="flex items-center gap-4 text-right flex-shrink-0 ml-auto mr-1">
                     {showSavings && audit.details?.overallSavingsMs > 0 && (
                         <span className="text-xs font-bold text-orange-600 whitespace-nowrap">
                             Est. savings: {(audit.details.overallSavingsMs / 1000).toFixed(2)}s
@@ -327,7 +454,7 @@ const AuditItem = ({ audit, showSavings, type }: any) => {
                         </span>
                     )}
                     {audit.displayValue && (
-                        <span className="text-sm font-mono text-gray-600">{audit.displayValue}</span>
+                        <span className="text-sm font-mono text-gray-600">{renderValue(audit.displayValue)}</span>
                     )}
                     {hasDetails && (
                         <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", expanded && "rotate-180")} />
@@ -367,7 +494,7 @@ const AuditItem = ({ audit, showSavings, type }: any) => {
 
                                         return (
                                             <td key={hIdx} className="py-2 pr-4 align-top">
-                                                {val}
+                                                {renderValue(val)}
                                             </td>
                                         )
                                     })}

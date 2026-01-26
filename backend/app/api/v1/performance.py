@@ -36,7 +36,7 @@ def get_performance_service(db: AsyncSession = Depends(get_db)) -> PerformanceTe
     """Dependency to get performance service instance"""
     return PerformanceTestingService(
         db=db,
-        pagespeed_api_key=os.getenv("PAGESPEED_API_KEY"),
+        pagespeed_api_key=os.getenv("PAGESPEED_API_KEY", settings.GOOGLE_API_KEY),
         loader_api_key=os.getenv("LOADER_IO_API_KEY"),
         wpt_api_key=os.getenv("WEBPAGETEST_API_KEY"),
         google_api_key=settings.GOOGLE_API_KEY
@@ -112,7 +112,7 @@ async def run_test_background(test_id: UUID):
     async with AsyncSessionLocal() as db:
         service = PerformanceTestingService(
             db=db,
-            pagespeed_api_key=os.getenv("PAGESPEED_API_KEY"),
+            pagespeed_api_key=os.getenv("PAGESPEED_API_KEY", settings.GOOGLE_API_KEY),
             loader_api_key=os.getenv("LOADER_IO_API_KEY"),
             wpt_api_key=os.getenv("WEBPAGETEST_API_KEY"),
             google_api_key=settings.GOOGLE_API_KEY
@@ -139,7 +139,9 @@ async def run_lighthouse_audit(
         name=f"Lighthouse Scan: {request.target_url}",
         test_type=TestType.LIGHTHOUSE,
         target_url=request.target_url,
-        device_type=request.device_type
+        device_type=request.device_type,
+        audit_mode=request.mode,
+        categories=request.categories
     )
     
     # Run in background
@@ -339,6 +341,8 @@ async def create_performance_test(
         stages=test_data.stages,
         thresholds=test_data.thresholds,
         tags=test_data.tags,
+        audit_mode=test_data.audit_mode,
+        categories=test_data.categories,
     )
 
 

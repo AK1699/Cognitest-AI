@@ -101,6 +101,8 @@ class PerformanceTestCreate(BaseModel):
     device_type: Optional[DeviceType] = DeviceType.MOBILE
     connection_type: Optional[ConnectionType] = ConnectionType.CABLE
     test_location: str = Field(default="us-central1")
+    audit_mode: Optional[str] = "navigation"
+    categories: Optional[Any] = None  # Flexible to handle list or dict
     
     # Load Test Options
     virtual_users: int = Field(default=10, ge=1, le=10000)
@@ -155,6 +157,8 @@ class PerformanceTestResponse(BaseModel):
     device_type: Optional[DeviceType]
     connection_type: Optional[ConnectionType]
     test_location: Optional[str]
+    audit_mode: Optional[str]
+    categories: Optional[Any]
     virtual_users: int
     duration_seconds: int
     ramp_up_seconds: int
@@ -287,6 +291,9 @@ class PerformanceMetricsResponse(BaseModel):
     start_render_ms: Optional[float]
     visually_complete_ms: Optional[float]
     
+    # Raw Data
+    raw_response: Optional[Dict[str, Any]] = None
+    
     # Timestamps
     created_at: datetime
     updated_at: Optional[datetime]
@@ -392,7 +399,8 @@ class LighthouseScanRequest(BaseModel):
     target_url: str = Field(..., min_length=1, max_length=2000)
     device_type: DeviceType = DeviceType.MOBILE
     connection_type: ConnectionType = ConnectionType.CABLE
-    categories: List[str] = Field(default=["performance", "accessibility", "seo", "best-practices"])
+    mode: str = "navigation"
+    categories: Any = Field(default=["performance", "accessibility", "seo", "best-practices"])
 
 
 class LoadTestRequest(BaseModel):

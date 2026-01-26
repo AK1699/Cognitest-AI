@@ -17,6 +17,7 @@ from app.models.performance import (
     AlertSeverity, DeviceType, ConnectionType, LoadProfile,
     PerformanceSchedule
 )
+from app.services.pagespeed_service import PageSpeedInsightsService, get_pagespeed_service
 from app.services.local_lighthouse_service import LocalLighthouseService, get_local_lighthouse_service
 from app.services.loader_service import LoaderIOService, get_loader_service, LoadTestType
 from app.services.webpagetest_service import WebPageTestService, WebPageTestConfig
@@ -51,6 +52,7 @@ class PerformanceTestingService:
     ):
         self.db = db
         self.lighthouse_service = get_local_lighthouse_service()
+        self.pagespeed_service = get_pagespeed_service(pagespeed_api_key)
         self.loader_service = get_loader_service(loader_api_key) if loader_api_key else None
         self.wpt_service = WebPageTestService(wpt_api_key) if wpt_api_key else None
         self.ai_analyzer = get_performance_ai_analyzer(api_key=google_api_key)
@@ -94,6 +96,8 @@ class PerformanceTestingService:
             device_type=kwargs.get("device_type", DeviceType.MOBILE),
             connection_type=kwargs.get("connection_type", ConnectionType.CABLE),
             test_location=kwargs.get("test_location", "us-central1"),
+            audit_mode=kwargs.get("audit_mode", "navigation"),
+            categories=kwargs.get("categories"),
             
             # Load test options
             virtual_users=kwargs.get("virtual_users", 10),
@@ -268,12 +272,35 @@ class PerformanceTestingService:
         test.progress_percentage = 30
         await self.db.commit()
         
-        # Run Local Lighthouse audit
+        # Run audit
         strategy = "mobile" if test.device_type == DeviceType.MOBILE else "desktop"
-        result = await self.lighthouse_service.run_audit(
-            url=test.target_url,
-            strategy=strategy
-        )
+        
+        # Handle categories if it's a dict
+        audit_categories = test.categories
+        if isinstance(audit_categories, dict):
+            audit_categories = [k for k, v in audit_categories.items() if v]
+            
+        # Prioritize local lighthouse
+        try:
+            logger.info("Attempting local Lighthouse audit (Primary)")
+            test.provider = TestProvider.LOCAL
+            await self.db.commit()
+            result = await self.lighthouse_service.run_audit(
+                url=test.target_url,
+                strategy=strategy,
+                categories=audit_categories
+            )
+        except Exception as e:
+            logger.warning(f"Local Lighthouse audit failed ({e}), falling back to PageSpeed Insights API")
+            test.provider = TestProvider.PAGESPEED_INSIGHTS
+            await self.db.commit()
+            
+            # Use cloud fallback
+            result = await self.pagespeed_service.run_audit(
+                url=test.target_url,
+                strategy=strategy,
+                categories=audit_categories
+            )
         
         test.progress_percentage = 80
         await self.db.commit()

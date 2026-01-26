@@ -136,6 +136,8 @@ class PerformanceTest(Base):
     device_type = Column(SQLEnum(DeviceType, values_callable=lambda x: [e.value for e in x]), nullable=True)
     connection_type = Column(SQLEnum(ConnectionType, values_callable=lambda x: [e.value for e in x]), nullable=True)
     test_location = Column(String(100), default="us-central1")  # For WebPageTest
+    audit_mode = Column(String(50), default="navigation")  # navigation, timespan, snapshot
+    categories = Column(JSON, nullable=True)  # List or Dict of categories to audit
     
     # Load Test Specific
     virtual_users = Column(Integer, default=10)
