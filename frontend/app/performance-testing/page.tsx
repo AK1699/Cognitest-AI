@@ -477,7 +477,7 @@ export default function PerformanceTestingPage() {
                     </Button>
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900">Stress Testing</h2>
-                      <p className="text-sm text-gray-500">Gradually increase load until the system breaks</p>
+                      <p className="text-sm text-gray-500">Tests how much load the system can handle before it starts to fail.</p>
                     </div>
                   </div>
 

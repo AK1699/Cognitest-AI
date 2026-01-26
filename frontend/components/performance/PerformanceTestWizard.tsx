@@ -106,7 +106,7 @@ const testTypeInfo = {
     stress: {
         icon: Activity,
         name: 'Stress Test',
-        description: 'Gradually increase load until the system breaks to find limits',
+        description: 'Tests how much load the system can handle before it starts to fail.',
         color: 'orange'
     },
     spike: {
@@ -118,7 +118,7 @@ const testTypeInfo = {
     soak: {
         icon: Clock, // We need to import Clock
         name: 'Soak Test',
-        description: 'Run sustained load for extended periods to detect memory leaks',
+        description: 'Tests how the system performs over a long time to find slowdowns or memory issues',
         color: 'indigo'
     },
     api: {

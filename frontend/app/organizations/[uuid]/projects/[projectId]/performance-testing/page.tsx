@@ -35,6 +35,12 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
     PerformanceTestWizard,
     PerformanceGauge,
     CoreWebVitalsChart,
@@ -874,56 +880,101 @@ export default function PerformanceTestingPage() {
                         <List className="w-4 h-4" />
                         Saved Tests
                     </button>
-                    <button
-                        onClick={() => setActiveModule('lighthouse')}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'lighthouse'
-                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
-                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
-                            }`}
-                    >
-                        <Zap className="w-4 h-4" />
-                        Lighthouse
-                    </button>
-                    <button
-                        onClick={() => setActiveModule('load')}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'load'
-                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
-                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
-                            }`}
-                    >
-                        <TrendingUp className="w-4 h-4" />
-                        Load Test
-                    </button>
-                    <button
-                        onClick={() => setActiveModule('stress')}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'stress'
-                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
-                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
-                            }`}
-                    >
-                        <Activity className="w-4 h-4" />
-                        Stress Test
-                    </button>
-                    <button
-                        onClick={() => setActiveModule('spike')}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'spike'
-                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
-                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
-                            }`}
-                    >
-                        <Zap className="w-4 h-4" />
-                        Spike Test
-                    </button>
-                    <button
-                        onClick={() => setActiveModule('soak')}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'soak'
-                            ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
-                            : 'text-gray-600 hover:text-primary hover:bg-white/50'
-                            }`}
-                    >
-                        <Clock className="w-4 h-4" />
-                        Soak Test
-                    </button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setActiveModule('lighthouse')}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'lighthouse'
+                                        ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                                        }`}
+                                >
+                                    <Zap className="w-4 h-4" />
+                                    Lighthouse
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Checks how fast a webpage loads and how good the user experience is.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setActiveModule('load')}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'load'
+                                        ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                                        }`}
+                                >
+                                    <TrendingUp className="w-4 h-4" />
+                                    Load Test
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Tests how the system performs when many users use it at the same time.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setActiveModule('stress')}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'stress'
+                                        ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                                        }`}
+                                >
+                                    <Activity className="w-4 h-4" />
+                                    Stress Test
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Tests how much load the system can handle before it starts to fail.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setActiveModule('spike')}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'spike'
+                                        ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                                        }`}
+                                >
+                                    <Zap className="w-4 h-4" />
+                                    Spike Test
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Tests how the system reacts when traffic suddenly increases.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setActiveModule('soak')}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'soak'
+                                        ? 'text-primary bg-white border-b-2 border-primary shadow-sm'
+                                        : 'text-gray-600 hover:text-primary hover:bg-white/50'
+                                        }`}
+                                >
+                                    <Clock className="w-4 h-4" />
+                                    Soak Test
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Tests how the system performs over a long time to find slowdowns or memory issues.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <button
                         onClick={() => setActiveModule('results')}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap ${activeModule === 'results'
@@ -1142,7 +1193,7 @@ export default function PerformanceTestingPage() {
                     <div className="space-y-6">
                         <div className="mb-6">
                             <h2 className="text-xl font-semibold text-gray-900">Lighthouse Audit</h2>
-                            <p className="text-sm text-gray-500">Analyze Core Web Vitals and page performance</p>
+                            <p className="text-sm text-gray-500">Checks how fast a webpage loads and how good the user experience is.</p>
                         </div>
 
                         <div className="bg-white rounded-xl p-6 border shadow-sm">
@@ -1588,7 +1639,7 @@ export default function PerformanceTestingPage() {
                         <div className="space-y-6">
                             <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-gray-900">Stress Testing</h2>
-                                <p className="text-sm text-gray-500">Gradually increase load until the system breaks</p>
+                                <p className="text-sm text-gray-500">Tests how much load the system can handle before it starts to fail.</p>
                             </div>
 
                             {/* Stress Test Configuration */}
@@ -1683,7 +1734,7 @@ export default function PerformanceTestingPage() {
                         <div className="space-y-6">
                             <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-gray-900">Spike Testing</h2>
-                                <p className="text-sm text-gray-500">Test system stability during sudden extreme bursts of traffic</p>
+                                <p className="text-sm text-gray-500">Tests how the system reacts when traffic suddenly increases.</p>
                             </div>
 
                             <div className="bg-white rounded-xl p-6 border shadow-sm">
@@ -1776,7 +1827,7 @@ export default function PerformanceTestingPage() {
                         <div className="space-y-6">
                             <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-gray-900">Soak Testing</h2>
-                                <p className="text-sm text-gray-500">Run sustained load for extended periods to detect memory leaks</p>
+                                <p className="text-sm text-gray-500">Tests how the system performs over a long time to find slowdowns or memory issues</p>
                             </div>
 
                             <div className="bg-white rounded-xl p-6 border shadow-sm">
