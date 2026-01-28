@@ -2,6 +2,19 @@
 API Integration tests for Security Testing Module
 Tests for security API endpoints
 """
+import sys
+from unittest.mock import MagicMock
+
+# Mock problematic modules to avoid Pydantic/Langchain conflicts
+sys.modules["app.services.ai_service"] = MagicMock()
+sys.modules["langchain_openai"] = MagicMock()
+sys.modules["langsmith"] = MagicMock()
+sys.modules["app.services.web_automation_service"] = MagicMock()
+sys.modules["app.services.gemini_service"] = MagicMock()
+sys.modules["app.services.prompt_to_steps"] = MagicMock()
+sys.modules["cognitest_common"] = MagicMock()
+sys.modules["cognitest_common.gemini_service"] = MagicMock()
+
 import pytest
 import uuid
 import json
