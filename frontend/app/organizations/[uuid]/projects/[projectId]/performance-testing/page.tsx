@@ -265,6 +265,7 @@ export default function PerformanceTestingPage() {
                         const metrics = test.metrics || {};
                         if (metrics.rps_timeline && metrics.rps_timeline.length > 0) {
                             setLoadTestResult({
+                                type: test.test_type,
                                 p50: metrics.latency_p50,
                                 p75: metrics.latency_p75,
                                 p90: metrics.latency_p90,
@@ -492,8 +493,56 @@ export default function PerformanceTestingPage() {
         }
     };
 
-    const handleTestRunStarted = (testId: string, testType: string) => {
+    const handleTestRunStarted = async (testId: string, testType: string) => {
         setIsLoading(true);
+
+        // Fetch actual test configuration to populate the form
+        try {
+            const token = localStorage.getItem("access_token");
+            const response = await fetch(
+                `${API_URL}/api/v1/performance/tests/${testId}`,
+                {
+                    credentials: "include",
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                },
+            );
+
+            if (response.ok) {
+                const test = await response.json();
+
+                // Populate the specific configuration states
+                const url = test.target_url || "";
+                const method = test.target_method || "GET";
+                const stages = test.stages || (test.virtual_users ? [
+                    {
+                        duration: test.duration_seconds ? `${test.duration_seconds}s` : "1m",
+                        target: test.virtual_users
+                    }
+                ] : []);
+
+                if (testType === "load") {
+                    setLoadTargetUrl(url);
+                    setLoadTestConfig(prev => ({ ...prev, method }));
+                    if (stages.length > 0) setLoadTestStages(stages);
+                    setLoadTestType(test.stages ? "stages" : "simple");
+                } else if (testType === "stress") {
+                    setStressTargetUrl(url);
+                    setStressTestMethod(method);
+                    if (stages.length > 0) setStressTestStages(stages);
+                } else if (testType === "spike") {
+                    setSpikeTargetUrl(url);
+                    setSpikeTestMethod(method);
+                    if (stages.length > 0) setSpikeTestStages(stages);
+                } else if (testType === "soak" || testType === "endurance") {
+                    setSoakTargetUrl(url);
+                    setSoakTestMethod(method);
+                    if (stages.length > 0) setSoakTestStages(stages);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch test details for sync:", error);
+        }
+
         if (testType === "lighthouse") setIsLighthouseLoading(true);
         else if (testType === "load") setIsLoadLoading(true);
         else if (testType === "stress") setIsStressLoading(true);
@@ -517,9 +566,11 @@ export default function PerformanceTestingPage() {
             setActiveModule("stress");
             pollTestStatus(testId); // Use same polling for stress
         } else if (testType === "spike") {
+            setLoadTestResult(null);
             setActiveModule("spike");
             pollTestStatus(testId);
-        } else if (testType === "endurance" || testType === "soak") {
+        } else if (testType === "soak" || testType === "endurance") {
+            setLoadTestResult(null);
             setActiveModule("soak");
             pollTestStatus(testId);
         }
@@ -1386,8 +1437,28 @@ export default function PerformanceTestingPage() {
                             projectId={projectId}
                             refreshTrigger={refreshTrigger}
                             onTestExecuted={handleTestRunStarted}
-                            onEditTest={(test) => {
-                                setTestToEdit(test);
+                            onEditTest={async (test) => {
+                                // Fetch actual test configuration to ensure full sync in Wizard
+                                try {
+                                    const token = localStorage.getItem("access_token");
+                                    const response = await fetch(
+                                        `${API_URL}/api/v1/performance/tests/${test.id || test.uuid}`,
+                                        {
+                                            credentials: "include",
+                                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                        },
+                                    );
+
+                                    if (response.ok) {
+                                        const fullTest = await response.json();
+                                        setTestToEdit(fullTest);
+                                    } else {
+                                        setTestToEdit(test);
+                                    }
+                                } catch (error) {
+                                    console.error("Failed to fetch test details for wizard:", error);
+                                    setTestToEdit(test);
+                                }
                                 setShowWizard(true);
                             }}
                         />
@@ -2041,8 +2112,8 @@ export default function PerformanceTestingPage() {
                                                     </div>
 
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-700 block">
-                                                            Stages (Load Profile)
+                                                        <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+                                                            Stages
                                                         </Label>
                                                         <Button
                                                             variant="outline"
@@ -2057,6 +2128,13 @@ export default function PerformanceTestingPage() {
                                                         >
                                                             <Plus className="w-3 h-3 mr-1" /> ADD STAGE
                                                         </Button>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 pr-[44px] mb-2 px-3">
+                                                        <div className="w-6 shrink-0" />
+                                                        <div className="flex-1 grid grid-cols-2 gap-3">
+                                                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Duration</div>
+                                                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Target VUs</div>
+                                                        </div>
                                                     </div>
                                                     <div className="max-h-[200px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
                                                         {loadTestStages.map((stage, index) => (
@@ -2535,7 +2613,7 @@ export default function PerformanceTestingPage() {
 
                                         <div className="flex items-center justify-between mb-4">
                                             <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
-                                                Stages (K6 Load Profile)
+                                                Stages
                                             </Label>
                                             <Button
                                                 variant="outline"
@@ -2550,6 +2628,13 @@ export default function PerformanceTestingPage() {
                                             >
                                                 <Plus className="w-3 h-3 mr-1" /> ADD STAGE
                                             </Button>
+                                        </div>
+                                        <div className="flex items-center gap-3 pr-[44px] mb-2 px-3">
+                                            <div className="w-6 shrink-0" />
+                                            <div className="flex-1 grid grid-cols-2 gap-3">
+                                                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Duration</div>
+                                                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Target VUs</div>
+                                            </div>
                                         </div>
                                         <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
                                             {stressTestStages.map((stage, index) => (
@@ -2878,7 +2963,7 @@ export default function PerformanceTestingPage() {
 
                                             <div className="flex items-center justify-between mb-4">
                                                 <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
-                                                    Stages (K6 Load Profile)
+                                                    Stages
                                                 </Label>
                                                 <Button
                                                     variant="outline"
@@ -2893,6 +2978,13 @@ export default function PerformanceTestingPage() {
                                                 >
                                                     <Plus className="w-3 h-3 mr-1" /> ADD STAGE
                                                 </Button>
+                                            </div>
+                                            <div className="flex items-center gap-3 pr-[44px] mb-2 px-3">
+                                                <div className="w-6 shrink-0" />
+                                                <div className="flex-1 grid grid-cols-2 gap-3">
+                                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Duration</div>
+                                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Target VUs</div>
+                                                </div>
                                             </div>
                                             <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
                                                 {spikeTestStages.map((stage, index) => (
@@ -3218,7 +3310,7 @@ export default function PerformanceTestingPage() {
 
                                             <div className="flex items-center justify-between mb-4">
                                                 <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
-                                                    Stages (K6 Load Profile)
+                                                    Stages
                                                 </Label>
                                                 <Button
                                                     variant="outline"
@@ -3233,6 +3325,13 @@ export default function PerformanceTestingPage() {
                                                 >
                                                     <Plus className="w-3 h-3 mr-1" /> ADD STAGE
                                                 </Button>
+                                            </div>
+                                            <div className="flex items-center gap-3 pr-[44px] mb-2 px-3">
+                                                <div className="w-6 shrink-0" />
+                                                <div className="flex-1 grid grid-cols-2 gap-3">
+                                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Duration</div>
+                                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1">Target VUs</div>
+                                                </div>
                                             </div>
                                             <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
                                                 {soakTestStages.map((stage, index) => (

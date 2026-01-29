@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
     Zap,
     TrendingUp,
+    TrendingDown,
     Activity,
     Globe,
     Settings,
@@ -14,7 +15,11 @@ import {
     Smartphone,
     Monitor,
     Loader2,
-    Clock
+    Clock,
+    Users,
+    Timer,
+    Plus,
+    Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -72,6 +77,8 @@ interface TestConfig {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE'
     headers: Record<string, string>
     body: string
+    // Performance test stages
+    stages: Array<{ duration: string; target: number }>
 }
 
 const methodColors: Record<string, string> = {
@@ -161,7 +168,29 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
         minPerformanceScore: initialData?.thresholds?.performance_score || null,
         method: initialData?.target_method || 'GET',
         headers: initialData?.target_headers || {},
-        body: initialData?.target_body || ''
+        body: initialData?.target_body || '',
+        stages: initialData?.stages || (
+            initialData?.test_type === 'stress' ? [
+                { duration: '1m', target: 100 },
+                { duration: '1m', target: 200 },
+                { duration: '2m', target: 200 },
+                { duration: '1m', target: 500 },
+                { duration: '2m', target: 500 },
+            ] : initialData?.test_type === 'spike' ? [
+                { duration: '1m', target: 50 },
+                { duration: '30s', target: 1000 },
+                { duration: '2m', target: 1000 },
+                { duration: '30s', target: 50 },
+            ] : initialData?.test_type === 'load' || initialData?.test_type === 'soak' ? [
+                { duration: '1m', target: initialData?.virtual_users || 50 },
+                { duration: '3m', target: initialData?.virtual_users || 50 },
+                { duration: '1m', target: 0 },
+            ] : initialData?.test_type === 'api' ? [
+                { duration: '1m', target: 50 },
+                { duration: '3m', target: 50 },
+                { duration: '1m', target: 0 },
+            ] : []
+        )
     })
 
     const totalSteps = config.testType === 'lighthouse' ? 4 : 5
@@ -207,40 +236,15 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
             }
 
             // Type specific mappings
-            if (config.testType === 'stress') {
-                payload.virtual_users = Number(config.maxVUs) // Use max as main VU count
-                // We rely on backend runtime generation or we could construct stages here
-                // For Wizard, let's keep it simple and just pass params if backend supports it
-                // But backend create_test generic endpoint mostly looks at virtual_users. 
-                // We'll pass the specific fields in config or mapped to what create_test expects?
-                // Actually, backend create_test accepts kwargs. performance_testing_service.py line 62.
-                // But PerformanceTestCreate schema is strict.
-                // We should construct stages here to be safe for generic endpoint.
-
-                const startVUs = Number(config.startVUs) || 10
-                const maxVUs = Number(config.maxVUs) || 500
-                const stepIncrease = Number(config.stepIncrease) || 50
-                const stepDuration = Number(config.stepDuration) || 30
-
-                const steps = Math.floor((maxVUs - startVUs) / stepIncrease)
-                payload.stages = Array.from({ length: steps + 1 }, (_, i) => ({
-                    duration: stepDuration,
-                    target: startVUs + (stepIncrease * i)
-                }))
-            } else if (config.testType === 'spike') {
-                const spikeUsers = Number(config.spikeUsers) || 1000
-                payload.virtual_users = spikeUsers
-                // Spike stages
-                const duration = Number(config.durationSeconds) || 120
-                payload.stages = [
-                    { duration: Math.floor(duration * 0.2), target: Math.floor(spikeUsers * 0.1) },
-                    { duration: Math.floor(duration * 0.1), target: spikeUsers },
-                    { duration: Math.floor(duration * 0.4), target: spikeUsers },
-                    { duration: Math.floor(duration * 0.1), target: Math.floor(spikeUsers * 0.1) },
-                    { duration: Math.floor(duration * 0.2), target: Math.floor(spikeUsers * 0.1) }
-                ]
+            if (config.testType === 'stress' || config.testType === 'spike' || config.testType === 'load' || config.testType === 'soak' || config.testType === 'api') {
+                payload.stages = config.stages.map(s => ({
+                    duration: s.duration,
+                    target: Number(s.target)
+                }));
+                // Set virtual_users to the max target in stages for legacy/overview compatibility
+                payload.virtual_users = Math.max(...config.stages.map(s => Number(s.target)), 0);
             } else {
-                payload.virtual_users = Number(config.virtualUsers) || 50
+                payload.virtual_users = Number(config.virtualUsers) || 50;
             }
 
             await onComplete(payload, shouldRun)
@@ -366,7 +370,38 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                 return (
                                     <div
                                         key={type}
-                                        onClick={() => updateConfig('testType', type)}
+                                        onClick={() => {
+                                            const defaultStages = type === 'stress' ? [
+                                                { duration: '1m', target: 100 },
+                                                { duration: '1m', target: 200 },
+                                                { duration: '1m', target: 300 },
+                                                { duration: '1m', target: 400 },
+                                                { duration: '1m', target: 500 },
+                                            ] : type === 'spike' ? [
+                                                { duration: '1m', target: 50 },
+                                                { duration: '30s', target: 1000 },
+                                                { duration: '2m', target: 1000 },
+                                                { duration: '30s', target: 50 },
+                                            ] : type === 'load' ? [
+                                                { duration: '1m', target: 50 },
+                                                { duration: '3m', target: 50 },
+                                                { duration: '1m', target: 0 },
+                                            ] : type === 'soak' ? [
+                                                { duration: '2m', target: 100 },
+                                                { duration: '1h', target: 100 },
+                                                { duration: '2m', target: 0 },
+                                            ] : type === 'api' ? [
+                                                { duration: '1m', target: 50 },
+                                                { duration: '3m', target: 50 },
+                                                { duration: '1m', target: 0 },
+                                            ] : [];
+
+                                            setConfig(prev => ({
+                                                ...prev,
+                                                testType: type as TestType,
+                                                stages: defaultStages
+                                            }))
+                                        }}
                                         className={cn(
                                             "p-4 rounded-lg border-2 cursor-pointer transition-all",
                                             isSelected
@@ -571,180 +606,93 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                         'Soak Configuration'}
                         </h3>
 
-                        {/* LOAD & SOAK Config */}
-                        {(config.testType === 'load' || config.testType === 'soak') && (
-                            <>
-                                <div>
-                                    <Label className="flex justify-between">
-                                        <span>Virtual Users</span>
-                                        <span className="text-brand-600 font-semibold">{config.virtualUsers}</span>
+                        {/* STAGES Config for Performance Tests */}
+                        {(config.testType === 'load' || config.testType === 'stress' || config.testType === 'spike' || config.testType === 'soak' || config.testType === 'api') && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-500">
+                                        Test Stages
                                     </Label>
-                                    <Slider
-                                        value={[Number(config.virtualUsers)]}
-                                        onValueChange={([v]: number[]) => updateConfig('virtualUsers', v)}
-                                        min={1}
-                                        max={config.testType === 'soak' ? 1000 : 500}
-                                        step={10}
-                                        className="mt-3"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        Number of concurrent virtual users to simulate
-                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            const newStages = [...config.stages, { duration: '1m', target: 50 }]
+                                            updateConfig('stages', newStages)
+                                        }}
+                                        className="h-8 text-[10px] font-bold uppercase tracking-wider text-brand-600 border-brand-200 hover:bg-brand-50 rounded-lg"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Add Stage
+                                    </Button>
                                 </div>
 
-                                <div>
-                                    <Label className="flex justify-between">
-                                        <span>Duration (seconds)</span>
-                                        <span className="text-brand-600 font-semibold">{config.durationSeconds}s</span>
-                                    </Label>
-                                    <Slider
-                                        value={[Number(config.durationSeconds)]}
-                                        onValueChange={([v]: number[]) => updateConfig('durationSeconds', v)}
-                                        min={10}
-                                        max={config.testType === 'soak' ? 86400 : 600}
-                                        step={config.testType === 'soak' ? 300 : 10}
-                                        className="mt-3"
-                                    />
-                                </div>
-
-                                <div>
-                                    <Label className="flex justify-between">
-                                        <span>Ramp-up Time (seconds)</span>
-                                        <span className="text-brand-600 font-semibold">{config.rampUpSeconds}s</span>
-                                    </Label>
-                                    <Slider
-                                        value={[Number(config.rampUpSeconds)]}
-                                        onValueChange={([v]: number[]) => updateConfig('rampUpSeconds', v)}
-                                        min={0}
-                                        max={60}
-                                        step={5}
-                                        className="mt-3"
-                                    />
-                                </div>
-
-                                <div>
-                                    <Label className="flex justify-between">
-                                        <span>Ramp-down Time (seconds)</span>
-                                        <span className="text-brand-600 font-semibold">{config.rampDownSeconds || 0}s</span>
-                                    </Label>
-                                    <Slider
-                                        value={[Number(config.rampDownSeconds || 0)]}
-                                        onValueChange={([v]: number[]) => updateConfig('rampDownSeconds', v)}
-                                        min={0}
-                                        max={60}
-                                        step={5}
-                                        className="mt-3"
-                                    />
-                                </div>
-
-                                <div>
-                                    <Label className="flex justify-between">
-                                        <span>Think Time (seconds)</span>
-                                        <span className="text-brand-600 font-semibold">{config.thinkTime || 0}s</span>
-                                    </Label>
-                                    <Slider
-                                        value={[Number(config.thinkTime || 0)]}
-                                        onValueChange={([v]: number[]) => updateConfig('thinkTime', v)}
-                                        min={0}
-                                        max={10}
-                                        step={0.5}
-                                        className="mt-3"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        Simulated delay between user actions
-                                    </p>
-                                </div>
-                            </>
-                        )}
-
-                        {/* STRESS Config */}
-                        {config.testType === 'stress' && (
-                            <>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="startVUs">Start VUs</Label>
-                                        <Input
-                                            id="startVUs"
-                                            type="number"
-                                            value={config.startVUs}
-                                            onChange={(e) => updateConfig('startVUs', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                            className={cn("mt-1", (Number(config.startVUs) > 1000 || Number(config.startVUs) < 1) && config.startVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                        />
-                                        {Number(config.startVUs) > 1000 && <p className="text-xs text-red-500 mt-1">Maximum reached (1000)</p>}
-                                        {Number(config.startVUs) < 1 && config.startVUs !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="maxVUs">Max VUs</Label>
-                                        <Input
-                                            id="maxVUs"
-                                            type="number"
-                                            value={config.maxVUs}
-                                            onChange={(e) => updateConfig('maxVUs', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                            className={cn("mt-1", (Number(config.maxVUs) > 2000 || Number(config.maxVUs) < 10) && config.maxVUs !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                        />
-                                        {Number(config.maxVUs) > 2000 && <p className="text-xs text-red-500 mt-1">Maximum reached (2000)</p>}
-                                        {Number(config.maxVUs) < 10 && config.maxVUs !== '' && <p className="text-xs text-red-500 mt-1">Min 10</p>}
+                                <div className="flex items-center gap-3 pr-[44px] mb-2 px-3">
+                                    <div className="w-6 shrink-0" />
+                                    <div className="flex-1 grid grid-cols-2 gap-3">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1 font-mono">Duration</div>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider pl-1 font-mono">Target VUs</div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="stepIncrease">Step Increase</Label>
-                                        <Input
-                                            id="stepIncrease"
-                                            type="number"
-                                            value={config.stepIncrease}
-                                            onChange={(e) => updateConfig('stepIncrease', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                            className={cn("mt-1", (Number(config.stepIncrease) > 500 || Number(config.stepIncrease) < 1) && config.stepIncrease !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                        />
-                                        {Number(config.stepIncrease) > 500 && <p className="text-xs text-red-500 mt-1">Max 500</p>}
-                                        {Number(config.stepIncrease) < 1 && config.stepIncrease !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="stepDuration">Step Duration (s)</Label>
-                                        <Input
-                                            id="stepDuration"
-                                            type="number"
-                                            value={config.stepDuration}
-                                            onChange={(e) => updateConfig('stepDuration', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                            className={cn("mt-1", (Number(config.stepDuration) > 3600 || Number(config.stepDuration) < 1) && config.stepDuration !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                        />
-                                        {Number(config.stepDuration) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
-                                        {Number(config.stepDuration) < 1 && config.stepDuration !== '' && <p className="text-xs text-red-500 mt-1">Min 1s</p>}
-                                    </div>
+                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                    {config.stages.map((stage, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 group transition-all hover:border-brand-200 hover:shadow-sm"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-[10px] font-bold shrink-0 font-mono">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-2 gap-3">
+                                                <div className="relative group/input">
+                                                    <Timer className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within/input:text-brand-600 transition-colors" />
+                                                    <Input
+                                                        value={stage.duration}
+                                                        onChange={(e) => {
+                                                            const newStages = [...config.stages]
+                                                            newStages[index].duration = e.target.value
+                                                            updateConfig('stages', newStages)
+                                                        }}
+                                                        className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 focus:border-brand-500 focus:ring-brand-500/10 transition-all rounded-lg"
+                                                        placeholder="e.g. 1m"
+                                                    />
+                                                </div>
+                                                <div className="relative group/input">
+                                                    <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within/input:text-brand-600 transition-colors" />
+                                                    <Input
+                                                        type="number"
+                                                        value={stage.target}
+                                                        onChange={(e) => {
+                                                            const newStages = [...config.stages]
+                                                            newStages[index].target = parseInt(e.target.value) || 0
+                                                            updateConfig('stages', newStages)
+                                                        }}
+                                                        className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 focus:border-brand-500 focus:ring-brand-500/10 transition-all rounded-lg"
+                                                        placeholder="Target"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    const newStages = config.stages.filter((_, i) => i !== index)
+                                                    updateConfig('stages', newStages)
+                                                }}
+                                                className="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
                                 </div>
-                            </>
-                        )}
 
-                        {/* SPIKE Config */}
-                        {config.testType === 'spike' && (
-                            <>
-                                <div>
-                                    <Label htmlFor="spikeUsers">Spike Load (VUs)</Label>
-                                    <Input
-                                        id="spikeUsers"
-                                        type="number"
-                                        value={config.spikeUsers}
-                                        onChange={(e) => updateConfig('spikeUsers', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                        className={cn("mt-1", (Number(config.spikeUsers) > 2000 || Number(config.spikeUsers) < 1) && config.spikeUsers !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                    />
-                                    {Number(config.spikeUsers) > 2000 && <p className="text-xs text-red-500 mt-1">Max 2000</p>}
-                                    {Number(config.spikeUsers) < 1 && config.spikeUsers !== '' && <p className="text-xs text-red-500 mt-1">Min 1</p>}
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="spikeDuration">Total Duration (seconds)</Label>
-                                    <Input
-                                        id="spikeDuration"
-                                        type="number"
-                                        value={config.durationSeconds}
-                                        onChange={(e) => updateConfig('durationSeconds', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                        className={cn("mt-1", (Number(config.durationSeconds) > 3600 || Number(config.durationSeconds) < 10) && config.durationSeconds !== '' ? "border-red-500 focus-visible:ring-red-500" : "")}
-                                    />
-                                    {Number(config.durationSeconds) > 3600 && <p className="text-xs text-red-500 mt-1">Max 3600s</p>}
-                                    {Number(config.durationSeconds) < 10 && config.durationSeconds !== '' && <p className="text-xs text-red-500 mt-1">Min 10s</p>}
-                                </div>
-                            </>
+                                <p className="text-[10px] text-gray-400 mt-4 leading-relaxed bg-brand-50/50 p-2 rounded-lg border border-brand-100/50">
+                                    <span className="font-bold text-brand-700 uppercase mr-1">TIPS:</span>
+                                    Define the test lifecycle. For example, <b>1m @ 10</b> ramps up, <b>5m @ 10</b> stays constant, and <b>1m @ 0</b> ramps down.
+                                </p>
+                            </div>
                         )}
                     </div>
                 )}
@@ -815,14 +763,19 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                                         <div>
                                             <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-1">Load Profile</p>
                                             <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-gray-500">Method:</span>
-                                                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", methodBadgeColors[config.method])}>
-                                                        {config.method}
-                                                    </span>
+                                                <p className="text-sm text-gray-900 font-medium">
+                                                    <span className="text-gray-500 font-normal">Stages:</span> {config.stages.length} defined
+                                                </p>
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {config.stages.slice(0, 3).map((s, i) => (
+                                                        <span key={i} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
+                                                            {s.duration} @ {s.target}
+                                                        </span>
+                                                    ))}
+                                                    {config.stages.length > 3 && (
+                                                        <span className="text-[10px] text-gray-400">+{config.stages.length - 3} more</span>
+                                                    )}
                                                 </div>
-                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Users:</span> {config.virtualUsers} VUs</p>
-                                                <p className="text-sm text-gray-900"><span className="text-gray-500">Duration:</span> {config.durationSeconds}s</p>
                                             </div>
                                         </div>
                                     )}

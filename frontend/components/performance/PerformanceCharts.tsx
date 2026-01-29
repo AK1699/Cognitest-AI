@@ -323,6 +323,9 @@ export function VirtualUsersChart({ data }: VirtualUsersChartProps) {
         const dataPoint = data.find(d => d.timestamp === payload.value);
         const vuCount = dataPoint?.targetVUs ?? dataPoint?.activeVUs ?? 0;
 
+        // Only show VU count for stage labels (e.g., S1, S2) to avoid clutter in live runner
+        const isStageLabel = /^S\d+$/.test(payload.value);
+
         return (
             <g transform={`translate(${x},${y})`}>
                 <text
@@ -336,16 +339,18 @@ export function VirtualUsersChart({ data }: VirtualUsersChartProps) {
                 >
                     {payload.value}
                 </text>
-                <text
-                    x={0}
-                    y={0}
-                    dy={26}
-                    textAnchor="middle"
-                    fill="#9CA3AF"
-                    fontSize={10}
-                >
-                    {vuCount} VUs
-                </text>
+                {isStageLabel && (
+                    <text
+                        x={0}
+                        y={0}
+                        dy={26}
+                        textAnchor="middle"
+                        fill="#9CA3AF"
+                        fontSize={10}
+                    >
+                        {vuCount} VUs
+                    </text>
+                )}
             </g>
         );
     };
@@ -360,7 +365,6 @@ export function VirtualUsersChart({ data }: VirtualUsersChartProps) {
                         dataKey="timestamp"
                         tick={CustomXAxisTick as any}
                         height={60}
-                        interval={0}
                     />
                     <YAxis />
                     <Tooltip
