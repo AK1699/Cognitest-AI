@@ -148,6 +148,8 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
         virtualUsers: initialData?.virtual_users || 50,
         durationSeconds: initialData?.duration_seconds || 60,
         rampUpSeconds: initialData?.ramp_up_seconds || 10,
+        rampDownSeconds: initialData?.ramp_down_seconds || 0,
+        thinkTime: initialData?.think_time || 0,
         startVUs: 10,
         maxVUs: initialData?.test_type === 'stress' ? initialData?.virtual_users : 500,
         stepDuration: 30,

@@ -373,233 +373,264 @@ class PerformanceTestingService:
         await self._execute_local_load_test(test)
 
     async def _execute_local_load_test(self, test: PerformanceTest):
-        """Execute a real local load test using aiohttp with stage support"""
+        """
+        Execute a TRUE K6-like load test with persistent concurrent virtual users.
+        Each VU continuously makes requests throughout the test duration.
+        """
         import time
         import aiohttp
+        from collections import deque
+        import threading
         
-        logger.info(f"Running REAL LOCAL load test for {test.target_url} (Type: {test.test_type})")
+        logger.info(f"Running TRUE CONCURRENT load test for {test.target_url} (Type: {test.test_type}, VUs: {test.virtual_users})")
         
         test.provider = TestProvider.LOCAL
         test.progress_percentage = 0
         await self.db.commit()
         
-        # Define stages if not present based on test type
+        # Shared state for all VUs (thread-safe with asyncio)
+        total_requests = 0
+        errors = 0
+        latencies = []
+        timeline = deque(maxlen=300)  # Keep last 5 minutes of per-second data
+        lock = asyncio.Lock()
+        
+        # Test timing
+        total_duration = test.duration_seconds or 60
+        ramp_up = test.ramp_up_seconds or 0
+        max_vus = test.virtual_users or 100
+        start_time = time.time()
+        end_time = start_time + total_duration
+        
+        # Define stages based on test type
         stages = test.stages or []
         if not stages:
             if test.test_type == TestType.STRESS:
-                # Step-wise increase: 5 steps to max VUs
                 steps = 5
-                step_vus = test.virtual_users // steps
-                step_duration = (test.duration_seconds or 60) // steps
+                step_vus = max_vus // steps
+                step_duration = total_duration // steps
                 stages = [
                     {"duration": step_duration, "target": step_vus * (i + 1)}
                     for i in range(steps)
                 ]
             elif test.test_type == TestType.SPIKE:
-                # Base -> Spike -> Base
-                base_vus = max(1, test.virtual_users // 5)
-                spike_vus = test.virtual_users
-                duration = test.duration_seconds or 60
+                base_vus = max(1, max_vus // 5)
+                spike_vus = max_vus
                 stages = [
-                    {"duration": int(duration * 0.2), "target": base_vus},    # Warmup
-                    {"duration": int(duration * 0.1), "target": spike_vus},   # Spike UP
-                    {"duration": int(duration * 0.4), "target": spike_vus},   # Hold Spike
-                    {"duration": int(duration * 0.1), "target": base_vus},    # Spike DOWN
-                    {"duration": int(duration * 0.2), "target": base_vus},    # Cooldown
+                    {"duration": int(total_duration * 0.2), "target": base_vus},
+                    {"duration": int(total_duration * 0.1), "target": spike_vus},
+                    {"duration": int(total_duration * 0.4), "target": spike_vus},
+                    {"duration": int(total_duration * 0.1), "target": base_vus},
+                    {"duration": int(total_duration * 0.2), "target": base_vus},
                 ]
             elif test.test_type == TestType.ENDURANCE:
-                # Sustained load for long duration
-                duration = test.duration_seconds or 3600
-                ramp_up = test.ramp_up_seconds or 60
-                hold_duration = max(0, duration - ramp_up)
-                stages = []
-                if ramp_up > 0:
-                    stages.append({"duration": ramp_up, "target": test.virtual_users})
-                stages.append({"duration": hold_duration, "target": test.virtual_users})
-            else: # LOAD or default or API
-                # Linear Ramp Up -> Hold -> (Instant down or define ramp down)
-                ramp_up = test.ramp_up_seconds or 0
-                total_duration = test.duration_seconds or 60
                 hold_duration = max(0, total_duration - ramp_up)
-                
-                stages = []
                 if ramp_up > 0:
-                    stages.append({"duration": ramp_up, "target": test.virtual_users})
-                
+                    stages.append({"duration": ramp_up, "target": max_vus})
+                stages.append({"duration": hold_duration, "target": max_vus})
+            else:  # LOAD or default
+                hold_duration = max(0, total_duration - ramp_up)
+                if ramp_up > 0:
+                    stages.append({"duration": ramp_up, "target": max_vus})
                 if hold_duration > 0:
-                    stages.append({"duration": hold_duration, "target": test.virtual_users})
-
-        # Calculate total duration from stages
-        total_duration = sum(s["duration"] for s in stages)
-        start_time = time.time()
-        end_time = start_time + total_duration
+                    stages.append({"duration": hold_duration, "target": max_vus})
         
-        latencies = []
-        errors = 0
-        total_requests = 0
-        timeline = []
+        def get_target_vus_at_time(elapsed: float) -> int:
+            """Calculate target VUs at a given elapsed time based on stages"""
+            accumulated = 0
+            prev_target = 0
+            for stage in stages:
+                stage_end = accumulated + stage["duration"]
+                if elapsed < stage_end:
+                    time_in_stage = elapsed - accumulated
+                    if stage["duration"] > 0:
+                        progress = time_in_stage / stage["duration"]
+                        return int(prev_target + (stage["target"] - prev_target) * progress)
+                    return stage["target"]
+                accumulated = stage_end
+                prev_target = stage["target"]
+            return 0
         
-        last_update_time = time.time()
+        async def virtual_user_loop(vu_id: int, session: aiohttp.ClientSession, stop_event: asyncio.Event):
+            """
+            Each VU runs this loop continuously - making request after request.
+            This is how K6 works - each VU is a persistent worker.
+            """
+            nonlocal total_requests, errors, latencies
+            
+            while not stop_event.is_set() and time.time() < end_time:
+                # Check if this VU should be active based on current target
+                elapsed = time.time() - start_time
+                target_vus = get_target_vus_at_time(elapsed)
+                
+                if vu_id >= target_vus:
+                    # This VU should be dormant, wait a bit and check again
+                    await asyncio.sleep(0.1)
+                    continue
+                
+                # Make a real HTTP request
+                req_start = time.time()
+                try:
+                    async with session.request(
+                        method=test.target_method or "GET",
+                        url=test.target_url,
+                        headers=test.target_headers or {},
+                        timeout=aiohttp.ClientTimeout(total=30)
+                    ) as response:
+                        await response.read()  # Consume response body
+                        latency_ms = (time.time() - req_start) * 1000
+                        
+                        async with lock:
+                            total_requests += 1
+                            latencies.append(latency_ms)
+                            if response.status >= 400:
+                                errors += 1
+                                
+                except asyncio.TimeoutError:
+                    async with lock:
+                        total_requests += 1
+                        errors += 1
+                        latencies.append(30000)  # Timeout = 30s
+                except Exception as e:
+                    async with lock:
+                        total_requests += 1
+                        errors += 1
+                        latencies.append((time.time() - req_start) * 1000)
+                
+                # Small yield to prevent CPU hogging, but NO artificial delay
+                await asyncio.sleep(0)
         
-        # We need a way to manage concurrency dynamically.
-        # Simple approach: Check target VUs every second and adjust active tasks.
-        
-        async with aiohttp.ClientSession() as session:
-            current_stage_idx = 0
-            stage_start_time = start_time
-            accumulated_duration = 0
+        async def metrics_reporter():
+            """Periodically collect and store metrics"""
+            nonlocal total_requests, errors, latencies
+            last_requests = 0
+            last_time = time.time()
             
             while time.time() < end_time:
+                await asyncio.sleep(1)
+                
                 now = time.time()
                 elapsed = now - start_time
+                current_vus = get_target_vus_at_time(elapsed)
                 
-                # Determine current target VUs based on stage interrogation
-                # This could be optimized but linear scan of stages is fine for small number of stages
-                current_target_vus = 0
+                async with lock:
+                    current_requests = total_requests
+                    current_errors = errors
+                    current_latencies = latencies.copy() if latencies else [0]
                 
-                # Enable stage transition logic
-                time_in_stage = elapsed - accumulated_duration
-                if current_stage_idx < len(stages):
-                    current_stage = stages[current_stage_idx]
-                    if time_in_stage > current_stage["duration"]:
-                        accumulated_duration += current_stage["duration"]
-                        current_stage_idx += 1
-                        time_in_stage = elapsed - accumulated_duration
+                # Calculate RPS for this interval
+                interval_requests = current_requests - last_requests
+                interval_time = now - last_time
+                rps = interval_requests / interval_time if interval_time > 0 else 0
                 
-                if current_stage_idx < len(stages):
-                    stage = stages[current_stage_idx]
-                    prev_target = stages[current_stage_idx-1]["target"] if current_stage_idx > 0 else 0
-                    target = stage["target"]
-                    duration = stage["duration"]
-                    
-                    # Linear interpolation
-                    if duration > 0:
-                        progress = min(time_in_stage / duration, 1.0)
-                        current_target_vus = int(prev_target + (target - prev_target) * progress)
-                    else:
-                        current_target_vus = target
-                else:
-                    current_target_vus = 0 # Done
-                    
-                # Safety cap removed based on user preference
-                # current_target_vus = min(current_target_vus, 1000) 
+                # Calculate avg latency for recent requests
+                recent_latencies = current_latencies[-100:] if current_latencies else [0]
+                avg_latency = sum(recent_latencies) / len(recent_latencies)
                 
-                # Execute batch of requests equal to current concurrency
-                # Note: This is a synchronous batch approach (wait for all). 
-                # For better performance, we'd use a semaphore and constant feed, but this is checking "VUs" concept.
+                # Update timeline
+                timestamp_str = datetime.utcnow().strftime("%H:%M:%S")
+                timeline.append({
+                    "timestamp": timestamp_str,
+                    "requests": interval_requests,
+                    "avg_response_time": avg_latency,
+                    "errors": current_errors - (last_requests - current_requests + interval_requests) if len(timeline) > 0 else current_errors,
+                    "vus": current_vus,
+                    "rps": rps
+                })
                 
-                if current_target_vus > 0:
-                    batch_start = time.time()
-                    tasks = []
-                    for _ in range(current_target_vus):
-                        tasks.append(session.request(
-                            method=test.target_method or "GET",
-                            url=test.target_url,
-                            headers=test.target_headers or {},
-                            timeout=aiohttp.ClientTimeout(total=10)
-                        ))
-                    
-                    if tasks:
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                        
-                        batch_latencies = []
-                        batch_errors = 0
-                        
-                        for res in results:
-                            total_requests += 1
-                            if isinstance(res, aiohttp.ClientResponse):
-                                try:
-                                    # Ensure we read the body so connection can be reused
-                                    await res.read() 
-                                    lat = (time.time() - batch_start) * 1000 # Apprx latency including overhead
-                                    latencies.append(lat)
-                                    batch_latencies.append(lat)
-                                    
-                                    if res.status >= 400:
-                                        errors += 1
-                                        batch_errors += 1
-                                except Exception:
-                                    errors += 1
-                                    batch_errors += 1
-                            else:
-                                errors += 1
-                                batch_errors += 1
-                        
-                        # Update timeline
-                        timestamp_str = datetime.utcnow().strftime("%H:%M:%S")
-                        
-                        if timeline and timeline[-1]["timestamp"] == timestamp_str:
-                            t_entry = timeline[-1]
-                            t_entry["requests"] += len(results)
-                            t_entry["errors"] += batch_errors
-                            
-                            prev_count = t_entry.get("_count", 1)
-                            new_count = prev_count + len(batch_latencies)
-                            if new_count > 0:
-                                t_entry["avg_response_time"] = (t_entry["avg_response_time"] * prev_count + sum(batch_latencies)) / new_count
-                            t_entry["_count"] = new_count
-                            t_entry["vus"] = max(t_entry["vus"], current_target_vus) # Max VUs in this second
-                        else:
-                            timeline.append({
-                                "timestamp": timestamp_str,
-                                "requests": len(results),
-                                "avg_response_time": sum(batch_latencies) / len(batch_latencies) if batch_latencies else 0,
-                                "errors": batch_errors,
-                                "vus": current_target_vus,
-                                "_count": len(batch_latencies)
-                            })
-
-                # Sleep slightly to avoid busy loop if VUs are low or processing is fast
-                # In a real tool this controls RPS, here we just try to keep VUs busy
-                await asyncio.sleep(0.1) 
+                last_requests = current_requests
+                last_time = now
                 
-                # Update progress in DB (throttle)
-                if time.time() - last_update_time >= 2:
-                    current_progress = min(int((elapsed / total_duration) * 100), 99)
-                    test.progress_percentage = current_progress
-                    
-                    # Partial metrics update
-                    partial_latencies = sorted(latencies) if latencies else [0]
-                    p_count = len(partial_latencies)
-                    
-                    partial_result = {
-                        "total_requests_made": total_requests,
-                        "requests_per_second": total_requests / max(elapsed, 1),
-                        "latency_min": partial_latencies[0],
-                        "latency_max": partial_latencies[-1],
-                        "latency_avg": sum(partial_latencies) / p_count,
-                        "latency_p50": partial_latencies[int(p_count * 0.5)],
-                        "error_count": errors,
-                        "timeline": timeline[-50:] # Keep last 50 points mostly
-                    }
+                # Update progress in database
+                progress = min(int((elapsed / total_duration) * 100), 99)
+                test.progress_percentage = progress
+                
+                sorted_latencies = sorted(current_latencies) if current_latencies else [0]
+                count = len(sorted_latencies)
+                
+                partial_result = {
+                    "total_requests_made": current_requests,
+                    "requests_per_second": current_requests / max(elapsed, 1),
+                    "latency_min": sorted_latencies[0],
+                    "latency_max": sorted_latencies[-1],
+                    "latency_avg": sum(sorted_latencies) / count,
+                    "latency_p50": sorted_latencies[int(count * 0.5)],
+                    "latency_p95": sorted_latencies[int(count * 0.95)] if count > 20 else sorted_latencies[-1],
+                    "error_count": current_errors,
+                    "timeline": list(timeline)
+                }
+                
+                try:
                     await self._store_load_test_metrics(test, partial_result)
-                    
                     await self.db.commit()
-                    last_update_time = time.time()
-
-        # Final calculations
-        if not latencies:
-            latencies = [0]
+                except Exception as e:
+                    logger.warning(f"Failed to update metrics: {e}")
+        
+        # Create connector with high connection limits for true concurrency
+        connector = aiohttp.TCPConnector(
+            limit=0,  # No limit on connections
+            limit_per_host=0,  # No limit per host
+            ttl_dns_cache=300,
+            force_close=False,  # Keep connections alive
+            enable_cleanup_closed=True
+        )
+        
+        stop_event = asyncio.Event()
+        
+        async with aiohttp.ClientSession(connector=connector) as session:
+            # Start all VU workers - they will self-regulate based on stages
+            vu_tasks = [
+                asyncio.create_task(virtual_user_loop(i, session, stop_event))
+                for i in range(max_vus)
+            ]
             
-        latencies.sort()
-        count = len(latencies)
+            # Start metrics reporter
+            reporter_task = asyncio.create_task(metrics_reporter())
+            
+            # Wait for test duration
+            try:
+                await asyncio.sleep(total_duration)
+            finally:
+                stop_event.set()
+                
+                # Give VUs time to finish current requests
+                await asyncio.sleep(1)
+                
+                # Cancel remaining tasks
+                for task in vu_tasks:
+                    task.cancel()
+                reporter_task.cancel()
+                
+                # Wait for cancellation
+                await asyncio.gather(*vu_tasks, reporter_task, return_exceptions=True)
+        
+        # Final calculations
+        final_latencies = sorted(latencies) if latencies else [0]
+        count = len(final_latencies)
         duration = max(time.time() - start_time, 1)
+        
+        logger.info(f"Load test completed: {total_requests} requests, {errors} errors, {total_requests/duration:.2f} RPS")
         
         result = {
             "total_requests_made": total_requests,
             "requests_per_second": total_requests / duration,
-            "latency_min": latencies[0],
-            "latency_max": latencies[-1],
-            "latency_avg": sum(latencies) / count,
-            "latency_p50": latencies[int(count * 0.5)],
-            "latency_p95": latencies[int(count * 0.95)],
-            "latency_p99": latencies[int(count * 0.99)],
-            "data_received_bytes": total_requests * 1000, # Approx
-            "throughput_bytes_per_second": (total_requests * 1000) / duration,
+            "latency_min": final_latencies[0],
+            "latency_max": final_latencies[-1],
+            "latency_avg": sum(final_latencies) / count,
+            "latency_p50": final_latencies[int(count * 0.5)],
+            "latency_p95": final_latencies[int(count * 0.95)] if count > 20 else final_latencies[-1],
+            "latency_p99": final_latencies[int(count * 0.99)] if count > 100 else final_latencies[-1],
+            "data_received_bytes": total_requests * 5000,  # Estimate ~5KB per response
+            "throughput_bytes_per_second": (total_requests * 5000) / duration,
             "error_count": errors,
             "error_rate": (errors / total_requests * 100) if total_requests > 0 else 0,
-            "timeline": timeline,
-            "raw_response": {"local_execution": True, "stages_executed": len(stages)}
+            "timeline": list(timeline),
+            "raw_response": {
+                "local_execution": True, 
+                "execution_mode": "k6_compatible_concurrent_vus",
+                "stages_executed": len(stages),
+                "max_vus": max_vus
+            }
         }
         
         test.progress_percentage = 100

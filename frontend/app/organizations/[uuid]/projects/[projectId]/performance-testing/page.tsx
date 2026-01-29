@@ -28,6 +28,7 @@ import {
     Globe,
     History as HistoryIcon,
     Info,
+    Trash2,
 } from "lucide-react";
 import { CircuitLogoIcon } from "@/components/ui/CircuitLogoIcon";
 import { Button } from "@/components/ui/button";
@@ -636,18 +637,17 @@ export default function PerformanceTestingPage() {
         }
     };
 
-    // Stress test state
-    const [stressTestConfig, setStressTestConfig] = useState<{
-        startVUs: number | string;
-        maxVUs: number | string;
-        stepIncrease: number | string;
-        stepDuration: number | string;
-    }>({
-        startVUs: "",
-        maxVUs: "",
-        stepIncrease: "",
-        stepDuration: "",
-    });
+    // Stress test state - K6 style stages
+    const [stressTestStages, setStressTestStages] = useState<
+        Array<{ duration: string; target: number }>
+    >([
+        { duration: "30s", target: 100 },
+        { duration: "1m", target: 200 },
+        { duration: "1m", target: 500 },
+        { duration: "2m", target: 500 },
+        { duration: "30s", target: 0 },
+    ]);
+    const [stressTestMethod, setStressTestMethod] = useState<string>("GET");
     const [isRunningStressTest, setIsRunningStressTest] = useState(false);
 
     const handleStressTest = async () => {
@@ -671,13 +671,12 @@ export default function PerformanceTestingPage() {
                     },
                     body: JSON.stringify({
                         target_url: stressTargetUrl,
-                        target_method: "GET",
+                        target_method: stressTestMethod,
                         target_headers: {},
-                        start_vus: Number(stressTestConfig.startVUs) || 10,
-                        max_vus: Number(stressTestConfig.maxVUs) || 500,
-                        step_duration_seconds:
-                            parseDuration(stressTestConfig.stepDuration) || 30,
-                        step_increase: Number(stressTestConfig.stepIncrease) || 50,
+                        stages: stressTestStages.map((s) => ({
+                            duration: s.duration,
+                            target: Number(s.target),
+                        })),
                     }),
                 },
             );
@@ -698,16 +697,17 @@ export default function PerformanceTestingPage() {
         }
     };
 
-    // Spike test state
-    const [spikeTestConfig, setSpikeTestConfig] = useState<{
-        normalLoad: number | string;
-        spikeLoad: number | string;
-        duration: number | string;
-    }>({
-        normalLoad: "",
-        spikeLoad: "",
-        duration: "",
-    });
+    // Spike test state - K6 style stages
+    const [spikeTestStages, setSpikeTestStages] = useState<
+        Array<{ duration: string; target: number }>
+    >([
+        { duration: "1m", target: 50 },
+        { duration: "10s", target: 1000 },
+        { duration: "2m", target: 1000 },
+        { duration: "10s", target: 50 },
+        { duration: "1m", target: 50 },
+    ]);
+    const [spikeTestMethod, setSpikeTestMethod] = useState<string>("GET");
     const [isRunningSpikeTest, setIsRunningSpikeTest] = useState(false);
 
     const handleSpikeTest = async () => {
@@ -730,11 +730,12 @@ export default function PerformanceTestingPage() {
                     },
                     body: JSON.stringify({
                         target_url: spikeTargetUrl,
-                        target_method: "GET",
+                        target_method: spikeTestMethod,
                         target_headers: {},
-                        normal_load: Number(spikeTestConfig.normalLoad) || 10,
-                        spike_load: Number(spikeTestConfig.spikeLoad) || 1000,
-                        duration_seconds: parseDuration(spikeTestConfig.duration) || 120,
+                        stages: spikeTestStages.map((s) => ({
+                            duration: s.duration,
+                            target: Number(s.target),
+                        })),
                     }),
                 },
             );
@@ -755,14 +756,15 @@ export default function PerformanceTestingPage() {
         }
     };
 
-    // Soak test state
-    const [soakTestConfig, setSoakTestConfig] = useState<{
-        virtualUsers: number | string;
-        durationHours: number | string;
-    }>({
-        virtualUsers: "",
-        durationHours: "",
-    });
+    // Soak test state - K6 style stages
+    const [soakTestStages, setSoakTestStages] = useState<
+        Array<{ duration: string; target: number }>
+    >([
+        { duration: "5m", target: 100 },
+        { duration: "4h", target: 100 },
+        { duration: "5m", target: 0 },
+    ]);
+    const [soakTestMethod, setSoakTestMethod] = useState<string>("GET");
     const [isRunningSoakTest, setIsRunningSoakTest] = useState(false);
 
     const handleSoakTest = async () => {
@@ -785,12 +787,12 @@ export default function PerformanceTestingPage() {
                     },
                     body: JSON.stringify({
                         target_url: soakTargetUrl,
-                        target_method: "GET",
+                        target_method: soakTestMethod,
                         target_headers: {},
-                        virtual_users: Number(soakTestConfig.virtualUsers) || 50,
-                        duration_seconds:
-                            parseDuration(soakTestConfig.durationHours) || 14400,
-                        ramp_up_seconds: 60,
+                        stages: soakTestStages.map((s) => ({
+                            duration: s.duration,
+                            target: Number(s.target),
+                        })),
                     }),
                 },
             );
@@ -1862,8 +1864,8 @@ export default function PerformanceTestingPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                <div className="lg:col-span-7 space-y-8">
+                            <div className="space-y-8">
+                                <div className="space-y-8">
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                                         {/* URL Input */}
                                         <div className="md:col-span-12">
@@ -1995,6 +1997,49 @@ export default function PerformanceTestingPage() {
                                                 </div>
                                             ) : (
                                                 <div className="space-y-4">
+                                                    {/* Method dropdown for stages mode */}
+                                                    <div className="mb-4">
+                                                        <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                            Method
+                                                        </Label>
+                                                        <Select
+                                                            defaultValue="GET"
+                                                            value={loadTestConfig.method || "GET"}
+                                                            onValueChange={(val) =>
+                                                                setLoadTestConfig((prev) => ({
+                                                                    ...prev,
+                                                                    method: val as any,
+                                                                }))
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="h-12 w-full md:w-48 rounded-xl bg-white border-2 border-gray-300 shadow-sm text-sm font-medium">
+                                                                {loadTestConfig.method || "GET"}
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="GET">
+                                                                    <span className="font-bold text-xs text-emerald-600">
+                                                                        GET
+                                                                    </span>
+                                                                </SelectItem>
+                                                                <SelectItem value="POST">
+                                                                    <span className="font-bold text-xs text-blue-600">
+                                                                        POST
+                                                                    </span>
+                                                                </SelectItem>
+                                                                <SelectItem value="PUT">
+                                                                    <span className="font-bold text-xs text-amber-600">
+                                                                        PUT
+                                                                    </span>
+                                                                </SelectItem>
+                                                                <SelectItem value="DELETE">
+                                                                    <span className="font-bold text-xs text-red-600">
+                                                                        DELETE
+                                                                    </span>
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
                                                     <div className="flex items-center justify-between mb-2">
                                                         <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-700 block">
                                                             Stages (Load Profile)
@@ -2065,7 +2110,7 @@ export default function PerformanceTestingPage() {
                                                                     }
                                                                     className="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0"
                                                                 >
-                                                                    <List className="w-4 h-4" />
+                                                                    <Trash2 className="w-4 h-4" />
                                                                 </Button>
                                                             </div>
                                                         ))}
@@ -2213,93 +2258,93 @@ export default function PerformanceTestingPage() {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div className="lg:col-span-5 space-y-6">
-                                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 h-full flex flex-col">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                                                Live Load Profile Preview
-                                            </h4>
-                                            <div className="px-2 py-1 rounded bg-purple-100 text-purple-600 text-[8px] font-bold uppercase">
-                                                Dynamic
-                                            </div>
-                                        </div>
-                                        <div className="flex-1 min-h-[250px] relative">
-                                            <VirtualUsersChart
-                                                data={
-                                                    loadTestType === "simple"
-                                                        ? [
-                                                            {
-                                                                timestamp: "Start",
-                                                                activeVUs: 0,
-                                                                targetVUs: 0,
-                                                            },
-                                                            {
-                                                                timestamp: "Ramp Up",
-                                                                activeVUs: 0,
-                                                                targetVUs:
-                                                                    Number(loadTestConfig.virtualUsers) || 0,
-                                                            },
-                                                            {
-                                                                timestamp: "Steady",
-                                                                activeVUs:
-                                                                    Number(loadTestConfig.virtualUsers) || 0,
-                                                                targetVUs:
-                                                                    Number(loadTestConfig.virtualUsers) || 0,
-                                                            },
-                                                            {
-                                                                timestamp: "End",
-                                                                activeVUs: 0,
-                                                                targetVUs: 0,
-                                                            },
-                                                        ]
-                                                        : [
-                                                            {
-                                                                timestamp: "Start",
-                                                                activeVUs: 0,
-                                                                targetVUs: 0,
-                                                            },
-                                                            ...loadTestStages.map((s, i) => ({
-                                                                timestamp: `S${i + 1}`,
-                                                                activeVUs: s.target,
-                                                                targetVUs: s.target,
-                                                            })),
-                                                        ]
-                                                }
-                                            />
-                                        </div>
-                                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex-1">
-                                                    <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
-                                                        Max Concurrency
-                                                    </p>
-                                                    <p className="text-xl font-black text-gray-900">
-                                                        {loadTestType === "simple"
-                                                            ? loadTestConfig.virtualUsers
-                                                            : Math.max(
-                                                                ...loadTestStages.map((s) => s.target),
-                                                                0,
-                                                            )}
-                                                    </p>
-                                                </div>
-                                                <div className="w-px h-8 bg-gray-100" />
-                                                <div className="flex-1">
-                                                    <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
-                                                        Estimated Duration
-                                                    </p>
-                                                    <p className="text-xl font-black text-gray-900">
-                                                        {loadTestType === "simple"
-                                                            ? `${(parseDuration(loadTestConfig.duration) || 0) + (parseDuration(loadTestConfig.rampUp) || 0) + (parseDuration(loadTestConfig.rampDown) || 0)}s`
-                                                            : `${loadTestStages.length} Stages`}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
+                        {/* Live Load Profile Preview for Load Test */}
+                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-purple-500/5 border-purple-50/50">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                    Live Load Profile Preview
+                                </h4>
+                                <div className="px-2 py-1 rounded bg-purple-100 text-purple-600 text-[8px] font-bold uppercase">
+                                    Dynamic
+                                </div>
+                            </div>
+                            <div className="min-h-[250px] relative">
+                                <VirtualUsersChart
+                                    data={
+                                        loadTestType === "simple"
+                                            ? [
+                                                {
+                                                    timestamp: "Start",
+                                                    activeVUs: 0,
+                                                    targetVUs: 0,
+                                                },
+                                                {
+                                                    timestamp: "Ramp Up",
+                                                    activeVUs: 0,
+                                                    targetVUs:
+                                                        Number(loadTestConfig.virtualUsers) || 0,
+                                                },
+                                                {
+                                                    timestamp: "Steady",
+                                                    activeVUs:
+                                                        Number(loadTestConfig.virtualUsers) || 0,
+                                                    targetVUs:
+                                                        Number(loadTestConfig.virtualUsers) || 0,
+                                                },
+                                                {
+                                                    timestamp: "End",
+                                                    activeVUs: 0,
+                                                    targetVUs: 0,
+                                                },
+                                            ]
+                                            : [
+                                                {
+                                                    timestamp: "Start",
+                                                    activeVUs: 0,
+                                                    targetVUs: 0,
+                                                },
+                                                ...loadTestStages.map((s, i) => ({
+                                                    timestamp: `S${i + 1}`,
+                                                    activeVUs: s.target,
+                                                    targetVUs: s.target,
+                                                })),
+                                            ]
+                                    }
+                                />
+                            </div>
+                            <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                            Max Concurrency
+                                        </p>
+                                        <p className="text-xl font-black text-gray-900">
+                                            {loadTestType === "simple"
+                                                ? loadTestConfig.virtualUsers
+                                                : Math.max(
+                                                    ...loadTestStages.map((s) => s.target),
+                                                    0,
+                                                )}
+                                        </p>
+                                    </div>
+                                    <div className="w-px h-8 bg-gray-100" />
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                            Estimated Duration
+                                        </p>
+                                        <p className="text-xl font-black text-gray-900">
+                                            {loadTestType === "simple"
+                                                ? `${(parseDuration(loadTestConfig.duration) || 0) + (parseDuration(loadTestConfig.rampUp) || 0) + (parseDuration(loadTestConfig.rampDown) || 0)}s`
+                                                : `${loadTestStages.reduce((acc, s) => acc + (parseDuration(s.duration) || 0), 0)}s`}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
                         {/* Progress Bar for Load Test */}
                         {isLoadLoading && activeModule === "load" && (
                             <div className="bg-white rounded-xl p-8 border border-purple-100 shadow-sm text-center">
@@ -2321,10 +2366,11 @@ export default function PerformanceTestingPage() {
                                     {progress}% completed
                                 </p>
                             </div>
-                        )}
+                        )
+                        }
 
                         {/* Metrics display */}
-                        {loadTestResult && (
+                        {loadTestResult && loadTestResult.type === "load" && (
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="bg-white rounded-xl p-4 border shadow-sm">
@@ -2388,17 +2434,19 @@ export default function PerformanceTestingPage() {
                             </>
                         )}
 
-                        {(!loadTestResult || loadTestResult.type !== "load") && !isLoadLoading && (
-                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                                <LineChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                    Real-time Metrics
-                                </h3>
-                                <p className="text-gray-500 mb-4">
-                                    Start a load test to see live performance charts.
-                                </p>
-                            </div>
-                        )}
+                        {
+                            (!loadTestResult || loadTestResult.type !== "load") && !isLoadLoading && (
+                                <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                    <LineChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                        Real-time Metrics
+                                    </h3>
+                                    <p className="text-gray-500 mb-4">
+                                        Start a load test to see live performance charts.
+                                    </p>
+                                </div>
+                            )
+                        }
                     </div>
                 )}
 
@@ -2454,78 +2502,111 @@ export default function PerformanceTestingPage() {
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
+                                    <div className="md:col-span-12 pt-6 border-t border-gray-100">
+                                        {/* Method dropdown */}
+                                        <div className="mb-4">
                                             <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Start Virtual Users
+                                                Method
                                             </Label>
-                                            <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    value={stressTestConfig.startVUs}
-                                                    onChange={(e) =>
-                                                        setStressTestConfig((prev) => ({
-                                                            ...prev,
-                                                            startVUs:
-                                                                e.target.value === ""
-                                                                    ? ""
-                                                                    : parseInt(e.target.value),
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(stressTestConfig.startVUs) > 10000 ||
-                                                            Number(stressTestConfig.startVUs) < 1) &&
-                                                            stressTestConfig.startVUs !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            {Number(stressTestConfig.startVUs) > 10000 && (
-                                                <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 10000 VUs
-                                                </p>
-                                            )}
+                                            <Select
+                                                defaultValue="GET"
+                                                value={stressTestMethod}
+                                                onValueChange={(val) => setStressTestMethod(val)}
+                                            >
+                                                <SelectTrigger className="h-12 w-full md:w-48 rounded-xl bg-white border-2 border-gray-300 shadow-sm text-sm font-medium">
+                                                    {stressTestMethod}
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="GET">
+                                                        <span className="font-bold text-xs text-emerald-600">GET</span>
+                                                    </SelectItem>
+                                                    <SelectItem value="POST">
+                                                        <span className="font-bold text-xs text-blue-600">POST</span>
+                                                    </SelectItem>
+                                                    <SelectItem value="PUT">
+                                                        <span className="font-bold text-xs text-amber-600">PUT</span>
+                                                    </SelectItem>
+                                                    <SelectItem value="DELETE">
+                                                        <span className="font-bold text-xs text-red-600">DELETE</span>
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
 
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Max Virtual Users
+                                        <div className="flex items-center justify-between mb-4">
+                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+                                                Stages (K6 Load Profile)
                                             </Label>
-                                            <div className="relative">
-                                                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    value={stressTestConfig.maxVUs}
-                                                    onChange={(e) =>
-                                                        setStressTestConfig((prev) => ({
-                                                            ...prev,
-                                                            maxVUs:
-                                                                e.target.value === ""
-                                                                    ? ""
-                                                                    : parseInt(e.target.value),
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(stressTestConfig.maxVUs) > 10000 ||
-                                                            Number(stressTestConfig.maxVUs) < 1) &&
-                                                            stressTestConfig.maxVUs !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            {Number(stressTestConfig.maxVUs) > 10000 && (
-                                                <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 10000 VUs
-                                                </p>
-                                            )}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setStressTestStages([
+                                                        ...stressTestStages,
+                                                        { duration: "1m", target: 100 },
+                                                    ])
+                                                }
+                                                className="h-8 px-3 rounded-lg border-orange-200 text-orange-600 hover:bg-orange-50 text-[10px] font-bold"
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" /> ADD STAGE
+                                            </Button>
                                         </div>
+                                        <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                            {stressTestStages.map((stage, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 group"
+                                                >
+                                                    <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                        {index + 1}
+                                                    </div>
+                                                    <div className="flex-1 grid grid-cols-2 gap-3">
+                                                        <div className="relative">
+                                                            <Timer className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                            <Input
+                                                                value={stage.duration}
+                                                                onChange={(e) => {
+                                                                    const newStages = [...stressTestStages];
+                                                                    newStages[index].duration = e.target.value;
+                                                                    setStressTestStages(newStages);
+                                                                }}
+                                                                className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                placeholder="Duration (e.g. 1m)"
+                                                            />
+                                                        </div>
+                                                        <div className="relative">
+                                                            <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                            <Input
+                                                                type="number"
+                                                                value={stage.target}
+                                                                onChange={(e) => {
+                                                                    const newStages = [...stressTestStages];
+                                                                    newStages[index].target = parseInt(e.target.value) || 0;
+                                                                    setStressTestStages(newStages);
+                                                                }}
+                                                                className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                placeholder="Target VUs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() =>
+                                                            setStressTestStages(
+                                                                stressTestStages.filter((_, i) => i !== index)
+                                                            )
+                                                        }
+                                                        className="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 mt-3">
+                                            Each stage defines a duration and target VUs. Stress test gradually increases load.
+                                        </p>
                                     </div>
 
                                     <div className="md:col-span-12 pt-8">
@@ -2534,10 +2615,7 @@ export default function PerformanceTestingPage() {
                                             disabled={
                                                 !stressTargetUrl ||
                                                 isStressLoading ||
-                                                Number(stressTestConfig.startVUs) < 1 ||
-                                                Number(stressTestConfig.startVUs) > 10000 ||
-                                                Number(stressTestConfig.maxVUs) < 1 ||
-                                                Number(stressTestConfig.maxVUs) > 10000
+                                                stressTestStages.length === 0
                                             }
                                             className="h-14 w-full bg-orange-600 hover:bg-orange-700 text-white rounded-2xl shadow-lg shadow-orange-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
                                         >
@@ -2558,6 +2636,58 @@ export default function PerformanceTestingPage() {
                             </div>
                         </div>
 
+                        {/* Live Load Profile Preview for Stress Test */}
+                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-orange-500/5 border-orange-50/50">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                    Live Load Profile Preview
+                                </h4>
+                                <div className="px-2 py-1 rounded bg-orange-100 text-orange-600 text-[8px] font-bold uppercase">
+                                    Dynamic
+                                </div>
+                            </div>
+                            <div className="min-h-[250px] relative">
+                                <VirtualUsersChart
+                                    data={[
+                                        {
+                                            timestamp: "Start",
+                                            activeVUs: 0,
+                                            targetVUs: 0,
+                                        },
+                                        ...stressTestStages.map((s, i) => ({
+                                            timestamp: `S${i + 1}`,
+                                            activeVUs: s.target,
+                                            targetVUs: s.target,
+                                        })),
+                                    ]}
+                                />
+                            </div>
+                            <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                            Max Concurrency
+                                        </p>
+                                        <p className="text-xl font-black text-gray-900">
+                                            {Math.max(
+                                                ...stressTestStages.map((s) => s.target),
+                                                0,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="w-px h-8 bg-gray-100" />
+                                    <div className="flex-1">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                            Estimated Duration
+                                        </p>
+                                        <p className="text-xl font-black text-gray-900">
+                                            {stressTestStages.reduce((acc, s) => acc + (parseDuration(s.duration) || 0), 0)}s
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Progress Bar for Stress Test */}
                         {isStressLoading && activeModule === "stress" && (
                             <div className="bg-white rounded-xl p-8 border border-orange-100 shadow-sm text-center">
@@ -2566,8 +2696,8 @@ export default function PerformanceTestingPage() {
                                     Executing Stress Test...
                                 </h3>
                                 <p className="text-gray-500 mb-4">
-                                    Ramping up from {stressTestConfig.startVUs} to{" "}
-                                    {stressTestConfig.maxVUs} VUs
+                                    Running {stressTestStages.length} stages with max{" "}
+                                    {Math.max(...stressTestStages.map(s => s.target))} VUs
                                 </p>
                                 <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
                                     <div
@@ -2661,954 +2791,1127 @@ export default function PerformanceTestingPage() {
                             </div>
                         )}
                     </div>
-                )}
+                )
+                }
 
                 {/* Spike Test Tab */}
-                {activeModule === "spike" && (
-                    <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Spike Testing
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Tests how the system reacts when traffic suddenly increases.
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-red-500/5 border-red-50/50">
-                            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
-                                <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-lg shadow-red-600/30">
-                                    <Zap className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-none">
-                                        Configure Spike Test
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Test system reaction to sudden traffic surges
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    {/* URL Input */}
-                                    <div className="md:col-span-12">
-                                        <Label
-                                            htmlFor="spike-url"
-                                            className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
-                                        >
-                                            Target URL
-                                        </Label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-red-600 transition-colors" />
-                                            </div>
-                                            <Input
-                                                id="spike-url"
-                                                value={spikeTargetUrl}
-                                                onChange={(e) => setSpikeTargetUrl(e.target.value)}
-                                                placeholder="https://api.example.com/endpoint"
-                                                className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-red-700 focus:ring-red-700/10 transition-all rounded-xl shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Normal Load (VUs)
-                                            </Label>
-                                            <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    value={spikeTestConfig.normalLoad}
-                                                    onChange={(e) =>
-                                                        setSpikeTestConfig((prev) => ({
-                                                            ...prev,
-                                                            normalLoad:
-                                                                e.target.value === ""
-                                                                    ? ""
-                                                                    : parseInt(e.target.value),
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(spikeTestConfig.normalLoad) > 10000 ||
-                                                            Number(spikeTestConfig.normalLoad) < 1) &&
-                                                            spikeTestConfig.normalLoad !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Spike Load (VUs)
-                                            </Label>
-                                            <div className="relative">
-                                                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    value={spikeTestConfig.spikeLoad}
-                                                    onChange={(e) =>
-                                                        setSpikeTestConfig((prev) => ({
-                                                            ...prev,
-                                                            spikeLoad:
-                                                                e.target.value === ""
-                                                                    ? ""
-                                                                    : parseInt(e.target.value),
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(spikeTestConfig.spikeLoad) > 10000 ||
-                                                            Number(spikeTestConfig.spikeLoad) < 1) &&
-                                                            spikeTestConfig.spikeLoad !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 pt-8">
-                                        <Button
-                                            onClick={handleSpikeTest}
-                                            disabled={
-                                                !spikeTargetUrl ||
-                                                isSpikeLoading ||
-                                                Number(spikeTestConfig.normalLoad) < 1 ||
-                                                Number(spikeTestConfig.normalLoad) > 10000 ||
-                                                Number(spikeTestConfig.spikeLoad) < 1 ||
-                                                Number(spikeTestConfig.spikeLoad) > 10000
-                                            }
-                                            className="h-14 w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="relative z-10 flex items-center justify-center">
-                                                {isSpikeLoading ? (
-                                                    <RefreshCw className="w-5 h-5 mr-3 animate-spin" />
-                                                ) : (
-                                                    <Zap className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                                                )}
-                                                {isSpikeLoading
-                                                    ? "EXECUTING TEST..."
-                                                    : "INITIATE SPIKE TEST"}
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Progress Bar for Spike Test */}
-                        {isSpikeLoading && activeModule === "spike" && (
-                            <div className="bg-white rounded-xl p-8 border border-red-100 shadow-sm text-center">
-                                <RefreshCw className="w-16 h-16 text-red-600 mx-auto mb-4 animate-spin" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                    Executing Spike Test...
-                                </h3>
-                                <p className="text-gray-500 mb-4">
-                                    Simulating burst of {spikeTestConfig.spikeLoad} users
-                                </p>
-                                <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
-                                    <div
-                                        className="bg-red-600 h-2.5 rounded-full transition-all duration-500"
-                                        style={{ width: `${progress}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        )}
-
-
-                        {/* Metrics display */}
-                        {loadTestResult && loadTestResult.type === "spike" && (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Requests/sec
-                                        </h4>
-                                        <p className="text-2xl font-bold text-red-600 mt-1">
-                                            {loadTestResult?.avgRps
-                                                ? loadTestResult.avgRps.toFixed(1)
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Throughput</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            P95 Latency
-                                        </h4>
-                                        <p className="text-2xl font-bold text-red-600 mt-1">
-                                            {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">95th percentile</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Success Rate
-                                        </h4>
-                                        <p
-                                            className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
-                                        >
-                                            {loadTestResult?.successRate
-                                                ? `${loadTestResult.successRate.toFixed(1)}%`
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Success rate</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Total Requests
-                                        </h4>
-                                        <p className="text-2xl font-bold text-gray-900 mt-1">
-                                            {loadTestResult?.totalRequests
-                                                ? loadTestResult.totalRequests.toLocaleString()
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Completed</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <LatencyDistributionChart
-                                        p50={loadTestResult.p50}
-                                        p75={loadTestResult.p75}
-                                        p90={loadTestResult.p90}
-                                        p95={loadTestResult.p95}
-                                        p99={loadTestResult.p99}
-                                        max={loadTestResult.max}
-                                    />
-                                    <RealTimeMetricsChart data={loadTestResult.timeline} />
-                                    <VirtualUsersChart data={loadTestResult.vuTimeline} />
-                                </div>
-                            </>
-                        )}
-
-                        {/* Chart placeholder */}
-                        {(!loadTestResult || loadTestResult.type !== "spike") && !isSpikeLoading && (
-                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                                <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                    Spike Analysis
-                                </h3>
-                                <p className="text-gray-500">
-                                    Start a spike test to analyze system stability.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Soak Test Tab */}
-                {activeModule === "soak" && (
-                    <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Soak Testing
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Tests how the system performs over a long time to find slowdowns
-                                or memory issues
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-indigo-500/5 border-indigo-50/50">
-                            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-900 flex items-center justify-center text-white shadow-lg shadow-indigo-900/30">
-                                    <Clock className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-none">
-                                        Configure Soak Test
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Monitor system health over extended periods
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    {/* URL Input */}
-                                    <div className="md:col-span-12">
-                                        <Label
-                                            htmlFor="endurance-url"
-                                            className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
-                                        >
-                                            Target URL
-                                        </Label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-indigo-600 transition-colors" />
-                                            </div>
-                                            <Input
-                                                id="endurance-url"
-                                                value={soakTargetUrl}
-                                                onChange={(e) => setSoakTargetUrl(e.target.value)}
-                                                placeholder="https://api.example.com/endpoint"
-                                                className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-indigo-700 focus:ring-indigo-700/10 transition-all rounded-xl shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Virtual Users
-                                            </Label>
-                                            <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    value={soakTestConfig.virtualUsers}
-                                                    onChange={(e) =>
-                                                        setSoakTestConfig((prev) => ({
-                                                            ...prev,
-                                                            virtualUsers:
-                                                                e.target.value === ""
-                                                                    ? ""
-                                                                    : parseInt(e.target.value),
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (Number(soakTestConfig.virtualUsers) > 2000 ||
-                                                            Number(soakTestConfig.virtualUsers) < 1) &&
-                                                            soakTestConfig.virtualUsers !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            {Number(soakTestConfig.virtualUsers) > 10000 && (
-                                                <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 10000 VUs
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 block">
-                                                    Duration
-                                                </Label>
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Info className="w-3 h-3 text-gray-400 cursor-help" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="text-xs">
-                                                                Supports: s, m, h (e.g., 4h, 30m)
-                                                            </p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <div className="relative">
-                                                <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="text"
-                                                    value={soakTestConfig.durationHours}
-                                                    onChange={(e) =>
-                                                        setSoakTestConfig((prev) => ({
-                                                            ...prev,
-                                                            durationHours: e.target.value,
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm",
-                                                        (parseDuration(soakTestConfig.durationHours) >
-                                                            86400 ||
-                                                            parseDuration(soakTestConfig.durationHours) <
-                                                            1) &&
-                                                            soakTestConfig.durationHours !== ""
-                                                            ? "border-red-500 focus-visible:ring-red-500"
-                                                            : "",
-                                                    )}
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            {parseDuration(soakTestConfig.durationHours) > 86400 && (
-                                                <p className="text-[10px] text-red-500 mt-1 font-bold">
-                                                    Max 24h
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 pt-8">
-                                        <Button
-                                            onClick={handleSoakTest}
-                                            disabled={
-                                                !soakTargetUrl ||
-                                                isSoakLoading ||
-                                                Number(soakTestConfig.virtualUsers) < 1 ||
-                                                Number(soakTestConfig.virtualUsers) > 2000 ||
-                                                parseDuration(soakTestConfig.durationHours) < 1 ||
-                                                parseDuration(soakTestConfig.durationHours) > 86400
-                                            }
-                                            className="h-14 w-full bg-indigo-900 hover:bg-slate-900 text-white rounded-2xl shadow-lg shadow-indigo-900/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-950 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="relative z-10 flex items-center justify-center">
-                                                {isSoakLoading ? (
-                                                    <RefreshCw className="w-5 h-5 mr-3 animate-spin" />
-                                                ) : (
-                                                    <Play className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                                                )}
-                                                {isSoakLoading
-                                                    ? "EXECUTING TEST..."
-                                                    : "INITIATE SOAK TEST"}
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Progress Bar for Soak Test */}
-                        {isSoakLoading && activeModule === "soak" && (
-                            <div className="bg-white rounded-xl p-8 border border-indigo-100 shadow-sm text-center">
-                                <RefreshCw className="w-16 h-16 text-indigo-600 mx-auto mb-4 animate-spin" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                    Executing Soak Test...
-                                </h3>
-                                <p className="text-gray-500 mb-4">
-                                    Sustaining {soakTestConfig.virtualUsers} users for{" "}
-                                    {soakTestConfig.durationHours} hours
-                                </p>
-                                <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
-                                    <div
-                                        className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                                        style={{ width: `${progress}%` }}
-                                    ></div>
-                                </div>
-                                <p className="text-sm text-gray-400 mt-2">
-                                    {progress}% completed
-                                </p>
-                            </div>
-                        )}
-
-
-
-                        {/* Metrics display */}
-                        {loadTestResult && (loadTestResult.type === "soak" || loadTestResult.type === "endurance") && (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Requests/sec
-                                        </h4>
-                                        <p className="text-2xl font-bold text-indigo-600 mt-1">
-                                            {loadTestResult?.avgRps
-                                                ? loadTestResult.avgRps.toFixed(1)
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Throughput</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            P95 Latency
-                                        </h4>
-                                        <p className="text-2xl font-bold text-indigo-600 mt-1">
-                                            {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">95th percentile</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Success Rate
-                                        </h4>
-                                        <p
-                                            className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
-                                        >
-                                            {loadTestResult?.successRate
-                                                ? `${loadTestResult.successRate.toFixed(1)}%`
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Success rate</p>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-4 border shadow-sm">
-                                        <h4 className="font-semibold text-gray-900 text-sm">
-                                            Total Requests
-                                        </h4>
-                                        <p className="text-2xl font-bold text-gray-900 mt-1">
-                                            {loadTestResult?.totalRequests
-                                                ? loadTestResult.totalRequests.toLocaleString()
-                                                : "..."}
-                                        </p>
-                                        <p className="text-xs text-gray-500">Completed</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <LatencyDistributionChart
-                                        p50={loadTestResult.p50}
-                                        p75={loadTestResult.p75}
-                                        p90={loadTestResult.p90}
-                                        p95={loadTestResult.p95}
-                                        p99={loadTestResult.p99}
-                                        max={loadTestResult.max}
-                                    />
-                                    <RealTimeMetricsChart data={loadTestResult.timeline} />
-                                    <VirtualUsersChart data={loadTestResult.vuTimeline} />
-                                </div>
-                            </>
-                        )}
-
-                        {!loadTestResult && !isSoakLoading && (
-                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                                <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                    Soak Analysis
-                                </h3>
-                                <p className="text-gray-500">
-                                    Start a soak test to monitor system health over time.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Volume Test Tab */}
-                {activeModule === "volume" && (
-                    <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Volume Testing
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Test performance with large data volumes in the database
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-blue-500/5 border-blue-50/50">
-                            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
-                                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
-                                    <BarChart3 className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-none">
-                                        Configure Volume Test
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Test performance with large data volumes
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    {/* URL Input */}
-                                    <div className="md:col-span-12">
-                                        <Label
-                                            htmlFor="volume-url"
-                                            className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
-                                        >
-                                            Target URL
-                                        </Label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-blue-600 transition-colors" />
-                                            </div>
-                                            <Input
-                                                id="volume-url"
-                                                placeholder="https://api.example.com/endpoint"
-                                                className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-blue-700 focus:ring-blue-700/10 transition-all rounded-xl shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Data Volume (records)
-                                            </Label>
-                                            <div className="relative">
-                                                <List className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="1000000"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Concurrent Users
-                                            </Label>
-                                            <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="100"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 pt-8">
-                                        <Button className="h-14 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="relative z-10 flex items-center justify-center">
-                                                <BarChart3 className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                                                INITIATE VOLUME TEST
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                Data Volume Analysis
-                            </h3>
-                            <p className="text-gray-500">
-                                Start a volume test to measure data handling performance.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Scalability Test Tab */}
-                {activeModule === "scalability" && (
-                    <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Scalability Testing
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Determine the system's ability to handle increasing loads
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-green-500/5 border-green-50/50">
-                            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
-                                <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center text-white shadow-lg shadow-green-600/30">
-                                    <TrendingUp className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-none">
-                                        Configure Scalability Test
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Determine system growth capacity
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    {/* URL Input */}
-                                    <div className="md:col-span-12">
-                                        <Label
-                                            htmlFor="scalability-url"
-                                            className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
-                                        >
-                                            Target URL
-                                        </Label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-green-600 transition-colors" />
-                                            </div>
-                                            <Input
-                                                id="scalability-url"
-                                                placeholder="https://api.example.com/endpoint"
-                                                className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-green-700 focus:ring-green-700/10 transition-all rounded-xl shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Start Load
-                                            </Label>
-                                            <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="10"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Max Load
-                                            </Label>
-                                            <div className="relative">
-                                                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="10000"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Increment
-                                            </Label>
-                                            <div className="relative">
-                                                <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="100"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 pt-8">
-                                        <Button className="h-14 w-full bg-green-600 hover:bg-green-700 text-white rounded-2xl shadow-lg shadow-green-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="relative z-10 flex items-center justify-center">
-                                                <TrendingUp className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                                                INITIATE SCALABILITY TEST
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                Scaling Analysis
-                            </h3>
-                            <p className="text-gray-500">
-                                Start a scalability test to measure growth capacity.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Capacity Test Tab */}
-                {activeModule === "capacity" && (
-                    <div className="space-y-6">
-                        <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Capacity Testing
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Find the maximum load your system can handle
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-6 border shadow-lg shadow-cyan-500/5 border-cyan-50/50">
-                            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
-                                <div className="w-10 h-10 rounded-xl bg-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-600/30">
-                                    <Gauge className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-none">
-                                        Configure Capacity Test
-                                    </h3>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Identify system limits before degradation
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                                    {/* URL Input */}
-                                    <div className="md:col-span-12">
-                                        <Label
-                                            htmlFor="capacity-url"
-                                            className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
-                                        >
-                                            Target URL
-                                        </Label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-cyan-600 transition-colors" />
-                                            </div>
-                                            <Input
-                                                id="capacity-url"
-                                                placeholder="https://api.example.com/endpoint"
-                                                className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-cyan-700 focus:ring-cyan-700/10 transition-all rounded-xl shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Performance Threshold
-                                            </Label>
-                                            <div className="relative">
-                                                <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="500"
-                                                    placeholder="0"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
-                                                Error Rate Limit (%)
-                                            </Label>
-                                            <div className="relative">
-                                                <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <Input
-                                                    type="number"
-                                                    defaultValue="1"
-                                                    max="100"
-                                                    className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-12 pt-8">
-                                        <Button className="h-14 w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl shadow-lg shadow-cyan-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-700 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                            <div className="relative z-10 flex items-center justify-center">
-                                                <Gauge className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                                                INITIATE CAPACITY TEST
-                                            </div>
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
-                            <Gauge className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                                Capacity Limits
-                            </h3>
-                            <p className="text-gray-500">
-                                Start a capacity test to identify system limits.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Results Tab */}
-                {activeModule === "results" && (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
+                {
+                    activeModule === "spike" && (
+                        <div className="space-y-6">
+                            <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-gray-900">
-                                    Test Results & History
+                                    Spike Testing
                                 </h2>
                                 <p className="text-sm text-gray-500">
-                                    View past test runs, trends, and comparisons
+                                    Tests how the system reacts when traffic suddenly increases.
                                 </p>
                             </div>
-                            <ReportExport data={demoReportData} />
-                        </div>
 
-                        {/* Test Comparison */}
-                        <TestComparison tests={demoTestResults} />
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-red-500/5 border-red-50/50">
+                                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
+                                    <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-lg shadow-red-600/30">
+                                        <Zap className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                            Configure Spike Test
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Test system reaction to sudden traffic surges
+                                        </p>
+                                    </div>
+                                </div>
 
-                        {/* Historical Trend */}
-                        <HistoricalTrendChart
-                            data={generateDemoTrendData(60)}
-                            title="Performance History"
-                        />
-
-                        {/* Recent Tests */}
-                        <div className="bg-white rounded-xl border shadow-sm">
-                            <div className="p-6 border-b border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    Recent Test Runs
-                                </h3>
-                            </div>
-                            <div className="divide-y divide-gray-100">
-                                {demoTestResults.map((test) => (
-                                    <div
-                                        key={test.id}
-                                        className="p-4 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${test.testType === "lighthouse"
-                                                        ? "bg-teal-100"
-                                                        : test.testType === "load"
-                                                            ? "bg-purple-100"
-                                                            : "bg-orange-100"
-                                                        }`}
-                                                >
-                                                    {test.testType === "lighthouse" ? (
-                                                        <Zap className={`w-5 h-5 text-teal-600`} />
-                                                    ) : test.testType === "load" ? (
-                                                        <TrendingUp className={`w-5 h-5 text-purple-600`} />
-                                                    ) : (
-                                                        <Activity className={`w-5 h-5 text-orange-600`} />
-                                                    )}
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                        {/* URL Input */}
+                                        <div className="md:col-span-12">
+                                            <Label
+                                                htmlFor="spike-url"
+                                                className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
+                                            >
+                                                Target URL
+                                            </Label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-red-600 transition-colors" />
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">
-                                                        {test.name}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500">
-                                                        {new Date(test.timestamp).toLocaleDateString()} at{" "}
-                                                        {new Date(test.timestamp).toLocaleTimeString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                {test.metrics.performance !== undefined && (
-                                                    <div className="text-right">
-                                                        <p className="text-sm text-gray-500">Score</p>
-                                                        <p
-                                                            className={`text-lg font-bold ${test.metrics.performance >= 90
-                                                                ? "text-green-600"
-                                                                : test.metrics.performance >= 50
-                                                                    ? "text-amber-600"
-                                                                    : "text-red-600"
-                                                                }`}
-                                                        >
-                                                            {test.metrics.performance}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                                {test.metrics.rps !== undefined && (
-                                                    <div className="text-right">
-                                                        <p className="text-sm text-gray-500">RPS</p>
-                                                        <p className="text-lg font-bold text-purple-600">
-                                                            {test.metrics.rps}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                                <Button variant="ghost" size="sm">
-                                                    View
-                                                </Button>
+                                                <Input
+                                                    id="spike-url"
+                                                    value={spikeTargetUrl}
+                                                    onChange={(e) => setSpikeTargetUrl(e.target.value)}
+                                                    placeholder="https://api.example.com/endpoint"
+                                                    className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-red-700 focus:ring-red-700/10 transition-all rounded-xl shadow-sm"
+                                                />
                                             </div>
                                         </div>
+                                        <div className="md:col-span-12 pt-6 border-t border-gray-100">
+                                            {/* Method dropdown */}
+                                            <div className="mb-4">
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Method
+                                                </Label>
+                                                <Select
+                                                    defaultValue="GET"
+                                                    value={spikeTestMethod}
+                                                    onValueChange={(val) => setSpikeTestMethod(val)}
+                                                >
+                                                    <SelectTrigger className="h-12 w-full md:w-48 rounded-xl bg-white border-2 border-gray-300 shadow-sm text-sm font-medium">
+                                                        {spikeTestMethod}
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="GET">
+                                                            <span className="font-bold text-xs text-emerald-600">GET</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="POST">
+                                                            <span className="font-bold text-xs text-blue-600">POST</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="PUT">
+                                                            <span className="font-bold text-xs text-amber-600">PUT</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="DELETE">
+                                                            <span className="font-bold text-xs text-red-600">DELETE</span>
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="flex items-center justify-between mb-4">
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+                                                    Stages (K6 Load Profile)
+                                                </Label>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setSpikeTestStages([
+                                                            ...spikeTestStages,
+                                                            { duration: "30s", target: 100 },
+                                                        ])
+                                                    }
+                                                    className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-bold"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" /> ADD STAGE
+                                                </Button>
+                                            </div>
+                                            <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                                {spikeTestStages.map((stage, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 group"
+                                                    >
+                                                        <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                            {index + 1}
+                                                        </div>
+                                                        <div className="flex-1 grid grid-cols-2 gap-3">
+                                                            <div className="relative">
+                                                                <Timer className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                <Input
+                                                                    value={stage.duration}
+                                                                    onChange={(e) => {
+                                                                        const newStages = [...spikeTestStages];
+                                                                        newStages[index].duration = e.target.value;
+                                                                        setSpikeTestStages(newStages);
+                                                                    }}
+                                                                    className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                    placeholder="Duration (e.g. 10s)"
+                                                                />
+                                                            </div>
+                                                            <div className="relative">
+                                                                <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                <Input
+                                                                    type="number"
+                                                                    value={stage.target}
+                                                                    onChange={(e) => {
+                                                                        const newStages = [...spikeTestStages];
+                                                                        newStages[index].target = parseInt(e.target.value) || 0;
+                                                                        setSpikeTestStages(newStages);
+                                                                    }}
+                                                                    className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                    placeholder="Target VUs"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                setSpikeTestStages(
+                                                                    spikeTestStages.filter((_, i) => i !== index)
+                                                                )
+                                                            }
+                                                            className="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-3">
+                                                Spike test: Normal load → sudden spike → hold → return. Define stages to control traffic bursts.
+                                            </p>
+                                        </div>
+
+                                        <div className="md:col-span-12 pt-8">
+                                            <Button
+                                                onClick={handleSpikeTest}
+                                                disabled={
+                                                    !spikeTargetUrl ||
+                                                    isSpikeLoading ||
+                                                    spikeTestStages.length === 0
+                                                }
+                                                className="h-14 w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                <div className="relative z-10 flex items-center justify-center">
+                                                    {isSpikeLoading ? (
+                                                        <RefreshCw className="w-5 h-5 mr-3 animate-spin" />
+                                                    ) : (
+                                                        <Zap className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
+                                                    )}
+                                                    {isSpikeLoading
+                                                        ? "EXECUTING TEST..."
+                                                        : "INITIATE SPIKE TEST"}
+                                                </div>
+                                            </Button>
+                                        </div>
                                     </div>
-                                ))}
+                                </div>
+                            </div>
+
+                            {/* Live Load Profile Preview for Spike Test */}
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-red-500/5 border-red-50/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                        Live Load Profile Preview
+                                    </h4>
+                                    <div className="px-2 py-1 rounded bg-red-100 text-red-600 text-[8px] font-bold uppercase">
+                                        Dynamic
+                                    </div>
+                                </div>
+                                <div className="min-h-[250px] relative">
+                                    <VirtualUsersChart
+                                        data={[
+                                            {
+                                                timestamp: "Start",
+                                                activeVUs: 0,
+                                                targetVUs: 0,
+                                            },
+                                            ...spikeTestStages.map((s, i) => ({
+                                                timestamp: `S${i + 1}`,
+                                                activeVUs: s.target,
+                                                targetVUs: s.target,
+                                            })),
+                                        ]}
+                                    />
+                                </div>
+                                <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                                Max Concurrency
+                                            </p>
+                                            <p className="text-xl font-black text-gray-900">
+                                                {Math.max(
+                                                    ...spikeTestStages.map((s) => s.target),
+                                                    0,
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="w-px h-8 bg-gray-100" />
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                                Estimated Duration
+                                            </p>
+                                            <p className="text-xl font-black text-gray-900">
+                                                {spikeTestStages.reduce((acc, s) => acc + (parseDuration(s.duration) || 0), 0)}s
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar for Spike Test */}
+                            {isSpikeLoading && activeModule === "spike" && (
+                                <div className="bg-white rounded-xl p-8 border border-red-100 shadow-sm text-center">
+                                    <RefreshCw className="w-16 h-16 text-red-600 mx-auto mb-4 animate-spin" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                        Executing Spike Test...
+                                    </h3>
+                                    <p className="text-gray-500 mb-4">
+                                        Running {spikeTestStages.length} stages with max{" "}
+                                        {Math.max(...spikeTestStages.map(s => s.target))} VUs
+                                    </p>
+                                    <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+                                        <div
+                                            className="bg-red-600 h-2.5 rounded-full transition-all duration-500"
+                                            style={{ width: `${progress}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
+
+
+                            {/* Metrics display */}
+                            {loadTestResult && loadTestResult.type === "spike" && (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Requests/sec
+                                            </h4>
+                                            <p className="text-2xl font-bold text-red-600 mt-1">
+                                                {loadTestResult?.avgRps
+                                                    ? loadTestResult.avgRps.toFixed(1)
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Throughput</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                P95 Latency
+                                            </h4>
+                                            <p className="text-2xl font-bold text-red-600 mt-1">
+                                                {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">95th percentile</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Success Rate
+                                            </h4>
+                                            <p
+                                                className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
+                                            >
+                                                {loadTestResult?.successRate
+                                                    ? `${loadTestResult.successRate.toFixed(1)}%`
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Success rate</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Total Requests
+                                            </h4>
+                                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                                                {loadTestResult?.totalRequests
+                                                    ? loadTestResult.totalRequests.toLocaleString()
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Completed</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <LatencyDistributionChart
+                                            p50={loadTestResult.p50}
+                                            p75={loadTestResult.p75}
+                                            p90={loadTestResult.p90}
+                                            p95={loadTestResult.p95}
+                                            p99={loadTestResult.p99}
+                                            max={loadTestResult.max}
+                                        />
+                                        <RealTimeMetricsChart data={loadTestResult.timeline} />
+                                        <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Chart placeholder */}
+                            {(!loadTestResult || loadTestResult.type !== "spike") && !isSpikeLoading && (
+                                <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                    <Zap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                        Spike Analysis
+                                    </h3>
+                                    <p className="text-gray-500">
+                                        Start a spike test to analyze system stability.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
+
+                {/* Soak Test Tab */}
+                {
+                    activeModule === "soak" && (
+                        <div className="space-y-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Soak Testing
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Tests how the system performs over a long time to find slowdowns
+                                    or memory issues
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-indigo-500/5 border-indigo-50/50">
+                                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-900 flex items-center justify-center text-white shadow-lg shadow-indigo-900/30">
+                                        <Clock className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                            Configure Soak Test
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Monitor system health over extended periods
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                        {/* URL Input */}
+                                        <div className="md:col-span-12">
+                                            <Label
+                                                htmlFor="endurance-url"
+                                                className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
+                                            >
+                                                Target URL
+                                            </Label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-indigo-600 transition-colors" />
+                                                </div>
+                                                <Input
+                                                    id="endurance-url"
+                                                    value={soakTargetUrl}
+                                                    onChange={(e) => setSoakTargetUrl(e.target.value)}
+                                                    placeholder="https://api.example.com/endpoint"
+                                                    className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-indigo-700 focus:ring-indigo-700/10 transition-all rounded-xl shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="md:col-span-12 pt-6 border-t border-gray-100">
+                                            {/* Method dropdown */}
+                                            <div className="mb-4">
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Method
+                                                </Label>
+                                                <Select
+                                                    defaultValue="GET"
+                                                    value={soakTestMethod}
+                                                    onValueChange={(val) => setSoakTestMethod(val)}
+                                                >
+                                                    <SelectTrigger className="h-12 w-full md:w-48 rounded-xl bg-white border-2 border-gray-300 shadow-sm text-sm font-medium">
+                                                        {soakTestMethod}
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="GET">
+                                                            <span className="font-bold text-xs text-emerald-600">GET</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="POST">
+                                                            <span className="font-bold text-xs text-blue-600">POST</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="PUT">
+                                                            <span className="font-bold text-xs text-amber-600">PUT</span>
+                                                        </SelectItem>
+                                                        <SelectItem value="DELETE">
+                                                            <span className="font-bold text-xs text-red-600">DELETE</span>
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="flex items-center justify-between mb-4">
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+                                                    Stages (K6 Load Profile)
+                                                </Label>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setSoakTestStages([
+                                                            ...soakTestStages,
+                                                            { duration: "30m", target: 100 },
+                                                        ])
+                                                    }
+                                                    className="h-8 px-3 rounded-lg border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-[10px] font-bold"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" /> ADD STAGE
+                                                </Button>
+                                            </div>
+                                            <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                                {soakTestStages.map((stage, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 group"
+                                                    >
+                                                        <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                            {index + 1}
+                                                        </div>
+                                                        <div className="flex-1 grid grid-cols-2 gap-3">
+                                                            <div className="relative">
+                                                                <Timer className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                <Input
+                                                                    value={stage.duration}
+                                                                    onChange={(e) => {
+                                                                        const newStages = [...soakTestStages];
+                                                                        newStages[index].duration = e.target.value;
+                                                                        setSoakTestStages(newStages);
+                                                                    }}
+                                                                    className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                    placeholder="Duration (e.g. 4h)"
+                                                                />
+                                                            </div>
+                                                            <div className="relative">
+                                                                <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                                                <Input
+                                                                    type="number"
+                                                                    value={stage.target}
+                                                                    onChange={(e) => {
+                                                                        const newStages = [...soakTestStages];
+                                                                        newStages[index].target = parseInt(e.target.value) || 0;
+                                                                        setSoakTestStages(newStages);
+                                                                    }}
+                                                                    className="pl-8 h-10 text-xs font-medium bg-white border-gray-200 rounded-lg"
+                                                                    placeholder="Target VUs"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                setSoakTestStages(
+                                                                    soakTestStages.filter((_, i) => i !== index)
+                                                                )
+                                                            }
+                                                            className="w-8 h-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-3">
+                                                Soak test: Maintain steady load for extended periods. Use hours (h) for duration to test endurance.
+                                            </p>
+                                        </div>
+
+                                        <div className="md:col-span-12 pt-8">
+                                            <Button
+                                                onClick={handleSoakTest}
+                                                disabled={
+                                                    !soakTargetUrl ||
+                                                    isSoakLoading ||
+                                                    soakTestStages.length === 0
+                                                }
+                                                className="h-14 w-full bg-indigo-900 hover:bg-slate-900 text-white rounded-2xl shadow-lg shadow-indigo-900/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-950 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                <div className="relative z-10 flex items-center justify-center">
+                                                    {isSoakLoading ? (
+                                                        <RefreshCw className="w-5 h-5 mr-3 animate-spin" />
+                                                    ) : (
+                                                        <Play className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
+                                                    )}
+                                                    {isSoakLoading
+                                                        ? "EXECUTING TEST..."
+                                                        : "INITIATE SOAK TEST"}
+                                                </div>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Live Load Profile Preview for Soak Test */}
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-indigo-500/5 border-indigo-50/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                        Live Load Profile Preview
+                                    </h4>
+                                    <div className="px-2 py-1 rounded bg-indigo-100 text-indigo-600 text-[8px] font-bold uppercase">
+                                        Dynamic
+                                    </div>
+                                </div>
+                                <div className="min-h-[250px] relative">
+                                    <VirtualUsersChart
+                                        data={[
+                                            {
+                                                timestamp: "Start",
+                                                activeVUs: 0,
+                                                targetVUs: 0,
+                                            },
+                                            ...soakTestStages.map((s, i) => ({
+                                                timestamp: `S${i + 1}`,
+                                                activeVUs: s.target,
+                                                targetVUs: s.target,
+                                            })),
+                                        ]}
+                                    />
+                                </div>
+                                <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                                Max Concurrency
+                                            </p>
+                                            <p className="text-xl font-black text-gray-900">
+                                                {Math.max(
+                                                    ...soakTestStages.map((s) => s.target),
+                                                    0,
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="w-px h-8 bg-gray-100" />
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase mb-1">
+                                                Estimated Duration
+                                            </p>
+                                            <p className="text-xl font-black text-gray-900">
+                                                {soakTestStages.reduce((acc, s) => acc + (parseDuration(s.duration) || 0), 0)}s
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar for Soak Test */}
+                            {isSoakLoading && activeModule === "soak" && (
+                                <div className="bg-white rounded-xl p-8 border border-indigo-100 shadow-sm text-center">
+                                    <RefreshCw className="w-16 h-16 text-indigo-600 mx-auto mb-4 animate-spin" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                        Executing Soak Test...
+                                    </h3>
+                                    <p className="text-gray-500 mb-4">
+                                        Running {soakTestStages.length} stages with max{" "}
+                                        {Math.max(...soakTestStages.map(s => s.target))} VUs
+                                    </p>
+                                    <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+                                        <div
+                                            className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                                            style={{ width: `${progress}%` }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2">
+                                        {progress}% completed
+                                    </p>
+                                </div>
+                            )}
+
+
+
+                            {/* Metrics display */}
+                            {loadTestResult && (loadTestResult.type === "soak" || loadTestResult.type === "endurance") && (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Requests/sec
+                                            </h4>
+                                            <p className="text-2xl font-bold text-indigo-600 mt-1">
+                                                {loadTestResult?.avgRps
+                                                    ? loadTestResult.avgRps.toFixed(1)
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Throughput</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                P95 Latency
+                                            </h4>
+                                            <p className="text-2xl font-bold text-indigo-600 mt-1">
+                                                {loadTestResult?.p95 ? `${loadTestResult.p95}ms` : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">95th percentile</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Success Rate
+                                            </h4>
+                                            <p
+                                                className={`text-2xl font-bold mt-1 ${loadTestResult?.successRate && loadTestResult.successRate > 99 ? "text-green-600" : loadTestResult?.successRate ? "text-amber-600" : "text-gray-600"}`}
+                                            >
+                                                {loadTestResult?.successRate
+                                                    ? `${loadTestResult.successRate.toFixed(1)}%`
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Success rate</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-4 border shadow-sm">
+                                            <h4 className="font-semibold text-gray-900 text-sm">
+                                                Total Requests
+                                            </h4>
+                                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                                                {loadTestResult?.totalRequests
+                                                    ? loadTestResult.totalRequests.toLocaleString()
+                                                    : "..."}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Completed</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <LatencyDistributionChart
+                                            p50={loadTestResult.p50}
+                                            p75={loadTestResult.p75}
+                                            p90={loadTestResult.p90}
+                                            p95={loadTestResult.p95}
+                                            p99={loadTestResult.p99}
+                                            max={loadTestResult.max}
+                                        />
+                                        <RealTimeMetricsChart data={loadTestResult.timeline} />
+                                        <VirtualUsersChart data={loadTestResult.vuTimeline} />
+                                    </div>
+                                </>
+                            )}
+
+                            {!loadTestResult && !isSoakLoading && (
+                                <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                        Soak Analysis
+                                    </h3>
+                                    <p className="text-gray-500">
+                                        Start a soak test to monitor system health over time.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
+
+                {/* Volume Test Tab */}
+                {
+                    activeModule === "volume" && (
+                        <div className="space-y-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Volume Testing
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Test performance with large data volumes in the database
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-blue-500/5 border-blue-50/50">
+                                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+                                        <BarChart3 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                            Configure Volume Test
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Test performance with large data volumes
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                        {/* URL Input */}
+                                        <div className="md:col-span-12">
+                                            <Label
+                                                htmlFor="volume-url"
+                                                className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
+                                            >
+                                                Target URL
+                                            </Label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-blue-600 transition-colors" />
+                                                </div>
+                                                <Input
+                                                    id="volume-url"
+                                                    placeholder="https://api.example.com/endpoint"
+                                                    className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-blue-700 focus:ring-blue-700/10 transition-all rounded-xl shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Data Volume (records)
+                                                </Label>
+                                                <div className="relative">
+                                                    <List className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="1000000"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Concurrent Users
+                                                </Label>
+                                                <div className="relative">
+                                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="100"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 pt-8">
+                                            <Button className="h-14 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                <div className="relative z-10 flex items-center justify-center">
+                                                    <BarChart3 className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
+                                                    INITIATE VOLUME TEST
+                                                </div>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Data Volume Analysis
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a volume test to measure data handling performance.
+                                </p>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
+
+                {/* Scalability Test Tab */}
+                {
+                    activeModule === "scalability" && (
+                        <div className="space-y-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Scalability Testing
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Determine the system's ability to handle increasing loads
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-green-500/5 border-green-50/50">
+                                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
+                                    <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center text-white shadow-lg shadow-green-600/30">
+                                        <TrendingUp className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                            Configure Scalability Test
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Determine system growth capacity
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                        {/* URL Input */}
+                                        <div className="md:col-span-12">
+                                            <Label
+                                                htmlFor="scalability-url"
+                                                className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
+                                            >
+                                                Target URL
+                                            </Label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-green-600 transition-colors" />
+                                                </div>
+                                                <Input
+                                                    id="scalability-url"
+                                                    placeholder="https://api.example.com/endpoint"
+                                                    className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-green-700 focus:ring-green-700/10 transition-all rounded-xl shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100">
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Start Load
+                                                </Label>
+                                                <div className="relative">
+                                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="10"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Max Load
+                                                </Label>
+                                                <div className="relative">
+                                                    <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="10000"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Increment
+                                                </Label>
+                                                <div className="relative">
+                                                    <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="100"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 pt-8">
+                                            <Button className="h-14 w-full bg-green-600 hover:bg-green-700 text-white rounded-2xl shadow-lg shadow-green-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                <div className="relative z-10 flex items-center justify-center">
+                                                    <TrendingUp className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
+                                                    INITIATE SCALABILITY TEST
+                                                </div>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Scaling Analysis
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a scalability test to measure growth capacity.
+                                </p>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Capacity Test Tab */}
+                {
+                    activeModule === "capacity" && (
+                        <div className="space-y-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Capacity Testing
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Find the maximum load your system can handle
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-6 border shadow-lg shadow-cyan-500/5 border-cyan-50/50">
+                                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-50">
+                                    <div className="w-10 h-10 rounded-xl bg-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-600/30">
+                                        <Gauge className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                            Configure Capacity Test
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Identify system limits before degradation
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                        {/* URL Input */}
+                                        <div className="md:col-span-12">
+                                            <Label
+                                                htmlFor="capacity-url"
+                                                className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block"
+                                            >
+                                                Target URL
+                                            </Label>
+                                            <div className="relative group">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Globe className="h-4 w-4 text-gray-500 group-focus-within:text-cyan-600 transition-colors" />
+                                                </div>
+                                                <Input
+                                                    id="capacity-url"
+                                                    placeholder="https://api.example.com/endpoint"
+                                                    className="pl-10 h-12 text-base font-medium bg-white border-2 border-gray-300 focus:bg-white focus:border-cyan-700 focus:ring-cyan-700/10 transition-all rounded-xl shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Performance Threshold
+                                                </Label>
+                                                <div className="relative">
+                                                    <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="500"
+                                                        placeholder="0"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-900 mb-2 block">
+                                                    Error Rate Limit (%)
+                                                </Label>
+                                                <div className="relative">
+                                                    <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        type="number"
+                                                        defaultValue="1"
+                                                        max="100"
+                                                        className="pl-10 h-12 text-sm font-medium bg-white border-2 border-gray-300 rounded-xl shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="md:col-span-12 pt-8">
+                                            <Button className="h-14 w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl shadow-lg shadow-cyan-600/20 font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-700 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                <div className="relative z-10 flex items-center justify-center">
+                                                    <Gauge className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
+                                                    INITIATE CAPACITY TEST
+                                                </div>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl p-8 border shadow-sm text-center">
+                                <Gauge className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                                    Capacity Limits
+                                </h3>
+                                <p className="text-gray-500">
+                                    Start a capacity test to identify system limits.
+                                </p>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Results Tab */}
+                {
+                    activeModule === "results" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900">
+                                        Test Results & History
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        View past test runs, trends, and comparisons
+                                    </p>
+                                </div>
+                                <ReportExport data={demoReportData} />
+                            </div>
+
+                            {/* Test Comparison */}
+                            <TestComparison tests={demoTestResults} />
+
+                            {/* Historical Trend */}
+                            <HistoricalTrendChart
+                                data={generateDemoTrendData(60)}
+                                title="Performance History"
+                            />
+
+                            {/* Recent Tests */}
+                            <div className="bg-white rounded-xl border shadow-sm">
+                                <div className="p-6 border-b border-gray-200">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        Recent Test Runs
+                                    </h3>
+                                </div>
+                                <div className="divide-y divide-gray-100">
+                                    {demoTestResults.map((test) => (
+                                        <div
+                                            key={test.id}
+                                            className="p-4 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div
+                                                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${test.testType === "lighthouse"
+                                                            ? "bg-teal-100"
+                                                            : test.testType === "load"
+                                                                ? "bg-purple-100"
+                                                                : "bg-orange-100"
+                                                            }`}
+                                                    >
+                                                        {test.testType === "lighthouse" ? (
+                                                            <Zap className={`w-5 h-5 text-teal-600`} />
+                                                        ) : test.testType === "load" ? (
+                                                            <TrendingUp className={`w-5 h-5 text-purple-600`} />
+                                                        ) : (
+                                                            <Activity className={`w-5 h-5 text-orange-600`} />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900">
+                                                            {test.name}
+                                                        </p>
+                                                        <p className="text-sm text-gray-500">
+                                                            {new Date(test.timestamp).toLocaleDateString()} at{" "}
+                                                            {new Date(test.timestamp).toLocaleTimeString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {test.metrics.performance !== undefined && (
+                                                        <div className="text-right">
+                                                            <p className="text-sm text-gray-500">Score</p>
+                                                            <p
+                                                                className={`text-lg font-bold ${test.metrics.performance >= 90
+                                                                    ? "text-green-600"
+                                                                    : test.metrics.performance >= 50
+                                                                        ? "text-amber-600"
+                                                                        : "text-red-600"
+                                                                    }`}
+                                                            >
+                                                                {test.metrics.performance}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {test.metrics.rps !== undefined && (
+                                                        <div className="text-right">
+                                                            <p className="text-sm text-gray-500">RPS</p>
+                                                            <p className="text-lg font-bold text-purple-600">
+                                                                {test.metrics.rps}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    <Button variant="ghost" size="sm">
+                                                        View
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
 
                 {/* Create Test Wizard Dialog */}
                 <Dialog open={showWizard} onOpenChange={setShowWizard}>
@@ -3628,7 +3931,7 @@ export default function PerformanceTestingPage() {
                         />
                     </DialogContent>
                 </Dialog>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

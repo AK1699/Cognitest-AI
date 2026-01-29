@@ -318,13 +318,50 @@ interface VirtualUsersChartProps {
  * Shows active vs target virtual users over time
  */
 export function VirtualUsersChart({ data }: VirtualUsersChartProps) {
+    // Custom tick component to show stage name and VU count
+    const CustomXAxisTick = ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+        const dataPoint = data.find(d => d.timestamp === payload.value);
+        const vuCount = dataPoint?.targetVUs ?? dataPoint?.activeVUs ?? 0;
+
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text
+                    x={0}
+                    y={0}
+                    dy={12}
+                    textAnchor="middle"
+                    fill="#374151"
+                    fontSize={12}
+                    fontWeight={500}
+                >
+                    {payload.value}
+                </text>
+                <text
+                    x={0}
+                    y={0}
+                    dy={26}
+                    textAnchor="middle"
+                    fill="#9CA3AF"
+                    fontSize={10}
+                >
+                    {vuCount} VUs
+                </text>
+            </g>
+        );
+    };
+
     return (
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
+        <div className="bg-white rounded-xl p-6 pb-10 border shadow-sm overflow-visible">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Virtual Users</h3>
-            <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={data}>
+            <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 50 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="timestamp" />
+                    <XAxis
+                        dataKey="timestamp"
+                        tick={CustomXAxisTick as any}
+                        height={60}
+                        interval={0}
+                    />
                     <YAxis />
                     <Tooltip
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
