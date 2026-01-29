@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import {
     Zap,
     TrendingUp,
+    Users,
     Activity,
     Globe,
     Play,
@@ -185,94 +186,98 @@ export function PerformanceTestList({ projectId, refreshTrigger = 0, onTestExecu
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-4">
             {tests.map(test => {
                 const typeInfo = testTypeIcons[test.test_type] || testTypeIcons.lighthouse
                 const Icon = typeInfo.icon
 
                 return (
-                    <div key={test.id} className="bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow group">
-                        <div className="p-5">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={`w-10 h-10 rounded-lg ${typeInfo.bg} flex items-center justify-center`}>
-                                    <Icon className={`w-5 h-5 ${typeInfo.color}`} />
+                    <div key={test.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group p-4 flex flex-col md:flex-row md:items-center gap-6">
+                        {/* Icon & Name Info */}
+                        <div className="flex items-center gap-4 flex-1">
+                            <div className={`w-12 h-12 rounded-xl ${typeInfo.bg} flex items-center justify-center shrink-0 shadow-sm`}>
+                                <Icon className={`w-6 h-6 ${typeInfo.color}`} />
+                            </div>
+                            <div className="min-w-0 pr-4">
+                                <h3 className="font-bold text-gray-900 line-clamp-1 text-base leading-tight" title={test.name}>{test.name}</h3>
+                                <p className="text-sm text-gray-500 line-clamp-1 mt-0.5 font-medium opacity-80" title={test.target_url}>{test.target_url}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                        {test.test_type === 'endurance' ? 'SOAK' : test.test_type.toUpperCase()}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 font-medium">
+                                        Created {test.created_at ? formatDistanceToNow(new Date(test.created_at), { addSuffix: true }) : 'Just now'}
+                                    </span>
                                 </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MoreVertical className="w-4 h-4 text-gray-400" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            className="cursor-pointer"
-                                            onClick={() => onEditTest?.(test)}
-                                        >
-                                            <Edit2 className="w-4 h-4 mr-2" />
-                                            Edit Configuration
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="text-red-600 focus:text-red-600 cursor-pointer"
-                                            onClick={() => setTestToDelete(test)}
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-2" />
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                             </div>
+                        </div>
 
-                            <div className="mb-4">
-                                <h3 className="font-semibold text-gray-900 line-clamp-1" title={test.name}>{test.name}</h3>
-                                <p className="text-sm text-gray-500 line-clamp-1" title={test.target_url}>{test.target_url}</p>
-                            </div>
+                        {/* Config Details */}
+                        <div className="flex items-center gap-3 md:px-6 md:border-x border-gray-100 shrink-0 min-w-[200px]">
+                            {test.test_type === 'lighthouse' ? (
+                                <div className="flex gap-2">
+                                    <div className="flex items-center gap-2 bg-teal-50/50 px-3 py-1.5 rounded-xl border border-teal-100 shadow-sm">
+                                        {test.device_type === 'desktop' ? <Monitor className="w-3.5 h-3.5 text-teal-600" /> : <Smartphone className="w-3.5 h-3.5 text-teal-600" />}
+                                        <span className="text-xs font-bold text-teal-700 capitalize">{test.device_type || 'Mobile'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-teal-50/50 px-3 py-1.5 rounded-xl border border-teal-100 shadow-sm">
+                                        <Zap className="w-3.5 h-3.5 text-teal-600" />
+                                        <span className="text-xs font-bold text-teal-700 capitalize truncate max-w-[80px]">{test.audit_mode || 'Nav'}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <div className="flex items-center gap-2 bg-brand-50/50 px-3 py-1.5 rounded-xl border border-brand-100 shadow-sm">
+                                        <Users className="w-3.5 h-3.5 text-brand-600" />
+                                        <span className="text-xs font-bold text-brand-700">{test.virtual_users || 0} VUs</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-brand-50/50 px-3 py-1.5 rounded-xl border border-brand-100 shadow-sm">
+                                        <Clock className="w-3.5 h-3.5 text-brand-600" />
+                                        <span className="text-xs font-bold text-brand-700">{test.duration_seconds || 0}s</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-2 mb-4 text-[11px] text-gray-600">
-                                {test.test_type === 'lighthouse' ? (
-                                    <>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                            {test.device_type === 'desktop' ? <Monitor className="w-3 h-3 text-brand-600" /> : <Smartphone className="w-3 h-3 text-brand-600" />}
-                                            <span className="capitalize">{test.device_type || 'Mobile'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                            <Zap className="w-3 h-3 text-brand-600" />
-                                            <span className="capitalize truncate">{test.audit_mode || 'Navigation'}</span>
-                                        </div>
-                                    </>
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 shrink-0 ml-auto">
+                            <Button
+                                size="lg"
+                                className="h-11 px-6 bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-600/20 border-none transition-all hover:-translate-y-0.5 active:translate-y-0 rounded-xl font-bold text-sm gap-2"
+                                onClick={() => handleRunTest(test.id)}
+                                disabled={executingId === test.id}
+                            >
+                                {executingId === test.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    <>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                            <TrendingUp className="w-3 h-3 text-brand-600" />
-                                            <span>{test.virtual_users || 0} VUs</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                            <Clock className="w-3 h-3 text-brand-600" />
-                                            <span>{test.duration_seconds || 0}s</span>
-                                        </div>
-                                    </>
+                                    <Play className="w-4 h-4" />
                                 )}
-                            </div>
+                                Run Test
+                            </Button>
 
-                            <div className="flex items-center justify-between pt-4 border-t">
-                                <span className="text-xs text-gray-500">
-                                    {test.created_at ? formatDistanceToNow(new Date(test.created_at), { addSuffix: true }) : 'Just now'}
-                                </span>
-
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="gap-2 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200"
-                                    onClick={() => handleRunTest(test.id)}
-                                    disabled={executingId === test.id}
-                                >
-                                    {executingId === test.id ? (
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    ) : (
-                                        <Play className="w-3.5 h-3.5" />
-                                    )}
-                                    Run
-                                </Button>
-                            </div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-all">
+                                        <MoreVertical className="w-5 h-5 text-gray-400" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 p-2 rounded-xl border-gray-100 shadow-xl">
+                                    <DropdownMenuItem
+                                        className="cursor-pointer gap-2 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-brand-50 hover:text-brand-600"
+                                        onClick={() => onEditTest?.(test)}
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                        Edit Configuration
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-600 cursor-pointer gap-2 py-2.5 rounded-lg font-medium hover:bg-red-50"
+                                        onClick={() => setTestToDelete(test)}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete Test
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 )
