@@ -8,6 +8,35 @@ import json
 from datetime import datetime
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock, patch
+import sys
+
+# ============================================================================
+# MOCK DEPENDENCIES BEFORE IMPORTS
+# ============================================================================
+# These mocks are required to avoid Pydantic/Langchain version conflicts
+sys.modules["app.services.ai_service"] = MagicMock()
+sys.modules["langchain_openai"] = MagicMock()
+sys.modules["langsmith"] = MagicMock()
+sys.modules["app.services.web_automation_service"] = MagicMock()
+
+# Mock cognitest_common and its gemini_service
+mock_common = MagicMock()
+mock_common.__path__ = [] # Make it a package
+sys.modules["cognitest_common"] = mock_common
+
+mock_gemini_service_module = MagicMock()
+class MockSharedGeminiService:
+    pass
+mock_gemini_service_module.GeminiService = MockSharedGeminiService
+sys.modules["cognitest_common.gemini_service"] = mock_gemini_service_module
+
+# Mock database dependencies
+from sqlalchemy.orm import declarative_base
+mock_db_core = MagicMock()
+mock_db_core.AsyncSessionLocal = MagicMock()
+# Use a real declarative base so models can inherit from it correctly
+mock_db_core.Base = declarative_base()
+sys.modules["app.core.database"] = mock_db_core
 
 from app.main import app
 from app.models.security_scan import (
