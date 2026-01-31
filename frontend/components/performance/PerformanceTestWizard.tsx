@@ -139,6 +139,24 @@ const testTypeInfo = {
 export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMode = false, initialData }: PerformanceTestWizardProps) {
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const parseDuration = (duration: string | number): number => {
+        if (typeof duration === 'number') return duration;
+        if (!duration) return 0;
+
+        try {
+            const val = parseInt(duration);
+            if (isNaN(val)) return 0;
+
+            const unit = duration.toLowerCase().trim().replace(/[0-9]/g, '');
+            if (unit.includes('m')) return val * 60;
+            if (unit.includes('h')) return val * 3600;
+            return val;
+        } catch {
+            return 0;
+        }
+    }
+
     const [config, setConfig] = useState<TestConfig>({
         testType: initialData?.test_type === 'endurance' ? 'soak' : initialData?.test_type || 'lighthouse',
         name: initialData?.name || '',
@@ -243,6 +261,8 @@ export function PerformanceTestWizard({ projectId, onComplete, onCancel, editMod
                 }));
                 // Set virtual_users to the max target in stages for legacy/overview compatibility
                 payload.virtual_users = Math.max(...config.stages.map(s => Number(s.target)), 0);
+                // Calculate total duration from stages
+                payload.duration_seconds = config.stages.reduce((acc, s) => acc + parseDuration(s.duration), 0);
             } else {
                 payload.virtual_users = Number(config.virtualUsers) || 50;
             }

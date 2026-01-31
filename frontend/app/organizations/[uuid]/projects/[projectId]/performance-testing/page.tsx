@@ -429,7 +429,14 @@ export default function PerformanceTestingPage() {
                 }
             } else {
                 const error = await response.json().catch(() => ({}));
-                toast.error(error.detail || "Failed to create test");
+                const detail = error.detail;
+                if (Array.isArray(detail)) {
+                    toast.error(detail[0]?.msg || "Failed to create test");
+                } else if (typeof detail === 'object' && detail !== null) {
+                    toast.error(detail.msg || JSON.stringify(detail));
+                } else {
+                    toast.error(detail || "Failed to create test");
+                }
             }
         } catch (error) {
             console.error("Failed to create test:", error);
@@ -485,7 +492,14 @@ export default function PerformanceTestingPage() {
                 }
             } else {
                 const error = await response.json().catch(() => ({}));
-                toast.error(error.detail || "Failed to update test");
+                const detail = error.detail;
+                if (Array.isArray(detail)) {
+                    toast.error(detail[0]?.msg || "Failed to update test");
+                } else if (typeof detail === 'object' && detail !== null) {
+                    toast.error(detail.msg || JSON.stringify(detail));
+                } else {
+                    toast.error(detail || "Failed to update test");
+                }
             }
         } catch (error) {
             console.error("Failed to update test:", error);

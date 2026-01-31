@@ -2,8 +2,9 @@
 Enterprise Performance Testing Module Schemas
 API request/response validation schemas for performance testing
 """
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field, field_validator, validator
+from typing import Optional, List, Dict, Any, Union
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -81,6 +82,39 @@ class AlertSeverity(str, enum.Enum):
     INFO = "info"
 
 
+def parse_k6_duration(duration: Union[int, str]) -> int:
+    """Parse k6-style duration string (e.g. '10s', '1m', '2h') into seconds"""
+    if isinstance(duration, int):
+        return duration
+    
+    if not isinstance(duration, str):
+        return duration
+        
+    try:
+        # Check for numeric string
+        if duration.isdigit():
+            return int(duration)
+            
+        # Match value and unit
+        match = re.match(r'^(\d+)([smh]?)$', duration.lower().strip())
+        if not match:
+            return duration
+            
+        val, unit = match.groups()
+        val = int(val)
+        
+        if unit == 's' or unit == '':
+            return val
+        elif unit == 'm':
+            return val * 60
+        elif unit == 'h':
+            return val * 3600
+        
+        return val
+    except Exception:
+        return duration
+
+
 # ============================================================================
 # Performance Test Schemas
 # ============================================================================
@@ -111,7 +145,25 @@ class PerformanceTestCreate(BaseModel):
     ramp_down_seconds: int = Field(default=10, ge=0, le=300)
     think_time: Optional[float] = Field(default=0, ge=0)
     load_profile: Optional[LoadProfile] = LoadProfile.RAMP_UP
-    stages: Optional[List[Dict[str, int]]] = None  # [{duration: 30, target: 50}]
+    stages: Optional[List[Dict[str, Any]]] = None  # [{duration: 30, target: 50}]
+    
+    @field_validator('stages', mode='before')
+    @classmethod
+    def validate_duration_in_stages(cls, v):
+        if v is None:
+            return v
+        if not isinstance(v, list):
+            return v
+        
+        new_stages = []
+        for stage in v:
+            if isinstance(stage, dict) and 'duration' in stage:
+                new_stage = stage.copy()
+                new_stage['duration'] = parse_k6_duration(stage['duration'])
+                new_stages.append(new_stage)
+            else:
+                new_stages.append(stage)
+        return new_stages
     
     # Thresholds
     thresholds: Dict[str, float] = Field(default_factory=dict)
@@ -142,7 +194,25 @@ class PerformanceTestUpdate(BaseModel):
     ramp_up_seconds: Optional[int] = Field(None, ge=0, le=300)
     ramp_down_seconds: Optional[int] = Field(None, ge=0, le=300)
     load_profile: Optional[LoadProfile] = None
-    stages: Optional[List[Dict[str, int]]] = None
+    stages: Optional[List[Dict[str, Any]]] = None
+    
+    @field_validator('stages', mode='before')
+    @classmethod
+    def validate_duration_in_stages(cls, v):
+        if v is None:
+            return v
+        if not isinstance(v, list):
+            return v
+        
+        new_stages = []
+        for stage in v:
+            if isinstance(stage, dict) and 'duration' in stage:
+                new_stage = stage.copy()
+                new_stage['duration'] = parse_k6_duration(stage['duration'])
+                new_stages.append(new_stage)
+            else:
+                new_stages.append(stage)
+        return new_stages
     
     # Thresholds
     thresholds: Optional[Dict[str, float]] = None
@@ -187,7 +257,7 @@ class PerformanceTestResponse(BaseModel):
     ramp_up_seconds: int
     ramp_down_seconds: int
     load_profile: Optional[LoadProfile]
-    stages: Optional[List[Dict[str, int]]]
+    stages: Optional[List[Dict[str, Any]]]
     
     # Thresholds
     thresholds: Dict[str, float]

@@ -151,6 +151,15 @@ class PerformanceTestingService:
             if value is not None and hasattr(test, key):
                 setattr(test, key, value)
         
+        # If stages were updated, recalculate total duration
+        if 'stages' in update_data and test.stages:
+            total_duration = 0
+            for stage in test.stages:
+                if isinstance(stage, dict) and 'duration' in stage:
+                    total_duration += stage['duration']
+            if total_duration > 0:
+                test.duration_seconds = total_duration
+                
         test.updated_at = datetime.utcnow()
         await self.db.commit()
         await self.db.refresh(test)
