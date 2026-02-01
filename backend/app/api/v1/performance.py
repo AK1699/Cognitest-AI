@@ -188,19 +188,24 @@ async def run_stress_test(
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick stress test"""
-    # Calculate stages dynamically based on request
-    steps = int((request.max_vus - request.start_vus) / request.step_increase)
-    stages = [
-        {"duration": request.step_duration_seconds, "target": request.start_vus + (request.step_increase * i)}
-        for i in range(steps + 1)
-    ]
+    # Calculate stages dynamically based on request if not provided
+    stages = request.stages
+    if not stages:
+        steps = int((request.max_vus - request.start_vus) / request.step_increase)
+        stages = [
+            {"duration": request.step_duration_seconds, "target": request.start_vus + (request.step_increase * i)}
+            for i in range(steps + 1)
+        ]
+    
+    # Identify max VUs from stages
+    max_vus = max([s.get("target", 0) for s in stages]) if stages else request.max_vus
     
     test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Stress Test: {request.target_url}",
         test_type=TestType.STRESS,
         target_url=request.target_url,
-        virtual_users=request.max_vus,
+        virtual_users=max_vus,
         stages=stages
     )
     
@@ -223,34 +228,33 @@ async def run_spike_test(
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
     """Run a quick spike test"""
-    # Create spike stages
-    # 1. Warmup (20%)
-    # 2. Spike (10% ramp up)
-    # 3. Hold Spike (40%)
-    # 4. Ramp Down (10%)
-    # 5. Cooldown (20%)
+    # Create spike stages if not provided
+    stages = request.stages
+    if not stages:
+        total_duration = request.total_duration_seconds
+        warmup = int(total_duration * 0.2)
+        spike_up = int(total_duration * 0.1)
+        spike_hold = int(total_duration * 0.4)
+        spike_down = int(total_duration * 0.1)
+        cooldown = int(total_duration * 0.2)
+        
+        stages = [
+            {"duration": warmup, "target": request.base_users},
+            {"duration": spike_up, "target": request.spike_users},
+            {"duration": spike_hold, "target": request.spike_users},
+            {"duration": spike_down, "target": request.base_users},
+            {"duration": cooldown, "target": request.base_users}
+        ]
     
-    total_duration = request.total_duration_seconds
-    warmup = int(total_duration * 0.2)
-    spike_up = int(total_duration * 0.1)
-    spike_hold = int(total_duration * 0.4)
-    spike_down = int(total_duration * 0.1)
-    cooldown = int(total_duration * 0.2)
-    
-    stages = [
-        {"duration": warmup, "target": request.base_users},
-        {"duration": spike_up, "target": request.spike_users},
-        {"duration": spike_hold, "target": request.spike_users},
-        {"duration": spike_down, "target": request.base_users},
-        {"duration": cooldown, "target": request.base_users}
-    ]
-    
+    # Identify peak VUs for spike
+    peak_vus = max([s.get("target", 0) for s in stages]) if stages else request.spike_users
+
     test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Spike Test: {request.target_url}",
         test_type=TestType.SPIKE,
         target_url=request.target_url,
-        virtual_users=request.spike_users,
+        virtual_users=peak_vus,
         duration_seconds=request.total_duration_seconds,
         stages=stages
     )
@@ -273,18 +277,24 @@ async def run_soak_test(
     current_user: User = Depends(get_current_user),
     service: PerformanceTestingService = Depends(get_performance_service)
 ):
-    """Run a soak/endurance test"""
+    # Use stages if provided
+    stages = request.stages
+    peak_vus = request.virtual_users
+    if stages:
+        peak_vus = max([s.get("target", 0) for s in stages])
+
     test = await _create_and_run_test(
         project_id, service, current_user,
         name=f"Soak Test: {request.target_url}",
         test_type=TestType.ENDURANCE,
         target_url=request.target_url,
-        virtual_users=request.virtual_users,
+        virtual_users=peak_vus,
         duration_seconds=request.duration_seconds,
         ramp_up_seconds=request.ramp_up_seconds,
         target_method=request.target_method,
         target_headers=request.target_headers,
         target_body=request.target_body,
+        stages=stages,
         # Thresholds
         thresholds={
             "latency_p95": request.max_p95_latency_ms,

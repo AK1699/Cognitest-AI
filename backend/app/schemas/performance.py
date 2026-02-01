@@ -525,6 +525,7 @@ class SoakTestRequest(BaseModel):
     
     max_p95_latency_ms: Optional[float] = None
     max_error_rate: Optional[float] = None
+    stages: Optional[List[Dict[str, Any]]] = None
 
 
 class SpikeTestRequest(BaseModel):
@@ -537,6 +538,7 @@ class SpikeTestRequest(BaseModel):
     spike_users: int = Field(default=100, ge=10, le=10000)
     spike_duration_seconds: int = Field(default=30, ge=5, le=300)
     total_duration_seconds: int = Field(default=120, ge=30, le=600)
+    stages: Optional[List[Dict[str, Any]]] = None
 
 
 class StressTestRequest(BaseModel):
@@ -549,6 +551,7 @@ class StressTestRequest(BaseModel):
     max_vus: int = Field(default=200, ge=10, le=10000)
     step_duration_seconds: int = Field(default=30, ge=1, le=300)
     step_increase: int = Field(default=20, ge=5, le=100)
+    stages: Optional[List[Dict[str, Any]]] = None
 
 
 # ============================================================================

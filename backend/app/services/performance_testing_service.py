@@ -444,6 +444,14 @@ class PerformanceTestingService:
                 if hold_duration > 0:
                     stages.append({"duration": hold_duration, "target": max_vus})
         
+        # Robust VU calculation: ensure max_vus reflects the peak target in the stages
+        peak_vus = max([s.get("target", 0) for s in stages]) if stages else max_vus
+        if peak_vus > max_vus:
+            max_vus = peak_vus
+            test.virtual_users = max_vus
+            await self.db.commit()
+            await self.db.refresh(test)
+        
         def get_target_vus_at_time(elapsed: float) -> int:
             """Calculate target VUs at a given elapsed time based on stages"""
             accumulated = 0
