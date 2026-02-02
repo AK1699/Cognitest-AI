@@ -16,6 +16,7 @@ from app.core.security import (
     decode_password_reset_token
 )
 from app.core.config import settings
+from app.core.rate_limiter import limiter
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
@@ -97,7 +98,8 @@ def clear_auth_cookies(response: Response):
     response.delete_cookie(key="refresh_token", path="/")
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(user_data: UserCreate, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def signup(request: Request, user_data: UserCreate, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Create a new user account.
 
@@ -155,7 +157,8 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
     }
 
 @router.post("/login")
-async def login(credentials: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, credentials: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and set HttpOnly cookies with JWT tokens.
 
@@ -266,11 +269,12 @@ async def refresh_token(request: Request, response: Response):
         )
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
-async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Generate and send a 6-digit password reset code to the user's email.
     """
-    result = await db.execute(select(User).where(User.email == request.email))
+    result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -341,7 +345,8 @@ CogniTest Team
     return {"message": "If an account with that email exists, a password reset code has been sent."}
 
 @router.post("/verify-reset-code", status_code=status.HTTP_200_OK)
-async def verify_reset_code(request: VerifyResetCodeRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def verify_reset_code(request: Request, body: VerifyResetCodeRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Verify if the password reset code is valid.
     """
@@ -349,8 +354,8 @@ async def verify_reset_code(request: VerifyResetCodeRequest, db: AsyncSession = 
 
     result = await db.execute(
         select(PasswordResetCode)
-        .where(PasswordResetCode.email == request.email)
-        .where(PasswordResetCode.code == request.code)
+        .where(PasswordResetCode.email == body.email)
+        .where(PasswordResetCode.code == body.code)
         .where(PasswordResetCode.is_used == False)
         .order_by(PasswordResetCode.created_at.desc())
     )
@@ -371,7 +376,8 @@ async def verify_reset_code(request: VerifyResetCodeRequest, db: AsyncSession = 
     return {"message": "Verification code is valid"}
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
-async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def reset_password(request: Request, body: ResetPasswordRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Reset user's password using a valid 6-digit code.
     """
@@ -380,8 +386,8 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     # Find the reset code
     result = await db.execute(
         select(PasswordResetCode)
-        .where(PasswordResetCode.email == request.email)
-        .where(PasswordResetCode.code == request.code)
+        .where(PasswordResetCode.email == body.email)
+        .where(PasswordResetCode.code == body.code)
         .where(PasswordResetCode.is_used == False)
         .order_by(PasswordResetCode.created_at.desc())
     )
@@ -410,7 +416,7 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
         )
 
     # Update password
-    user.hashed_password = get_password_hash(request.new_password)
+    user.hashed_password = get_password_hash(body.new_password)
 
     # Mark the code as used
     reset_code.is_used = True
@@ -779,7 +785,9 @@ async def google_callback_get(
         )
 
 @router.post("/google/signin")
+@limiter.limit("5/minute")
 async def google_signin(
+    request: Request,
     request_data: GoogleSignInRequest,
     response: Response,
     db: AsyncSession = Depends(get_db)
@@ -1022,7 +1030,9 @@ async def microsoft_callback(
         )
 
 @router.post("/microsoft/signin")
+@limiter.limit("5/minute")
 async def microsoft_signin(
+    request: Request,
     request_data: GoogleSignInRequest,  # Reuse same schema
     response: Response,
     db: AsyncSession = Depends(get_db)
@@ -1256,7 +1266,9 @@ async def apple_callback(
         )
 
 @router.post("/apple/signin")
+@limiter.limit("5/minute")
 async def apple_signin(
+    request: Request,
     request_data: GoogleSignInRequest,  # Reuse same schema
     response: Response,
     db: AsyncSession = Depends(get_db)
