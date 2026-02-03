@@ -134,6 +134,10 @@ class BrowserSession:
         self.is_streaming = False
         self._screenshot_task: Optional[asyncio.Task] = None
         self._pending_requests: Dict[str, NetworkRequest] = {}
+
+        # Execution state
+        self.is_executing: bool = False
+        self._keepalive_task: Optional[asyncio.Task] = None
         
         # Video recording
         self.video_path: Optional[str] = None
@@ -193,6 +197,7 @@ class BrowserSession:
             
             # Start screenshot streaming
             self.start_streaming()
+            self.start_keepalive()
             
             await self._emit_update({
                 "type": "session_started",
@@ -331,6 +336,17 @@ class BrowserSession:
         self.is_streaming = False
         if self._screenshot_task:
             self._screenshot_task.cancel()
+
+    def start_keepalive(self):
+        """Start keepalive loop to prevent page/context from closing mid-run."""
+        if not self._keepalive_task:
+            self._keepalive_task = asyncio.create_task(self._keepalive_loop())
+
+    def stop_keepalive(self):
+        """Stop keepalive loop."""
+        if self._keepalive_task:
+            self._keepalive_task.cancel()
+            self._keepalive_task = None
     
     async def _screenshot_loop(self):
         """Continuously capture and stream screenshots"""
@@ -346,6 +362,8 @@ class BrowserSession:
                 # Encode to base64
                 screenshot_b64 = base64.b64encode(screenshot).decode('utf-8')
                 
+                # print(f"DEBUG: Emitting screenshot {len(screenshot_b64)} bytes")
+                
                 await self._emit_update({
                     "type": "screenshot",
                     "data": f"data:image/jpeg;base64,{screenshot_b64}",
@@ -360,11 +378,147 @@ class BrowserSession:
                 break
             except Exception as e:
                 # Don't spam errors, just skip this frame
+                print(f"Screenshot failed: {e}")
                 await asyncio.sleep(0.5)
+
+    async def _keepalive_loop(self):
+        """Keep browser/page alive during execution."""
+        while True:
+            try:
+                await asyncio.sleep(2.0)
+                if not self.is_executing:
+                    continue
+
+                browser_connected = False
+                try:
+                    browser_connected = bool(self.browser) and self.browser.is_connected()
+                except Exception:
+                    browser_connected = bool(self.browser)
+
+                if not browser_connected:
+                    await self.launch(initial_url=self.current_url or "about:blank")
+                    continue
+
+                if not self.page or self.page.is_closed():
+                    await self.ensure_page(self.current_url or "about:blank", force_navigate=True)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                await asyncio.sleep(1.0)
+
+    async def ensure_page(self, url: Optional[str] = None, force_navigate: bool = False, force_recreate: bool = False) -> bool:
+        """Ensure page/context is available; optionally navigate to url."""
+        try:
+            should_recreate = force_recreate
+            
+            # If we think we have a page, verify it's actually alive
+            if not should_recreate and self.page and not self.page.is_closed():
+                try:
+                    # Simple liveness check
+                    await self.page.evaluate("1", timeout=1000)
+                except Exception:
+                    should_recreate = True
+
+            if should_recreate or not self.page or self.page.is_closed():
+                # Close existing if they strictly exist but are broken
+                if self.page:
+                    try:
+                        await self.page.close()
+                    except:
+                        pass
+                if self.context:
+                    try:
+                        await self.context.close()
+                        self.context = None  # Force context recreation too as it might be corrupted
+                    except:
+                        pass
+
+                # Try to reuse browser if connected
+                browser_connected = False
+                try:
+                    browser_connected = bool(self.browser) and self.browser.is_connected()
+                except Exception:
+                    browser_connected = bool(self.browser)
+
+                if browser_connected:
+                    try:
+                        device_config = DevicePreset.get(self.device)
+                        context_options = {
+                            "viewport": device_config["viewport"],
+                            "is_mobile": device_config.get("is_mobile", False),
+                            "has_touch": device_config.get("has_touch", False),
+                            "ignore_https_errors": True,
+                            "accept_downloads": True
+                        }
+                        if device_config.get("user_agent"):
+                            context_options["user_agent"] = device_config["user_agent"]
+                        if device_config.get("device_scale_factor"):
+                            context_options["device_scale_factor"] = device_config["device_scale_factor"]
+                        if self.record_video and self.video_dir:
+                            import os
+                            os.makedirs(self.video_dir, exist_ok=True)
+                            context_options["record_video_dir"] = self.video_dir
+                            context_options["record_video_size"] = {"width": 1280, "height": 720}
+                        
+                        self.context = await self.browser.new_context(**context_options)
+                        self.page = await self.context.new_page()
+                        self._setup_event_listeners()
+                    except Exception as ctx_err:
+                        print(f"Failed to create context from existing browser: {ctx_err}")
+                        browser_connected = False # Fallback to full relaunch
+
+                if not browser_connected:
+                    # Full relaunch
+                    if self.browser:
+                        try:
+                            await self.browser.close()
+                        except:
+                            pass
+                    return await self.launch(initial_url=url or "about:blank")
+
+            if url and (force_navigate or not self.current_url):
+                await self.page.goto(url, wait_until="domcontentloaded")
+                self.current_url = self.page.url
+            return True
+        except Exception as e:
+            await self._emit_update({
+                "type": "error",
+                "error": f"Ensure page failed: {str(e)}"
+            })
+            return False
     
     async def navigate(self, url: str) -> bool:
         """Navigate to URL"""
         try:
+            # Ensure we have a valid page/context
+            if not self.page or self.page.is_closed():
+                if self.context and not self.context.is_closed():
+                    self.page = await self.context.new_page()
+                    self._setup_event_listeners()
+                elif self.browser and not self.browser.is_closed():
+                    # Recreate context with device settings
+                    device_config = DevicePreset.get(self.device)
+                    context_options = {
+                        "viewport": device_config["viewport"],
+                        "is_mobile": device_config.get("is_mobile", False),
+                        "has_touch": device_config.get("has_touch", False),
+                    }
+                    if device_config.get("user_agent"):
+                        context_options["user_agent"] = device_config["user_agent"]
+                    if device_config.get("device_scale_factor"):
+                        context_options["device_scale_factor"] = device_config["device_scale_factor"]
+                    if self.record_video and self.video_dir:
+                        import os
+                        os.makedirs(self.video_dir, exist_ok=True)
+                        context_options["record_video_dir"] = self.video_dir
+                        context_options["record_video_size"] = {"width": 1280, "height": 720}
+                    self.context = await self.browser.new_context(**context_options)
+                    self.page = await self.context.new_page()
+                    self._setup_event_listeners()
+                else:
+                    # No active browser/context, relaunch
+                    return await self.launch(initial_url=url)
+
             await self.page.goto(url, wait_until="domcontentloaded")
             self.current_url = self.page.url
             return True
@@ -438,7 +592,7 @@ class BrowserSession:
     async def type_into_element(self, selector: str, text: str) -> dict:
         """Type text into a specific element by selector"""
         try:
-            await self.page.fill(selector, text)
+            await self.page.fill(selector, text, timeout=5000)
             return {"success": True, "action": "type", "selector": selector, "text": text}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -608,7 +762,7 @@ class BrowserSession:
     async def click_element(self, selector: str) -> dict:
         """Click an element by selector"""
         try:
-            await self.page.click(selector)
+            await self.page.click(selector, timeout=5000)
             return {"success": True, "action": "click", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -616,7 +770,7 @@ class BrowserSession:
     async def double_click(self, selector: str) -> dict:
         """Double click an element by selector"""
         try:
-            await self.page.dblclick(selector)
+            await self.page.dblclick(selector, timeout=5000)
             return {"success": True, "action": "double_click", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -624,7 +778,7 @@ class BrowserSession:
     async def right_click(self, selector: str) -> dict:
         """Right click an element by selector"""
         try:
-            await self.page.click(selector, button="right")
+            await self.page.click(selector, button="right", timeout=5000)
             return {"success": True, "action": "right_click", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -632,7 +786,7 @@ class BrowserSession:
     async def hover(self, selector: str) -> dict:
         """Hover over an element"""
         try:
-            await self.page.hover(selector)
+            await self.page.hover(selector, timeout=5000)
             return {"success": True, "action": "hover", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -640,7 +794,7 @@ class BrowserSession:
     async def focus(self, selector: str) -> dict:
         """Focus on an element"""
         try:
-            await self.page.focus(selector)
+            await self.page.focus(selector, timeout=5000)
             return {"success": True, "action": "focus", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -648,7 +802,7 @@ class BrowserSession:
     async def clear_input(self, selector: str) -> dict:
         """Clear an input field"""
         try:
-            await self.page.fill(selector, "")
+            await self.page.fill(selector, "", timeout=5000)
             return {"success": True, "action": "clear", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -656,7 +810,7 @@ class BrowserSession:
     async def select_option(self, selector: str, value: str) -> dict:
         """Select option from dropdown"""
         try:
-            await self.page.select_option(selector, value)
+            await self.page.select_option(selector, value, timeout=5000)
             return {"success": True, "action": "select", "selector": selector, "value": value}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -664,7 +818,7 @@ class BrowserSession:
     async def check(self, selector: str) -> dict:
         """Check a checkbox"""
         try:
-            await self.page.check(selector)
+            await self.page.check(selector, timeout=5000)
             return {"success": True, "action": "check", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -672,7 +826,7 @@ class BrowserSession:
     async def uncheck(self, selector: str) -> dict:
         """Uncheck a checkbox"""
         try:
-            await self.page.uncheck(selector)
+            await self.page.uncheck(selector, timeout=5000)
             return {"success": True, "action": "uncheck", "selector": selector}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -1080,6 +1234,7 @@ class BrowserSession:
     async def stop(self):
         """Stop and cleanup browser session"""
         self.stop_streaming()
+        self.stop_keepalive()
         self.status = SessionStatus.STOPPED
         
         try:

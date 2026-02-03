@@ -34,13 +34,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      console.log('🔍 Checking auth status...')
       // Fetch user info using httpOnly cookies
       const response = await api.get(`/api/v1/auth/me`)
+      console.log('✅ Auth check successful:', response.data.email)
       setUser(response.data)
     } catch (error: any) {
       // 401 is expected when user is not logged in - don't log it as an error
       if (error.response?.status !== 401) {
-        console.error('Auth check failed:', error)
+        console.error('❌ Auth check failed:', error.response?.data || error.message)
+      } else {
+        console.log('ℹ️ User not logged in (401)')
       }
       setUser(null)
     } finally {

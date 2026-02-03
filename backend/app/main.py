@@ -196,8 +196,10 @@ async def general_exception_handler(request: Request, exc: Exception):
     response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
     
-    # Log the actual error
+    # Log the actual error with full stack trace
+    import traceback
     print(f"⚠️ Unhandled exception: {exc}")
+    print(traceback.format_exc())
     
     return response
 

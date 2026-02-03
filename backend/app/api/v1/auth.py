@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from typing import Optional
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
@@ -67,6 +67,20 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
 
     # In production, secure should be True. For local development over HTTP, use False
     is_production = settings.FRONTEND_URL.startswith("https://")
+    
+    # Determine domain for cookies
+    cookie_domain = None
+    if "localhost" in settings.FRONTEND_URL:
+        # For localhost, it's often better NOT to set an explicit domain 
+        # to ensure it's treated as a host-only cookie for the current host.
+        cookie_domain = None
+    elif not is_production:
+        # For development environments on other hosts
+        import urllib.parse
+        parsed_url = urllib.parse.urlparse(settings.FRONTEND_URL)
+        cookie_domain = parsed_url.hostname
+
+    print(f"🍪 Setting auth cookies: domain={cookie_domain}, secure={is_production}")
 
     response.set_cookie(
         key="access_token",
@@ -75,6 +89,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         secure=is_production,    # Only sent over HTTPS in production
         samesite="lax" if not is_production else "none",  # Use "lax" for localhost HTTP
         max_age=access_max_age,
+        domain=cookie_domain,
         path="/"
     )
 
@@ -88,6 +103,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         secure=is_production,
         samesite="lax" if not is_production else "none",  # Use "lax" for localhost HTTP
         max_age=refresh_max_age,
+        domain=cookie_domain,
         path="/"
     )
 
@@ -429,76 +445,101 @@ async def get_current_user_info(
     Returns 401 if not authenticated. Does not throw 500 errors.
     """
     try:
+        print("🔍 [ME] Auth check started")
         # Try to get token from cookie first
         token = request.cookies.get("access_token")
         
         # Fall back to Authorization header
         if not token:
-            auth_header = request.headers.get("authorization")
+            print("🔍 [ME] No cookie, checking Header")
+            auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.replace("Bearer ", "")
+                token = auth_header.split(" ")[1]
         
         if not token:
-            raise HTTPException(
+            print("🔍 [ME] No token found")
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated"
+                content={"detail": "Not authenticated"}
             )
-        
-        # Decode token
+
         from app.core.security import decode_token
         payload = decode_token(token)
         
         if not payload:
-            raise HTTPException(
+            print("🔍 [ME] Token decoding failed")
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
+                content={"detail": "Invalid token"}
             )
-        
+
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(
+            print("🔍 [ME] No sub in payload")
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload"
+                content={"detail": "Invalid token payload"}
             )
-        
-        # Get user from database
+
+        print(f"🔍 [ME] Looking up user_id: {user_id}")
         from uuid import UUID
-        result = await db.execute(select(User).where(User.id == UUID(user_id)))
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
+        user_uuid = None
+        try:
+            user_uuid = UUID(user_id)
+        except Exception as e:
+            print(f"❌ [ME] Invalid UUID format: {user_id} - {str(e)}")
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
+                content={"detail": "Invalid user ID"}
             )
-        
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Inactive user"
+
+        result = await db.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            print(f"🔍 [ME] User not found: {user_id}")
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "User not found"}
             )
+
+        print(f"✅ [ME] Found user: {user.email}")
         
-        return {
+        # Create response dict carefully
+        response_data = {
             "id": str(user.id),
             "email": user.email,
             "username": user.username,
-            "full_name": user.full_name,
-            "avatar_url": user.avatar_url if hasattr(user, "avatar_url") else None,
-            "is_active": user.is_active,
-            "is_superuser": user.is_superuser,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+            "full_name": getattr(user, "full_name", None),
+            "is_active": getattr(user, "is_active", True),
+            "is_superuser": getattr(user, "is_superuser", False),
         }
-    
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
+        
+        # Add dates safely
+        if hasattr(user, "created_at") and user.created_at:
+            try:
+                response_data["created_at"] = user.created_at.isoformat()
+            except:
+                response_data["created_at"] = str(user.created_at)
+        
+        # Avatar URL handling
+        if hasattr(user, "avatar_url"):
+            response_data["avatar_url"] = user.avatar_url
+        elif hasattr(user, "picture_url"): # Just in case it's on User
+            response_data["avatar_url"] = user.picture_url
+        else:
+            response_data["avatar_url"] = None
+
+        print(f"✅ [ME] Returning user data for {user.email}")
+        return response_data
+
     except Exception as e:
-        # Log unexpected errors but return 401 instead of 500
-        print(f"Error in /me endpoint: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
+        import traceback
+        print(f"❌ [ME] CRITICAL ERROR: {str(e)}")
+        print(traceback.format_exc())
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": f"Internal server error: {str(e)}"}
         )
 
 @router.put("/me", response_model=UserResponse)
@@ -766,6 +807,7 @@ async def google_callback_get(
         return response
 
     except GoogleOAuthError as e:
+        print(f"❌ Google OAuth Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Google OAuth error: {str(e)}"
@@ -773,6 +815,9 @@ async def google_callback_get(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"❌ Unexpected Error in Google Callback: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing Google callback: {str(e)}"
@@ -800,13 +845,13 @@ async def google_signin(
                 detail="Invalid Google ID token"
             )
 
-        # Find OAuth account
+        # Find OAuth account with user eagerly loaded
+        from sqlalchemy.orm import joinedload
         result = await db.execute(
-            select(OAuthAccount).where(
-                OAuthAccount.provider == "google"
-            ).where(
-                OAuthAccount.provider_user_id == provider_user_id
-            )
+            select(OAuthAccount)
+            .options(joinedload(OAuthAccount.user))
+            .where(OAuthAccount.provider == "google")
+            .where(OAuthAccount.provider_user_id == provider_user_id)
         )
         oauth_account = result.scalar_one_or_none()
 
@@ -925,12 +970,12 @@ async def microsoft_callback(
             )
 
         # Check if OAuth account exists
+        from sqlalchemy.orm import joinedload
         result = await db.execute(
-            select(OAuthAccount).where(
-                OAuthAccount.provider == "microsoft"
-            ).where(
-                OAuthAccount.provider_user_id == provider_user_id
-            )
+            select(OAuthAccount)
+            .options(joinedload(OAuthAccount.user))
+            .where(OAuthAccount.provider == "microsoft")
+            .where(OAuthAccount.provider_user_id == provider_user_id)
         )
         oauth_account = result.scalar_one_or_none()
 
@@ -1044,12 +1089,12 @@ async def microsoft_signin(
             )
 
         # Find OAuth account
+        from sqlalchemy.orm import joinedload
         result = await db.execute(
-            select(OAuthAccount).where(
-                OAuthAccount.provider == "microsoft"
-            ).where(
-                OAuthAccount.provider_user_id == provider_user_id
-            )
+            select(OAuthAccount)
+            .options(joinedload(OAuthAccount.user))
+            .where(OAuthAccount.provider == "microsoft")
+            .where(OAuthAccount.provider_user_id == provider_user_id)
         )
         oauth_account = result.scalar_one_or_none()
 
@@ -1167,12 +1212,12 @@ async def apple_callback(
             )
 
         # Check if OAuth account exists
+        from sqlalchemy.orm import joinedload
         result = await db.execute(
-            select(OAuthAccount).where(
-                OAuthAccount.provider == "apple"
-            ).where(
-                OAuthAccount.provider_user_id == provider_user_id
-            )
+            select(OAuthAccount)
+            .options(joinedload(OAuthAccount.user))
+            .where(OAuthAccount.provider == "apple")
+            .where(OAuthAccount.provider_user_id == provider_user_id)
         )
         oauth_account = result.scalar_one_or_none()
 
@@ -1278,12 +1323,12 @@ async def apple_signin(
             )
 
         # Find OAuth account
+        from sqlalchemy.orm import joinedload
         result = await db.execute(
-            select(OAuthAccount).where(
-                OAuthAccount.provider == "apple"
-            ).where(
-                OAuthAccount.provider_user_id == provider_user_id
-            )
+            select(OAuthAccount)
+            .options(joinedload(OAuthAccount.user))
+            .where(OAuthAccount.provider == "apple")
+            .where(OAuthAccount.provider_user_id == provider_user_id)
         )
         oauth_account = result.scalar_one_or_none()
 

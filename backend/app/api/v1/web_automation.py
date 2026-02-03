@@ -1,7 +1,7 @@
 """
 Web Automation API Endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
@@ -9,6 +9,7 @@ from uuid import UUID
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 
 from app.core.deps import get_db, get_current_user
@@ -57,6 +58,49 @@ class ConnectionManager:
                 print(f"Failed to send WebSocket message: {str(e)}")
 
 manager = ConnectionManager()
+
+
+def _parse_ai_json(raw: str) -> Optional[dict]:
+    if not raw:
+        return None
+    text = raw.strip()
+    fence_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _ensure_action_success(result: Optional[dict], action_label: str):
+    if isinstance(result, dict) and result.get("success") is False:
+        raise Exception(f"{action_label} failed: {result.get('error', 'unknown error')}")
+
+
+def _extract_selector_and_alternatives(step_data: dict, step: dict):
+    raw_selector = step_data.get("selector") or step.get("selector") or ""
+    alternatives = step_data.get("alternatives") or step.get("alternatives") or []
+
+    if isinstance(raw_selector, dict):
+        selector = raw_selector.get("primary") or raw_selector.get("css") or raw_selector.get("selector") or ""
+        alternatives = raw_selector.get("alternatives", alternatives) or alternatives
+    else:
+        selector = raw_selector
+
+    return selector, alternatives
+
+
+def _is_target_closed_error(err: Exception) -> bool:
+    message = str(err).lower()
+    return any(token in message for token in [
+        "target page, context or browser has been closed",
+        "target closed",
+        "page has been closed",
+        "browser has been closed",
+        "context has been closed",
+        "page closed"
+    ])
 
 
 # Test Flow Management
@@ -189,6 +233,7 @@ async def delete_test_flow(
 async def execute_test_flow(
     flow_id: UUID,
     execution_config: ExecutionRunCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -205,23 +250,61 @@ async def execute_test_flow(
     browser_type = execution_config.browser_type or test_flow.default_browser
     execution_mode = execution_config.execution_mode or test_flow.default_mode
     
-    # Create executor and run asynchronously
-    executor = WebAutomationExecutor(db)
+    # Create execution run immediately
+    from app.models.web_automation import ExecutionRunStatus
+    execution_run = ExecutionRun(
+        test_flow_id=test_flow.id,
+        project_id=test_flow.project_id,
+        browser_type=browser_type,
+        execution_mode=execution_mode,
+        status=ExecutionRunStatus.PENDING,
+        triggered_by=current_user.id,
+        total_steps=len(test_flow.nodes),
+        execution_environment={
+            "browser": browser_type.value,
+            "mode": execution_mode.value,
+            "platform": "linux",
+            "variables": execution_config.variables or {}
+        }
+    )
+    db.add(execution_run)
+    await db.commit()
+    await db.refresh(execution_run)
+
+    # Define background execution task
+    async def run_automation_in_background(run_id: UUID, flow_id: UUID, user_id: UUID, config: ExecutionRunCreate):
+        # Create fresh session for background task
+        from app.core.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            executor = WebAutomationExecutor(session)
+            
+            # Register WS callback
+            async def ws_forwarder(message):
+                 await manager.send_message(str(run_id), message)
+            executor.register_ws_callback(ws_forwarder)
+            
+            try:
+                await executor.execute_test_flow(
+                    test_flow_id=flow_id,
+                    browser_type=browser_type,
+                    execution_mode=execution_mode,
+                    triggered_by=user_id,
+                    variables=config.variables,
+                    execution_run_id=run_id
+                )
+            except Exception as e:
+                print(f"Background execution failed: {e}")
+                
+    # Add to background tasks
+    background_tasks.add_task(
+        run_automation_in_background, 
+        execution_run.id, 
+        flow_id, 
+        current_user.id, 
+        execution_config
+    )
     
-    # Execute test flow
-    try:
-        execution_run = await executor.execute_test_flow(
-            test_flow_id=flow_id,
-            browser_type=browser_type,
-            execution_mode=execution_mode,
-            triggered_by=current_user.id,
-            variables=execution_config.variables
-        )
-        
-        return execution_run
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Execution failed: {str(e)}")
+    return execution_run
 
 
 @router.post("/test-flows/{flow_id}/execute/multi", response_model=List[ExecutionRunResponse])
@@ -913,8 +996,11 @@ async def suggest_locator_healing(
     """
     
     try:
-        ai_response = await ai_service.generate_content(prompt)
-        suggestions = json.loads(ai_response)
+        ai_response_raw = await ai_service.generate_completion(
+            messages=[{"role": "user", "content": prompt}],
+            json_mode=True
+        )
+        suggestions = _parse_ai_json(ai_response_raw) or {}
         
         if suggestions and "selectors" in suggestions:
             best = suggestions["selectors"][0]
@@ -925,6 +1011,7 @@ async def suggest_locator_healing(
                 reasoning=best.get("reasoning", "AI suggestion"),
                 alternatives=suggestions["selectors"][1:]
             )
+        raise HTTPException(status_code=500, detail="AI suggestion failed: invalid response")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI suggestion failed: {str(e)}")
 
@@ -958,9 +1045,14 @@ async def suggest_assertion_healing(
     """
     
     try:
-        ai_response = await ai_service.generate_content(prompt)
-        suggestion = json.loads(ai_response)
+        ai_response_raw = await ai_service.generate_completion(
+            messages=[{"role": "user", "content": prompt}],
+            json_mode=True
+        )
+        suggestion = _parse_ai_json(ai_response_raw) or {}
         
+        if not suggestion:
+            raise HTTPException(status_code=500, detail="AI suggestion failed: invalid response")
         return AssertionHealingSuggestion(**suggestion)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI suggestion failed: {str(e)}")
@@ -1271,7 +1363,12 @@ async def websocket_browser_session(
                     url = message.get("url")
                     session = browser_session_manager.get_session(session_id)
                     if session and url:
-                        await session.navigate(url)
+                        success = await session.navigate(url)
+                        if not success:
+                            await websocket.send_json({
+                                "type": "error",
+                                "error": "Navigation failed. Browser session may have been closed."
+                            })
                     elif not session:
                         await websocket.send_json({"type": "error", "error": "No active session"})
                 
@@ -1427,6 +1524,7 @@ async def websocket_browser_session(
                             healed_count = 0
                             stop_on_failure = True  # Stop executing after first failure
                             has_failure = False
+                            abort_execution = False
                             execution_variables = {}  # Store extracted data during execution
                             start_time = datetime.utcnow()
                             
@@ -1516,7 +1614,7 @@ async def websocket_browser_session(
                                 # Use description/label if available, otherwise use formatted action name
                                 step_name = step_data.get("label") or step_data.get("description") or step.get("description") or format_action_name(step_type)
                                 step_id = step.get("id", f"step-{i}")
-                                selector_used = step_data.get("selector") or step.get("selector") or ""
+                                selector_used, alternatives = _extract_selector_and_alternatives(step_data, step)
                                 
                                 # Get step details for frontend display
                                 step_url = step_data.get("url") or step.get("url") or ""
@@ -1546,36 +1644,76 @@ async def websocket_browser_session(
                                 was_healed = False
                                 healing_info = None
                                 
-                                # Get alternatives for self-healing
-                                alternatives = step_data.get("alternatives") or step.get("alternatives") or []
-                                
                                 # Initialize AI service for healing if enabled
                                 ai_service = GeminiService() if healing_enabled else None
                                 
                                 try:
+                                    # Ensure browser page is still alive before actions
+                                    ensured = await session.ensure_page()
+                                    if not ensured:
+                                        raise Exception("Browser session not ready")
+
                                     # Execute step based on type
                                     if step_type == "navigate":
                                         url = step_data.get("url") or step.get("url") or ""
                                         if url:
-                                            await session.navigate(url)
+                                            success = await session.navigate(url)
+                                            if not success:
+                                                raise Exception("Navigation failed. Browser session may have been closed.")
                                     
                                     elif step_type == "click":
                                         if selector_used:
                                             try:
-                                                await session.click_element(selector_used)
+                                                result = await session.click_element(selector_used)
+                                                _ensure_action_success(result, "click")
                                             except Exception as click_err:
+                                                if _is_target_closed_error(click_err):
+                                                    ensured = await session.ensure_page(step_url or session.current_url or "about:blank", force_navigate=True)
+                                                    if ensured:
+                                                        try:
+                                                            retry_result = await session.click_element(selector_used)
+                                                            _ensure_action_success(retry_result, "click")
+                                                            continue
+                                                        except Exception as retry_err:
+                                                            click_err = retry_err
                                                 # Try self-healing if enabled
                                                 if healing_enabled and ai_service:
                                                     healer = SelfHealingLocator(selector_used, alternatives, ai_service)
                                                     try:
+                                                        await websocket.send_json({
+                                                            "type": "healing_attempt",
+                                                            "stepIndex": i,
+                                                            "action": "click",
+                                                            "selector": selector_used
+                                                        })
                                                         locator, healing_info = await healer.find_element(session.page, step_id, step_type)
                                                         if locator and healing_info:
                                                             await locator.click()
                                                             was_healed = True
                                                             selector_used = healing_info.get("healed", selector_used)
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "healed",
+                                                                "strategy": healing_info.get("strategy"),
+                                                                "healed": healing_info.get("healed"),
+                                                                "confidence": healing_info.get("confidence_score"),
+                                                                "original": healing_info.get("original"),
+                                                                "reasoning": healing_info.get("ai_reasoning")
+                                                            })
                                                         else:
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "failed"
+                                                            })
                                                             raise click_err
                                                     except Exception:
+                                                        await websocket.send_json({
+                                                            "type": "healing_result",
+                                                            "stepIndex": i,
+                                                            "status": "failed"
+                                                        })
                                                         raise click_err
                                                 else:
                                                     raise click_err
@@ -1584,20 +1722,56 @@ async def websocket_browser_session(
                                         value = step_data.get("value") or step.get("value") or ""
                                         if selector_used:
                                             try:
-                                                await session.type_into_element(selector_used, value)
+                                                result = await session.type_into_element(selector_used, value)
+                                                _ensure_action_success(result, "type")
                                             except Exception as type_err:
+                                                if _is_target_closed_error(type_err):
+                                                    ensured = await session.ensure_page(step_url or session.current_url or "about:blank", force_navigate=True)
+                                                    if ensured:
+                                                        try:
+                                                            retry_result = await session.type_into_element(selector_used, value)
+                                                            _ensure_action_success(retry_result, "type")
+                                                            continue
+                                                        except Exception as retry_err:
+                                                            type_err = retry_err
                                                 # Try self-healing if enabled
                                                 if healing_enabled and ai_service:
                                                     healer = SelfHealingLocator(selector_used, alternatives, ai_service)
                                                     try:
+                                                        await websocket.send_json({
+                                                            "type": "healing_attempt",
+                                                            "stepIndex": i,
+                                                            "action": "type",
+                                                            "selector": selector_used
+                                                        })
                                                         locator, healing_info = await healer.find_element(session.page, step_id, step_type)
                                                         if locator and healing_info:
                                                             await locator.fill(value)
                                                             was_healed = True
                                                             selector_used = healing_info.get("healed", selector_used)
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "healed",
+                                                                "strategy": healing_info.get("strategy"),
+                                                                "healed": healing_info.get("healed"),
+                                                                "confidence": healing_info.get("confidence_score"),
+                                                                "original": healing_info.get("original"),
+                                                                "reasoning": healing_info.get("ai_reasoning")
+                                                            })
                                                         else:
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "failed"
+                                                            })
                                                             raise type_err
                                                     except Exception:
+                                                        await websocket.send_json({
+                                                            "type": "healing_result",
+                                                            "stepIndex": i,
+                                                            "status": "failed"
+                                                        })
                                                         raise type_err
                                                 else:
                                                     raise type_err
@@ -1608,7 +1782,7 @@ async def websocket_browser_session(
                                     elif step_type == "assert":
                                         if selector_used:
                                             element_info = await session.get_element_info(selector_used)
-                                            if not element_info:
+                                            if not element_info or element_info.get("error"):
                                                 raise Exception(f"Assertion failed: Element not found: {selector_used}")
                                     
                                     # Assert Title - compare expected vs actual page title
@@ -1660,8 +1834,11 @@ Rules for accepting:
 Respond with JSON only:
 {{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
                                                     
-                                                    ai_response = await ai_service.generate_content(heal_prompt)
-                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                    ai_response_raw = await ai_service.generate_completion(
+                                                        messages=[{"role": "user", "content": heal_prompt}],
+                                                        json_mode=True
+                                                    )
+                                                    heal_result = _parse_ai_json(ai_response_raw) or {}
                                                     
                                                     if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
                                                         # Accept the actual title - mark as healed
@@ -1731,8 +1908,11 @@ Rules for accepting:
 Respond with JSON only:
 {{"accept": true/false, "confidence": 0.0-1.0, "reasoning": "brief explanation"}}"""
                                                     
-                                                    ai_response = await ai_service.generate_content(heal_prompt)
-                                                    heal_result = json.loads(ai_response.strip().replace("```json", "").replace("```", ""))
+                                                    ai_response_raw = await ai_service.generate_completion(
+                                                        messages=[{"role": "user", "content": heal_prompt}],
+                                                        json_mode=True
+                                                    )
+                                                    heal_result = _parse_ai_json(ai_response_raw) or {}
                                                     
                                                     if heal_result.get("accept") and heal_result.get("confidence", 0) >= 0.7:
                                                         # Accept the actual URL - mark as healed
@@ -1757,36 +1937,44 @@ Respond with JSON only:
                                     # Additional browser actions
                                     elif step_type == "double_click":
                                         if selector_used:
-                                            await session.double_click(selector_used)
+                                            result = await session.double_click(selector_used)
+                                            _ensure_action_success(result, "double_click")
                                     
                                     elif step_type == "right_click":
                                         if selector_used:
-                                            await session.right_click(selector_used)
+                                            result = await session.right_click(selector_used)
+                                            _ensure_action_success(result, "right_click")
                                     
                                     elif step_type == "hover":
                                         if selector_used:
-                                            await session.hover(selector_used)
+                                            result = await session.hover(selector_used)
+                                            _ensure_action_success(result, "hover")
                                     
                                     elif step_type == "focus":
                                         if selector_used:
-                                            await session.focus(selector_used)
+                                            result = await session.focus(selector_used)
+                                            _ensure_action_success(result, "focus")
                                     
                                     elif step_type == "clear":
                                         if selector_used:
-                                            await session.clear_input(selector_used)
+                                            result = await session.clear_input(selector_used)
+                                            _ensure_action_success(result, "clear")
                                     
                                     elif step_type == "select":
                                         value = step_data.get("value") or step.get("value") or ""
                                         if selector_used:
-                                            await session.select_option(selector_used, value)
+                                            result = await session.select_option(selector_used, value)
+                                            _ensure_action_success(result, "select")
                                     
                                     elif step_type == "check":
                                         if selector_used:
-                                            await session.check(selector_used)
+                                            result = await session.check(selector_used)
+                                            _ensure_action_success(result, "check")
                                     
                                     elif step_type == "uncheck":
                                         if selector_used:
-                                            await session.uncheck(selector_used)
+                                            result = await session.uncheck(selector_used)
+                                            _ensure_action_success(result, "uncheck")
                                     
                                     elif step_type == "go_back":
                                         await session.go_back()
@@ -1805,7 +1993,8 @@ Respond with JSON only:
                                     elif step_type == "press":
                                         key = step_data.get("key") or step.get("key") or step_data.get("value") or step.get("value") or ""
                                         if key:
-                                            await session.press_key(key)
+                                            result = await session.press_key(key)
+                                            _ensure_action_success(result, "press")
                                     
                                     # ============================================
                                     # File and Drag/Drop Actions
@@ -1813,12 +2002,14 @@ Respond with JSON only:
                                     elif step_type == "upload":
                                         file_path = step_data.get("file_path") or step.get("file_path") or step_data.get("value") or step.get("value") or ""
                                         if selector_used and file_path:
-                                            await session.upload_file(selector_used, file_path)
+                                            result = await session.upload_file(selector_used, file_path)
+                                            _ensure_action_success(result, "upload")
                                     
                                     elif step_type == "drag_drop":
                                         target_selector = step_data.get("target_selector") or step.get("target_selector") or step_data.get("target") or step.get("target") or ""
                                         if selector_used and target_selector:
-                                            await session.drag_and_drop(selector_used, target_selector)
+                                            result = await session.drag_and_drop(selector_used, target_selector)
+                                            _ensure_action_success(result, "drag_drop")
                                     
                                     # ============================================
                                     # Wait Actions
@@ -2537,6 +2728,8 @@ Respond with JSON only:
                                     step_error = str(step_err)
                                     failed_count += 1
                                     has_failure = True  # Mark that we've had a failure
+                                    if stop_on_failure:
+                                        abort_execution = True
                                 
                                 step_end = datetime.utcnow()
                                 step_duration = int((step_end - step_start).total_seconds() * 1000)
@@ -2647,6 +2840,38 @@ Respond with JSON only:
                                     "healed": was_healed,
                                     "healing_info": healing_info if was_healed else None
                                 })
+
+                                # If we should abort after failure, mark remaining steps as skipped and stop.
+                                if abort_execution:
+                                    remaining_steps = steps[i + 1:]
+                                    for r_idx, r_step in enumerate(remaining_steps, start=i + 1):
+                                        r_step_data = r_step.get("data", r_step)
+                                        r_step_type = r_step_data.get("action") or r_step_data.get("type") or r_step.get("action") or r_step.get("type") or "unknown"
+                                        r_step_id = r_step.get("id", f"step-{r_idx}")
+                                        r_step_name = r_step_data.get("label") or r_step_data.get("description") or r_step.get("description") or format_action_name(r_step_type)
+
+                                        step_result = StepResult(
+                                            id=uuid.uuid4(),
+                                            execution_run_id=execution_run.id,
+                                            step_id=r_step_id,
+                                            step_name=r_step_name,
+                                            step_type=r_step_type,
+                                            step_order=r_idx,
+                                            status=StepStatus.SKIPPED,
+                                            duration_ms=0,
+                                            error_message="Skipped due to previous step failure",
+                                            was_healed=False
+                                        )
+                                        db.add(step_result)
+                                        skipped_count += 1
+
+                                        await websocket.send_json({
+                                            "type": "step_completed",
+                                            "stepIndex": r_idx,
+                                            "status": "skipped",
+                                            "error": "Skipped due to previous step failure"
+                                        })
+                                    break
                             
                             # Update execution run with final results
                             end_time = datetime.utcnow()
@@ -2723,4 +2948,3 @@ Respond with JSON only:
         await browser_session_manager.stop_session(session_id)
         if session_id in browser_session_connections:
             del browser_session_connections[session_id]
-

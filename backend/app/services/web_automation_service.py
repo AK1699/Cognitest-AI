@@ -5,12 +5,13 @@ Core execution engine for no-code test automation with self-healing
 import asyncio
 import json
 import time
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from uuid import UUID
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext, Error as PlaywrightError
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.models.web_automation import (
     TestFlow, ExecutionRun, StepResult, HealingEvent, LocatorAlternative,
@@ -21,15 +22,35 @@ from app.services.gemini_service import GeminiService
 from app.services.self_heal_service import SelfHealService
 
 
+def _parse_ai_json(raw: str) -> Optional[Dict[str, Any]]:
+    if not raw:
+        return None
+    text = raw.strip()
+    fence_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
 class SelfHealingLocator:
     """
     Self-healing locator with AI-powered fallback strategies
     """
     
-    def __init__(self, primary_selector: str, alternatives: List[Dict[str, Any]], ai_service: GeminiService):
+    def __init__(
+        self,
+        primary_selector: str,
+        alternatives: List[Dict[str, Any]],
+        ai_service: GeminiService,
+        confidence_threshold: Optional[float] = None
+    ):
         self.primary_selector = primary_selector
         self.alternatives = alternatives or []
         self.ai_service = ai_service
+        self.confidence_threshold = confidence_threshold
         self.healing_history = []
     
     async def find_element(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Optional[Dict[str, Any]]]:
@@ -37,6 +58,8 @@ class SelfHealingLocator:
         Find element with progressive fallback strategies
         Returns: (element, healing_info)
         """
+        start_time = time.perf_counter()
+
         # Strategy 1: Try primary selector
         try:
             locator = page.locator(self.primary_selector)
@@ -57,13 +80,26 @@ class SelfHealingLocator:
                     "original": self.primary_selector,
                     "healed": alt["value"],
                     "alternative_index": idx,
+                    "confidence_score": alt.get("success_rate", 0.7),
+                    "alternatives_tried": [a.get("value") for a in self.alternatives if a.get("value")],
+                    "healing_duration_ms": int((time.perf_counter() - start_time) * 1000),
                     "success": True
                 }
                 return locator, healing_info
             except PlaywrightError:
                 continue
+
+        # Strategy 3: Heuristic healing (name/id fallback)
+        try:
+            healed_locator, healing_info = await self.heuristic_heal(page)
+            if healed_locator:
+                if healing_info is not None and "healing_duration_ms" not in healing_info:
+                    healing_info["healing_duration_ms"] = int((time.perf_counter() - start_time) * 1000)
+                return healed_locator, healing_info
+        except Exception as e:
+            print(f"Heuristic healing failed: {str(e)}")
         
-        # Strategy 3: AI-powered healing
+        # Strategy 4: AI-powered healing
         try:
             healed_locator, healing_info = await self.ai_heal(page, step_id, step_type)
             if healed_locator:
@@ -71,23 +107,104 @@ class SelfHealingLocator:
         except Exception as e:
             print(f"AI healing failed: {str(e)}")
         
-        # Strategy 4: Similarity-based matching
+        # Strategy 5: Similarity-based matching
         try:
             healed_locator, healing_info = await self.similarity_heal(page)
             if healed_locator:
+                if healing_info is not None and "healing_duration_ms" not in healing_info:
+                    healing_info["healing_duration_ms"] = int((time.perf_counter() - start_time) * 1000)
                 return healed_locator, healing_info
         except Exception as e:
             print(f"Similarity healing failed: {str(e)}")
         
         raise Exception(f"Unable to locate element with any strategy: {self.primary_selector}")
+
+    async def heuristic_heal(self, page: Page) -> tuple[Any, Dict[str, Any]]:
+        """
+        Heuristic healing for common selector patterns like name/id
+        """
+        heal_start = time.perf_counter()
+        selector = (self.primary_selector or "").strip()
+        if not selector:
+            return None, None
+
+        # Only attempt if selector looks like a simple token (no CSS operators)
+        if any(ch in selector for ch in [' ', '#', '.', '[', ']', '>', ':', '(', ')', '=', '"', "'"]):
+            return None, None
+
+        # Try Playwright semantic selectors first
+        semantic_candidates = [
+            ("label", lambda: page.get_by_label(selector, exact=False)),
+            ("placeholder", lambda: page.get_by_placeholder(selector, exact=False)),
+            ("role_textbox", lambda: page.get_by_role("textbox", name=selector)),
+        ]
+
+        for strategy, locator_fn in semantic_candidates:
+            try:
+                locator = locator_fn()
+                await locator.first.wait_for(timeout=3000, state="visible")
+                healing_info = {
+                    "type": HealingType.LOCATOR.value,
+                    "strategy": HealingStrategy.CONTEXT.value,
+                    "original": selector,
+                    "healed": f"{strategy}:{selector}",
+                    "confidence_score": 0.75,
+                    "alternatives_tried": [],
+                    "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
+                    "success": True
+                }
+                return locator.first, healing_info
+            except PlaywrightError:
+                continue
+
+        candidates = [
+            f"[name='{selector}']",
+            f"input[name='{selector}']",
+            f"textarea[name='{selector}']",
+            f"[id='{selector}']",
+            f"#{selector}",
+            f"[name*='{selector}']",
+            f"input[name*='{selector}']",
+            f"[id*='{selector}']",
+            f"input[id*='{selector}']",
+            f"[placeholder*='{selector}']",
+            f"input[placeholder*='{selector}']",
+            f"[aria-label*='{selector}']",
+            f"input[aria-label*='{selector}']",
+        ]
+
+        for idx, cand in enumerate(candidates):
+            try:
+                locator = page.locator(cand)
+                await locator.wait_for(timeout=3000, state="visible")
+                healing_info = {
+                    "type": HealingType.LOCATOR.value,
+                    "strategy": HealingStrategy.CONTEXT.value,
+                    "original": selector,
+                    "healed": cand,
+                    "confidence_score": 0.7,
+                    "alternatives_tried": candidates[:idx],
+                    "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
+                    "success": True
+                }
+                return locator, healing_info
+            except PlaywrightError:
+                continue
+
+        return None, None
     
     async def ai_heal(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Dict[str, Any]]:
         """
         Use AI to suggest alternative selectors
         """
+        heal_start = time.perf_counter()
         # Get DOM snapshot
         dom_html = await page.content()
         page_url = page.url
+        try:
+            page_title = await page.title()
+        except Exception:
+            page_title = None
         
         # Prepare AI prompt
         prompt = f"""
@@ -119,16 +236,28 @@ class SelfHealingLocator:
         """
         
         # Call AI service
-        ai_response = await self.ai_service.generate_content(prompt)
+        ai_response_raw = await self.ai_service.generate_completion(
+            messages=[{"role": "user", "content": prompt}],
+            json_mode=True
+        )
         
         try:
             # Parse AI response
-            suggestions = json.loads(ai_response)
+            suggestions = _parse_ai_json(ai_response_raw) or {}
             
             # Try each suggested selector
-            for suggestion in suggestions.get("selectors", []):
+            selector_suggestions = suggestions.get("selectors", [])
+            selector_suggestions = sorted(
+                selector_suggestions,
+                key=lambda s: s.get("confidence", 0.0),
+                reverse=True
+            )
+            for suggestion in selector_suggestions:
                 try:
                     selector = suggestion["selector"]
+                    confidence = suggestion.get("confidence", 0.5)
+                    if self.confidence_threshold is not None and confidence < self.confidence_threshold:
+                        continue
                     locator = page.locator(selector)
                     await locator.wait_for(timeout=3000, state="visible")
                     
@@ -138,13 +267,19 @@ class SelfHealingLocator:
                         "original": self.primary_selector,
                         "healed": selector,
                         "ai_reasoning": suggestion.get("reasoning", ""),
-                        "confidence_score": suggestion.get("confidence", 0.5),
+                        "confidence_score": confidence,
+                        "ai_prompt": prompt,
+                        "ai_response": suggestions,
+                        "alternatives_tried": [a.get("value") for a in self.alternatives if a.get("value")],
+                        "dom_snapshot": dom_html[:5000],
+                        "page_title": page_title,
+                        "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
                         "success": True
                     }
                     return locator, healing_info
                 except PlaywrightError:
                     continue
-        except json.JSONDecodeError:
+        except Exception:
             pass
         
         return None, None
@@ -153,6 +288,7 @@ class SelfHealingLocator:
         """
         Find similar elements based on text content, position, or attributes
         """
+        heal_start = time.perf_counter()
         # Extract selector type and value
         selector_parts = self.primary_selector.split('[')
         
@@ -172,6 +308,7 @@ class SelfHealingLocator:
                         "original": self.primary_selector,
                         "healed": f"{element_type}:visible",
                         "confidence_score": 0.6,
+                        "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
                         "success": True
                     }
                     return locator.first, healing_info
@@ -230,6 +367,8 @@ class SelfHealingAssertion:
                     "strategy": HealingStrategy.AI.value,
                     "original": expected_value,
                     "healed": healing_info["new_value"],
+                    "confidence_score": healing_info.get("confidence", 0.5),
+                    "ai_reasoning": healing_info.get("reasoning", ""),
                     "success": success
                 })
                 return success, healing_info
@@ -249,13 +388,42 @@ class SelfHealingAssertion:
             locator = page.locator(selector)
             actual_text = await locator.text_content()
             return actual_text == expected_value
+
+        elif assertion_type == "title":
+            actual_title = await page.title()
+            comparison = assertion.get("comparison", "equals")
+            if comparison == "equals":
+                return actual_title == expected_value
+            if comparison == "contains":
+                return expected_value in actual_title
+            if comparison == "starts_with":
+                return actual_title.startswith(expected_value)
+            if comparison == "ends_with":
+                return actual_title.endswith(expected_value)
+            if comparison == "regex":
+                import re
+                return bool(re.search(expected_value, actual_title))
+            return actual_title == expected_value
         
         elif assertion_type == "visible":
             locator = page.locator(selector)
             return await locator.is_visible()
         
         elif assertion_type == "url":
-            return page.url == expected_value
+            comparison = assertion.get("comparison", "equals")
+            actual_url = page.url
+            if comparison == "equals":
+                return actual_url == expected_value
+            if comparison == "contains":
+                return expected_value in actual_url
+            if comparison == "starts_with":
+                return actual_url.startswith(expected_value)
+            if comparison == "ends_with":
+                return actual_url.endswith(expected_value)
+            if comparison == "regex":
+                import re
+                return bool(re.search(expected_value, actual_url))
+            return actual_url == expected_value
         
         elif assertion_type == "attribute":
             locator = page.locator(selector)
@@ -273,6 +441,8 @@ class SelfHealingAssertion:
             if assertion_type == "text":
                 locator = page.locator(selector)
                 return await locator.text_content() or ""
+            elif assertion_type == "title":
+                return await page.title()
             elif assertion_type == "url":
                 return page.url
             elif assertion_type == "visible":
@@ -321,8 +491,16 @@ class SelfHealingAssertion:
         """
         
         try:
-            ai_response = await self.ai_service.generate_content(prompt)
-            suggestion = json.loads(ai_response)
+            ai_response_raw = await self.ai_service.generate_completion(
+                messages=[{"role": "user", "content": prompt}],
+                json_mode=True
+            )
+            suggestion = _parse_ai_json(ai_response_raw)
+            if not suggestion:
+                return None
+            ai_response_payload = dict(suggestion)
+            suggestion["ai_prompt"] = prompt
+            suggestion["ai_response"] = ai_response_payload
             return suggestion
         except Exception as e:
             print(f"AI assertion suggestion failed: {str(e)}")
@@ -448,38 +626,49 @@ class WebAutomationExecutor:
         browser_type: BrowserType = BrowserType.CHROME,
         execution_mode: ExecutionMode = ExecutionMode.HEADED,
         triggered_by: Optional[UUID] = None,
-        variables: Optional[Dict[str, str]] = None
+        variables: Optional[Dict[str, str]] = None,
+        execution_run_id: Optional[UUID] = None
     ) -> ExecutionRun:
         """
         Execute a complete test flow
         """
         # Load test flow
-        test_flow = self.db.query(TestFlow).filter(TestFlow.id == test_flow_id).first()
+        result = await self.db.execute(select(TestFlow).where(TestFlow.id == test_flow_id))
+        test_flow = result.scalar_one_or_none()
+        
         if not test_flow:
             raise ValueError(f"Test flow not found: {test_flow_id}")
             
         # Set variables
         self.variables = variables or {}
         
-        # Create execution run record
-        self.execution_run = ExecutionRun(
-            test_flow_id=test_flow.id,
-            project_id=test_flow.project_id,
-            browser_type=browser_type,
-            execution_mode=execution_mode,
-            status=ExecutionRunStatus.PENDING,
-            triggered_by=triggered_by,
-            total_steps=len(test_flow.nodes),
-            execution_environment={
-                "browser": browser_type.value,
-                "mode": execution_mode.value,
-                "platform": "linux",  # TODO: detect actual platform
-                "variables": self.variables
-            }
-        )
-        self.db.add(self.execution_run)
-        self.db.commit()
-        self.db.refresh(self.execution_run)
+        # Get or Create execution run
+        if execution_run_id:
+            result = await self.db.execute(select(ExecutionRun).where(ExecutionRun.id == execution_run_id))
+            self.execution_run = result.scalar_one_or_none()
+            if not self.execution_run:
+                 raise ValueError(f"Execution run not found: {execution_run_id}")
+            # Ensure session is attached
+            self.execution_run = await self.db.merge(self.execution_run)
+        else:
+            self.execution_run = ExecutionRun(
+                test_flow_id=test_flow.id,
+                project_id=test_flow.project_id,
+                browser_type=browser_type,
+                execution_mode=execution_mode,
+                status=ExecutionRunStatus.PENDING,
+                triggered_by=triggered_by,
+                total_steps=len(test_flow.nodes),
+                execution_environment={
+                    "browser": browser_type.value,
+                    "mode": execution_mode.value,
+                    "platform": "linux",  # TODO: detect actual platform
+                    "variables": self.variables
+                }
+            )
+            self.db.add(self.execution_run)
+            await self.db.commit()
+            await self.db.refresh(self.execution_run)
         
         try:
             # Setup browser
@@ -488,7 +677,7 @@ class WebAutomationExecutor:
             # Update status to running
             self.execution_run.status = ExecutionRunStatus.RUNNING
             self.execution_run.started_at = datetime.utcnow()
-            self.db.commit()
+            await self.db.commit()
             
             await self.emit_live_update("executionStarted", {
                 "test_flow_name": test_flow.name,
@@ -520,7 +709,7 @@ class WebAutomationExecutor:
             
             test_flow.last_executed_at = datetime.utcnow()
             
-            self.db.commit()
+            await self.db.commit()
             
             await self.emit_live_update("executionCompleted", {
                 "status": "success",
@@ -533,7 +722,7 @@ class WebAutomationExecutor:
             self.execution_run.status = ExecutionRunStatus.FAILED
             self.execution_run.error_message = str(e)
             self.execution_run.ended_at = datetime.utcnow()
-            self.db.commit()
+            await self.db.commit()
             
             await self.emit_live_update("executionFailed", {
                 "error": str(e)
@@ -542,7 +731,7 @@ class WebAutomationExecutor:
             raise
         
         finally:
-            await self.cleanup() # Changed from teardown_browser
+            await self.cleanup()
         
         return self.execution_run
     
@@ -663,29 +852,31 @@ class WebAutomationExecutor:
         self,
         browser_type: BrowserType,
         execution_mode: ExecutionMode,
-        options: Dict[str, Any] = None # Added default None
+        options: Dict[str, Any] = None
     ):
         """
         Initialize browser instance
         """
-        self.playwright = await async_playwright().start() # Changed from local playwright variable
+        self.playwright = await async_playwright().start()
         
+        options = options or {}
+
         launch_options = {
-            "headless": mode == ExecutionMode.HEADLESS,
+            "headless": execution_mode == ExecutionMode.HEADLESS,
             **options.get("launch_options", {})
         }
         
         # Select browser
         if browser_type == BrowserType.CHROME:
-            self.browser = await playwright.chromium.launch(channel="chrome", **launch_options)
+            self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_options)
         elif browser_type == BrowserType.FIREFOX:
-            self.browser = await playwright.firefox.launch(**launch_options)
+            self.browser = await self.playwright.firefox.launch(**launch_options)
         elif browser_type == BrowserType.SAFARI:
-            self.browser = await playwright.webkit.launch(**launch_options)
+            self.browser = await self.playwright.webkit.launch(**launch_options)
         elif browser_type == BrowserType.EDGE:
-            self.browser = await playwright.chromium.launch(channel="msedge", **launch_options)
+            self.browser = await self.playwright.chromium.launch(channel="msedge", **launch_options)
         else:
-            self.browser = await playwright.chromium.launch(**launch_options)
+            self.browser = await self.playwright.chromium.launch(**launch_options)
         
         # Create context
         context_options = {
@@ -695,7 +886,7 @@ class WebAutomationExecutor:
             **options.get("context_options", {})
         }
         
-        if mode == ExecutionMode.HEADED:
+        if execution_mode == ExecutionMode.HEADED:
             context_options["record_video_dir"] = "videos/"
         
         self.context = await self.browser.new_context(**context_options)
@@ -785,7 +976,13 @@ class WebAutomationExecutor:
         
         try:
             # Execute action based on type
-            healing_info = await self.execute_action(step_type, step_data, test_flow)
+            healing_info = await self.execute_action(
+                step_type,
+                step_data,
+                test_flow,
+                step_id=step_id,
+                step_result_id=step_result.id
+            )
             
             # Capture screenshot
             screenshot = await self.page.screenshot()
@@ -811,6 +1008,14 @@ class WebAutomationExecutor:
                 })
             
             self.execution_run.passed_steps += 1
+
+            if healing_info and not healing_info.get("event_recorded"):
+                await self.record_healing_event(
+                    healing_info=healing_info,
+                    step_id=step_id,
+                    step_type=step_type,
+                    step_result_id=step_result.id
+                )
             
             await self.emit_live_update("stepCompleted", {
                 "step_id": step_id,
@@ -838,7 +1043,9 @@ class WebAutomationExecutor:
         self,
         action_type: str,
         action_data: Dict[str, Any],
-        test_flow: TestFlow
+        test_flow: TestFlow,
+        step_id: Optional[str] = None,
+        step_result_id: Optional[UUID] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Execute specific action type with self-healing
@@ -853,7 +1060,7 @@ class WebAutomationExecutor:
         elif action_type == "click":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.click()
         
@@ -861,16 +1068,21 @@ class WebAutomationExecutor:
             selector_data = action_data.get("selector", {})
             value = self.substitute_variables(action_data.get("value", ""))
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.fill(value)
         
         elif action_type == "assert":
             assertion = action_data.get("assertion", {})
             assertor = SelfHealingAssertion(self.ai_service)
-            success, healing_info = await assertor.assert_with_healing(self.page, assertion)
-            if not success:
-                raise Exception(f"Assertion failed: {assertion}")
+            if test_flow.healing_enabled:
+                success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+                if not success:
+                    raise Exception(f"Assertion failed: {assertion}")
+            else:
+                success = await assertor.standard_assert(self.page, assertion)
+                if not success:
+                    raise Exception(f"Assertion failed: {assertion}")
         
         elif action_type == "assert_title":
             # Check expected_title first, fallback to value (frontend uses 'value' field)
@@ -878,23 +1090,18 @@ class WebAutomationExecutor:
                 action_data.get("expected_title") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_title = await self.page.title()
-            
-            passed = False
-            if comparison == "equals":
-                passed = actual_title == expected_title
-            elif comparison == "contains":
-                passed = expected_title in actual_title
-            elif comparison == "starts_with":
-                passed = actual_title.startswith(expected_title)
-            elif comparison == "ends_with":
-                passed = actual_title.endswith(expected_title)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_title, actual_title))
-            
-            if not passed:
-                raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+            assertion = {"type": "title", "expectedValue": expected_title, "comparison": comparison}
+            assertor = SelfHealingAssertion(self.ai_service)
+            if test_flow.healing_enabled:
+                success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+                if not success:
+                    actual_title = await self.page.title()
+                    raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
+            else:
+                success = await assertor.standard_assert(self.page, assertion)
+                if not success:
+                    actual_title = await self.page.title()
+                    raise Exception(f"Title assertion failed: expected '{expected_title}' ({comparison}), got '{actual_title}'")
         
         elif action_type == "assert_url":
             # Check expected_url first, fallback to value (frontend uses 'value' field)
@@ -902,21 +1109,18 @@ class WebAutomationExecutor:
                 action_data.get("expected_url") or action_data.get("value", "")
             )
             comparison = action_data.get("comparison", "equals")
-            actual_url = self.page.url
-            
-            passed = False
-            if comparison == "equals":
-                passed = actual_url == expected_url
-            elif comparison == "contains":
-                passed = expected_url in actual_url
-            elif comparison == "starts_with":
-                passed = actual_url.startswith(expected_url)
-            elif comparison == "regex":
-                import re
-                passed = bool(re.search(expected_url, actual_url))
-            
-            if not passed:
-                raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+            assertion = {"type": "url", "expectedValue": expected_url, "comparison": comparison}
+            assertor = SelfHealingAssertion(self.ai_service)
+            if test_flow.healing_enabled:
+                success, healing_info = await assertor.assert_with_healing(self.page, assertion)
+                if not success:
+                    actual_url = self.page.url
+                    raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
+            else:
+                success = await assertor.standard_assert(self.page, assertion)
+                if not success:
+                    actual_url = self.page.url
+                    raise Exception(f"URL assertion failed: expected '{expected_url}' ({comparison}), got '{actual_url}'")
         
         elif action_type == "wait":
             wait_type = action_data.get("waitType", "time")
@@ -929,7 +1133,7 @@ class WebAutomationExecutor:
             elif wait_type == "element":
                 selector_data = action_data.get("selector", {})
                 locator, healing_info = await self.get_locator_with_healing(
-                    selector_data, action_type, test_flow
+                    selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
                 )
                 await locator.wait_for(state="visible")
         
@@ -942,7 +1146,7 @@ class WebAutomationExecutor:
         elif action_type == "hover":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.hover()
 
@@ -950,7 +1154,7 @@ class WebAutomationExecutor:
         elif action_type == "select":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             # Support selecting by value, label, or index
             select_by = action_data.get("select_by", "value")  # value, label, index
@@ -969,7 +1173,7 @@ class WebAutomationExecutor:
         elif action_type == "upload":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             file_path = self.substitute_variables(action_data.get("file_path", ""))
             if file_path:
@@ -982,7 +1186,7 @@ class WebAutomationExecutor:
             selector_data = action_data.get("selector", {})
             if selector_data and selector_data.get("primary"):
                 locator, healing_info = await self.get_locator_with_healing(
-                    selector_data, action_type, test_flow
+                    selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
                 )
                 await locator.press(key)
             else:
@@ -997,7 +1201,7 @@ class WebAutomationExecutor:
             if scroll_type == "element":
                 selector_data = action_data.get("selector", {})
                 locator, healing_info = await self.get_locator_with_healing(
-                    selector_data, action_type, test_flow
+                    selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
                 )
                 await locator.scroll_into_view_if_needed()
             elif scroll_type == "coordinates":
@@ -1023,7 +1227,7 @@ class WebAutomationExecutor:
         elif action_type == "double_click":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.dblclick()
 
@@ -1031,7 +1235,7 @@ class WebAutomationExecutor:
         elif action_type == "right_click":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.click(button="right")
 
@@ -1039,7 +1243,7 @@ class WebAutomationExecutor:
         elif action_type == "focus":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.focus()
 
@@ -1047,7 +1251,7 @@ class WebAutomationExecutor:
         elif action_type == "clear":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.clear()
 
@@ -1055,14 +1259,14 @@ class WebAutomationExecutor:
         elif action_type == "check":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.check()
 
         elif action_type == "uncheck":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.uncheck()
 
@@ -1072,10 +1276,10 @@ class WebAutomationExecutor:
             target_selector = action_data.get("target_selector", {})
             
             source_locator, _ = await self.get_locator_with_healing(
-                source_selector, action_type, test_flow
+                source_selector, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             target_locator, _ = await self.get_locator_with_healing(
-                target_selector, action_type, test_flow
+                target_selector, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await source_locator.drag_to(target_locator)
 
@@ -1107,7 +1311,9 @@ class WebAutomationExecutor:
             selector_data = action_data.get("selector", {})
             variable_name = action_data.get("variable_name")
             if variable_name:
-                locator, healing_info = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                locator, healing_info = await self.get_locator_with_healing(
+                    selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
+                )
                 text = await locator.text_content()
                 self.variables[variable_name] = text
                 
@@ -1116,7 +1322,9 @@ class WebAutomationExecutor:
             attribute_name = action_data.get("attribute_name")
             variable_name = action_data.get("variable_name")
             if variable_name and attribute_name:
-                locator, healing_info = await self.get_locator_with_healing(selector_data, action_type, test_flow)
+                locator, healing_info = await self.get_locator_with_healing(
+                    selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
+                )
                 value = await locator.get_attribute(attribute_name)
                 self.variables[variable_name] = value or ""
 
@@ -1707,7 +1915,7 @@ class WebAutomationExecutor:
             color = action_data.get("color", "red")
             
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             
             # Add highlight style
@@ -1853,7 +2061,7 @@ class WebAutomationExecutor:
         elif action_type == "paste_from_clipboard":
             selector_data = action_data.get("selector", {})
             locator, healing_info = await self.get_locator_with_healing(
-                selector_data, action_type, test_flow
+                selector_data, action_type, test_flow, step_id=step_id, step_result_id=step_result_id
             )
             await locator.press("Control+v")
 
@@ -1933,44 +2141,162 @@ class WebAutomationExecutor:
         # Add more action types as needed
         
         return healing_info
+
+    async def record_healing_event(
+        self,
+        healing_info: Dict[str, Any],
+        step_id: Optional[str],
+        step_type: str,
+        step_result_id: Optional[UUID]
+    ) -> None:
+        if not healing_info:
+            return
+
+        healing_type_value = healing_info.get("type", HealingType.LOCATOR.value)
+        try:
+            healing_type_enum = HealingType(healing_type_value)
+        except Exception:
+            healing_type_enum = HealingType.LOCATOR
+
+        strategy_value = healing_info.get("strategy", HealingStrategy.AI.value)
+        try:
+            strategy_enum = HealingStrategy[strategy_value.upper()]
+        except KeyError:
+            strategy_enum = HealingStrategy.AI
+
+        page_title = None
+        try:
+            page_title = await self.page.title()
+        except Exception:
+            page_title = None
+
+        healing_event = HealingEvent(
+            execution_run_id=self.execution_run.id,
+            step_result_id=step_result_id,
+            healing_type=healing_type_enum,
+            strategy=strategy_enum,
+            original_value=healing_info.get("original", "") or "",
+            healed_value=healing_info.get("healed", "") or "",
+            step_id=step_id or "",
+            step_type=step_type,
+            success=bool(healing_info.get("success", True)),
+            confidence_score=healing_info.get("confidence_score", healing_info.get("confidence", 0.8)),
+            ai_prompt=healing_info.get("ai_prompt"),
+            ai_response=healing_info.get("ai_response"),
+            ai_reasoning=healing_info.get("ai_reasoning", ""),
+            alternatives_tried=healing_info.get("alternatives_tried", []),
+            dom_snapshot=healing_info.get("dom_snapshot"),
+            page_url=self.page.url if self.page else None,
+            page_title=healing_info.get("page_title") or page_title,
+            healing_duration_ms=healing_info.get("healing_duration_ms")
+        )
+        self.db.add(healing_event)
+        self.db.commit()
+        self.db.refresh(healing_event)
+        healing_info["event_recorded"] = True
+        healing_info["healing_event_id"] = str(healing_event.id)
     
     async def get_locator_with_healing(
         self,
         selector_data: Dict[str, Any],
         step_type: str,
-        test_flow: TestFlow
+        test_flow: TestFlow,
+        step_id: Optional[str] = None,
+        step_result_id: Optional[UUID] = None
     ) -> tuple[Any, Optional[Dict[str, Any]]]:
         """
         Get locator with self-healing enabled
         """
-        primary = selector_data.get("primary", "")
-        alternatives = selector_data.get("alternatives", [])
+        primary = ""
+        alternatives = []
+        if isinstance(selector_data, str):
+            primary = selector_data
+        elif isinstance(selector_data, dict):
+            primary = selector_data.get("primary") or selector_data.get("css") or selector_data.get("selector") or ""
+            alternatives = selector_data.get("alternatives", []) or []
+
+        # Merge stored alternatives from previous healings
+        stored_alternatives = []
+        if step_id:
+            alt_record = (
+                self.db.query(LocatorAlternative)
+                .filter(
+                    LocatorAlternative.test_flow_id == test_flow.id,
+                    LocatorAlternative.step_id == step_id
+                )
+                .first()
+            )
+            if alt_record and alt_record.alternatives:
+                stored_alternatives = sorted(
+                    alt_record.alternatives,
+                    key=lambda a: a.get("success_rate", 0.0),
+                    reverse=True
+                )
+
+        merged_alternatives = []
+        seen = set()
+        for alt in (alternatives + stored_alternatives):
+            if isinstance(alt, dict):
+                value = alt.get("value")
+                if not value or value in seen:
+                    continue
+                merged_alternatives.append(alt)
+                seen.add(value)
+            elif isinstance(alt, str):
+                if alt in seen:
+                    continue
+                merged_alternatives.append({"value": alt, "strategy": HealingStrategy.ALTERNATIVE.value})
+                seen.add(alt)
+
+        alternatives = merged_alternatives
         
         if test_flow.healing_enabled:
             healer = SelfHealingLocator(primary, alternatives, self.ai_service)
-            locator, healing_info = await healer.find_element(self.page, "", step_type)
+            locator, healing_info = await healer.find_element(self.page, step_id or "", step_type)
             
             # Record healing event if healing occurred
             if healing_info:
+                page_title = None
+                try:
+                    page_title = await self.page.title()
+                except Exception:
+                    page_title = None
+
+                strategy_value = healing_info.get("strategy", HealingStrategy.AI.value)
+                try:
+                    strategy_enum = HealingStrategy[strategy_value.upper()]
+                except KeyError:
+                    strategy_enum = HealingStrategy.AI
+
                 healing_event = HealingEvent(
                     execution_run_id=self.execution_run.id,
+                    step_result_id=step_result_id,
                     healing_type=HealingType.LOCATOR,
-                    strategy=HealingStrategy[healing_info["strategy"].upper()],
-                    original_value=healing_info["original"],
-                    healed_value=healing_info["healed"],
-                    step_id="",
+                    strategy=strategy_enum,
+                    original_value=healing_info.get("original", primary) or "",
+                    healed_value=healing_info.get("healed", "") or "",
+                    step_id=step_id or "",
                     step_type=step_type,
                     success=True,
                     confidence_score=healing_info.get("confidence_score", 0.8),
+                    ai_prompt=healing_info.get("ai_prompt"),
+                    ai_response=healing_info.get("ai_response"),
+                    ai_reasoning=healing_info.get("ai_reasoning", ""),
+                    alternatives_tried=healing_info.get("alternatives_tried", []),
+                    dom_snapshot=healing_info.get("dom_snapshot"),
                     page_url=self.page.url
                 )
+                healing_event.page_title = healing_info.get("page_title") or page_title
+                healing_event.healing_duration_ms = healing_info.get("healing_duration_ms")
                 self.db.add(healing_event)
                 self.db.commit()
                 self.db.refresh(healing_event)
+                healing_info["event_recorded"] = True
+                healing_info["healing_event_id"] = str(healing_event.id)
                 
                 # Emit live update for healing
                 await self.emit_live_update("healingApplied", {
-                    "step_id": step_id,
+                    "step_id": step_id or "",
                     "type": healing_info["type"],
                     "strategy": healing_info["strategy"],
                     "original": healing_info["original"],

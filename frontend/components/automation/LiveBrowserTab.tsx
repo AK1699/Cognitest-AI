@@ -33,7 +33,8 @@ import {
     Info,
     AlertTriangle,
     Search,
-    Keyboard
+    Keyboard,
+    Wand2
 } from 'lucide-react'
 import { webAutomationApi } from '@/lib/api/webAutomation'
 
@@ -125,7 +126,7 @@ export default function LiveBrowserTab({
         index: number
         name: string
         type: string
-        status: 'pending' | 'running' | 'passed' | 'failed'
+        status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'healed'
         error?: string
         selector?: string
         value?: string
@@ -135,6 +136,13 @@ export default function LiveBrowserTab({
         variable_name?: string
         key?: string
         cookie_name?: string
+        healingStatus?: 'attempting' | 'healed' | 'failed'
+        healingMessage?: string
+        healingStrategy?: string
+        healingConfidence?: number
+        healingOriginal?: string
+        healingHealed?: string
+        healingReasoning?: string
         logMessage?: string
         apiStatus?: number
         // Snippet-specific fields
@@ -143,7 +151,7 @@ export default function LiveBrowserTab({
             index: number
             name: string
             type: string
-            status: 'pending' | 'running' | 'passed' | 'failed'
+            status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'healed'
             error?: string
             selector?: string
             value?: string
@@ -152,12 +160,112 @@ export default function LiveBrowserTab({
             expectedUrl?: string
             expectedTitle?: string
             comparison?: string
+            healingStatus?: 'attempting' | 'healed' | 'failed'
+            healingMessage?: string
+            healingStrategy?: string
+            healingConfidence?: number
+            healingOriginal?: string
+            healingHealed?: string
+            healingReasoning?: string
         }>
+    }>>([])
+
+    const [pendingStepPreview, setPendingStepPreview] = useState<Array<{
+        name: string
+        type: string
+        selector?: string
+        value?: string
+        url?: string
+        expected_count?: number
+        comparison?: string
+        variable_name?: string
+        key?: string
+        cookie_name?: string
     }>>([])
 
     // Element Inspector
     const [inspectMode, setInspectMode] = useState(true) // Enable inspector by default
     const [selectedElement, setSelectedElement] = useState<any>(null)
+
+    const formatActionName = useCallback((actionType: string) => {
+        const actionNames: Record<string, string> = {
+            navigate: 'Navigate',
+            click: 'Click',
+            type: 'Type',
+            fill: 'Fill',
+            assert: 'Assert',
+            assert_title: 'Assert Title',
+            assert_url: 'Assert URL',
+            assert_visible: 'Assert Visible',
+            assert_text: 'Assert Text',
+            assert_value: 'Assert Value',
+            assert_not_visible: 'Assert Hidden',
+            assert_element_count: 'Assert Count',
+            soft_assert: 'Soft Assert',
+            wait: 'Wait',
+            wait_for_element: 'Wait for Element',
+            screenshot: 'Screenshot',
+            hover: 'Hover',
+            scroll: 'Scroll',
+            select: 'Select',
+            upload: 'Upload',
+            press: 'Press Key',
+            double_click: 'Double Click',
+            right_click: 'Right Click',
+            focus: 'Focus',
+            drag_drop: 'Drag and Drop',
+            execute_script: 'Execute Script',
+            set_variable: 'Set Variable',
+            log: 'Log',
+            reload: 'Reload',
+            go_back: 'Go Back',
+            go_forward: 'Go Forward'
+        }
+        return actionNames[actionType] || actionType.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
+    }, [])
+
+    const buildStepPreview = useCallback((nodes: any[]) => {
+        return (nodes || []).map((node, index) => {
+            const data = node?.data || {}
+            const actionType = data.actionType || data.action || data.type || node?.type || 'pending'
+            const label = data.label || data.description || data.name || `Step ${index + 1}`
+            const rawSelector = data.selector
+            const selector = typeof rawSelector === 'string'
+                ? rawSelector
+                : rawSelector?.primary || rawSelector?.css || rawSelector?.selector
+            return {
+                name: label || formatActionName(actionType),
+                type: actionType,
+                selector,
+                value: data.value,
+                url: data.url,
+                expected_count: data.expected_count,
+                comparison: data.comparison,
+                variable_name: data.variable_name,
+                key: data.key,
+                cookie_name: data.cookie_name
+            }
+        })
+    }, [formatActionName])
+
+    useEffect(() => {
+        const flowId = testToRun?.flowId || testFlowId
+        if (!flowId) return
+
+        let isMounted = true
+        webAutomationApi.getTestFlow(flowId)
+            .then(flow => {
+                if (!isMounted) return
+                const preview = buildStepPreview(flow.nodes || [])
+                setPendingStepPreview(preview)
+            })
+            .catch(err => {
+                console.error('Failed to load flow steps for preview:', err)
+            })
+        return () => {
+            isMounted = false
+        }
+    }, [testToRun?.flowId, testFlowId, buildStepPreview])
     const [typingText, setTypingText] = useState('')
     const screenshotRef = useRef<HTMLImageElement>(null)
 
@@ -210,6 +318,7 @@ export default function LiveBrowserTab({
     // Store pending test to run after browser launches
     const [pendingTestFlowId, setPendingTestFlowId] = useState<string | null>(null)
     const testRunInitiatedRef = useRef(false)
+    const executeSentRef = useRef(false)
 
     // When testToRun prop is passed, prepare for test execution
     useEffect(() => {
@@ -218,6 +327,7 @@ export default function LiveBrowserTab({
         }
 
         testRunInitiatedRef.current = true
+        executeSentRef.current = false
 
         // Store the test to run after browser is launched
         setPendingTestFlowId(testToRun.flowId)
@@ -251,6 +361,7 @@ export default function LiveBrowserTab({
 
         return () => {
             testRunInitiatedRef.current = false
+            executeSentRef.current = false
         }
     }, [testToRun])
 
@@ -318,7 +429,7 @@ export default function LiveBrowserTab({
                 setSessionStatus('running')
                 startTimer()
                 // If there's a pending test to execute, run it now
-                if (pendingTestFlowId && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                if (pendingTestFlowId && !executeSentRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                     console.log('Session started, executing pending test:', pendingTestFlowId)
                     wsRef.current.send(JSON.stringify({
                         action: 'execute_test',
@@ -330,6 +441,7 @@ export default function LiveBrowserTab({
                             aiSelfHeal: true
                         }
                     }))
+                    executeSentRef.current = true
                     setPendingTestFlowId(null)
                 }
                 break
@@ -353,12 +465,23 @@ export default function LiveBrowserTab({
                 // Set the test name from backend response
                 setCurrentTestName(data.testName || testToRun?.testName || testName)
                 // Initialize steps as pending and switch to steps tab
-                setExecutingSteps(Array.from({ length: data.totalSteps }, (_, i) => ({
-                    index: i,
-                    name: `Step ${i + 1}`,
-                    type: 'pending',
-                    status: 'pending' as const
-                })))
+                setExecutingSteps(Array.from({ length: data.totalSteps }, (_, i) => {
+                    const preview = pendingStepPreview[i]
+                    return {
+                        index: i,
+                        name: preview?.name || `Step ${i + 1}`,
+                        type: preview?.type || 'pending',
+                        status: 'pending' as const,
+                        selector: preview?.selector,
+                        url: preview?.url,
+                        value: preview?.value,
+                        expected_count: preview?.expected_count,
+                        comparison: preview?.comparison,
+                        variable_name: preview?.variable_name,
+                        key: preview?.key,
+                        cookie_name: preview?.cookie_name
+                    }
+                }))
                 setActiveTab('steps')
                 break
 
@@ -384,7 +507,40 @@ export default function LiveBrowserTab({
                 console.log(`Step ${data.stepIndex + 1} ${data.status}`, data.error || '')
                 setExecutingSteps(prev => prev.map((step, i) =>
                     i === data.stepIndex
-                        ? { ...step, status: data.status as 'passed' | 'failed', error: data.error }
+                        ? { ...step, status: data.status as 'passed' | 'failed' | 'skipped' | 'healed', error: data.error }
+                        : step
+                ))
+                break
+
+            case 'healing_attempt':
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? {
+                            ...step,
+                            healingStatus: 'attempting',
+                            healingMessage: `Trying self-heal for ${data.action || step.type}`,
+                            healingStrategy: undefined,
+                            healingConfidence: undefined
+                        }
+                        : step
+                ))
+                break
+
+            case 'healing_result':
+                setExecutingSteps(prev => prev.map((step, i) =>
+                    i === data.stepIndex
+                        ? {
+                            ...step,
+                            healingStatus: data.status === 'healed' ? 'healed' : 'failed',
+                            healingMessage: data.status === 'healed'
+                                ? `Healed with ${data.strategy || 'ai'}`
+                                : 'Self-heal failed',
+                            healingStrategy: data.strategy,
+                            healingConfidence: data.confidence,
+                            healingOriginal: data.original,
+                            healingHealed: data.healed,
+                            healingReasoning: data.reasoning
+                        }
                         : step
                 ))
                 break
@@ -462,25 +618,15 @@ export default function LiveBrowserTab({
             case 'test_execution_completed':
                 console.log('Test execution completed:', data.flowId)
                 testRunInitiatedRef.current = false
-                // Stop the browser session after test completes
-                setTimeout(() => {
-                    console.log('Stopping browser session...')
-                    // Send stop action via WebSocket
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(JSON.stringify({ action: 'stop' }))
-                        wsRef.current.close()
-                    }
-                    setSessionId(null)
-                    setSessionStatus('stopped')
-                    setScreenshot(null)
-                    stopTimer()
-                }, 1500) // Wait 1.5 seconds so user can see final result
+                executeSentRef.current = false
+                // Keep browser session open after run to allow self-heal inspection
                 onTestComplete?.()
                 break
 
             case 'error':
                 console.error('Browser session error:', data.error)
                 testRunInitiatedRef.current = false
+                executeSentRef.current = false
                 break
 
             case 'log_message':
@@ -1320,7 +1466,7 @@ export default function LiveBrowserTab({
                                                     : 'bg-green-500'
                                                     }`}
                                                 style={{
-                                                    width: `${(executingSteps.filter(s => s.status === 'passed' || s.status === 'failed').length / executingSteps.length) * 100}%`
+                                                    width: `${(executingSteps.filter(s => s.status === 'passed' || s.status === 'failed' || s.status === 'healed').length / executingSteps.length) * 100}%`
                                                 }}
                                             />
                                         </div>
@@ -1328,7 +1474,7 @@ export default function LiveBrowserTab({
                                         <div className="px-4 py-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    {executingSteps.every(s => s.status === 'passed') ? (
+                                                    {executingSteps.every(s => s.status === 'passed' || s.status === 'healed') ? (
                                                         <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
                                                             <CheckCircle2 className="w-4 h-4 text-green-600" />
                                                         </div>
@@ -1353,6 +1499,11 @@ export default function LiveBrowserTab({
                                                     <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full font-medium">
                                                         {executingSteps.filter(s => s.status === 'passed').length} passed
                                                     </span>
+                                                    {executingSteps.some(s => s.status === 'healed') && (
+                                                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full font-medium">
+                                                            {executingSteps.filter(s => s.status === 'healed').length} healed
+                                                        </span>
+                                                    )}
                                                     {executingSteps.some(s => s.status === 'failed') && (
                                                         <span className="px-2 py-1 bg-red-50 text-red-700 rounded-full font-medium">
                                                             {executingSteps.filter(s => s.status === 'failed').length} failed
@@ -1370,28 +1521,39 @@ export default function LiveBrowserTab({
                                                 key={step.index}
                                                 className={`bg-white rounded-lg border shadow-sm overflow-hidden transition-all ${step.status === 'running'
                                                     ? 'border-blue-300 ring-2 ring-blue-100'
-                                                    : step.status === 'passed'
-                                                        ? 'border-gray-200'
-                                                        : step.status === 'failed'
-                                                            ? 'border-red-300'
-                                                            : 'border-gray-100 opacity-60'
+                                                    : step.status === 'healed'
+                                                        ? 'border-orange-300 ring-2 ring-orange-100'
+                                                        : step.status === 'passed'
+                                                            ? 'border-gray-200'
+                                                            : step.status === 'failed'
+                                                                ? 'border-red-300'
+                                                                : step.status === 'skipped'
+                                                                    ? 'border-gray-200'
+                                                                    : 'border-gray-100 opacity-60'
                                                     }`}
                                             >
                                                 <div className={`flex items-start p-3 ${step.status === 'running' ? 'bg-blue-50/50' :
-                                                    step.status === 'failed' ? 'bg-red-50/50' : ''
+                                                    step.status === 'failed' ? 'bg-red-50/50' :
+                                                        step.status === 'healed' ? 'bg-orange-50/60' : ''
                                                     }`}>
                                                     {/* Step Number Circle */}
                                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${step.status === 'passed' ? 'bg-green-500 text-white' :
+                                                        step.status === 'healed' ? 'bg-orange-500 text-white' :
                                                         step.status === 'running' ? 'bg-blue-500 text-white' :
                                                             step.status === 'failed' ? 'bg-red-500 text-white' :
+                                                                step.status === 'skipped' ? 'bg-gray-400 text-white' :
                                                                 'bg-gray-200 text-gray-500'
                                                         }`}>
                                                         {step.status === 'passed' ? (
                                                             <CheckCircle2 className="w-4 h-4" />
+                                                        ) : step.status === 'healed' ? (
+                                                            <Wand2 className="w-4 h-4" />
                                                         ) : step.status === 'running' ? (
                                                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                                         ) : step.status === 'failed' ? (
                                                             <XCircle className="w-4 h-4" />
+                                                        ) : step.status === 'skipped' ? (
+                                                            <SkipForward className="w-4 h-4" />
                                                         ) : (
                                                             step.index + 1
                                                         )}
@@ -1403,8 +1565,10 @@ export default function LiveBrowserTab({
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className={`font-semibold text-sm ${step.status === 'running' ? 'text-blue-700' :
                                                                 step.status === 'passed' ? 'text-gray-900' :
-                                                                    step.status === 'failed' ? 'text-red-700' :
-                                                                        'text-gray-400'
+                                                                    step.status === 'healed' ? 'text-orange-700' :
+                                                                        step.status === 'failed' ? 'text-red-700' :
+                                                                            step.status === 'skipped' ? 'text-gray-600' :
+                                                                                'text-gray-400'
                                                                 }`}>
                                                                 {step.type === 'navigate' && 'Navigate'}
                                                                 {step.type === 'click' && 'Click'}
@@ -1441,6 +1605,14 @@ export default function LiveBrowserTab({
                                                             </span>
                                                             {step.status === 'running' && (
                                                                 <span className="text-xs text-blue-600 animate-pulse">Running...</span>
+                                                            )}
+                                                            {step.status === 'healed' && (
+                                                                <span className="text-xs text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-semibold">
+                                                                    Self-Healed
+                                                                </span>
+                                                            )}
+                                                            {step.status === 'skipped' && (
+                                                                <span className="text-xs text-gray-500">Skipped</span>
                                                             )}
                                                         </div>
 
@@ -1525,6 +1697,62 @@ export default function LiveBrowserTab({
                                                             <div className="mt-2 text-xs text-blue-700 font-mono bg-blue-50 px-3 py-2 rounded-md border border-blue-200 flex items-start gap-2">
                                                                 <span className="opacity-60 shrink-0">📝</span>
                                                                 <span className="break-all">{step.logMessage}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Healing Status Display */}
+                                                        {step.healingStatus && (
+                                                            <div className={`mt-2 text-xs font-mono px-3 py-2 rounded-md border flex items-center gap-2 ${step.healingStatus === 'attempting'
+                                                                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                                : step.healingStatus === 'healed'
+                                                                    ? 'bg-orange-50 border-orange-200 text-orange-700'
+                                                                    : 'bg-red-50 border-red-200 text-red-700'
+                                                                }`}>
+                                                                <span className="opacity-60 shrink-0">✨</span>
+                                                                <span>{step.healingMessage}</span>
+                                                                {step.healingStatus === 'healed' && step.healingConfidence !== undefined && (
+                                                                    <span className="ml-auto text-[10px] opacity-70">
+                                                                        {Math.round((step.healingConfidence || 0) * 100)}%
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Self-Heal Detail Panel */}
+                                                        {step.status === 'healed' && (step.healingOriginal || step.healingHealed) && (
+                                                            <div className="mt-3 rounded-md border border-orange-200 bg-orange-50/50 p-3">
+                                                                <div className="text-xs font-semibold text-orange-700 mb-2">AI Self-Healing Applied</div>
+                                                                {step.healingOriginal && (
+                                                                    <div className="text-xs mb-1">
+                                                                        <span className="text-gray-500">Original Selector:</span>{' '}
+                                                                        <code className="px-1 py-0.5 bg-white border border-orange-200 rounded text-orange-800">
+                                                                            {step.healingOriginal}
+                                                                        </code>
+                                                                    </div>
+                                                                )}
+                                                                {step.healingHealed && (
+                                                                    <div className="text-xs mb-1">
+                                                                        <span className="text-gray-500">Healed Selector:</span>{' '}
+                                                                        <code className="px-1 py-0.5 bg-white border border-orange-200 rounded text-orange-800">
+                                                                            {step.healingHealed}
+                                                                        </code>
+                                                                    </div>
+                                                                )}
+                                                                {step.healingStrategy && (
+                                                                    <div className="text-xs mb-1 text-gray-600">
+                                                                        Strategy: <span className="text-orange-700 font-medium">{step.healingStrategy}</span>
+                                                                    </div>
+                                                                )}
+                                                                {step.healingConfidence !== undefined && (
+                                                                    <div className="text-xs mb-1 text-gray-600">
+                                                                        Confidence: <span className="text-orange-700 font-medium">{Math.round((step.healingConfidence || 0) * 100)}%</span>
+                                                                    </div>
+                                                                )}
+                                                                {step.healingReasoning && (
+                                                                    <div className="text-xs text-gray-600">
+                                                                        Reason: <span className="text-gray-700">{step.healingReasoning}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
 
