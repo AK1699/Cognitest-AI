@@ -25,6 +25,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
 DEFAULT_RATE_LIMIT = "100/minute"  # General endpoints
 SCAN_RATE_LIMIT = "10/minute"      # Security scan endpoints (more restrictive)
 REPORT_RATE_LIMIT = "30/minute"    # Report generation
+AUTH_RATE_LIMIT = "5/minute"       # Auth endpoints (strict to prevent brute force)
 
 
 # ============================================================================
@@ -111,6 +112,11 @@ def limit_report_requests() -> Callable:
     return limiter.limit(REPORT_RATE_LIMIT)
 
 
+def limit_auth_requests() -> Callable:
+    """Rate limit decorator for auth endpoints"""
+    return limiter.limit(AUTH_RATE_LIMIT)
+
+
 def limit_default() -> Callable:
     """Default rate limit decorator"""
     return limiter.limit(DEFAULT_RATE_LIMIT)
@@ -149,6 +155,7 @@ class RateLimitInfo:
             "default_limit": DEFAULT_RATE_LIMIT,
             "scan_limit": SCAN_RATE_LIMIT,
             "report_limit": REPORT_RATE_LIMIT,
+            "auth_limit": AUTH_RATE_LIMIT,
             "storage": REDIS_URL if RATE_LIMIT_ENABLED else "memory"
         }
     
@@ -170,11 +177,13 @@ class RateLimitInfo:
 __all__ = [
     "limiter",
     "limit_scan_requests",
-    "limit_report_requests", 
+    "limit_report_requests",
+    "limit_auth_requests",
     "limit_default",
     "setup_rate_limiting",
     "RateLimitInfo",
     "SCAN_RATE_LIMIT",
     "REPORT_RATE_LIMIT",
-    "DEFAULT_RATE_LIMIT"
+    "DEFAULT_RATE_LIMIT",
+    "AUTH_RATE_LIMIT"
 ]
