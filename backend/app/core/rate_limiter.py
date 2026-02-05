@@ -23,6 +23,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
 
 # Default rate limits
 DEFAULT_RATE_LIMIT = "100/minute"  # General endpoints
+AUTH_RATE_LIMIT = "5/minute"       # Authentication endpoints (strict)
 SCAN_RATE_LIMIT = "10/minute"      # Security scan endpoints (more restrictive)
 REPORT_RATE_LIMIT = "30/minute"    # Report generation
 
@@ -174,6 +175,7 @@ __all__ = [
     "limit_default",
     "setup_rate_limiting",
     "RateLimitInfo",
+    "AUTH_RATE_LIMIT",
     "SCAN_RATE_LIMIT",
     "REPORT_RATE_LIMIT",
     "DEFAULT_RATE_LIMIT"
