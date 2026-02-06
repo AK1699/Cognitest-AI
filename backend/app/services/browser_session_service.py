@@ -589,6 +589,14 @@ class BrowserSession:
                     except:
                         pass
 
+                # For forced recreates, prefer a full relaunch to avoid bad browser state
+                if force_recreate and self.browser:
+                    try:
+                        await self.browser.close()
+                    except Exception:
+                        pass
+                    self.browser = None
+
                 # Try to reuse browser if connected
                 browser_connected = False
                 try:

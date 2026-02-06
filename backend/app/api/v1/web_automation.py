@@ -1650,7 +1650,7 @@ async def websocket_browser_session(
                                 
                                 try:
                                     # Ensure browser page is still alive before actions
-                                    ensured = await session.ensure_page()
+                                    ensured = await session.ensure_page(session.current_url or "about:blank")
                                     if not ensured:
                                         raise Exception("Browser session not ready")
 
@@ -1669,7 +1669,11 @@ async def websocket_browser_session(
                                                 _ensure_action_success(result, "click")
                                             except Exception as click_err:
                                                 if _is_target_closed_error(click_err):
-                                                    ensured = await session.ensure_page(step_url or session.current_url or "about:blank", force_navigate=True)
+                                                    ensured = await session.ensure_page(
+                                                        step_url or session.current_url or "about:blank",
+                                                        force_navigate=True,
+                                                        force_recreate=True
+                                                    )
                                                     if ensured:
                                                         try:
                                                             retry_result = await session.click_element(selector_used)
@@ -1708,6 +1712,8 @@ async def websocket_browser_session(
                                                                 "stepIndex": i,
                                                                 "status": "failed"
                                                             })
+                                                            # Stop live browser on self-heal failure
+                                                            await browser_session_manager.stop_session(session_id)
                                                             raise click_err
                                                     except Exception:
                                                         await websocket.send_json({
@@ -1715,6 +1721,8 @@ async def websocket_browser_session(
                                                             "stepIndex": i,
                                                             "status": "failed"
                                                         })
+                                                        # Stop live browser on self-heal failure
+                                                        await browser_session_manager.stop_session(session_id)
                                                         raise click_err
                                                 else:
                                                     raise click_err
@@ -1727,7 +1735,11 @@ async def websocket_browser_session(
                                                 _ensure_action_success(result, "type")
                                             except Exception as type_err:
                                                 if _is_target_closed_error(type_err):
-                                                    ensured = await session.ensure_page(step_url or session.current_url or "about:blank", force_navigate=True)
+                                                    ensured = await session.ensure_page(
+                                                        step_url or session.current_url or "about:blank",
+                                                        force_navigate=True,
+                                                        force_recreate=True
+                                                    )
                                                     if ensured:
                                                         try:
                                                             retry_result = await session.type_into_element(selector_used, value)
@@ -1766,6 +1778,8 @@ async def websocket_browser_session(
                                                                 "stepIndex": i,
                                                                 "status": "failed"
                                                             })
+                                                            # Stop live browser on self-heal failure
+                                                            await browser_session_manager.stop_session(session_id)
                                                             raise type_err
                                                     except Exception:
                                                         await websocket.send_json({
@@ -1773,6 +1787,8 @@ async def websocket_browser_session(
                                                             "stepIndex": i,
                                                             "status": "failed"
                                                         })
+                                                        # Stop live browser on self-heal failure
+                                                        await browser_session_manager.stop_session(session_id)
                                                         raise type_err
                                                 else:
                                                     raise type_err
