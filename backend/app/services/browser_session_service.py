@@ -9,8 +9,94 @@ from typing import Dict, Optional, Any, Callable, List
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+import os
+import platform
+import shutil
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+
+
+def _playwright_executable_exists(browser_engine) -> bool:
+    try:
+        executable_path = browser_engine.executable_path
+    except Exception:
+        return True
+    return bool(executable_path) and os.path.exists(executable_path)
+
+
+def _detect_chromium_fallback() -> dict:
+    system = platform.system().lower()
+
+    if system == "darwin":
+        chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if os.path.exists(chrome_path):
+            return {"channel": "chrome"}
+        edge_path = "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+        if os.path.exists(edge_path):
+            return {"channel": "msedge"}
+
+    if system == "windows":
+        chrome_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        ]
+        if any(os.path.exists(path) for path in chrome_paths):
+            return {"channel": "chrome"}
+
+        edge_paths = [
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        ]
+        if any(os.path.exists(path) for path in edge_paths):
+            return {"channel": "msedge"}
+
+    chrome_bins = ["google-chrome", "google-chrome-stable", "chrome"]
+    if any(shutil.which(name) for name in chrome_bins):
+        return {"channel": "chrome"}
+
+    edge_bins = ["msedge", "microsoft-edge"]
+    if any(shutil.which(name) for name in edge_bins):
+        return {"channel": "msedge"}
+
+    chromium_bins = ["chromium", "chromium-browser"]
+    for name in chromium_bins:
+        executable = shutil.which(name)
+        if executable:
+            return {"executable_path": executable}
+
+    return {}
+
+
+def _is_missing_browser_error(err: Exception) -> bool:
+    message = str(err).lower()
+    return (
+        "playwright install" in message
+        or "executable doesn't exist" in message
+        or "download new browsers" in message
+    )
+
+
+def _format_launch_error(err: Exception) -> str:
+    message = str(err).strip()
+    if not message:
+        return "Browser launch failed."
+    if _is_missing_browser_error(err):
+        return (
+            "Playwright browsers are not installed. Run `python -m playwright install` "
+            "in the backend environment (or `playwright install`) and retry."
+        )
+    return message
+
+
+def _is_transient_page_error(err: Exception) -> bool:
+    message = str(err).lower()
+    return any(token in message for token in [
+        "execution context was destroyed",
+        "cannot find context",
+        "context was destroyed",
+        "navigation",
+        "is not available"
+    ])
 
 
 class SessionStatus(str, Enum):
@@ -134,6 +220,7 @@ class BrowserSession:
         self.is_streaming = False
         self._screenshot_task: Optional[asyncio.Task] = None
         self._pending_requests: Dict[str, NetworkRequest] = {}
+        self.last_error: Optional[str] = None
 
         # Execution state
         self.is_executing: bool = False
@@ -152,15 +239,43 @@ class BrowserSession:
             self.playwright = await async_playwright().start()
             
             # Select browser
-            if self.browser_type == "firefox":
+            browser_type = (self.browser_type or "chromium").lower()
+            if browser_type == "firefox":
                 browser_engine = self.playwright.firefox
-            elif self.browser_type == "webkit":
+            elif browser_type in ["webkit", "safari"]:
                 browser_engine = self.playwright.webkit
             else:
                 browser_engine = self.playwright.chromium
             
             # Launch browser
-            self.browser = await browser_engine.launch(headless=self.headless)
+            launch_options = {"headless": self.headless}
+            if browser_engine == self.playwright.chromium:
+                if browser_type in ["chrome", "google-chrome"]:
+                    launch_options["channel"] = "chrome"
+                elif browser_type in ["edge", "msedge", "microsoft-edge"]:
+                    launch_options["channel"] = "msedge"
+                elif not _playwright_executable_exists(browser_engine):
+                    launch_options.update(_detect_chromium_fallback())
+
+            try:
+                self.browser = await browser_engine.launch(**launch_options)
+            except Exception as launch_error:
+                # If Playwright browsers are missing, attempt a system Chromium fallback
+                if (
+                    browser_engine == self.playwright.chromium
+                    and "channel" not in launch_options
+                    and "executable_path" not in launch_options
+                    and _is_missing_browser_error(launch_error)
+                ):
+                    fallback = _detect_chromium_fallback()
+                    if fallback:
+                        self.browser = await browser_engine.launch(**{"headless": self.headless, **fallback})
+                        if fallback.get("channel"):
+                            self.browser_type = fallback["channel"]
+                    else:
+                        raise launch_error
+                else:
+                    raise launch_error
             
             # Create context with device settings
             device_config = DevicePreset.get(self.device)
@@ -168,6 +283,8 @@ class BrowserSession:
                 "viewport": device_config["viewport"],
                 "is_mobile": device_config.get("is_mobile", False),
                 "has_touch": device_config.get("has_touch", False),
+                "ignore_https_errors": True,
+                "accept_downloads": True,
             }
             
             if device_config.get("user_agent"):
@@ -211,11 +328,36 @@ class BrowserSession:
             
         except Exception as e:
             self.status = SessionStatus.ERROR
+            self.last_error = _format_launch_error(e)
+            await self._cleanup_on_error()
             await self._emit_update({
                 "type": "error",
-                "error": str(e)
+                "error": self.last_error
             })
             return False
+
+    async def _cleanup_on_error(self):
+        """Cleanup partial resources after a failed launch."""
+        try:
+            if self.page:
+                await self.page.close()
+        except Exception:
+            pass
+        try:
+            if self.context:
+                await self.context.close()
+        except Exception:
+            pass
+        try:
+            if self.browser:
+                await self.browser.close()
+        except Exception:
+            pass
+        try:
+            if self.playwright:
+                await self.playwright.stop()
+        except Exception:
+            pass
     
     def _setup_event_listeners(self):
         """Setup Playwright event listeners for console and network"""
@@ -327,7 +469,7 @@ class BrowserSession:
     
     def start_streaming(self):
         """Start screenshot streaming"""
-        if not self.is_streaming:
+        if not self.is_streaming or self._screenshot_task is None or self._screenshot_task.done():
             self.is_streaming = True
             self._screenshot_task = asyncio.create_task(self._screenshot_loop())
     
@@ -350,8 +492,11 @@ class BrowserSession:
     
     async def _screenshot_loop(self):
         """Continuously capture and stream screenshots"""
-        while self.is_streaming and self.page:
+        while self.is_streaming:
             try:
+                if not self.page or self.page.is_closed():
+                    await asyncio.sleep(0.5)
+                    continue
                 # Capture screenshot as JPEG for smaller size
                 screenshot = await self.page.screenshot(
                     type="jpeg",
@@ -396,6 +541,9 @@ class BrowserSession:
                     browser_connected = bool(self.browser)
 
                 if not browser_connected:
+                    # Avoid tearing down a healthy page during execution
+                    if self.page and not self.page.is_closed():
+                        continue
                     await self.launch(initial_url=self.current_url or "about:blank")
                     continue
 
@@ -416,8 +564,16 @@ class BrowserSession:
                 try:
                     # Simple liveness check
                     await self.page.evaluate("1", timeout=1000)
-                except Exception:
-                    should_recreate = True
+                except Exception as e:
+                    if self.page and not self.page.is_closed():
+                        if _is_transient_page_error(e):
+                            should_recreate = False
+                            # Continue without tearing down the page during navigation
+                            pass
+                        # If page is still open, avoid aggressive recreation during navigation
+                        should_recreate = False
+                    else:
+                        should_recreate = True
 
             if should_recreate or not self.page or self.page.is_closed():
                 # Close existing if they strictly exist but are broken
@@ -479,6 +635,8 @@ class BrowserSession:
             if url and (force_navigate or not self.current_url):
                 await self.page.goto(url, wait_until="domcontentloaded")
                 self.current_url = self.page.url
+            # Make sure streaming resumes if it was interrupted
+            self.start_streaming()
             return True
         except Exception as e:
             await self._emit_update({
@@ -521,6 +679,7 @@ class BrowserSession:
 
             await self.page.goto(url, wait_until="domcontentloaded")
             self.current_url = self.page.url
+            self.start_streaming()
             return True
         except Exception as e:
             await self._emit_update({
@@ -590,11 +749,36 @@ class BrowserSession:
             return {"success": False, "error": str(e)}
     
     async def type_into_element(self, selector: str, text: str) -> dict:
-        """Type text into a specific element by selector"""
+        """Type text into a specific element by selector.
+        If selector is a simple name (no CSS operators), try common patterns."""
         try:
             await self.page.fill(selector, text, timeout=5000)
             return {"success": True, "action": "type", "selector": selector, "text": text}
         except Exception as e:
+            # Check if selector is a simple token (no CSS operators)
+            simple_selector = selector.strip() if selector else ""
+            has_css_operators = any(ch in simple_selector for ch in [' ', '#', '.', '[', ']', '>', ':', '(', ')', '=', '"', "'"])
+            
+            if simple_selector and not has_css_operators:
+                # Try common selector patterns for simple names
+                fallback_patterns = [
+                    f"[name='{simple_selector}']",
+                    f"input[name='{simple_selector}']",
+                    f"textarea[name='{simple_selector}']",
+                    f"#{simple_selector}",
+                    f"[id='{simple_selector}']",
+                    f"input[id='{simple_selector}']",
+                    f"[placeholder*='{simple_selector}' i]",
+                    f"input[placeholder*='{simple_selector}' i]",
+                ]
+                
+                for pattern in fallback_patterns:
+                    try:
+                        await self.page.fill(pattern, text, timeout=3000)
+                        return {"success": True, "action": "type", "selector": pattern, "text": text, "normalized_from": simple_selector}
+                    except Exception:
+                        continue
+            
             return {"success": False, "error": str(e)}
     
     async def press_key(self, key: str) -> dict:
@@ -760,11 +944,35 @@ class BrowserSession:
             return {"error": str(e)}
     
     async def click_element(self, selector: str) -> dict:
-        """Click an element by selector"""
+        """Click an element by selector.
+        If selector is a simple name (no CSS operators), try common patterns."""
         try:
             await self.page.click(selector, timeout=5000)
             return {"success": True, "action": "click", "selector": selector}
         except Exception as e:
+            # Check if selector is a simple token (no CSS operators)
+            simple_selector = selector.strip() if selector else ""
+            has_css_operators = any(ch in simple_selector for ch in [' ', '#', '.', '[', ']', '>', ':', '(', ')', '=', '"', "'"])
+            
+            if simple_selector and not has_css_operators:
+                # Try common selector patterns for simple names
+                fallback_patterns = [
+                    f"[name='{simple_selector}']",
+                    f"[id='{simple_selector}']",
+                    f"#{simple_selector}",
+                    f"[data-testid='{simple_selector}']",
+                    f"button[name='{simple_selector}']",
+                    f"a[name='{simple_selector}']",
+                    f"[aria-label*='{simple_selector}' i]",
+                ]
+                
+                for pattern in fallback_patterns:
+                    try:
+                        await self.page.click(pattern, timeout=3000)
+                        return {"success": True, "action": "click", "selector": pattern, "normalized_from": simple_selector}
+                    except Exception:
+                        continue
+            
             return {"success": False, "error": str(e)}
     
     async def double_click(self, selector: str) -> dict:
@@ -1291,6 +1499,7 @@ class BrowserSessionManager:
     
     def __init__(self):
         self.sessions: Dict[str, BrowserSession] = {}
+        self.last_error: Optional[str] = None
     
     async def create_session(
         self,
@@ -1325,8 +1534,9 @@ class BrowserSessionManager:
         
         if success:
             self.sessions[session_id] = session
+            self.last_error = None
             return session
-        
+        self.last_error = session.last_error or "Failed to launch browser session"
         return None
     
     def get_session(self, session_id: str) -> Optional[BrowserSession]:

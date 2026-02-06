@@ -1349,10 +1349,8 @@ async def websocket_browser_session(
                         )
                         
                         if not session:
-                            await websocket.send_json({
-                                "type": "error",
-                                "error": "Failed to launch browser. Make sure Playwright browsers are installed (run: playwright install)"
-                            })
+                            # Error is emitted by the session during launch
+                            continue
                     except Exception as e:
                         await websocket.send_json({
                             "type": "error",
@@ -1458,6 +1456,9 @@ async def websocket_browser_session(
                     if not flow_id:
                         await websocket.send_json({"type": "error", "error": "No flowId provided"})
                         continue
+                    
+                    # Enable keepalive protection during test execution
+                    session.is_executing = True
                     
                     try:
                         # Get test flow and create execution run record
@@ -2931,6 +2932,10 @@ Respond with JSON only:
                             "type": "error",
                             "error": f"Test execution failed: {str(e)}"
                         })
+                    finally:
+                        # Reset execution flag to allow keepalive loop to continue normally
+                        if session:
+                            session.is_executing = False
                 
                 elif action == "ping":
                     await websocket.send_json({"type": "pong"})

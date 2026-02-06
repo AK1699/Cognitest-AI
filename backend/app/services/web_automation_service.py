@@ -866,6 +866,8 @@ class WebAutomationExecutor:
             **options.get("launch_options", {})
         }
         
+        print(f"DEBUG: Launching browser with options: {launch_options} (Mode: {execution_mode})")
+        
         # Select browser
         if browser_type == BrowserType.CHROME:
             self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_options)
@@ -896,15 +898,56 @@ class WebAutomationExecutor:
         self.page.on("console", lambda msg: asyncio.create_task(
             self.emit_live_update("console", {"level": msg.type, "text": msg.text})
         ))
+
+        # Start screenshot loop
+        self.screenshot_task = asyncio.create_task(self._screenshot_loop())
     
     async def teardown_browser(self):
         """
         Cleanup browser resources
         """
+        # Cancel screenshot task
+        if hasattr(self, 'screenshot_task') and self.screenshot_task:
+            self.screenshot_task.cancel()
+            try:
+                await self.screenshot_task
+            except asyncio.CancelledError:
+                pass
+            self.screenshot_task = None
+
         if self.context:
             await self.context.close()
         if self.browser:
             await self.browser.close()
+
+    async def _screenshot_loop(self):
+        """
+        Capture and emit screenshots periodically
+        """
+        import base64
+        while self.page and not self.page.is_closed():
+            try:
+                # Capture screenshot as JPEG for smaller size
+                screenshot = await self.page.screenshot(
+                    type="jpeg",
+                    quality=70,
+                    full_page=False
+                )
+                
+                # Encode to base64
+                screenshot_b64 = base64.b64encode(screenshot).decode('utf-8')
+                
+                await self.emit_live_update("screenshot", {
+                    "data": f"data:image/jpeg;base64,{screenshot_b64}",
+                    "url": self.page.url,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                
+                # 3 FPS = ~333ms between frames
+                await asyncio.sleep(0.333)
+            except Exception as e:
+                # print(f"Executor screenshot failed: {e}")
+                await asyncio.sleep(0.5)
     
     async def execute_step(self, node: Dict[str, Any], step_order: int, test_flow: TestFlow):
         """

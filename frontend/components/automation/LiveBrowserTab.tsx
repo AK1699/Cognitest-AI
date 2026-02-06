@@ -186,6 +186,7 @@ export default function LiveBrowserTab({
     // Element Inspector
     const [inspectMode, setInspectMode] = useState(true) // Enable inspector by default
     const [selectedElement, setSelectedElement] = useState<any>(null)
+    const [launchError, setLaunchError] = useState<string | null>(null)
 
     const formatActionName = useCallback((actionType: string) => {
         const actionNames: Record<string, string> = {
@@ -270,7 +271,7 @@ export default function LiveBrowserTab({
     const screenshotRef = useRef<HTMLImageElement>(null)
 
     // Headed mode for direct interaction
-    const [headedMode, setHeadedMode] = useState(false)
+    const headlessMode = true
 
     // Interactive mode - when focused, forward keyboard to browser
     const [isFocused, setIsFocused] = useState(false)
@@ -624,7 +625,8 @@ export default function LiveBrowserTab({
                 break
 
             case 'error':
-                console.error('Browser session error:', data.error)
+                setLaunchError(data.error || 'Browser session error')
+                setSessionStatus('stopped')
                 testRunInitiatedRef.current = false
                 executeSentRef.current = false
                 break
@@ -682,6 +684,7 @@ export default function LiveBrowserTab({
     // Launch browser session
     const handleLaunch = async () => {
         setIsLaunching(true)
+        setLaunchError(null)
         const newSessionId = `session-${Date.now()}`
         setSessionId(newSessionId)
         setConsoleLogs([])
@@ -701,7 +704,7 @@ export default function LiveBrowserTab({
                 browserType: selectedBrowser,
                 device: selectedDevice,
                 url: urlInput || 'about:blank',
-                headless: !headedMode, // headed mode = not headless
+                headless: headlessMode,
                 projectId: projectId,
                 recordVideo: executionSettings?.videoRecording ?? false
             }))
@@ -719,7 +722,7 @@ export default function LiveBrowserTab({
                     startTimer()
                 } else if (data.type === 'error') {
                     setIsLaunching(false)
-                    console.error('Browser session error:', data.error)
+                    setLaunchError(data.error || 'Browser session error')
                 } else if (data.type === 'launching') {
                     // Still launching, show message
                     console.log('Launching browser...')
@@ -733,6 +736,7 @@ export default function LiveBrowserTab({
             console.error('WebSocket error:', error)
             setIsConnected(false)
             setIsLaunching(false)
+            setLaunchError('WebSocket connection error')
         }
 
         ws.onclose = () => {
@@ -967,6 +971,13 @@ export default function LiveBrowserTab({
                     </div>
                 </div>
             </div>
+
+            {launchError && (
+                <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="font-semibold">Browser session failed to start</div>
+                    <div className="mt-1 text-xs text-red-600">{launchError}</div>
+                </div>
+            )}
 
             <div className="flex-1 flex overflow-hidden w-full">
                 {/* Main Browser View */}
