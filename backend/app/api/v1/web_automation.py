@@ -1193,6 +1193,22 @@ async def generate_test_steps(
 browser_session_connections: dict[str, WebSocket] = {}
 
 
+async def _delayed_session_cleanup(session_id: str, delay_seconds: int = 30):
+    """Delay cleanup to avoid killing sessions during brief WS disconnects."""
+    try:
+        await asyncio.sleep(delay_seconds)
+        session = browser_session_manager.get_session(session_id)
+        if not session:
+            return
+        if session.is_executing:
+            return
+        if session_id in browser_session_connections:
+            return
+        await browser_session_manager.stop_session(session_id)
+    except Exception:
+        return
+
+
 @router.get("/device-presets")
 async def get_device_presets():
     """
@@ -1668,6 +1684,7 @@ async def websocket_browser_session(
                                                 result = await session.click_element(selector_used)
                                                 _ensure_action_success(result, "click")
                                             except Exception as click_err:
+                                                # If the page is closed, recover first; don't attempt healing
                                                 if _is_target_closed_error(click_err):
                                                     ensured = await session.ensure_page(
                                                         step_url or session.current_url or "about:blank",
@@ -1680,8 +1697,17 @@ async def websocket_browser_session(
                                                             _ensure_action_success(retry_result, "click")
                                                             continue
                                                         except Exception as retry_err:
+                                                            if _is_target_closed_error(retry_err):
+                                                                # If still closed after recovery, fail fast
+                                                                await browser_session_manager.stop_session(session_id)
+                                                                raise Exception("Browser session closed during click action")
+                                                            # Recovery succeeded but selector still failed; fall through to healing
                                                             click_err = retry_err
-                                                # Try self-healing if enabled
+                                                    else:
+                                                        # Ensure page failed, treat as closed session
+                                                        await browser_session_manager.stop_session(session_id)
+                                                        raise Exception("Browser session closed during click action")
+                                                # Try self-healing only for selector-related failures
                                                 if healing_enabled and ai_service:
                                                     healer = SelfHealingLocator(selector_used, alternatives, ai_service)
                                                     try:
@@ -1734,6 +1760,7 @@ async def websocket_browser_session(
                                                 result = await session.type_into_element(selector_used, value)
                                                 _ensure_action_success(result, "type")
                                             except Exception as type_err:
+                                                # If the page is closed, recover first; don't attempt healing
                                                 if _is_target_closed_error(type_err):
                                                     ensured = await session.ensure_page(
                                                         step_url or session.current_url or "about:blank",
@@ -1746,8 +1773,17 @@ async def websocket_browser_session(
                                                             _ensure_action_success(retry_result, "type")
                                                             continue
                                                         except Exception as retry_err:
+                                                            if _is_target_closed_error(retry_err):
+                                                                # If still closed after recovery, fail fast
+                                                                await browser_session_manager.stop_session(session_id)
+                                                                raise Exception("Browser session closed during type action")
+                                                            # Recovery succeeded but selector still failed; fall through to healing
                                                             type_err = retry_err
-                                                # Try self-healing if enabled
+                                                    else:
+                                                        # Ensure page failed, treat as closed session
+                                                        await browser_session_manager.stop_session(session_id)
+                                                        raise Exception("Browser session closed during type action")
+                                                # Try self-healing only for selector-related failures
                                                 if healing_enabled and ai_service:
                                                     healer = SelfHealingLocator(selector_used, alternatives, ai_service)
                                                     try:
@@ -2966,6 +3002,11 @@ Respond with JSON only:
         print(f"Browser session WebSocket error: {e}")
     finally:
         # Cleanup
-        await browser_session_manager.stop_session(session_id)
+        session = browser_session_manager.get_session(session_id)
+        if session and session.is_executing:
+            # Avoid killing the browser mid-execution due to transient WS disconnects
+            asyncio.create_task(_delayed_session_cleanup(session_id))
+        else:
+            await browser_session_manager.stop_session(session_id)
         if session_id in browser_session_connections:
             del browser_session_connections[session_id]

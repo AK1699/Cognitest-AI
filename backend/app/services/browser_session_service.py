@@ -99,6 +99,18 @@ def _is_transient_page_error(err: Exception) -> bool:
     ])
 
 
+def _is_target_closed_error(err: Exception) -> bool:
+    message = str(err).lower()
+    return any(token in message for token in [
+        "target page, context or browser has been closed",
+        "target closed",
+        "browser has been closed",
+        "context has been closed",
+        "page has been closed",
+        "page closed"
+    ])
+
+
 class SessionStatus(str, Enum):
     LAUNCHING = "launching"
     RUNNING = "running"
@@ -558,6 +570,7 @@ class BrowserSession:
         """Ensure page/context is available; optionally navigate to url."""
         try:
             should_recreate = force_recreate
+            recreated = False
             
             # If we think we have a page, verify it's actually alive
             if not should_recreate and self.page and not self.page.is_closed():
@@ -566,12 +579,14 @@ class BrowserSession:
                     await self.page.evaluate("1", timeout=1000)
                 except Exception as e:
                     if self.page and not self.page.is_closed():
-                        if _is_transient_page_error(e):
-                            should_recreate = False
+                        if _is_target_closed_error(e):
+                            should_recreate = True
+                        elif _is_transient_page_error(e):
                             # Continue without tearing down the page during navigation
-                            pass
-                        # If page is still open, avoid aggressive recreation during navigation
-                        should_recreate = False
+                            should_recreate = False
+                        else:
+                            # If page is still open, avoid aggressive recreation during navigation
+                            should_recreate = False
                     else:
                         should_recreate = True
 
@@ -627,6 +642,7 @@ class BrowserSession:
                         self.context = await self.browser.new_context(**context_options)
                         self.page = await self.context.new_page()
                         self._setup_event_listeners()
+                        recreated = True
                     except Exception as ctx_err:
                         print(f"Failed to create context from existing browser: {ctx_err}")
                         browser_connected = False # Fallback to full relaunch
@@ -640,7 +656,7 @@ class BrowserSession:
                             pass
                     return await self.launch(initial_url=url or "about:blank")
 
-            if url and (force_navigate or not self.current_url):
+            if url and (force_navigate or not self.current_url or recreated):
                 await self.page.goto(url, wait_until="domcontentloaded")
                 self.current_url = self.page.url
             # Make sure streaming resumes if it was interrupted
