@@ -5,6 +5,11 @@ from pathlib import Path
 import os
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).resolve().parents[2] / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
     # Project
     PROJECT_NAME: str = "Cognitest"
     VERSION: str = "0.1.0"

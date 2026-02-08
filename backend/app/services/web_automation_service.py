@@ -35,6 +35,17 @@ def _parse_ai_json(raw: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _sanitize_selector(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    if not isinstance(value, str):
+        return value
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and ((cleaned[0] == cleaned[-1]) and cleaned[0] in ["'", '"', "`"]):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
 class SelfHealingLocator:
     """
     Self-healing locator with AI-powered fallback strategies
@@ -48,6 +59,7 @@ class SelfHealingLocator:
         confidence_threshold: Optional[float] = None
     ):
         self.primary_selector = primary_selector
+        self.primary_selector = _sanitize_selector(self.primary_selector)
         self.alternatives = alternatives or []
         self.ai_service = ai_service
         self.confidence_threshold = confidence_threshold
@@ -70,18 +82,25 @@ class SelfHealingLocator:
         
         # Strategy 2: Try alternative selectors
         for idx, alt in enumerate(self.alternatives):
+            alt_value = alt.get("value") if isinstance(alt, dict) else alt
+            if not alt_value or not isinstance(alt_value, str):
+                continue
             try:
-                locator = page.locator(alt["value"])
+                locator = page.locator(alt_value)
                 await locator.wait_for(timeout=3000, state="visible")
                 
                 healing_info = {
                     "type": HealingType.LOCATOR.value,
                     "strategy": HealingStrategy.ALTERNATIVE.value,
                     "original": self.primary_selector,
-                    "healed": alt["value"],
+                    "healed": alt_value,
                     "alternative_index": idx,
-                    "confidence_score": alt.get("success_rate", 0.7),
-                    "alternatives_tried": [a.get("value") for a in self.alternatives if a.get("value")],
+                    "confidence_score": alt.get("success_rate", 0.7) if isinstance(alt, dict) else 0.7,
+                    "alternatives_tried": [
+                        (a.get("value") if isinstance(a, dict) else a)
+                        for a in self.alternatives
+                        if (a.get("value") if isinstance(a, dict) else a)
+                    ],
                     "healing_duration_ms": int((time.perf_counter() - start_time) * 1000),
                     "success": True
                 }
@@ -128,50 +147,125 @@ class SelfHealingLocator:
         if not selector:
             return None, None
 
-        # Only attempt if selector looks like a simple token (no CSS operators)
-        if any(ch in selector for ch in [' ', '#', '.', '[', ']', '>', ':', '(', ')', '=', '"', "'"]):
-            return None, None
+        simple_selector = not any(ch in selector for ch in [' ', '#', '.', '[', ']', '>', ':', '(', ')', '=', '"', "'"])
+
+        def _expand_token(token: str) -> list[str]:
+            variants: list[str] = []
+            cleaned = (token or "").strip()
+            if not cleaned:
+                return variants
+            variants.append(cleaned)
+            try:
+                spaced = re.sub(r'([a-z])([A-Z])', r'\\1 \\2', cleaned)
+                if spaced != cleaned:
+                    variants.append(spaced)
+                    variants.append(spaced.lower())
+                    variants.append(spaced.title())
+            except Exception:
+                pass
+            if "_" in cleaned or "-" in cleaned:
+                spaced_alt = cleaned.replace("_", " ").replace("-", " ")
+                variants.append(spaced_alt)
+                variants.append(spaced_alt.lower())
+                variants.append(spaced_alt.title())
+            return variants
+
+        extracted_values: list[str] = []
+        if not simple_selector:
+            attr_patterns = [
+                r"\[name=['\"]([^'\"]+)['\"]\]",
+                r"\[id=['\"]([^'\"]+)['\"]\]",
+                r"\[placeholder=['\"]([^'\"]+)['\"]\]",
+                r"\[aria-label=['\"]([^'\"]+)['\"]\]",
+                r"\[data-testid=['\"]([^'\"]+)['\"]\]",
+                r"\[data-test=['\"]([^'\"]+)['\"]\]",
+                r"\[data-qa=['\"]([^'\"]+)['\"]\]",
+                r"\[formcontrolname=['\"]([^'\"]+)['\"]\]",
+                r"\[ng-model=['\"]([^'\"]+)['\"]\]",
+                r"\[ng-reflect-name=['\"]([^'\"]+)['\"]\]",
+                r"\[title=['\"]([^'\"]+)['\"]\]",
+                r"\[aria-labelledby=['\"]([^'\"]+)['\"]\]",
+            ]
+            for pattern in attr_patterns:
+                for match in re.findall(pattern, selector, flags=re.IGNORECASE):
+                    if match:
+                        extracted_values.append(match)
+            for match in re.findall(r"#([A-Za-z0-9_-]+)", selector):
+                if match:
+                    extracted_values.append(match)
+            for match in re.findall(r"\.(?!\d)([A-Za-z0-9_-]+)", selector):
+                if match:
+                    extracted_values.append(match)
+            for match in re.findall(r":has-text\((\"[^\"]+\"|'[^']+')\)", selector):
+                extracted_values.append(match.strip("\"'"))
+            for match in re.findall(r"text\s*=\s*(\"[^\"]+\"|'[^']+')", selector):
+                extracted_values.append(match.strip("\"'"))
+
+        raw_bases = extracted_values if extracted_values else [selector]
+        selector_variants: list[str] = []
+        for base in raw_bases:
+            selector_variants.extend(_expand_token(base))
+        selector_variants = [v for i, v in enumerate(selector_variants) if v and v not in selector_variants[:i]]
+        selector_variants = selector_variants[:24]
 
         # Try Playwright semantic selectors first
         semantic_candidates = [
-            ("label", lambda: page.get_by_label(selector, exact=False)),
-            ("placeholder", lambda: page.get_by_placeholder(selector, exact=False)),
-            ("role_textbox", lambda: page.get_by_role("textbox", name=selector)),
+            ("label", lambda s: page.get_by_label(s, exact=False)),
+            ("placeholder", lambda s: page.get_by_placeholder(s, exact=False)),
+            ("role_textbox", lambda s: page.get_by_role("textbox", name=s)),
         ]
 
-        for strategy, locator_fn in semantic_candidates:
-            try:
-                locator = locator_fn()
-                await locator.first.wait_for(timeout=3000, state="visible")
-                healing_info = {
-                    "type": HealingType.LOCATOR.value,
-                    "strategy": HealingStrategy.CONTEXT.value,
-                    "original": selector,
-                    "healed": f"{strategy}:{selector}",
-                    "confidence_score": 0.75,
-                    "alternatives_tried": [],
-                    "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
-                    "success": True
-                }
-                return locator.first, healing_info
-            except PlaywrightError:
-                continue
+        for variant in selector_variants:
+            for strategy, locator_fn in semantic_candidates:
+                try:
+                    locator = locator_fn(variant)
+                    await locator.first.wait_for(timeout=3000, state="visible")
+                    healing_info = {
+                        "type": HealingType.LOCATOR.value,
+                        "strategy": HealingStrategy.CONTEXT.value,
+                        "original": selector,
+                        "healed": f"{strategy}:{variant}",
+                        "confidence_score": 0.75,
+                        "alternatives_tried": [],
+                        "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
+                        "success": True
+                    }
+                    return locator.first, healing_info
+                except PlaywrightError:
+                    continue
 
-        candidates = [
-            f"[name='{selector}']",
-            f"input[name='{selector}']",
-            f"textarea[name='{selector}']",
-            f"[id='{selector}']",
-            f"#{selector}",
-            f"[name*='{selector}']",
-            f"input[name*='{selector}']",
-            f"[id*='{selector}']",
-            f"input[id*='{selector}']",
-            f"[placeholder*='{selector}']",
-            f"input[placeholder*='{selector}']",
-            f"[aria-label*='{selector}']",
-            f"input[aria-label*='{selector}']",
-        ]
+        candidates: list[str] = []
+        if simple_selector:
+            candidates.extend([
+                f"[name='{selector}']",
+                f"input[name='{selector}']",
+                f"textarea[name='{selector}']",
+                f"[id='{selector}']",
+                f"#{selector}",
+                f"[name*='{selector}' i]",
+                f"input[name*='{selector}' i]",
+                f"[id*='{selector}' i]",
+                f"input[id*='{selector}' i]",
+                f"[placeholder*='{selector}' i]",
+                f"input[placeholder*='{selector}' i]",
+                f"[aria-label*='{selector}' i]",
+                f"input[aria-label*='{selector}' i]",
+            ])
+
+        # Add placeholder/aria/name/id variants for extracted tokens
+        for variant in selector_variants:
+            candidates.append(f"[placeholder*='{variant}' i]")
+            candidates.append(f"input[placeholder*='{variant}' i]")
+            candidates.append(f"[aria-label*='{variant}' i]")
+            candidates.append(f"input[aria-label*='{variant}' i]")
+            candidates.append(f"[name*='{variant}' i]")
+            candidates.append(f"input[name*='{variant}' i]")
+            candidates.append(f"[id*='{variant}' i]")
+            candidates.append(f"input[id*='{variant}' i]")
+            candidates.append(f"[formcontrolname*='{variant}' i]")
+            candidates.append(f"[ng-model*='{variant}' i]")
+
+        candidates = [c for i, c in enumerate(candidates) if c and c not in candidates[:i]]
 
         for idx, cand in enumerate(candidates):
             try:
@@ -190,6 +284,182 @@ class SelfHealingLocator:
                 return locator, healing_info
             except PlaywrightError:
                 continue
+
+        # Strategy: DOM scoring based on tokens across attributes/labels
+        try:
+            tokens: list[str] = []
+            stopwords = {
+                "input", "textarea", "select", "option", "div", "span", "button",
+                "form", "css", "xpath", "text", "has", "label", "name", "id"
+            }
+            bases = selector_variants if selector_variants else [selector]
+            for base in bases:
+                if not base:
+                    continue
+                for part in re.split(r'[^a-zA-Z0-9]+', base):
+                    if not part:
+                        continue
+                    token = part.lower()
+                    if token in stopwords or token.isdigit() or len(token) < 2:
+                        continue
+                    tokens.append(token)
+            tokens = list(dict.fromkeys(tokens))
+
+            if tokens:
+                result = await page.evaluate(
+                    """(tokens) => {
+                        const norm = (s) => (s || '').toString().toLowerCase();
+                        const esc = (s) => CSS && CSS.escape ? CSS.escape(s) : s.replace(/([#.;?+*~\\:'\"^$\\[\\]()=>|\\/])/g, '\\\\$1');
+                        const getLabelText = (el) => {
+                            if (!el) return '';
+                            let text = '';
+                            if (el.id) {
+                                const lbl = document.querySelector(`label[for="${esc(el.id)}"]`);
+                                if (lbl) text = lbl.innerText || lbl.textContent || '';
+                            }
+                            if (!text) {
+                                const parentLabel = el.closest('label');
+                                if (parentLabel) text = parentLabel.innerText || parentLabel.textContent || '';
+                            }
+                            return text;
+                        };
+                        const getGroupLabelText = (el) => {
+                            if (!el) return '';
+                            const group = el.closest('.form-group, .form-row, .field, .control-group, .input-group');
+                            if (!group) return '';
+                            const label = group.querySelector('label, .control-label, .field-label');
+                            if (label && !label.contains(el)) {
+                                return label.innerText || label.textContent || '';
+                            }
+                            return '';
+                        };
+                        const getRowLabelText = (el) => {
+                            if (!el) return '';
+                            const row = el.closest('tr');
+                            if (!row) return '';
+                            const cells = Array.from(row.querySelectorAll('th, td'));
+                            const texts = [];
+                            for (const cell of cells) {
+                                if (cell.contains(el)) continue;
+                                const t = (cell.innerText || cell.textContent || '').trim();
+                                if (t) texts.push(t);
+                            }
+                            return texts.join(' ');
+                        };
+                        const getPrevSiblingText = (el) => {
+                            if (!el || !el.parentElement) return '';
+                            const siblings = Array.from(el.parentElement.children);
+                            const idx = siblings.indexOf(el);
+                            if (idx <= 0) return '';
+                            for (let i = idx - 1; i >= 0; i--) {
+                                const s = siblings[i];
+                                const t = (s.innerText || s.textContent || '').trim();
+                                if (t) return t;
+                            }
+                            return '';
+                        };
+                        const getAriaLabelledByText = (el) => {
+                            if (!el) return '';
+                            const ref = el.getAttribute('aria-labelledby');
+                            if (!ref) return '';
+                            const target = document.getElementById(ref) || document.querySelector(`#${esc(ref)}`);
+                            if (target) return target.innerText || target.textContent || '';
+                            return '';
+                        };
+                        const scoreEl = (el) => {
+                            const attrs = [
+                                el.getAttribute('name'),
+                                el.getAttribute('id'),
+                                el.getAttribute('placeholder'),
+                                el.getAttribute('aria-label'),
+                                el.getAttribute('data-testid'),
+                                el.getAttribute('data-test'),
+                                el.getAttribute('data-qa'),
+                                el.getAttribute('formcontrolname'),
+                                el.getAttribute('ng-model'),
+                                el.getAttribute('ng-reflect-name'),
+                                el.getAttribute('title'),
+                                el.getAttribute('value'),
+                                getAriaLabelledByText(el),
+                                getLabelText(el),
+                                getGroupLabelText(el),
+                                getRowLabelText(el),
+                                getPrevSiblingText(el)
+                            ].map(norm);
+                            let score = 0;
+                            for (const token of tokens) {
+                                if (!token) continue;
+                                for (const attr of attrs) {
+                                    if (attr && attr.includes(token)) {
+                                        score += 1;
+                                    }
+                                }
+                            }
+                            // Prefer inputs/textareas
+                            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                                score += 0.5;
+                            }
+                            return score;
+                        };
+                        const candidates = Array.from(document.querySelectorAll('input, textarea, select'));
+                        let best = null;
+                        let bestScore = 0;
+                        for (const el of candidates) {
+                            const s = scoreEl(el);
+                            if (s > bestScore) {
+                                bestScore = s;
+                                best = el;
+                            }
+                        }
+                        if (!best || bestScore <= 0) return null;
+                        let selector = '';
+                        if (best.id) selector = `#${esc(best.id)}`;
+                        else if (best.name) selector = `[name="${esc(best.name)}"]`;
+                        else if (best.getAttribute('aria-label')) selector = `[aria-label="${esc(best.getAttribute('aria-label'))}"]`;
+                        else if (best.getAttribute('data-testid')) selector = `[data-testid="${esc(best.getAttribute('data-testid'))}"]`;
+                        else {
+                            // Fallback to CSS path
+                            const path = [];
+                            let el = best;
+                            while (el && el.nodeType === Node.ELEMENT_NODE) {
+                                let sel = el.tagName.toLowerCase();
+                                if (el.id) {
+                                    sel = '#' + esc(el.id);
+                                    path.unshift(sel);
+                                    break;
+                                }
+                                let sibling = el;
+                                let nth = 1;
+                                while (sibling = sibling.previousElementSibling) {
+                                    if (sibling.tagName === el.tagName) nth++;
+                                }
+                                if (nth > 1) sel += `:nth-of-type(${nth})`;
+                                path.unshift(sel);
+                                el = el.parentElement;
+                            }
+                            selector = path.join(' > ');
+                        }
+                        return { selector, score: bestScore };
+                    }""",
+                    tokens,
+                )
+
+                if result and result.get("selector"):
+                    locator = page.locator(result["selector"])
+                    await locator.first.wait_for(timeout=3000, state="visible")
+                    healing_info = {
+                        "type": HealingType.LOCATOR.value,
+                        "strategy": HealingStrategy.CONTEXT.value,
+                        "original": selector,
+                        "healed": result["selector"],
+                        "confidence_score": 0.7,
+                        "alternatives_tried": candidates,
+                        "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
+                        "success": True
+                    }
+                    return locator.first, healing_info
+        except Exception as e:
+            print(f"DOM scoring heal failed: {str(e)}")
 
         return None, None
     
@@ -2253,9 +2523,9 @@ class WebAutomationExecutor:
         primary = ""
         alternatives = []
         if isinstance(selector_data, str):
-            primary = selector_data
+            primary = _sanitize_selector(selector_data)
         elif isinstance(selector_data, dict):
-            primary = selector_data.get("primary") or selector_data.get("css") or selector_data.get("selector") or ""
+            primary = _sanitize_selector(selector_data.get("primary") or selector_data.get("css") or selector_data.get("selector") or "")
             alternatives = selector_data.get("alternatives", []) or []
 
         # Merge stored alternatives from previous healings

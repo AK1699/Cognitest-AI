@@ -4,7 +4,7 @@ Web Automation API Endpoints
 from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 import asyncio
 import json
@@ -88,7 +88,31 @@ def _extract_selector_and_alternatives(step_data: dict, step: dict):
     else:
         selector = raw_selector
 
-    return selector, alternatives
+    def _sanitize_selector(value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip()
+        # Strip wrapping quotes if selector was serialized with quotes
+        if len(cleaned) >= 2 and ((cleaned[0] == cleaned[-1]) and cleaned[0] in ["'", '"', "`"]):
+            cleaned = cleaned[1:-1].strip()
+        return cleaned
+
+    selector = _sanitize_selector(selector)
+    sanitized_alts: list = []
+    for alt in alternatives or []:
+        if isinstance(alt, dict):
+            alt_value = _sanitize_selector(alt.get("value", ""))
+            if alt_value:
+                alt = {**alt, "value": alt_value}
+                sanitized_alts.append(alt)
+        elif isinstance(alt, str):
+            alt_value = _sanitize_selector(alt)
+            if alt_value:
+                sanitized_alts.append(alt_value)
+        else:
+            sanitized_alts.append(alt)
+
+    return selector, sanitized_alts
 
 
 def _is_target_closed_error(err: Exception) -> bool:
@@ -101,6 +125,286 @@ def _is_target_closed_error(err: Exception) -> bool:
         "context has been closed",
         "page closed"
     ])
+
+
+def _resolve_recovery_url(step_url: str, session) -> str:
+    if step_url:
+        return step_url
+    try:
+        if session and session.current_url:
+            return session.current_url
+    except Exception:
+        pass
+    return "about:blank"
+
+
+def _tokenize_selector(selector: str) -> List[str]:
+    if not selector or not isinstance(selector, str):
+        return []
+    cleaned = selector.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ["'", '"', "`"]:
+        cleaned = cleaned[1:-1].strip()
+    values: List[str] = []
+    attr_patterns = [
+        r"\[name=['\"]([^'\"]+)['\"]\]",
+        r"\[id=['\"]([^'\"]+)['\"]\]",
+        r"\[placeholder=['\"]([^'\"]+)['\"]\]",
+        r"\[aria-label=['\"]([^'\"]+)['\"]\]",
+        r"\[data-testid=['\"]([^'\"]+)['\"]\]",
+        r"\[data-test=['\"]([^'\"]+)['\"]\]",
+        r"\[data-qa=['\"]([^'\"]+)['\"]\]",
+        r"\[formcontrolname=['\"]([^'\"]+)['\"]\]",
+        r"\[ng-model=['\"]([^'\"]+)['\"]\]",
+        r"\[ng-reflect-name=['\"]([^'\"]+)['\"]\]",
+        r"\[title=['\"]([^'\"]+)['\"]\]",
+        r"\[aria-labelledby=['\"]([^'\"]+)['\"]\]",
+    ]
+    for pattern in attr_patterns:
+        for match in re.findall(pattern, cleaned, flags=re.IGNORECASE):
+            if match:
+                values.append(match)
+    for match in re.findall(r"#([A-Za-z0-9_-]+)", cleaned):
+        values.append(match)
+    for match in re.findall(r"\.(?!\d)([A-Za-z0-9_-]+)", cleaned):
+        values.append(match)
+    for match in re.findall(r":has-text\((\"[^\"]+\"|'[^']+')\)", cleaned):
+        values.append(match.strip("\"'"))
+    for match in re.findall(r"text\s*=\s*(\"[^\"]+\"|'[^']+')", cleaned):
+        values.append(match.strip("\"'"))
+
+    base_candidates = values if values else [cleaned]
+    tokens: List[str] = []
+    for base in base_candidates:
+        if not base:
+            continue
+        # camelCase -> spaced
+        try:
+            base = re.sub(r"([a-z])([A-Z])", r"\\1 \\2", base)
+        except Exception:
+            pass
+        for part in re.split(r"[^a-zA-Z0-9]+", base):
+            if part:
+                tokens.append(part.lower())
+    # keep unique, remove tiny tokens
+    unique_tokens: List[str] = []
+    for t in tokens:
+        if len(t) < 2:
+            continue
+        if t not in unique_tokens:
+            unique_tokens.append(t)
+    return unique_tokens
+
+
+async def _dom_fallback_fill(page, selector: str, value: str) -> Optional[Dict[str, Any]]:
+    tokens = _tokenize_selector(selector)
+    if not tokens:
+        return None
+    try:
+        result = await page.evaluate(
+            """(tokens, value) => {
+                const norm = (s) => (s || '').toString().toLowerCase();
+                const esc = (s) => CSS && CSS.escape ? CSS.escape(s) : s.replace(/([#.;?+*~\\:'\"^$\\[\\]()=>|\\/])/g, '\\\\$1');
+                const isVisible = (el) => {
+                    const rect = el.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+                };
+                const getLabelText = (el) => {
+                    if (!el) return '';
+                    let text = '';
+                    if (el.id) {
+                        const lbl = document.querySelector(`label[for="${esc(el.id)}"]`);
+                        if (lbl) text = lbl.innerText || lbl.textContent || '';
+                    }
+                    if (!text) {
+                        const parentLabel = el.closest('label');
+                        if (parentLabel) text = parentLabel.innerText || parentLabel.textContent || '';
+                    }
+                    return text;
+                };
+                const getGroupLabelText = (el) => {
+                    if (!el) return '';
+                    const group = el.closest('.form-group, .form-row, .field, .control-group, .input-group');
+                    if (!group) return '';
+                    const label = group.querySelector('label, .control-label, .field-label');
+                    if (label && !label.contains(el)) {
+                        return label.innerText || label.textContent || '';
+                    }
+                    return '';
+                };
+                const getRowLabelText = (el) => {
+                    if (!el) return '';
+                    const row = el.closest('tr');
+                    if (!row) return '';
+                    const cells = Array.from(row.querySelectorAll('th, td'));
+                    const texts = [];
+                    for (const cell of cells) {
+                        if (cell.contains(el)) continue;
+                        const t = (cell.innerText || cell.textContent || '').trim();
+                        if (t) texts.push(t);
+                    }
+                    return texts.join(' ');
+                };
+                const getPrevSiblingText = (el) => {
+                    if (!el || !el.parentElement) return '';
+                    const siblings = Array.from(el.parentElement.children);
+                    const idx = siblings.indexOf(el);
+                    if (idx <= 0) return '';
+                    for (let i = idx - 1; i >= 0; i--) {
+                        const s = siblings[i];
+                        const t = (s.innerText || s.textContent || '').trim();
+                        if (t) return t;
+                    }
+                    return '';
+                };
+                const getAriaLabelledByText = (el) => {
+                    if (!el) return '';
+                    const ref = el.getAttribute('aria-labelledby');
+                    if (!ref) return '';
+                    const target = document.getElementById(ref) || document.querySelector(`#${esc(ref)}`);
+                    if (target) return target.innerText || target.textContent || '';
+                    return '';
+                };
+                const scoreEl = (el) => {
+                    const attrs = [
+                        el.getAttribute('name'),
+                        el.getAttribute('id'),
+                        el.getAttribute('placeholder'),
+                        el.getAttribute('aria-label'),
+                        el.getAttribute('data-testid'),
+                        el.getAttribute('data-test'),
+                        el.getAttribute('data-qa'),
+                        el.getAttribute('formcontrolname'),
+                        el.getAttribute('ng-model'),
+                        el.getAttribute('ng-reflect-name'),
+                        el.getAttribute('title'),
+                        el.getAttribute('value'),
+                        getAriaLabelledByText(el),
+                        getLabelText(el),
+                        getGroupLabelText(el),
+                        getRowLabelText(el),
+                        getPrevSiblingText(el)
+                    ].map(norm);
+                    let score = 0;
+                    for (const token of tokens) {
+                        if (!token) continue;
+                        for (const attr of attrs) {
+                            if (attr && attr.includes(token)) {
+                                score += 1;
+                            }
+                        }
+                    }
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        score += 0.5;
+                    }
+                    return score;
+                };
+                const candidates = Array.from(document.querySelectorAll('input, textarea, select')).filter(isVisible);
+                let best = null;
+                let bestScore = 0;
+                for (const el of candidates) {
+                    const s = scoreEl(el);
+                    if (s > bestScore) {
+                        bestScore = s;
+                        best = el;
+                    }
+                }
+                if (!best || bestScore <= 0) return null;
+                try { best.focus(); } catch (e) {}
+                if (best.tagName === 'INPUT' || best.tagName === 'TEXTAREA') {
+                    best.value = value;
+                    best.dispatchEvent(new Event('input', { bubbles: true }));
+                    best.dispatchEvent(new Event('change', { bubbles: true }));
+                } else if (best.tagName === 'SELECT') {
+                    best.value = value;
+                    best.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                let selector = '';
+                if (best.id) selector = `#${esc(best.id)}`;
+                else if (best.name) selector = `[name="${esc(best.name)}"]`;
+                else if (best.getAttribute('aria-label')) selector = `[aria-label="${esc(best.getAttribute('aria-label'))}"]`;
+                else if (best.getAttribute('data-testid')) selector = `[data-testid="${esc(best.getAttribute('data-testid'))}"]`;
+                else if (best.getAttribute('placeholder')) selector = `[placeholder="${esc(best.getAttribute('placeholder'))}"]`;
+                else {
+                    const path = [];
+                    let el = best;
+                    while (el && el.nodeType === Node.ELEMENT_NODE) {
+                        let sel = el.tagName.toLowerCase();
+                        if (el.id) {
+                            sel = '#' + esc(el.id);
+                            path.unshift(sel);
+                            break;
+                        }
+                        let sibling = el;
+                        let nth = 1;
+                        while (sibling = sibling.previousElementSibling) {
+                            if (sibling.tagName === el.tagName) nth++;
+                        }
+                        if (nth > 1) sel += `:nth-of-type(${nth})`;
+                        path.unshift(sel);
+                        el = el.parentElement;
+                    }
+                    selector = path.join(' > ');
+                }
+                return { selector, score: bestScore };
+            }""",
+            tokens,
+            value,
+        )
+        return result
+    except Exception:
+        return None
+
+
+def _apply_healed_selector_to_flow(test_flow: TestFlow, step_id: str, healed_selector: str) -> bool:
+    if not test_flow or not healed_selector:
+        return False
+
+    def _update_nodes(nodes: list) -> bool:
+        updated = False
+        for node in nodes or []:
+            if not isinstance(node, dict):
+                continue
+            node_id = node.get("id") or node.get("data", {}).get("id") or node.get("data", {}).get("stepId")
+            if str(node_id) != str(step_id):
+                continue
+            data = node.get("data") or {}
+            sel = data.get("selector")
+            if isinstance(sel, dict):
+                if sel.get("primary") != healed_selector:
+                    sel["primary"] = healed_selector
+                    updated = True
+                alts = sel.get("alternatives") or []
+                if isinstance(alts, list) and healed_selector not in [a.get("value") if isinstance(a, dict) else a for a in alts]:
+                    alts.append({
+                        "strategy": "context",
+                        "value": healed_selector,
+                        "priority": 1,
+                        "success_rate": 0.8
+                    })
+                    sel["alternatives"] = alts
+                    updated = True
+                data["selector"] = sel
+            else:
+                if sel != healed_selector:
+                    data["selector"] = healed_selector
+                    updated = True
+            node["data"] = data
+        return updated
+
+    updated_nodes = _update_nodes(test_flow.nodes or [])
+    updated_flow = False
+    try:
+        flow_json = test_flow.flow_json or {}
+        flow_nodes = flow_json.get("nodes")
+        if isinstance(flow_nodes, list):
+            updated_flow = _update_nodes(flow_nodes)
+            flow_json["nodes"] = flow_nodes
+            test_flow.flow_json = flow_json
+    except Exception:
+        updated_flow = False
+    if updated_nodes:
+        test_flow.nodes = test_flow.nodes
+    return updated_nodes or updated_flow
 
 
 # Test Flow Management
@@ -1191,6 +1495,8 @@ async def generate_test_steps(
 
 # Store WebSocket connections for browser sessions
 browser_session_connections: dict[str, WebSocket] = {}
+browser_session_cleanup_tasks: dict[str, asyncio.Task] = {}
+BROWSER_SESSION_IDLE_TTL_SECONDS = int(os.getenv("BROWSER_SESSION_IDLE_TTL_SECONDS", "120"))
 
 
 async def _delayed_session_cleanup(session_id: str, delay_seconds: int = 30):
@@ -1207,6 +1513,20 @@ async def _delayed_session_cleanup(session_id: str, delay_seconds: int = 30):
         await browser_session_manager.stop_session(session_id)
     except Exception:
         return
+
+
+def _cancel_cleanup_task(session_id: str):
+    task = browser_session_cleanup_tasks.pop(session_id, None)
+    if task and not task.done():
+        task.cancel()
+
+
+def _schedule_cleanup_task(session_id: str, delay_seconds: Optional[int] = None):
+    _cancel_cleanup_task(session_id)
+    delay = delay_seconds if delay_seconds is not None else BROWSER_SESSION_IDLE_TTL_SECONDS
+    browser_session_cleanup_tasks[session_id] = asyncio.create_task(
+        _delayed_session_cleanup(session_id, delay_seconds=delay)
+    )
 
 
 @router.get("/device-presets")
@@ -1296,6 +1616,7 @@ async def websocket_browser_session(
     """
     await websocket.accept()
     browser_session_connections[session_id] = websocket
+    _cancel_cleanup_task(session_id)
     
     # Define update callback for this session
     async def on_update(data: dict):
@@ -1543,6 +1864,8 @@ async def websocket_browser_session(
                             has_failure = False
                             abort_execution = False
                             execution_variables = {}  # Store extracted data during execution
+                            last_navigate_url = session.current_url or ""
+                            flow_updated = False
                             start_time = datetime.utcnow()
                             
                             # Execute each step
@@ -1668,7 +1991,9 @@ async def websocket_browser_session(
                                     # Ensure browser page is still alive before actions
                                     ensured = await session.ensure_page(session.current_url or "about:blank")
                                     if not ensured:
-                                        raise Exception("Browser session not ready")
+                                        relaunch_ok = await session.launch(session.current_url or "about:blank")
+                                        if not relaunch_ok:
+                                            raise Exception("Browser session not ready")
 
                                     # Execute step based on type
                                     if step_type == "navigate":
@@ -1677,6 +2002,7 @@ async def websocket_browser_session(
                                             success = await session.navigate(url)
                                             if not success:
                                                 raise Exception("Navigation failed. Browser session may have been closed.")
+                                            last_navigate_url = url
                                     
                                     elif step_type == "click":
                                         if selector_used:
@@ -1686,11 +2012,69 @@ async def websocket_browser_session(
                                             except Exception as click_err:
                                                 # If the page is closed, recover first; don't attempt healing
                                                 if _is_target_closed_error(click_err):
+                                                    recovery_url = step_url or last_navigate_url or _resolve_recovery_url(step_url, session)
                                                     ensured = await session.ensure_page(
-                                                        step_url or session.current_url or "about:blank",
+                                                        recovery_url,
                                                         force_navigate=True,
                                                         force_recreate=True
                                                     )
+                                                    if not ensured:
+                                                        # Hard relaunch as a last resort
+                                                        relaunch_ok = await session.launch(recovery_url)
+                                                        if not relaunch_ok:
+                                                            await browser_session_manager.stop_session(session_id)
+                                                            raise Exception("Browser session closed during click action")
+                                                        ensured = relaunch_ok
+                                                    # Ensure we are on the correct page after recovery
+                                                    if recovery_url and recovery_url != "about:blank":
+                                                        await session.navigate(recovery_url)
+                                                        # Wait for page to be fully loaded after recovery
+                                                        try:
+                                                            await session.page.wait_for_load_state('domcontentloaded', timeout=10000)
+                                                        except Exception:
+                                                            pass  # Continue even if wait times out
+                                                    # If healing is enabled, attempt heal after recovery
+                                                    if healing_enabled and ai_service:
+                                                        healer = SelfHealingLocator(selector_used, alternatives, ai_service)
+                                                        try:
+                                                            await websocket.send_json({
+                                                                "type": "healing_attempt",
+                                                                "stepIndex": i,
+                                                                "action": "click",
+                                                                "selector": selector_used
+                                                            })
+                                                            locator, healing_info = await healer.find_element(session.page, step_id, step_type)
+                                                            if locator and healing_info:
+                                                                await locator.click()
+                                                                was_healed = True
+                                                                selector_used = healing_info.get("healed", selector_used)
+                                                                if selector_used:
+                                                                    flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "healed",
+                                                                    "strategy": healing_info.get("strategy"),
+                                                                    "healed": healing_info.get("healed"),
+                                                                    "confidence": healing_info.get("confidence_score"),
+                                                                    "original": healing_info.get("original"),
+                                                                    "reasoning": healing_info.get("ai_reasoning")
+                                                                })
+                                                                continue
+                                                            else:
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "failed"
+                                                                })
+                                                                raise Exception("Self-heal failed after browser recovery")
+                                                        except Exception:
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "failed"
+                                                            })
+                                                            raise Exception("Self-heal failed after browser recovery")
                                                     if ensured:
                                                         try:
                                                             retry_result = await session.click_element(selector_used)
@@ -1722,6 +2106,8 @@ async def websocket_browser_session(
                                                             await locator.click()
                                                             was_healed = True
                                                             selector_used = healing_info.get("healed", selector_used)
+                                                            if selector_used:
+                                                                flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
                                                             await websocket.send_json({
                                                                 "type": "healing_result",
                                                                 "stepIndex": i,
@@ -1738,8 +2124,6 @@ async def websocket_browser_session(
                                                                 "stepIndex": i,
                                                                 "status": "failed"
                                                             })
-                                                            # Stop live browser on self-heal failure
-                                                            await browser_session_manager.stop_session(session_id)
                                                             raise click_err
                                                     except Exception:
                                                         await websocket.send_json({
@@ -1747,8 +2131,6 @@ async def websocket_browser_session(
                                                             "stepIndex": i,
                                                             "status": "failed"
                                                         })
-                                                        # Stop live browser on self-heal failure
-                                                        await browser_session_manager.stop_session(session_id)
                                                         raise click_err
                                                 else:
                                                     raise click_err
@@ -1762,11 +2144,96 @@ async def websocket_browser_session(
                                             except Exception as type_err:
                                                 # If the page is closed, recover first; don't attempt healing
                                                 if _is_target_closed_error(type_err):
+                                                    recovery_url = step_url or last_navigate_url or _resolve_recovery_url(step_url, session)
                                                     ensured = await session.ensure_page(
-                                                        step_url or session.current_url or "about:blank",
+                                                        recovery_url,
                                                         force_navigate=True,
                                                         force_recreate=True
                                                     )
+                                                    if not ensured:
+                                                        # Hard relaunch as a last resort
+                                                        relaunch_ok = await session.launch(recovery_url)
+                                                        if not relaunch_ok:
+                                                            await browser_session_manager.stop_session(session_id)
+                                                            raise Exception("Browser session closed during type action")
+                                                        ensured = relaunch_ok
+                                                    # Ensure we are on the correct page after recovery
+                                                    if recovery_url and recovery_url != "about:blank":
+                                                        await session.navigate(recovery_url)
+                                                        # Wait for page to be fully loaded after recovery
+                                                        try:
+                                                            await session.page.wait_for_load_state('domcontentloaded', timeout=10000)
+                                                        except Exception:
+                                                            pass  # Continue even if wait times out
+                                                    # If healing is enabled, attempt heal after recovery
+                                                    if healing_enabled and ai_service:
+                                                        healer = SelfHealingLocator(selector_used, alternatives, ai_service)
+                                                        try:
+                                                            await websocket.send_json({
+                                                                "type": "healing_attempt",
+                                                                "stepIndex": i,
+                                                                "action": "type",
+                                                                "selector": selector_used
+                                                            })
+                                                            locator, healing_info = await healer.find_element(session.page, step_id, step_type)
+                                                            if locator and healing_info:
+                                                                await locator.fill(value)
+                                                                was_healed = True
+                                                                selector_used = healing_info.get("healed", selector_used)
+                                                                if selector_used:
+                                                                    flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "healed",
+                                                                    "strategy": healing_info.get("strategy"),
+                                                                    "healed": healing_info.get("healed"),
+                                                                    "confidence": healing_info.get("confidence_score"),
+                                                                    "original": healing_info.get("original"),
+                                                                    "reasoning": healing_info.get("ai_reasoning")
+                                                                })
+                                                                continue
+                                                            else:
+                                                                # Try direct DOM fallback fill before failing
+                                                                original_selector = selector_used
+                                                                fallback = await _dom_fallback_fill(session.page, selector_used, value)
+                                                                if fallback and fallback.get("selector"):
+                                                                    was_healed = True
+                                                                    selector_used = fallback.get("selector") or selector_used
+                                                                    healing_info = {
+                                                                        "type": HealingType.LOCATOR.value,
+                                                                        "strategy": HealingStrategy.CONTEXT.value,
+                                                                        "original": original_selector,
+                                                                        "healed": selector_used,
+                                                                        "confidence_score": fallback.get("score", 0.7),
+                                                                        "ai_reasoning": "dom-fallback"
+                                                                    }
+                                                                    if selector_used:
+                                                                        flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
+                                                                    await websocket.send_json({
+                                                                        "type": "healing_result",
+                                                                        "stepIndex": i,
+                                                                        "status": "healed",
+                                                                        "strategy": "context",
+                                                                        "healed": selector_used,
+                                                                        "confidence": fallback.get("score", 0.7),
+                                                                        "original": healing_info.get("original") if healing_info else selector_used,
+                                                                        "reasoning": "dom-fallback"
+                                                                    })
+                                                                    continue
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "failed"
+                                                                })
+                                                                raise Exception("Self-heal failed after browser recovery")
+                                                        except Exception:
+                                                            await websocket.send_json({
+                                                                "type": "healing_result",
+                                                                "stepIndex": i,
+                                                                "status": "failed"
+                                                            })
+                                                            raise Exception("Self-heal failed after browser recovery")
                                                     if ensured:
                                                         try:
                                                             retry_result = await session.type_into_element(selector_used, value)
@@ -1798,6 +2265,8 @@ async def websocket_browser_session(
                                                             await locator.fill(value)
                                                             was_healed = True
                                                             selector_used = healing_info.get("healed", selector_used)
+                                                            if selector_used:
+                                                                flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
                                                             await websocket.send_json({
                                                                 "type": "healing_result",
                                                                 "stepIndex": i,
@@ -1809,22 +2278,45 @@ async def websocket_browser_session(
                                                                 "reasoning": healing_info.get("ai_reasoning")
                                                             })
                                                         else:
-                                                            await websocket.send_json({
-                                                                "type": "healing_result",
-                                                                "stepIndex": i,
-                                                                "status": "failed"
-                                                            })
-                                                            # Stop live browser on self-heal failure
-                                                            await browser_session_manager.stop_session(session_id)
-                                                            raise type_err
+                                                            # Try direct DOM fallback fill before failing
+                                                            original_selector = selector_used
+                                                            fallback = await _dom_fallback_fill(session.page, selector_used, value)
+                                                            if fallback and fallback.get("selector"):
+                                                                was_healed = True
+                                                                selector_used = fallback.get("selector") or selector_used
+                                                                healing_info = {
+                                                                    "type": HealingType.LOCATOR.value,
+                                                                    "strategy": HealingStrategy.CONTEXT.value,
+                                                                    "original": original_selector,
+                                                                    "healed": selector_used,
+                                                                    "confidence_score": fallback.get("score", 0.7),
+                                                                    "ai_reasoning": "dom-fallback"
+                                                                }
+                                                                if selector_used:
+                                                                    flow_updated = _apply_healed_selector_to_flow(test_flow, step_id, selector_used) or flow_updated
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "healed",
+                                                                    "strategy": "context",
+                                                                    "healed": selector_used,
+                                                                    "confidence": fallback.get("score", 0.7),
+                                                                    "original": healing_info.get("original") if healing_info else selector_used,
+                                                                    "reasoning": "dom-fallback"
+                                                                })
+                                                            else:
+                                                                await websocket.send_json({
+                                                                    "type": "healing_result",
+                                                                    "stepIndex": i,
+                                                                    "status": "failed"
+                                                                })
+                                                                raise type_err
                                                     except Exception:
                                                         await websocket.send_json({
                                                             "type": "healing_result",
                                                             "stepIndex": i,
                                                             "status": "failed"
                                                         })
-                                                        # Stop live browser on self-heal failure
-                                                        await browser_session_manager.stop_session(session_id)
                                                         raise type_err
                                                 else:
                                                     raise type_err
@@ -3003,10 +3495,11 @@ Respond with JSON only:
     finally:
         # Cleanup
         session = browser_session_manager.get_session(session_id)
-        if session and session.is_executing:
-            # Avoid killing the browser mid-execution due to transient WS disconnects
-            asyncio.create_task(_delayed_session_cleanup(session_id))
-        else:
-            await browser_session_manager.stop_session(session_id)
         if session_id in browser_session_connections:
             del browser_session_connections[session_id]
+
+        # Avoid killing the browser mid-execution due to transient WS disconnects
+        if session and session.is_executing:
+            _schedule_cleanup_task(session_id)
+        else:
+            _schedule_cleanup_task(session_id)

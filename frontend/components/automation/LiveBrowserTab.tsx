@@ -284,6 +284,7 @@ export default function LiveBrowserTab({
     // WebSocket
     const wsRef = useRef<WebSocket | null>(null)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
+    const pingRef = useRef<NodeJS.Timeout | null>(null)
 
     // Load device presets
     useEffect(() => {
@@ -309,6 +310,10 @@ export default function LiveBrowserTab({
         return () => {
             if (wsRef.current) {
                 wsRef.current.close()
+            }
+            if (pingRef.current) {
+                clearInterval(pingRef.current)
+                pingRef.current = null
             }
             if (timerRef.current) {
                 clearInterval(timerRef.current)
@@ -697,6 +702,14 @@ export default function LiveBrowserTab({
         ws.onopen = () => {
             console.log('Browser session WebSocket connected')
             setIsConnected(true)
+            if (pingRef.current) {
+                clearInterval(pingRef.current)
+            }
+            pingRef.current = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ action: 'ping' }))
+                }
+            }, 15000)
 
             // Send launch command once connected
             ws.send(JSON.stringify({
@@ -737,6 +750,10 @@ export default function LiveBrowserTab({
             setIsConnected(false)
             setIsLaunching(false)
             setLaunchError('WebSocket connection error')
+            if (pingRef.current) {
+                clearInterval(pingRef.current)
+                pingRef.current = null
+            }
         }
 
         ws.onclose = () => {
@@ -744,6 +761,10 @@ export default function LiveBrowserTab({
             setIsConnected(false)
             setSessionStatus('stopped')
             stopTimer()
+            if (pingRef.current) {
+                clearInterval(pingRef.current)
+                pingRef.current = null
+            }
         }
 
         wsRef.current = ws

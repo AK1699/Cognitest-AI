@@ -233,6 +233,7 @@ class BrowserSession:
         self._screenshot_task: Optional[asyncio.Task] = None
         self._pending_requests: Dict[str, NetworkRequest] = {}
         self.last_error: Optional[str] = None
+        self._page_lock = asyncio.Lock()
 
         # Execution state
         self.is_executing: bool = False
@@ -248,6 +249,10 @@ class BrowserSession:
     async def launch(self, initial_url: str = "about:blank") -> bool:
         """Launch browser session"""
         try:
+            # Clean up any existing resources before relaunching
+            if self.page or self.context or self.browser or self.playwright:
+                await self._cleanup_on_error()
+
             self.playwright = await async_playwright().start()
             
             # Select browser
@@ -569,99 +574,100 @@ class BrowserSession:
     async def ensure_page(self, url: Optional[str] = None, force_navigate: bool = False, force_recreate: bool = False) -> bool:
         """Ensure page/context is available; optionally navigate to url."""
         try:
-            should_recreate = force_recreate
-            recreated = False
-            
-            # If we think we have a page, verify it's actually alive
-            if not should_recreate and self.page and not self.page.is_closed():
-                try:
-                    # Simple liveness check
-                    await self.page.evaluate("1", timeout=1000)
-                except Exception as e:
-                    if self.page and not self.page.is_closed():
-                        if _is_target_closed_error(e):
-                            should_recreate = True
-                        elif _is_transient_page_error(e):
-                            # Continue without tearing down the page during navigation
-                            should_recreate = False
+            async with self._page_lock:
+                should_recreate = force_recreate
+                recreated = False
+
+                # If we think we have a page, verify it's actually alive
+                if not should_recreate and self.page and not self.page.is_closed():
+                    try:
+                        # Simple liveness check
+                        await self.page.evaluate("1", timeout=1000)
+                    except Exception as e:
+                        if self.page and not self.page.is_closed():
+                            if _is_target_closed_error(e):
+                                should_recreate = True
+                            elif _is_transient_page_error(e):
+                                # Continue without tearing down the page during navigation
+                                should_recreate = False
+                            else:
+                                # If page is still open, avoid aggressive recreation during navigation
+                                should_recreate = False
                         else:
-                            # If page is still open, avoid aggressive recreation during navigation
-                            should_recreate = False
-                    else:
-                        should_recreate = True
+                            should_recreate = True
 
-            if should_recreate or not self.page or self.page.is_closed():
-                # Close existing if they strictly exist but are broken
-                if self.page:
-                    try:
-                        await self.page.close()
-                    except:
-                        pass
-                if self.context:
-                    try:
-                        await self.context.close()
-                        self.context = None  # Force context recreation too as it might be corrupted
-                    except:
-                        pass
-
-                # For forced recreates, prefer a full relaunch to avoid bad browser state
-                if force_recreate and self.browser:
-                    try:
-                        await self.browser.close()
-                    except Exception:
-                        pass
-                    self.browser = None
-
-                # Try to reuse browser if connected
-                browser_connected = False
-                try:
-                    browser_connected = bool(self.browser) and self.browser.is_connected()
-                except Exception:
-                    browser_connected = bool(self.browser)
-
-                if browser_connected:
-                    try:
-                        device_config = DevicePreset.get(self.device)
-                        context_options = {
-                            "viewport": device_config["viewport"],
-                            "is_mobile": device_config.get("is_mobile", False),
-                            "has_touch": device_config.get("has_touch", False),
-                            "ignore_https_errors": True,
-                            "accept_downloads": True
-                        }
-                        if device_config.get("user_agent"):
-                            context_options["user_agent"] = device_config["user_agent"]
-                        if device_config.get("device_scale_factor"):
-                            context_options["device_scale_factor"] = device_config["device_scale_factor"]
-                        if self.record_video and self.video_dir:
-                            import os
-                            os.makedirs(self.video_dir, exist_ok=True)
-                            context_options["record_video_dir"] = self.video_dir
-                            context_options["record_video_size"] = {"width": 1280, "height": 720}
-                        
-                        self.context = await self.browser.new_context(**context_options)
-                        self.page = await self.context.new_page()
-                        self._setup_event_listeners()
-                        recreated = True
-                    except Exception as ctx_err:
-                        print(f"Failed to create context from existing browser: {ctx_err}")
-                        browser_connected = False # Fallback to full relaunch
-
-                if not browser_connected:
-                    # Full relaunch
-                    if self.browser:
+                if should_recreate or not self.page or self.page.is_closed():
+                    # Close existing if they strictly exist but are broken
+                    if self.page:
                         try:
-                            await self.browser.close()
+                            await self.page.close()
                         except:
                             pass
-                    return await self.launch(initial_url=url or "about:blank")
+                    if self.context:
+                        try:
+                            await self.context.close()
+                            self.context = None  # Force context recreation too as it might be corrupted
+                        except:
+                            pass
 
-            if url and (force_navigate or not self.current_url or recreated):
-                await self.page.goto(url, wait_until="domcontentloaded")
-                self.current_url = self.page.url
-            # Make sure streaming resumes if it was interrupted
-            self.start_streaming()
-            return True
+                    # For forced recreates, prefer a full relaunch to avoid bad browser state
+                    if force_recreate and self.browser:
+                        try:
+                            await self.browser.close()
+                        except Exception:
+                            pass
+                        self.browser = None
+
+                    # Try to reuse browser if connected
+                    browser_connected = False
+                    try:
+                        browser_connected = bool(self.browser) and self.browser.is_connected()
+                    except Exception:
+                        browser_connected = bool(self.browser)
+
+                    if browser_connected:
+                        try:
+                            device_config = DevicePreset.get(self.device)
+                            context_options = {
+                                "viewport": device_config["viewport"],
+                                "is_mobile": device_config.get("is_mobile", False),
+                                "has_touch": device_config.get("has_touch", False),
+                                "ignore_https_errors": True,
+                                "accept_downloads": True
+                            }
+                            if device_config.get("user_agent"):
+                                context_options["user_agent"] = device_config["user_agent"]
+                            if device_config.get("device_scale_factor"):
+                                context_options["device_scale_factor"] = device_config["device_scale_factor"]
+                            if self.record_video and self.video_dir:
+                                import os
+                                os.makedirs(self.video_dir, exist_ok=True)
+                                context_options["record_video_dir"] = self.video_dir
+                                context_options["record_video_size"] = {"width": 1280, "height": 720}
+                            
+                            self.context = await self.browser.new_context(**context_options)
+                            self.page = await self.context.new_page()
+                            self._setup_event_listeners()
+                            recreated = True
+                        except Exception as ctx_err:
+                            print(f"Failed to create context from existing browser: {ctx_err}")
+                            browser_connected = False # Fallback to full relaunch
+
+                    if not browser_connected:
+                        # Full relaunch
+                        if self.browser:
+                            try:
+                                await self.browser.close()
+                            except:
+                                pass
+                        return await self.launch(initial_url=url or "about:blank")
+
+                if url and (force_navigate or not self.current_url or recreated):
+                    await self.page.goto(url, wait_until="domcontentloaded")
+                    self.current_url = self.page.url
+                # Make sure streaming resumes if it was interrupted
+                self.start_streaming()
+                return True
         except Exception as e:
             await self._emit_update({
                 "type": "error",
@@ -672,39 +678,40 @@ class BrowserSession:
     async def navigate(self, url: str) -> bool:
         """Navigate to URL"""
         try:
-            # Ensure we have a valid page/context
-            if not self.page or self.page.is_closed():
-                if self.context and not self.context.is_closed():
-                    self.page = await self.context.new_page()
-                    self._setup_event_listeners()
-                elif self.browser and not self.browser.is_closed():
-                    # Recreate context with device settings
-                    device_config = DevicePreset.get(self.device)
-                    context_options = {
-                        "viewport": device_config["viewport"],
-                        "is_mobile": device_config.get("is_mobile", False),
-                        "has_touch": device_config.get("has_touch", False),
-                    }
-                    if device_config.get("user_agent"):
-                        context_options["user_agent"] = device_config["user_agent"]
-                    if device_config.get("device_scale_factor"):
-                        context_options["device_scale_factor"] = device_config["device_scale_factor"]
-                    if self.record_video and self.video_dir:
-                        import os
-                        os.makedirs(self.video_dir, exist_ok=True)
-                        context_options["record_video_dir"] = self.video_dir
-                        context_options["record_video_size"] = {"width": 1280, "height": 720}
-                    self.context = await self.browser.new_context(**context_options)
-                    self.page = await self.context.new_page()
-                    self._setup_event_listeners()
-                else:
-                    # No active browser/context, relaunch
-                    return await self.launch(initial_url=url)
+            async with self._page_lock:
+                # Ensure we have a valid page/context
+                if not self.page or self.page.is_closed():
+                    if self.context and not self.context.is_closed():
+                        self.page = await self.context.new_page()
+                        self._setup_event_listeners()
+                    elif self.browser and not self.browser.is_closed():
+                        # Recreate context with device settings
+                        device_config = DevicePreset.get(self.device)
+                        context_options = {
+                            "viewport": device_config["viewport"],
+                            "is_mobile": device_config.get("is_mobile", False),
+                            "has_touch": device_config.get("has_touch", False),
+                        }
+                        if device_config.get("user_agent"):
+                            context_options["user_agent"] = device_config["user_agent"]
+                        if device_config.get("device_scale_factor"):
+                            context_options["device_scale_factor"] = device_config["device_scale_factor"]
+                        if self.record_video and self.video_dir:
+                            import os
+                            os.makedirs(self.video_dir, exist_ok=True)
+                            context_options["record_video_dir"] = self.video_dir
+                            context_options["record_video_size"] = {"width": 1280, "height": 720}
+                        self.context = await self.browser.new_context(**context_options)
+                        self.page = await self.context.new_page()
+                        self._setup_event_listeners()
+                    else:
+                        # No active browser/context, relaunch
+                        return await self.launch(initial_url=url)
 
-            await self.page.goto(url, wait_until="domcontentloaded")
-            self.current_url = self.page.url
-            self.start_streaming()
-            return True
+                await self.page.goto(url, wait_until="domcontentloaded")
+                self.current_url = self.page.url
+                self.start_streaming()
+                return True
         except Exception as e:
             await self._emit_update({
                 "type": "error",
@@ -776,7 +783,10 @@ class BrowserSession:
         """Type text into a specific element by selector.
         If selector is a simple name (no CSS operators), try common patterns."""
         try:
-            await self.page.fill(selector, text, timeout=5000)
+            cleaned_selector = selector.strip() if isinstance(selector, str) else selector
+            if isinstance(cleaned_selector, str) and len(cleaned_selector) >= 2 and cleaned_selector[0] == cleaned_selector[-1] and cleaned_selector[0] in ["'", '"', "`"]:
+                cleaned_selector = cleaned_selector[1:-1].strip()
+            await self.page.fill(cleaned_selector, text, timeout=5000)
             return {"success": True, "action": "type", "selector": selector, "text": text}
         except Exception as e:
             # Check if selector is a simple token (no CSS operators)
@@ -971,7 +981,10 @@ class BrowserSession:
         """Click an element by selector.
         If selector is a simple name (no CSS operators), try common patterns."""
         try:
-            await self.page.click(selector, timeout=5000)
+            cleaned_selector = selector.strip() if isinstance(selector, str) else selector
+            if isinstance(cleaned_selector, str) and len(cleaned_selector) >= 2 and cleaned_selector[0] == cleaned_selector[-1] and cleaned_selector[0] in ["'", '"', "`"]:
+                cleaned_selector = cleaned_selector[1:-1].strip()
+            await self.page.click(cleaned_selector, timeout=5000)
             return {"success": True, "action": "click", "selector": selector}
         except Exception as e:
             # Check if selector is a simple token (no CSS operators)
