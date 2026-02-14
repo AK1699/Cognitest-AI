@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
 
     # AI Provider Selection
-    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")  # Options: "openai", "gemini"
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")  # Options: "openai", "gemini", "ollama"
 
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
     GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
+
+    # Ollama (Local LLM)
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3:8b")  # Main model
+    OLLAMA_HELPER_MODEL: str = os.getenv("OLLAMA_HELPER_MODEL", "mistral")  # Helper model
 
     # Qdrant (Vector DB)
     QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")

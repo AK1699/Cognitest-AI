@@ -18,7 +18,7 @@ from app.models.web_automation import (
     BrowserType, ExecutionMode, ExecutionRunStatus, StepStatus,
     HealingType, HealingStrategy
 )
-from app.services.gemini_service import GeminiService
+from app.services.ai_service import get_ai_service, AIService
 from app.services.self_heal_service import SelfHealService
 
 
@@ -55,7 +55,7 @@ class SelfHealingLocator:
         self,
         primary_selector: str,
         alternatives: List[Dict[str, Any]],
-        ai_service: GeminiService,
+        ai_service: AIService,
         confidence_threshold: Optional[float] = None
     ):
         self.primary_selector = primary_selector
@@ -593,7 +593,7 @@ class SelfHealingAssertion:
     Self-healing assertions with context-aware validation
     """
     
-    def __init__(self, ai_service: GeminiService):
+    def __init__(self, ai_service: AIService):
         self.ai_service = ai_service
     
     async def assert_with_healing(
@@ -784,7 +784,7 @@ class WebAutomationExecutor:
     
     def __init__(self, db: Session):
         self.db = db
-        self.ai_service = GeminiService()
+        self.ai_service = get_ai_service()
         self.self_heal_service = SelfHealService(db)
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None

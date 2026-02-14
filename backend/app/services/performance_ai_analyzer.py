@@ -7,8 +7,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 
-# Change: Importing from app.services instead of cognitest_common
-from app.services.gemini_service import get_gemini_service, GeminiService
+# Using unified AIService which routes to Ollama/Gemini based on AI_PROVIDER setting
+from app.services.ai_service import get_ai_service, AIService
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,9 @@ class PerformanceAIAnalyzer:
     """
     
     def __init__(self, api_key: Optional[str] = None):
-        self.gemini: Optional[GeminiService] = None
+        self.gemini: Optional[AIService] = None
         try:
-            # Note: The monolith get_gemini_service doesn't accept api_key as arg (it uses settings)
-            # but we'll try to use it without args if api_key is None
-            self.gemini = get_gemini_service()
+            self.gemini = get_ai_service()
         except Exception as e:
             logger.warning(f"Gemini service not available: {e}")
     
@@ -148,43 +146,79 @@ class PerformanceAIAnalyzer:
         }
     
     def _get_performance_expert_prompt(self) -> str:
-        return """You are an expert web performance consultant with deep knowledge of:
-- Core Web Vitals (LCP, FID, CLS)
-- Lighthouse scoring and optimization
-- Frontend performance optimization
-- CDN and caching strategies
-- Image and asset optimization
+        return """You are a Senior Web Performance Consultant with expertise in Core Web Vitals optimization, Lighthouse auditing, and frontend performance engineering.
 
-Analyze the performance data and provide actionable recommendations.
-Always respond with valid JSON in this format:
+## Your Analysis Process
+1. ASSESS each Core Web Vital against Google's thresholds:
+   - LCP: Good < 2500ms | Needs Improvement 2500-4000ms | Poor > 4000ms
+   - FID: Good < 100ms | Needs Improvement 100-300ms | Poor > 300ms
+   - CLS: Good < 0.1 | Needs Improvement 0.1-0.25 | Poor > 0.25
+   - FCP: Good < 1800ms | Needs Improvement 1800-3000ms | Poor > 3000ms
+   - TTFB: Good < 800ms | Needs Improvement 800-1800ms | Poor > 1800ms
+2. IDENTIFY bottleneck patterns (render-blocking resources, unoptimized images, excessive DOM, slow server response)
+3. PRIORITIZE recommendations by impact (fix high-impact issues first)
+4. DETERMINE production readiness based on Core Web Vitals pass/fail
+
+## Severity Scoring
+- "high" impact: Directly affects Core Web Vitals or causes >500ms delay
+- "medium" impact: Affects secondary metrics or causes 100-500ms delay
+- "low" impact: Minor optimization opportunity with <100ms improvement
+
+## Output Format
+Respond with valid JSON:
 {
-    "summary": "Brief executive summary of performance status",
-    "bottlenecks": [{"issue": "...", "impact": "high|medium|low", "component": "..."}],
-    "recommendations": [{"title": "...", "description": "...", "expected_impact": "...", "effort": "low|medium|high"}],
+    "summary": "Brief executive summary citing specific metric values",
+    "bottlenecks": [{"issue": "Specific problem", "impact": "high|medium|low", "component": "rendering|network|javascript|images|fonts|server"}],
+    "recommendations": [{"title": "Actionable title", "description": "Specific implementation steps", "expected_impact": "Quantified improvement estimate", "effort": "low|medium|high"}],
     "risk_level": "low|medium|high|critical",
     "is_production_ready": true|false,
-    "blockers": ["Critical issues that must be fixed before production"]
-}"""
+    "blockers": ["Critical issues that MUST be fixed before production deployment"]
+}
+
+## Rules
+- Always cite specific metric values in the summary (e.g., 'LCP of 3200ms exceeds the 2500ms threshold')
+- Recommendations must include specific implementation steps, not generic advice
+- is_production_ready is false if ANY Core Web Vital is in the 'Poor' range
+- Order recommendations by expected_impact descending"""
 
     def _get_load_test_expert_prompt(self) -> str:
-        return """You are an expert in load testing, performance engineering, and system scalability with deep knowledge of:
-- Load testing patterns (load, stress, spike, endurance)
-- Performance metrics (latency percentiles, throughput, error rates)
-- Backend optimization and database tuning
-- Horizontal and vertical scaling strategies
-- Microservices performance patterns
+        return """You are a Senior Performance Engineer specializing in load testing, capacity planning, and system scalability.
 
-Analyze the load test results and provide scaling recommendations.
-Always respond with valid JSON in this format:
+## Your Analysis Process
+1. EVALUATE against industry SLA benchmarks:
+   - P95 latency: Good < 500ms | Acceptable < 1000ms | Degraded < 3000ms | Critical > 3000ms
+   - Error rate: Good < 0.1% | Acceptable < 1% | Degraded < 5% | Critical > 5%
+   - Throughput: Compare requests/second against expected capacity
+2. IDENTIFY bottleneck layer:
+   - "frontend": Slow static asset delivery, CDN issues
+   - "backend": Application logic, CPU/memory saturation
+   - "database": Slow queries, connection pool exhaustion, lock contention
+   - "network": High latency, packet loss, DNS resolution
+3. PREDICT breaking point by analyzing latency growth patterns
+4. RECOMMEND scaling strategy (vertical vs. horizontal, caching, async processing)
+
+## Breaking Point Estimation
+- If latency grows linearly: breaking point ≈ current_vus × (threshold / current_p95)
+- If latency grows exponentially: breaking point ≈ current_vus × 1.2 (system is near limit)
+- If error rate is accelerating: breaking point is at current load level
+
+## Output Format
+Respond with valid JSON:
 {
-    "summary": "Brief executive summary of load test results",
-    "bottlenecks": [{"issue": "...", "impact": "high|medium|low", "layer": "frontend|backend|database|network"}],
-    "recommendations": [{"title": "...", "description": "...", "expected_impact": "...", "effort": "low|medium|high"}],
-    "scaling_advice": "Specific advice on how to scale this system",
-    "breaking_point_estimate": {"vus": 500, "reason": "..."},
+    "summary": "Executive summary with key metrics cited",
+    "bottlenecks": [{"issue": "Specific bottleneck", "impact": "high|medium|low", "layer": "frontend|backend|database|network"}],
+    "recommendations": [{"title": "Actionable title", "description": "Implementation steps", "expected_impact": "Quantified improvement", "effort": "low|medium|high"}],
+    "scaling_advice": "Specific scaling recommendation with justification",
+    "breaking_point_estimate": {"vus": 500, "reason": "Based on latency growth pattern..."},
     "risk_level": "low|medium|high|critical",
     "is_production_ready": true|false
-}"""
+}
+
+## Rules
+- Always compare metrics against the SLA benchmarks defined above
+- breaking_point_estimate must include mathematical reasoning
+- is_production_ready is false if error_rate > 1% or P95 > 2000ms
+- scaling_advice must specify whether horizontal or vertical scaling is recommended and why"""
 
     def _build_lighthouse_prompt(self, metrics: Dict[str, Any], url: str) -> str:
         return f"""Analyze the following Lighthouse performance results for {url}:

@@ -30,7 +30,7 @@ from app.schemas.web_automation import (
     LiveUpdateMessage
 )
 from app.services.web_automation_service import WebAutomationExecutor, SelfHealingLocator
-from app.services.gemini_service import GeminiService
+from app.services.ai_service import get_ai_service
 from app.services.self_heal_service import SelfHealService
 from app.services.browser_session_service import browser_session_manager, DevicePreset
 
@@ -1276,7 +1276,7 @@ async def suggest_locator_healing(
     """
     Get AI-powered locator healing suggestion
     """
-    ai_service = GeminiService()
+    ai_service = get_ai_service()
     
     prompt = f"""
     Suggest alternative CSS selectors for a web element that could not be found.
@@ -1328,7 +1328,7 @@ async def suggest_assertion_healing(
     """
     Get AI-powered assertion healing suggestion
     """
-    ai_service = GeminiService()
+    ai_service = get_ai_service()
     
     prompt = f"""
     Determine if an assertion failure is a legitimate change or a real bug.
@@ -1985,7 +1985,7 @@ async def websocket_browser_session(
                                 healing_info = None
                                 
                                 # Initialize AI service for healing if enabled
-                                ai_service = GeminiService() if healing_enabled else None
+                                ai_service = get_ai_service() if healing_enabled else None
                                 
                                 try:
                                     # Ensure browser page is still alive before actions

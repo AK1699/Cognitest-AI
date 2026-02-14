@@ -9,7 +9,7 @@ import re
 from typing import Dict, Any, List, Optional, Tuple
 from uuid import uuid4
 
-from app.services.gemini_service import get_gemini_service
+from app.services.ai_service import get_ai_service
 from app.schemas.workflow import WorkflowNodeSchema, WorkflowEdgeSchema, NodeData, NodePosition
 
 logger = logging.getLogger(__name__)
@@ -161,7 +161,7 @@ class AIWorkflowGenerator:
     """
 
     def __init__(self):
-        self.gemini = get_gemini_service()
+        self.ai_service = get_ai_service()
 
     async def generate_workflow(
         self,
@@ -200,7 +200,7 @@ class AIWorkflowGenerator:
         ]
 
         try:
-            response = await self.gemini.generate_completion(
+            response = await self.ai_service.generate_completion(
                 messages=messages,
                 temperature=0.3,  # Lower temperature for more consistent JSON
                 max_tokens=4000,

@@ -14,12 +14,12 @@ from app.models.web_automation import (
     TestFlow, ExecutionRun, StepResult, HealingEvent, 
     LocatorAlternative, HealingType, HealingStrategy
 )
-from app.services.gemini_service import GeminiService
+from app.services.ai_service import get_ai_service
 
 class SelfHealService:
     def __init__(self, db):
         self.db = db
-        self.ai_service = GeminiService()
+        self.ai_service = get_ai_service()
 
     async def get_healing_analytics(self, project_id: UUID) -> Dict[str, Any]:
         """

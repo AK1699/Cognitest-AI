@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.models.security_advanced_models import (
     SASTScan, SASTFinding, SASTEngine, FindingSeverity, FindingStatus
 )
-from app.services.gemini_service import GeminiService
+from app.services.ai_service import get_ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class NativeSASTService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.ai_service = GeminiService()
+        self.ai_service = get_ai_service()
         self._semgrep_available = None
         self._bandit_available = None
         self._eslint_available = None

@@ -22,7 +22,7 @@ from app.models.security_scan import (
     ComplianceFramework, ComplianceStatus, TargetType
 )
 from app.models.project import Project
-from app.services.gemini_service import GeminiService
+from app.services.ai_service import get_ai_service
 
 
 async def _generate_security_human_id(db: "AsyncSession", prefix: str, model, field: str) -> str:
@@ -138,7 +138,7 @@ class SecurityScanningService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.ai_service = GeminiService()
+        self.ai_service = get_ai_service()
     
     # ========================================================================
     # Scan Management

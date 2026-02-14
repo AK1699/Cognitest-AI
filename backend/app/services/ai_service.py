@@ -6,11 +6,12 @@ from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
 from app.core.config import settings
 from app.services.gemini_service import GeminiService
+from app.services.ollama_service import OllamaService
 
 
 class AIService:
     """
-    Unified AI service that supports multiple providers (OpenAI, Gemini).
+    Unified AI service that supports multiple providers (OpenAI, Gemini, Ollama).
     Automatically selects provider based on configuration.
     """
 
@@ -27,9 +28,14 @@ class AIService:
         # Gemini service
         self._gemini_service: Optional[GeminiService] = None
 
+        # Ollama service
+        self._ollama_service: Optional[OllamaService] = None
+
         # Initialize the selected provider
         if self.provider == "gemini":
             self._gemini_service = GeminiService()
+        elif self.provider == "ollama":
+            self._ollama_service = OllamaService()
 
     def _check_api_key(self):
         """Check if API key is configured."""
@@ -101,6 +107,17 @@ class AIService:
         Returns:
             Generated text
         """
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                self._ollama_service = OllamaService()
+            return await self._ollama_service.generate_completion(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+            )
+
         # Use Gemini if configured
         if self.provider == "gemini":
             if self._gemini_service is None:
@@ -205,6 +222,12 @@ class AIService:
         Returns:
             Embedding vector as list of floats
         """
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                self._ollama_service = OllamaService()
+            return await self._ollama_service.create_embedding(text)
+
         # Use Gemini if configured
         if self.provider == "gemini":
             if self._gemini_service is None:
@@ -227,6 +250,12 @@ class AIService:
         Returns:
             List of embedding vectors
         """
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                self._ollama_service = OllamaService()
+            return await self._ollama_service.create_embeddings_batch(texts)
+
         # Use Gemini if configured
         if self.provider == "gemini":
             if self._gemini_service is None:

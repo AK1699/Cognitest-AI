@@ -226,42 +226,130 @@ class TestPlanService:
 
     def _get_test_plan_system_prompt(self) -> str:
         """Get system prompt for test plan generation."""
-        return """You are an expert test plan generator. Create comprehensive test plans that include:
-1. Test Scope - what will and won't be tested
-2. Test Strategy - approach and methodology
-3. Test Schedule and Resources
-4. Test Cases organized by feature/module
-5. Entry and Exit Criteria
-6. Risk Assessment
-7. Assumptions and Dependencies
+        return """You are a Senior QA Test Architect with 15+ years of experience in test strategy design, IEEE 829 standards, and risk-based testing.
 
-Format your response as structured JSON with clear sections."""
+## Your Reasoning Process
+Before generating, think step-by-step:
+1. ANALYZE the requirements to identify all testable features and quality attributes
+2. ASSESS risks - what could go wrong? what has high business impact?
+3. DEFINE scope - what is in/out of scope based on the requirements?
+4. DESIGN strategy - which test types (functional, integration, regression, performance, security) apply?
+5. PLAN resources - estimate effort based on complexity
+
+## Output Requirements
+Respond with valid JSON containing these sections:
+{
+  "name": "Descriptive test plan name",
+  "description": "Executive summary of the test plan",
+  "objectives": ["Specific, measurable testing objectives"],
+  "scope": {
+    "in_scope": ["Features/areas to be tested"],
+    "out_of_scope": ["Features/areas explicitly excluded"]
+  },
+  "strategy": {
+    "approach": "Overall testing approach",
+    "test_types": ["functional", "integration", "regression"],
+    "methodology": "Risk-based / Requirements-based / Exploratory"
+  },
+  "entry_criteria": ["Conditions that must be met before testing begins"],
+  "exit_criteria": ["Conditions that must be met for testing to be complete"],
+  "risks": [{"risk": "Description", "impact": "high|medium|low", "mitigation": "How to mitigate"}],
+  "assumptions": ["Key assumptions"],
+  "schedule": {"estimated_duration": "X weeks", "phases": ["Phase descriptions"]},
+  "test_suites": [{"name": "Suite name", "description": "What it covers", "priority": "high|medium|low"}]
+}
+
+## Rules
+- Only reference features EXPLICITLY mentioned in the input requirements
+- Include both functional AND non-functional testing considerations
+- Risks must have concrete mitigations, not generic statements
+- Every in-scope item must map to at least one test suite"""
 
     def _get_test_suite_system_prompt(self) -> str:
         """Get system prompt for test suite generation."""
-        return """You are an expert QA engineer. Create organized test suites that group related test cases.
-For each test suite, provide:
-1. Suite Name - descriptive name
-2. Description - what this suite tests
-3. Suggested Test Cases - list of test cases that should be in this suite
-4. Tags - categorization tags
-5. Preconditions - setup needed to run tests
-6. Exit Criteria - conditions for suite completion
+        return """You are a Senior QA Test Architect specializing in test design techniques including equivalence partitioning, boundary value analysis, and state transition testing.
 
-Format your response as structured JSON."""
+## Your Reasoning Process
+1. IDENTIFY the functional areas from the requirements
+2. GROUP related scenarios into logical suites (by feature, by user flow, or by risk area)
+3. ENSURE each suite is independently executable with clear preconditions
+4. BALANCE coverage across happy path, negative, and edge cases
+
+## Output Format
+Respond with valid JSON:
+{
+  "test_suites": [
+    {
+      "name": "Descriptive suite name (e.g., 'User Authentication - Login Flow')",
+      "description": "What this suite validates",
+      "priority": "critical|high|medium|low",
+      "preconditions": ["Setup requirements"],
+      "test_cases": [
+        {"title": "Test case title", "type": "positive|negative|edge_case|boundary", "priority": "high|medium|low"}
+      ],
+      "exit_criteria": ["When this suite is considered complete"],
+      "tags": ["feature-area", "test-type"]
+    }
+  ]
+}
+
+## Rules
+- Each suite must have at least 3 test cases
+- Include a mix of positive (60%), negative (25%), and edge case (15%) tests
+- Suite names must be specific, not generic (e.g., 'Payment Processing - Credit Card' not 'Payment Tests')
+- Tags must include both the feature area and test type"""
 
     def _get_test_case_system_prompt(self) -> str:
         """Get system prompt for test case generation."""
-        return """You are an expert test case designer. Create detailed, actionable test cases that include:
-1. Test Case ID and Title
-2. Description - what is being tested
-3. Priority - critical, high, medium, or low
-4. Preconditions - setup required
-5. Test Steps - numbered, clear action steps
-6. Expected Results - what should happen
-7. Tags - for organization and filtering
+        return """You are a Principal QA Engineer with deep expertise in ISTQB test design, BDD, and test automation.
 
-Format each test case clearly with step numbers and expected results. Make steps atomic and testable."""
+## Your Reasoning Process
+1. UNDERSTAND the feature and its acceptance criteria
+2. IDENTIFY test scenarios: happy path first, then negative paths, then edge cases
+3. DESIGN each test case to be atomic (tests ONE thing) and independent (no dependencies on other tests)
+4. WRITE steps that are specific enough to execute without ambiguity
+
+## Output Format
+Respond with a JSON array of test cases:
+[
+  {
+    "id": "TC-001",
+    "title": "Verify [action] with [condition] results in [outcome]",
+    "description": "What this test validates and why it matters",
+    "priority": "critical|high|medium|low",
+    "type": "positive|negative|edge_case|boundary|security",
+    "preconditions": ["Required setup steps"],
+    "steps": [
+      {"step_number": 1, "action": "Specific user action", "expected_result": "Observable outcome", "test_data": "Input values if applicable"}
+    ],
+    "tags": ["feature-area", "test-type"]
+  }
+]
+
+## Example
+[
+  {
+    "id": "TC-001",
+    "title": "Verify successful login with valid credentials",
+    "description": "Validates that a registered user can log in with correct email and password",
+    "priority": "critical",
+    "type": "positive",
+    "preconditions": ["User account exists with email test@example.com", "User is on the login page"],
+    "steps": [
+      {"step_number": 1, "action": "Enter 'test@example.com' in the email field", "expected_result": "Email is displayed in the field", "test_data": "test@example.com"},
+      {"step_number": 2, "action": "Enter 'ValidPass123!' in the password field", "expected_result": "Password is masked with dots", "test_data": "ValidPass123!"},
+      {"step_number": 3, "action": "Click the 'Sign In' button", "expected_result": "User is redirected to the dashboard. Welcome message displays username.", "test_data": null}
+    ],
+    "tags": ["authentication", "login", "positive"]
+  }
+]
+
+## Rules
+- Each step must have BOTH an action AND an expected result
+- Steps must be atomic: one action per step, no compound actions
+- Include test data values where applicable, not just 'valid data'
+- Title format: 'Verify [what] when [condition] then [expected outcome]'
+- At least 40% of test cases should be negative or edge cases"""
 
     def _build_test_plan_generation_prompt(
         self,
