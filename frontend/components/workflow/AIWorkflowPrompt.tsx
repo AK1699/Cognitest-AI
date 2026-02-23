@@ -270,7 +270,7 @@ export const AIWorkflowPrompt: React.FC<AIWorkflowPromptProps> = ({
                         </div>
                         <h3 className="text-sm font-semibold text-gray-900">AI Workflow Generator</h3>
                         <Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-200">
-                            Powered by Gemini
+                            Powered by Ollama
                         </Badge>
                     </div>
                     {onToggleCollapse && (

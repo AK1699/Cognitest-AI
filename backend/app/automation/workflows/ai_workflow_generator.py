@@ -1,6 +1,6 @@
 """
 AI Workflow Generator Service
-Generates workflow definitions from natural language prompts using Gemini AI.
+Generates workflow definitions from natural language prompts using AI.
 Implements Opal-style prompt-to-workflow conversion for Cognitest.
 """
 import json
@@ -194,7 +194,7 @@ class AIWorkflowGenerator:
             max_nodes=MAX_AI_GENERATED_NODES
         )
 
-        # Generate with Gemini
+        # Generate with AI
         messages = [
             {"role": "user", "content": f"{system_prompt}\n\n## User Request:\n{prompt}"}
         ]

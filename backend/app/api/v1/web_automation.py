@@ -117,6 +117,11 @@ def _extract_selector_and_alternatives(step_data: dict, step: dict):
 
 def _is_target_closed_error(err: Exception) -> bool:
     message = str(err).lower()
+    # Don't match timeout/selector errors that contain "page" incidentally
+    if "timeout" in message and "waiting for" in message:
+        return False
+    if "waiting for locator" in message:
+        return False
     return any(token in message for token in [
         "target page, context or browser has been closed",
         "target closed",
@@ -1983,6 +1988,7 @@ async def websocket_browser_session(
                                 step_error = None
                                 was_healed = False
                                 healing_info = None
+                                recovery_attempted = False  # Prevent infinite recovery loop
                                 
                                 # Initialize AI service for healing if enabled
                                 ai_service = get_ai_service() if healing_enabled else None
@@ -2011,7 +2017,8 @@ async def websocket_browser_session(
                                                 _ensure_action_success(result, "click")
                                             except Exception as click_err:
                                                 # If the page is closed, recover first; don't attempt healing
-                                                if _is_target_closed_error(click_err):
+                                                if _is_target_closed_error(click_err) and not recovery_attempted:
+                                                    recovery_attempted = True
                                                     recovery_url = step_url or last_navigate_url or _resolve_recovery_url(step_url, session)
                                                     ensured = await session.ensure_page(
                                                         recovery_url,
@@ -2143,7 +2150,8 @@ async def websocket_browser_session(
                                                 _ensure_action_success(result, "type")
                                             except Exception as type_err:
                                                 # If the page is closed, recover first; don't attempt healing
-                                                if _is_target_closed_error(type_err):
+                                                if _is_target_closed_error(type_err) and not recovery_attempted:
+                                                    recovery_attempted = True
                                                     recovery_url = step_url or last_navigate_url or _resolve_recovery_url(step_url, session)
                                                     ensured = await session.ensure_page(
                                                         recovery_url,

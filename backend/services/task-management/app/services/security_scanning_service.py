@@ -21,8 +21,7 @@ from ..models.security import (
     ScanType, ScanStatus, SeverityLevel, VulnerabilityCategory,
     ComplianceFramework, ComplianceStatus, TargetType
 )
-from ..models.core import Project
-from cognitest_common import GeminiService
+from cognitest_common import get_ai_service
 
 
 async def _generate_security_human_id(db: "AsyncSession", prefix: str, model, field: str) -> str:
@@ -138,7 +137,9 @@ class SecurityScanningService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.ai_service = GeminiService()
+        # Use common settings, default or from app
+        from app.core.config import settings
+        self.ai_service = get_ai_service(settings)
     
     # ========================================================================
     # Scan Management

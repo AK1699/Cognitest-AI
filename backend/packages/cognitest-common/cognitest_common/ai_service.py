@@ -4,7 +4,6 @@ from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain.output_parsers import PydanticOutputParser, StructuredOutputParser
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
-from .gemini_service import GeminiService
 
 
 class AIService:
@@ -24,12 +23,13 @@ class AIService:
         self._llm: Optional[ChatOpenAI] = None
         self._embeddings: Optional[OpenAIEmbeddings] = None
 
-        # Gemini service
-        self._gemini_service: Optional[GeminiService] = None
+        # Ollama service
+        self._ollama_service = None
 
         # Initialize the selected provider
-        if self.provider == "gemini":
-            self._gemini_service = GeminiService(settings)
+        if self.provider == "ollama":
+            from .ollama_service import OllamaService
+            self._ollama_service = OllamaService(settings)
 
     def _check_api_key(self):
         """Check if API key is configured."""
@@ -101,11 +101,16 @@ class AIService:
         Returns:
             Generated text
         """
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService(self.settings)
-            return await self._gemini_service.generate_completion(
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                from .ollama_service import OllamaService
+                self._ollama_service = OllamaService(self.settings)
+            # Handle json_mode via prompt manipulation since Ollama's json param isn't always reliable
+            if json_mode and not any(isinstance(msg, SystemMessage) for msg in messages):
+                messages.append({"role": "system", "content": "Respond exactly with a valid JSON document and no other text."})
+            
+            return await self._ollama_service.generate_completion(
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -205,11 +210,12 @@ class AIService:
         Returns:
             Embedding vector as list of floats
         """
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService(self.settings)
-            return await self._gemini_service.create_embedding(text)
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                from .ollama_service import OllamaService
+                self._ollama_service = OllamaService(self.settings)
+            return await self._ollama_service.create_embedding(text)
 
         # Use OpenAI (default)
         embeddings = self.get_embeddings()
@@ -227,11 +233,12 @@ class AIService:
         Returns:
             List of embedding vectors
         """
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService(self.settings)
-            return await self._gemini_service.create_embeddings_batch(texts)
+        # Use Ollama if configured
+        if self.provider == "ollama":
+            if self._ollama_service is None:
+                from .ollama_service import OllamaService
+                self._ollama_service = OllamaService(self.settings)
+            return await self._ollama_service.create_embeddings_batch(texts)
 
         # Use OpenAI (default)
         embeddings = self.get_embeddings()

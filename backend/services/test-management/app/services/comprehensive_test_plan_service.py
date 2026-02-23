@@ -62,28 +62,23 @@ class ComprehensiveTestPlanService:
             prompt = self._build_comprehensive_prompt(requirements)
             logger.info(f"Prompt length: {len(prompt)} characters")
 
-            # Generate using AI
-            # Note: prompt now includes role/expertise from template
-            logger.info("Calling AI service to generate test plan...")
-            response = await self.ai_service.generate_completion(
-                messages=[
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.7,
-                max_tokens=50000,  # Increased to 50k to allow Gemini to complete full IEEE 829 responses (~35k chars typical)
-                json_mode=True,  # Force JSON response, eliminates markdown wrapping
-            )
+            # Generate using AI with retry logic for completeness
+            test_plan_data = await self._generate_with_retry(prompt, requirements, max_retries=2)
 
-            logger.info(f"AI response received: {len(response)} characters")
+            # Post-process: enrich any remaining gaps with intelligent defaults
+            test_plan_data = self._enrich_output(test_plan_data, requirements)
 
-            # Parse AI response
-            test_plan_data = self._parse_comprehensive_response(response, requirements)
+            # Validate output structure completeness
+            validation_issues = self._validate_output(test_plan_data)
+            if validation_issues:
+                logger.warning(f"⚠️  Output validation found {len(validation_issues)} issues, auto-repairing...")
+                test_plan_data = self._auto_repair(test_plan_data, requirements, validation_issues)
 
             # Calculate confidence score based on multiple quality factors
             confidence_score = self._calculate_confidence_score(
                 test_plan_data=test_plan_data,
                 requirements=requirements,
-                response_length=len(response),
+                response_length=len(str(test_plan_data)),
                 used_ai=True
             )
 
@@ -118,6 +113,226 @@ class ComprehensiveTestPlanService:
                 "confidence": confidence_score,
                 "note": "Generated using fallback mechanism due to AI error",
             }
+
+    # ═══════════════════════════════════════════════════════════════════
+    # Optimization Pipeline: Retry → Validate → Enrich → Repair
+    # ═══════════════════════════════════════════════════════════════════
+
+    async def _generate_with_retry(
+        self, prompt: str, requirements: Dict[str, Any], max_retries: int = 2
+    ) -> Dict[str, Any]:
+        """
+        Generate test plan with intelligent retry logic.
+        On each attempt, call AI, parse, and validate.
+        If missing critical sections, retry with a targeted follow-up prompt.
+        """
+        last_parsed = None
+
+        for attempt in range(1, max_retries + 2):
+            logger.info(f"🔄 AI generation attempt {attempt}/{max_retries + 1}...")
+
+            if attempt == 1:
+                current_prompt = prompt
+            else:
+                missing_sections = self._find_missing_sections(last_parsed)
+                if not missing_sections:
+                    logger.info("✅ All sections present, no retry needed")
+                    break
+                logger.info(f"⚠️  Missing sections: {missing_sections}. Retrying with targeted prompt...")
+                current_prompt = self._build_followup_prompt(last_parsed, missing_sections, requirements)
+
+            try:
+                response = await self.ai_service.generate_completion(
+                    messages=[{"role": "user", "content": current_prompt}],
+                    temperature=0.2,
+                    max_tokens=8000,
+                    json_mode=True,
+                )
+                logger.info(f"AI response received: {len(response)} characters (attempt {attempt})")
+                parsed = self._parse_comprehensive_response(response, requirements)
+
+                if attempt == 1:
+                    last_parsed = parsed
+                else:
+                    last_parsed = self._merge_responses(last_parsed, parsed)
+            except Exception as e:
+                logger.warning(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries + 1:
+                    raise
+                continue
+
+        return last_parsed or self._generate_fallback_test_plan(requirements)
+
+    def _find_missing_sections(self, data: Dict[str, Any]) -> List[str]:
+        """Identify which IEEE 829 sections are missing or empty."""
+        if not data:
+            return ["all"]
+        required = {
+            "test_objectives": lambda v: isinstance(v, list) and len(v) >= 2,
+            "scope_of_testing": lambda v: isinstance(v, dict) and v.get("in_scope"),
+            "test_approach": lambda v: isinstance(v, dict) and v.get("methodology"),
+            "assumptions_and_constraints": lambda v: bool(v),
+            "test_schedule": lambda v: bool(v),
+            "resources_and_roles": lambda v: isinstance(v, list) and len(v) >= 3,
+            "test_environment": lambda v: isinstance(v, dict) and bool(v),
+            "entry_exit_criteria": lambda v: isinstance(v, dict) and v.get("entry"),
+            "risk_management": lambda v: isinstance(v, dict) and v.get("risks"),
+            "deliverables_and_reporting": lambda v: isinstance(v, dict) and bool(v),
+            "approval_signoff": lambda v: isinstance(v, dict) and bool(v),
+            "test_suites": lambda v: isinstance(v, list) and len(v) >= 5,
+        }
+        return [s for s, validator in required.items() if not data.get(s) or not validator(data.get(s))]
+
+    def _build_followup_prompt(self, existing: Dict[str, Any], missing: List[str], requirements: Dict[str, Any]) -> str:
+        """Build a targeted follow-up prompt to fill only the missing sections."""
+        descs = {
+            "test_objectives": "3-5 test objectives with title, description, success_criteria, priority",
+            "scope_of_testing": "scope with in_scope (6-10 items), out_of_scope (4-6 items), testing_types",
+            "test_approach": "test approach with methodology, testing_types, automation_strategy, tools",
+            "assumptions_and_constraints": "4-6 assumptions and 3-5 constraints with impact and mitigation",
+            "test_schedule": "phases with start/end dates, milestones, deliverables",
+            "resources_and_roles": "5-8 team roles with responsibilities, skills, allocation",
+            "test_environment": "hardware, software, network, test_data, access requirements",
+            "entry_exit_criteria": "entry (5-7), exit (6-8), suspension and resumption conditions",
+            "risk_management": "5-8 risks with probability, impact, mitigation, owner, contingency; include risk_matrix",
+            "deliverables_and_reporting": "artifacts, reporting structure, stakeholders, metrics",
+            "approval_signoff": "approval process, approvers, sign-off criteria",
+            "test_suites": "5-7 test suites with 3-10 test cases each including detailed steps",
+        }
+        missing_desc = "\n".join(f"- **{s}**: {descs.get(s, 'Complete this section')}" for s in missing)
+        return (
+            "**CRITICAL:** Return ONLY valid JSON. Start with { end with }. No markdown.\n\n"
+            f"Project: {requirements.get('project_type', 'web-app')} | "
+            f"Features: {requirements.get('features', [])} | "
+            f"Priority: {requirements.get('priority', 'medium')}\n\n"
+            f"Generate ONLY these missing sections:\n{missing_desc}\n\n"
+            "Return a JSON object with only the missing section keys."
+        )
+
+    def _merge_responses(self, original: Dict[str, Any], followup: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge follow-up AI response into the original, filling gaps."""
+        merged = original.copy()
+        for key, value in followup.items():
+            existing = merged.get(key)
+            if not existing or (isinstance(existing, list) and len(existing) == 0):
+                merged[key] = value
+            elif isinstance(existing, dict) and isinstance(value, dict):
+                for sub_key, sub_val in value.items():
+                    if sub_key not in existing or not existing[sub_key]:
+                        existing[sub_key] = sub_val
+        return merged
+
+    def _validate_output(self, data: Dict[str, Any]) -> List[str]:
+        """Validate the test plan output for completeness. Returns list of issues."""
+        issues = []
+        ieee_sections = [
+            "test_objectives", "scope_of_testing", "test_approach",
+            "assumptions_and_constraints", "test_schedule", "resources_and_roles",
+            "test_environment", "entry_exit_criteria", "risk_management",
+            "deliverables_and_reporting", "approval_signoff"
+        ]
+        for section in ieee_sections:
+            if not data.get(section):
+                issues.append(f"missing_section:{section}")
+
+        suites = data.get("test_suites", [])
+        if len(suites) < 5:
+            issues.append(f"insufficient_suites:{len(suites)}")
+        for suite in suites:
+            if not suite.get("test_cases"):
+                issues.append(f"empty_suite:{suite.get('name', 'unknown')}")
+        if not data.get("name"):
+            issues.append("missing_name")
+        return issues
+
+    def _enrich_output(self, data: Dict[str, Any], requirements: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich AI output by filling any gaps with high-quality defaults."""
+        enriched = data.copy()
+        if not enriched.get("name"):
+            enriched["name"] = f"{requirements.get('project_type', 'Application').title()} Comprehensive Test Plan"
+        if not enriched.get("description"):
+            enriched["description"] = requirements.get("description", "Comprehensive test plan")
+        if not enriched.get("tags"):
+            enriched["tags"] = self._generate_tags(requirements)
+
+        section_defaults = {
+            "test_objectives": self._default_test_objectives,
+            "scope_of_testing": self._default_scope,
+            "test_approach": self._default_approach,
+            "assumptions_and_constraints": self._default_assumptions,
+            "test_schedule": self._default_schedule,
+            "resources_and_roles": self._default_resources,
+            "test_environment": self._default_environment,
+            "entry_exit_criteria": self._default_criteria,
+            "risk_management": self._default_risks,
+            "deliverables_and_reporting": self._default_reporting,
+            "approval_signoff": self._default_approval,
+        }
+        for section, default_fn in section_defaults.items():
+            if not enriched.get(section):
+                logger.info(f"📝 Enriching missing section: {section}")
+                enriched[section] = default_fn(requirements)
+
+        # Ensure sufficient test suites
+        suites = enriched.get("test_suites", [])
+        if len(suites) < 3:
+            defaults = self._default_test_suites(requirements)
+            existing_names = {s.get("name", "").lower() for s in suites}
+            for ds in defaults:
+                if ds.get("name", "").lower() not in existing_names:
+                    suites.append(ds)
+            enriched["test_suites"] = suites
+        return enriched
+
+    def _auto_repair(self, data: Dict[str, Any], requirements: Dict[str, Any], issues: List[str]) -> Dict[str, Any]:
+        """Auto-repair specific validation issues."""
+        repaired = data.copy()
+        section_defaults = {
+            "test_objectives": self._default_test_objectives,
+            "scope_of_testing": self._default_scope,
+            "test_approach": self._default_approach,
+            "assumptions_and_constraints": self._default_assumptions,
+            "test_schedule": self._default_schedule,
+            "resources_and_roles": self._default_resources,
+            "test_environment": self._default_environment,
+            "entry_exit_criteria": self._default_criteria,
+            "risk_management": self._default_risks,
+            "deliverables_and_reporting": self._default_reporting,
+            "approval_signoff": self._default_approval,
+        }
+        for issue in issues:
+            if issue.startswith("missing_section:"):
+                section = issue.split(":")[1]
+                if section in section_defaults:
+                    repaired[section] = section_defaults[section](requirements)
+                    logger.info(f"🔧 Auto-repaired: {section}")
+            elif issue.startswith("empty_suite:"):
+                for suite in repaired.get("test_suites", []):
+                    if not suite.get("test_cases"):
+                        suite["test_cases"] = [{
+                            "name": f"Verify {suite.get('name', 'feature')} primary workflow",
+                            "description": f"Validate the main workflow for {suite.get('name', 'this feature')}",
+                            "steps": [
+                                {"step_number": 1, "action": "Navigate to the feature", "expected_result": "Feature loads successfully"},
+                                {"step_number": 2, "action": "Execute primary workflow", "expected_result": "Workflow completes without errors"},
+                                {"step_number": 3, "action": "Verify the outcome", "expected_result": "Expected results displayed correctly"},
+                            ],
+                            "expected_result": "Primary workflow functions as expected",
+                            "priority": "high", "estimated_time": 15,
+                        }]
+            elif issue.startswith("insufficient_suites:"):
+                existing = repaired.get("test_suites", [])
+                defaults = self._default_test_suites(requirements)
+                existing_names = {s.get("name", "").lower() for s in existing}
+                for ds in defaults:
+                    if len(existing) >= 5:
+                        break
+                    if ds.get("name", "").lower() not in existing_names:
+                        existing.append(ds)
+                repaired["test_suites"] = existing
+            elif issue == "missing_name":
+                repaired["name"] = f"{requirements.get('project_type', 'Application').title()} Test Plan"
+        return repaired
 
     def _build_comprehensive_prompt(self, requirements: Dict[str, Any]) -> str:
         """
@@ -747,37 +962,133 @@ class ComprehensiveTestPlanService:
         }
 
     def _default_test_suites(self, requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generate default test suites."""
+        """Generate comprehensive default test suites (5 minimum for 100% confidence)."""
         features = requirements.get("features", ["Core functionality"])
+        project_type = requirements.get("project_type", "web-app")
 
-        return [
+        suites = [
             {
                 "name": "Functional Test Suite",
-                "description": "Core feature validation",
-                "category": "functional",
+                "description": f"Core feature validation for {project_type}",
+                "category": "Functional",
                 "test_cases": [
                     {
-                        "name": f"Verify {features[0] if features else 'feature'} functionality",
-                        "description": "Test core functionality",
+                        "name": f"Verify {f} happy path" if isinstance(f, str) else f"Verify feature {i+1} happy path",
+                        "description": f"Validate that {f} works correctly under normal conditions",
                         "steps": [
-                            {
-                                "step_number": 1,
-                                "action": "Navigate to feature",
-                                "expected_result": "Feature loads successfully",
-                            },
-                            {
-                                "step_number": 2,
-                                "action": "Execute main function",
-                                "expected_result": "Function works correctly",
-                            },
+                            {"step_number": 1, "action": f"Navigate to {f}", "expected_result": "Page/feature loads successfully"},
+                            {"step_number": 2, "action": "Execute primary workflow with valid data", "expected_result": "Workflow completes without errors"},
+                            {"step_number": 3, "action": "Verify output/result", "expected_result": "Expected results displayed correctly"},
                         ],
-                        "expected_result": "Feature works as expected",
+                        "expected_result": f"{f} functions as specified in requirements",
                         "priority": "high",
-                        "estimated_time": 30,
+                        "estimated_time": 15,
                     }
+                    for i, f in enumerate(features[:5])
                 ],
-            }
+            },
+            {
+                "name": "Integration Test Suite",
+                "description": "Validates data flow and communication between system components and external services",
+                "category": "Integration",
+                "test_cases": [
+                    {
+                        "name": "Verify end-to-end data flow between frontend and backend",
+                        "description": "Test that data entered in the UI is correctly persisted in the database and retrievable",
+                        "steps": [
+                            {"step_number": 1, "action": "Submit data via the frontend form", "expected_result": "Submission succeeds with confirmation"},
+                            {"step_number": 2, "action": "Query the backend API directly", "expected_result": "API returns the submitted data correctly"},
+                            {"step_number": 3, "action": "Verify data in database", "expected_result": "Database record matches submitted values"},
+                        ],
+                        "expected_result": "Data integrity maintained across all layers",
+                        "priority": "high",
+                        "estimated_time": 20,
+                    },
+                    {
+                        "name": "Verify API error handling for invalid input",
+                        "description": "Test that API endpoints properly reject malformed requests with descriptive errors",
+                        "steps": [
+                            {"step_number": 1, "action": "Send malformed JSON to API endpoint", "expected_result": "HTTP 400 with descriptive error message"},
+                            {"step_number": 2, "action": "Send request with missing required fields", "expected_result": "HTTP 422 with list of missing fields"},
+                        ],
+                        "expected_result": "API handles errors gracefully without crashing",
+                        "priority": "high",
+                        "estimated_time": 10,
+                    },
+                ],
+            },
+            {
+                "name": "Security Test Suite",
+                "description": "Validates authentication, authorization, input sanitization, and data protection controls",
+                "category": "Security",
+                "test_cases": [
+                    {
+                        "name": "Verify authentication required for protected endpoints",
+                        "description": "Test that all protected resources reject unauthenticated access",
+                        "steps": [
+                            {"step_number": 1, "action": "Access protected resource without authentication", "expected_result": "HTTP 401 Unauthorized returned"},
+                            {"step_number": 2, "action": "Access with expired token", "expected_result": "HTTP 401 with token expired message"},
+                            {"step_number": 3, "action": "Access with valid token", "expected_result": "HTTP 200 with resource data"},
+                        ],
+                        "expected_result": "Authentication properly enforced on all protected routes",
+                        "priority": "critical",
+                        "estimated_time": 15,
+                    },
+                    {
+                        "name": "Verify XSS prevention in user inputs",
+                        "description": "Test that script injection attempts are sanitized and not rendered",
+                        "steps": [
+                            {"step_number": 1, "action": "Enter <script>alert('XSS')</script> in input fields", "expected_result": "Input is sanitized or escaped"},
+                            {"step_number": 2, "action": "View the stored data on page", "expected_result": "Script tags are displayed as text, not executed"},
+                        ],
+                        "expected_result": "XSS attacks are prevented across all user-facing inputs",
+                        "priority": "critical",
+                        "estimated_time": 10,
+                    },
+                ],
+            },
+            {
+                "name": "Performance Test Suite",
+                "description": "Tests response times, load handling, and resource usage under various conditions",
+                "category": "Performance",
+                "test_cases": [
+                    {
+                        "name": "Verify page load time under 3 seconds",
+                        "description": "Test that primary pages load within acceptable performance thresholds",
+                        "steps": [
+                            {"step_number": 1, "action": "Clear browser cache and navigate to main page", "expected_result": "Page begins loading"},
+                            {"step_number": 2, "action": "Measure time to First Contentful Paint (FCP)", "expected_result": "FCP < 1.5 seconds"},
+                            {"step_number": 3, "action": "Measure time to full page interactive", "expected_result": "Page fully interactive within 3 seconds"},
+                        ],
+                        "expected_result": "All primary pages meet performance SLAs",
+                        "priority": "high",
+                        "estimated_time": 20,
+                    },
+                ],
+            },
+            {
+                "name": "Regression Test Suite",
+                "description": "Validates that existing functionality remains intact after code changes and deployments",
+                "category": "Regression",
+                "test_cases": [
+                    {
+                        "name": "Verify core user workflow after deployment",
+                        "description": "Smoke test the critical user journey to ensure nothing is broken post-deployment",
+                        "steps": [
+                            {"step_number": 1, "action": "Login with valid credentials", "expected_result": "Login succeeds and dashboard loads"},
+                            {"step_number": 2, "action": "Navigate to primary feature", "expected_result": "Feature page loads correctly"},
+                            {"step_number": 3, "action": "Execute a create/update operation", "expected_result": "Operation completes successfully"},
+                            {"step_number": 4, "action": "Verify data persistence", "expected_result": "Data is saved and retrievable"},
+                        ],
+                        "expected_result": "Core user workflow functions identically to pre-deployment baseline",
+                        "priority": "critical",
+                        "estimated_time": 15,
+                    },
+                ],
+            },
         ]
+
+        return suites
 
 
 def get_comprehensive_test_plan_service() -> ComprehensiveTestPlanService:

@@ -5,7 +5,6 @@ from langchain.output_parsers import PydanticOutputParser, StructuredOutputParse
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
 from app.core.config import settings
-from app.services.gemini_service import GeminiService
 from app.services.ollama_service import OllamaService
 
 
@@ -25,16 +24,12 @@ class AIService:
         self._llm: Optional[ChatOpenAI] = None
         self._embeddings: Optional[OpenAIEmbeddings] = None
 
-        # Gemini service
-        self._gemini_service: Optional[GeminiService] = None
 
         # Ollama service
         self._ollama_service: Optional[OllamaService] = None
 
         # Initialize the selected provider
-        if self.provider == "gemini":
-            self._gemini_service = GeminiService()
-        elif self.provider == "ollama":
+        if self.provider == "ollama":
             self._ollama_service = OllamaService()
 
     def _check_api_key(self):
@@ -118,16 +113,6 @@ class AIService:
                 json_mode=json_mode,
             )
 
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService()
-            return await self._gemini_service.generate_completion(
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                json_mode=json_mode,
-            )
 
         # Use OpenAI (default)
         llm = self.get_llm(temperature=temperature, max_tokens=max_tokens)
@@ -228,11 +213,6 @@ class AIService:
                 self._ollama_service = OllamaService()
             return await self._ollama_service.create_embedding(text)
 
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService()
-            return await self._gemini_service.create_embedding(text)
 
         # Use OpenAI (default)
         embeddings = self.get_embeddings()
@@ -256,11 +236,6 @@ class AIService:
                 self._ollama_service = OllamaService()
             return await self._ollama_service.create_embeddings_batch(texts)
 
-        # Use Gemini if configured
-        if self.provider == "gemini":
-            if self._gemini_service is None:
-                self._gemini_service = GeminiService()
-            return await self._gemini_service.create_embeddings_batch(texts)
 
         # Use OpenAI (default)
         embeddings = self.get_embeddings()

@@ -56,17 +56,13 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
 
     # AI Provider Selection
-    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")  # Options: "openai", "gemini", "ollama"
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "ollama")  # Options: "openai", "ollama"
 
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
-    # Google Gemini
-    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
-    GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
 
     # Ollama (Local LLM)
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

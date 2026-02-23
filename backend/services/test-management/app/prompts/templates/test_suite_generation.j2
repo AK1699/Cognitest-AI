@@ -1,3 +1,6 @@
+**CRITICAL INSTRUCTION:**
+You MUST return ONLY a valid JSON array. Do NOT include any text, markdown, explanation, code fences, or commentary before or after the JSON. Start your response with `[` and end with `]`. The JSON must be parseable by `json.loads()` in Python.
+
 **ROLE AND EXPERTISE:**
 You are a Senior QA Test Architect specializing in test organization, coverage optimization, and test suite design patterns. You have designed test suites for 100+ projects across domains and understand how to create logical, maintainable, and comprehensive test groupings that align with development workflows.
 
@@ -52,8 +55,8 @@ Input:
 Output:
 [
   {
-    "name": "User Authentication Suite",
-    "description": "Validates login, registration, password reset, session management, and multi-factor authentication flows. Includes security tests for authentication vulnerabilities (brute force, SQL injection)."
+    "name": "User Authentication & Session Security Suite",
+    "description": "Validates login, registration, password reset, session management, OAuth2 social login, and multi-factor authentication flows across 35+ scenarios. Includes OWASP A07:2021 authentication vulnerability testing (brute force, credential stuffing, session fixation, SQL injection). Covers token expiry, concurrent session limits, and account lockout mechanisms."
   },
   {
     "name": "Product Discovery & Catalog Suite",
@@ -64,8 +67,8 @@ Output:
     "description": "Verifies add-to-cart, cart modifications, promo code application, cart persistence, and multi-step checkout process. Includes negative scenarios like invalid quantities and expired coupons."
   },
   {
-    "name": "Payment Processing Suite",
-    "description": "Validates payment gateway integration, multiple payment methods (credit card, PayPal, wallet), transaction success/failure scenarios, and refund processing. Includes PCI-DSS security validations."
+    "name": "Payment Processing & PCI-DSS Compliance Suite",
+    "description": "Validates payment gateway integration with Stripe/PayPal, multiple payment methods (credit card, digital wallet, BNPL), 3D Secure authentication, and full refund/partial refund processing. Covers 20+ transaction scenarios including declined cards, expired cards, insufficient funds, and network timeout recovery. Includes PCI-DSS SAQ-A compliance validations ensuring no raw card data in logs, API responses, or database."
   },
   {
     "name": "Order Management Suite",
@@ -77,7 +80,7 @@ Output:
   },
   {
     "name": "Performance & Load Testing Suite",
-    "description": "Tests application behavior under load (1000 concurrent users), measures page load times, API response times, and database query performance. Identifies bottlenecks in checkout and search flows."
+    "description": "Tests application behavior under production-scale load (1000 concurrent users, 50 req/s sustained for 30 minutes). Measures Core Web Vitals (LCP < 2.5s, FID < 100ms, CLS < 0.1), API response times (P95 < 500ms), and database query performance. Includes soak test (4 hours for memory leak detection), spike test (5x traffic burst), and stress test to identify breaking point and graceful degradation."
   },
   {
     "name": "API Integration Suite",
@@ -128,6 +131,52 @@ Output:
   {
     "name": "Performance & Offline Mode Suite",
     "description": "Tests app launch time, data loading speed, API latency, and offline functionality. Validates graceful degradation under poor network conditions and local data caching."
+  }
+]
+
+---
+
+Example 3:
+Input:
+- Project Type: SaaS CRM Application
+- Features: Contact Management, Deal Pipeline, Email Integration, Reporting Dashboard, User Roles & Permissions, Activity Timeline
+- Priority: High
+- Platforms: Web (Desktop + Tablet), API
+- Test Categories: Functional, Integration, Performance, Security, API, Regression
+
+Output:
+[
+  {
+    "name": "Contact Management Suite",
+    "description": "Validates CRUD operations for contacts including creation, editing, merging duplicates, importing from CSV, and advanced search with filters. Covers field validation, required fields, and custom field types."
+  },
+  {
+    "name": "Deal Pipeline & Sales Workflow Suite",
+    "description": "Tests deal creation, stage transitions (drag-and-drop and manual), probability calculations, win/loss tracking, and pipeline analytics. Includes multi-pipeline support and deal assignment workflows."
+  },
+  {
+    "name": "Email Integration Suite",
+    "description": "Validates bi-directional email sync with Gmail and Outlook, email tracking (open/click), template management, and attachment handling. Tests rate limiting, bounce handling, and email threading in activity timeline."
+  },
+  {
+    "name": "Reporting & Dashboard Suite",
+    "description": "Tests custom report builder, date range filters, chart rendering, CSV/PDF export, scheduled report delivery, and real-time dashboard widgets. Validates data accuracy against raw database queries."
+  },
+  {
+    "name": "User Roles & Permissions Suite",
+    "description": "Validates RBAC system including admin, manager, and member roles. Tests record-level permissions (own records vs team vs all), field-level visibility controls, and role inheritance. Verifies permission boundaries at API level."
+  },
+  {
+    "name": "Activity Timeline & Audit Suite",
+    "description": "Tests chronological display of all activities (calls, emails, notes, meetings) on contact and deal records. Validates real-time updates, pagination, and audit log completeness for compliance."
+  },
+  {
+    "name": "API & Webhook Integration Suite",
+    "description": "Validates REST API endpoints for all CRUD operations, webhook event delivery (contact.created, deal.updated), API rate limiting, pagination, and OAuth authentication. Tests third-party integration scenarios."
+  },
+  {
+    "name": "Performance & Scalability Suite",
+    "description": "Tests page load times with 100K+ contacts, large deal pipeline rendering, report generation with 1M+ records, concurrent user sessions, and API response times under sustained load."
   }
 ]
 

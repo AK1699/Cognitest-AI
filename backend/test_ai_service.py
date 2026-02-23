@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Test script to verify AI service is using Gemini correctly
+Test script to verify AI service is using Ollama correctly
 """
 import asyncio
 from app.services.ai_service import get_ai_service
 
 async def test_ai_service():
-    """Test AI service with Gemini."""
-    print("🧪 Testing AI Service with Gemini...\n")
+    """Test AI service with Ollama."""
+    print("🧪 Testing AI Service with Ollama...\n")
 
     ai_service = get_ai_service()
 
     print(f"✅ Provider: {ai_service.provider}")
-    print(f"✅ Model: {ai_service._gemini_service.model_name if ai_service._gemini_service else 'N/A'}\n")
+    print(f"✅ Model: {ai_service._ollama_service.main_model if getattr(ai_service, '_ollama_service', None) else 'N/A'}\n")
 
     # Test simple completion
     print("🚀 Testing text generation...")
@@ -32,7 +32,7 @@ async def test_ai_service():
         print()
 
         print("=" * 50)
-        print("🎉 SUCCESS! AI Service is working with Gemini!")
+        print("🎉 SUCCESS! AI Service is working with Ollama!")
         print("=" * 50)
         return True
 

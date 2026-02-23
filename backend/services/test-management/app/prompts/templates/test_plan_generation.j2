@@ -1,3 +1,6 @@
+**CRITICAL INSTRUCTION:**
+You MUST return ONLY a single, valid JSON object. Do NOT include any text, markdown, explanation, code fences, or commentary before or after the JSON. Start your response with `{` and end with `}`. The JSON must be parseable by `json.loads()` in Python.
+
 **ROLE AND EXPERTISE:**
 You are a Principal QA Architect and Test Strategist with 20+ years of experience across enterprise, mobile, web, and embedded systems testing. You have deep expertise in IEEE 829, ISO/IEC/IEEE 29119-3 standards, risk-based testing, and modern agile/DevOps test strategies. You have successfully designed test plans for Fortune 500 companies and high-growth startups.
 
@@ -40,84 +43,422 @@ Project Type: E-commerce Web Application
 Features: User authentication, Product catalog, Shopping cart, Payment processing
 Priority: High | Complexity: Medium | Timeframe: 8 weeks
 
-Example Output 1 (Abbreviated):
+Example Output 1 (COMPLETE - all IEEE 829 sections):
 {
+  "name": "E-commerce Platform Comprehensive Test Plan",
+  "description": "Full IEEE 829 test plan for an e-commerce web application covering authentication, product catalog, shopping cart, and payment processing across multiple browsers and devices",
+  "tags": ["e-commerce", "web", "payment", "security", "performance", "cross-browser"],
   "test_objectives": [
     {
-      "title": "Validate End-to-End Transaction Security",
-      "description": "Ensure all payment transactions are processed securely with PCI-DSS compliance, achieving zero security vulnerabilities in payment flow",
-      "success_criteria": "100% of payment scenarios pass security testing with no critical/high severity vulnerabilities",
+      "title": "Validate End-to-End Purchase Flow",
+      "description": "Ensure users can complete the full purchase journey from product discovery through payment confirmation without errors across all supported browsers",
+      "success_criteria": "100% of critical path test scenarios pass with zero data loss across 500 test transactions",
       "priority": "Critical"
     },
     {
-      "title": "Verify Cross-Browser Compatibility",
-      "description": "Ensure consistent user experience across Chrome, Firefox, Safari, and Edge browsers (latest 2 versions)",
-      "success_criteria": "95% functional parity across all supported browsers with zero critical UI breaks",
+      "title": "Validate Transaction Security and PCI-DSS Compliance",
+      "description": "Ensure all payment transactions are processed securely with PCI-DSS compliance, achieving zero security vulnerabilities in the payment flow including card data handling, tokenization, and session management",
+      "success_criteria": "Zero critical/high severity vulnerabilities. All card data encrypted in transit (TLS 1.3) and at rest (AES-256). OWASP Top 10 scan passes with no findings",
+      "priority": "Critical"
+    },
+    {
+      "title": "Verify Cross-Browser and Responsive Compatibility",
+      "description": "Ensure consistent user experience across Chrome, Firefox, Safari, and Edge browsers (latest 2 versions) on desktop, tablet, and mobile viewports",
+      "success_criteria": "95% functional parity across all supported browsers with zero critical UI breaks. Responsive breakpoints validated at 320px, 768px, 1024px, 1440px",
+      "priority": "High"
+    },
+    {
+      "title": "Achieve Performance SLAs Under Production Load",
+      "description": "Ensure the platform can handle 1000 concurrent users with acceptable response times during peak shopping periods including flash sales",
+      "success_criteria": "Page load < 2s (P95), API response < 500ms (P95), error rate < 0.1% at 1000 concurrent users, zero memory leaks over 4-hour sustained load",
       "priority": "High"
     }
   ],
   "scope_of_testing": {
     "in_scope": [
-      "Functional testing of all user-facing features (authentication, catalog browsing, cart operations, checkout)",
-      "Security testing for payment processing and user data handling",
-      "Performance testing for concurrent user scenarios (up to 1000 simultaneous users)",
-      "Cross-browser compatibility testing on desktop and mobile browsers",
-      "API testing for backend services",
-      "Accessibility testing (WCAG 2.1 Level AA compliance)"
+      "Functional testing of all user-facing features (authentication, catalog browsing, cart operations, checkout, order history)",
+      "Security testing for payment processing, user data handling, and session management (OWASP Top 10)",
+      "Performance testing for concurrent user scenarios (100, 500, 1000 simultaneous users)",
+      "Cross-browser compatibility testing on Chrome, Firefox, Safari, Edge (desktop and mobile)",
+      "API testing for all backend REST endpoints including error handling and rate limiting",
+      "Accessibility testing (WCAG 2.1 Level AA compliance)",
+      "Integration testing with third-party services (payment gateway, shipping API, email service)",
+      "Database integrity testing for order and inventory transactions"
     ],
     "out_of_scope": [
-      "Third-party payment gateway internal logic (black-box testing only)",
-      "Legacy system integrations (tested separately by vendor)",
-      "Admin panel features (separate test plan)",
-      "Database migration scripts (covered by DevOps team)"
+      "Third-party payment gateway internal logic (black-box testing only at integration boundary)",
+      "Legacy admin panel (separate test plan, tracked under JIRA epic ADMIN-2024)",
+      "Database migration scripts (covered by DevOps team, validated via migration test suite)",
+      "Native mobile app (iOS/Android) — web responsive only",
+      "SEO and marketing analytics tracking (covered by marketing team)",
+      "Disaster recovery and failover testing (separate DR test plan)"
     ],
     "testing_types": [
       "Functional Testing",
-      "Security Testing (OWASP Top 10)",
+      "Security Testing (OWASP Top 10, PCI-DSS)",
       "Performance & Load Testing",
-      "API Testing",
+      "API Testing (REST, GraphQL)",
       "Cross-Browser Testing",
       "Mobile Responsiveness Testing",
-      "Accessibility Testing"
+      "Accessibility Testing (WCAG 2.1 AA)",
+      "Integration Testing",
+      "Regression Testing"
     ]
   },
   "test_approach": {
-    "methodology": "Agile with 2-week sprints using risk-based testing prioritization",
+    "methodology": "Agile with 2-week sprints using risk-based testing prioritization. Each sprint includes: sprint planning with test case review, daily standups, mid-sprint regression, and sprint demo with stakeholder sign-off",
     "testing_types": {
-      "functional": "Combination of manual exploratory testing (30%) and automated regression suite (70%) using Selenium + Cypress",
-      "non_functional": "Performance testing with JMeter, security scanning with OWASP ZAP, accessibility testing with Axe"
+      "functional": "Combination of manual exploratory testing (30%) and automated regression suite (70%) using Cypress for E2E and Jest for unit tests",
+      "non_functional": "Performance testing with k6 (load/stress/spike), security scanning with OWASP ZAP + Burp Suite, accessibility audits with Axe-Core and manual screen reader testing"
     },
-    "automation_strategy": "Automate all regression test cases for critical user journeys, maintain manual testing for exploratory and usability scenarios",
+    "automation_strategy": "Automate all regression test cases for critical user journeys (login → browse → cart → checkout → confirmation). Manual testing reserved for exploratory, usability, and new feature validation. Target: 85% automation coverage by Sprint 3",
     "tools": [
-      "Test Management: TestRail/JIRA",
-      "Automation: Selenium WebDriver, Cypress, Playwright",
-      "Performance: JMeter, LoadRunner",
-      "Security: OWASP ZAP, Burp Suite",
-      "CI/CD: Jenkins, GitHub Actions"
+      "Test Management: JIRA + Zephyr Scale",
+      "Automation: Cypress (E2E), Jest (unit), Playwright (cross-browser)",
+      "Performance: k6, Grafana, InfluxDB",
+      "Security: OWASP ZAP, Burp Suite Professional, SonarQube (SAST)",
+      "CI/CD: GitHub Actions, Docker, ArgoCD",
+      "Monitoring: Datadog APM, PagerDuty",
+      "Accessibility: Axe DevTools, WAVE, NVDA screen reader"
+    ]
+  },
+  "assumptions_and_constraints": {
+    "assumptions": [
+      {"description": "Test environment will mirror production architecture (same cloud provider, container orchestration, database version)", "impact": "Test results accurately predict production behavior", "risk_if_violated": "False positives/negatives if env differs significantly"},
+      {"description": "Stable payment gateway sandbox available throughout testing period with < 1% downtime", "impact": "Uninterrupted payment flow testing", "risk_if_violated": "Payment test suite blocked; switch to mock gateway"},
+      {"description": "Test data (500 products, 200 user accounts, 100 orders) will be provisioned by Sprint 1 kickoff", "impact": "Realistic test coverage from day one", "risk_if_violated": "Delay in functional testing; use synthetic data generator as fallback"},
+      {"description": "Development team completes feature code 3 days before sprint end to allow testing window", "impact": "Adequate time for regression testing", "risk_if_violated": "Compressed testing window; prioritize smoke tests only"},
+      {"description": "All third-party API contracts (shipping, tax calculation, email) are finalized and documented", "impact": "Integration tests can be written in advance", "risk_if_violated": "Integration testing delayed; use contract stubs"}
+    ],
+    "constraints": [
+      {"description": "Testing must be completed within 8-week timeline with no schedule extension", "impact": "Requires strict prioritization and parallel test execution", "mitigation": "Risk-based test selection; automate high-value tests first"},
+      {"description": "Budget limited to 3 QA engineers and 1 automation engineer", "impact": "Cannot achieve 100% manual test coverage", "mitigation": "Focus manual effort on exploratory and high-risk areas; automate regression"},
+      {"description": "Payment gateway sandbox has rate limit of 100 requests/minute", "impact": "Performance testing of payment flow requires careful scheduling", "mitigation": "Use mock payment gateway for load tests; use sandbox for functional only"},
+      {"description": "GDPR compliance requires no real customer data in test environments", "impact": "Test data must be synthetic but realistic", "mitigation": "Use Faker library to generate GDPR-compliant synthetic data matching production distributions"}
+    ]
+  },
+  "test_schedule": {
+    "phases": [
+      {"phase": "Sprint 1 (Weeks 1-2)", "focus": "Authentication & User Management", "deliverables": ["Test plan review", "Auth test suite (automated)", "Security scan baseline"], "milestones": ["Test environment validated", "CI/CD pipeline integrated"]},
+      {"phase": "Sprint 2 (Weeks 3-4)", "focus": "Product Catalog & Search", "deliverables": ["Catalog test suite", "Search performance benchmarks", "Accessibility audit #1"], "milestones": ["50% automation coverage achieved"]},
+      {"phase": "Sprint 3 (Weeks 5-6)", "focus": "Shopping Cart & Checkout", "deliverables": ["Cart test suite", "Payment integration tests", "Cross-browser compatibility report"], "milestones": ["85% automation coverage", "Payment flow validated"]},
+      {"phase": "Sprint 4 (Weeks 7-8)", "focus": "Full Regression & Performance", "deliverables": ["Full regression pass", "Performance test report", "Security penetration test report", "Final test summary report"], "milestones": ["Go/No-Go decision", "Sign-off obtained"]}
+    ],
+    "total_duration": "8 weeks",
+    "key_milestones": [
+      {"milestone": "Test Environment Ready", "date": "Week 1 Day 2", "owner": "DevOps Lead"},
+      {"milestone": "Automation Framework Setup Complete", "date": "Week 1 Day 5", "owner": "Automation Engineer"},
+      {"milestone": "Mid-Project Quality Gate", "date": "Week 4", "owner": "Test Manager"},
+      {"milestone": "Performance Test Execution", "date": "Week 7", "owner": "Performance Engineer"},
+      {"milestone": "Go/No-Go Decision", "date": "Week 8 Day 3", "owner": "Project Manager"}
+    ]
+  },
+  "resources_and_roles": [
+    {"role": "Test Manager", "name": "TBD", "responsibilities": "Overall test strategy, risk management, stakeholder reporting, go/no-go recommendation", "skills": ["ISTQB Advanced", "Risk-based testing", "Agile"], "allocation": "100%"},
+    {"role": "Senior QA Engineer", "name": "TBD", "responsibilities": "Test case design, manual execution, defect triage, exploratory testing", "skills": ["E-commerce domain", "API testing", "Security testing"], "allocation": "100%"},
+    {"role": "QA Engineer", "name": "TBD", "responsibilities": "Test execution, regression testing, cross-browser testing, test data management", "skills": ["Web testing", "Mobile responsive", "JIRA"], "allocation": "100%"},
+    {"role": "Automation Engineer", "name": "TBD", "responsibilities": "Test framework development, CI/CD integration, automated regression suite maintenance", "skills": ["Cypress", "JavaScript/TypeScript", "Docker", "GitHub Actions"], "allocation": "100%"},
+    {"role": "Performance Engineer", "name": "TBD", "responsibilities": "Load test design, execution, analysis, performance bottleneck identification", "skills": ["k6", "Grafana", "Database profiling", "APM tools"], "allocation": "50% (Weeks 5-8)"},
+    {"role": "Security Analyst", "name": "TBD", "responsibilities": "Security scanning, penetration testing, PCI-DSS compliance validation", "skills": ["OWASP ZAP", "Burp Suite", "PCI-DSS", "OWASP Top 10"], "allocation": "25% (Weeks 6-8)"}
+  ],
+  "test_environment": {
+    "hardware": [
+      "Application Server: 4 vCPU, 16GB RAM, 100GB SSD (AWS EC2 m5.xlarge)",
+      "Database Server: 4 vCPU, 32GB RAM, 500GB SSD (AWS RDS PostgreSQL 15)",
+      "Load Test Agent: 8 vCPU, 16GB RAM (3 instances for distributed load generation)",
+      "Desktop Browsers: Windows 11 workstation, macOS Ventura MacBook Pro",
+      "Mobile Devices: iPhone 15 (iOS 17), Samsung Galaxy S24 (Android 14), iPad Air (iPadOS 17)"
+    ],
+    "software": [
+      "Browsers: Chrome 120+, Firefox 120+, Safari 17+, Edge 120+ (latest 2 versions each)",
+      "Backend: Node.js 20 LTS, PostgreSQL 15, Redis 7, Elasticsearch 8",
+      "Infrastructure: Docker 24, Kubernetes 1.28, Nginx 1.25",
+      "Monitoring: Datadog Agent, Grafana 10, Prometheus"
+    ],
+    "network": [
+      "Broadband: 100 Mbps symmetric (baseline testing)",
+      "4G LTE simulation: 30 Mbps down / 10 Mbps up, 50ms latency",
+      "3G simulation: 2 Mbps down / 0.5 Mbps up, 200ms latency (degraded network testing)",
+      "Network throttling: Charles Proxy for latency injection and bandwidth limiting"
+    ],
+    "test_data": [
+      "500 products across 10 categories with images, variants, and inventory levels",
+      "200 user accounts: 150 customers, 30 admins, 20 vendors with various permission levels",
+      "100 pre-created orders in various states (pending, processing, shipped, delivered, refunded)",
+      "Payment test cards: Stripe test cards for success, decline, 3DS, insufficient funds scenarios",
+      "Edge case data: Unicode characters, maximum-length fields, SQL injection payloads, XSS vectors"
+    ],
+    "access": [
+      "VPN access to staging environment for all team members",
+      "Role-based test accounts with SSO integration",
+      "CI/CD pipeline access for automated test execution",
+      "Database read access for data verification (no write permissions)",
+      "Payment gateway sandbox API keys (rotated weekly)"
+    ]
+  },
+  "entry_exit_criteria": {
+    "entry": [
+      "All user stories for the sprint are in 'Ready for QA' status with acceptance criteria defined",
+      "Test environment deployed with latest build and health check passing (API, DB, Redis, Elasticsearch all green)",
+      "Test data provisioned and verified: products loaded, user accounts created, payment sandbox accessible",
+      "All blocking defects from previous sprint resolved, verified, and closed",
+      "Automated regression suite passing at ≥ 95% in CI/CD pipeline",
+      "Code coverage ≥ 80% for new code (enforced by SonarQube quality gate)",
+      "API documentation (Swagger/OpenAPI) updated for all new/modified endpoints"
+    ],
+    "exit": [
+      "100% of planned test cases executed",
+      "Pass rate ≥ 95% for critical test cases, ≥ 90% for all test cases",
+      "Zero open Critical/High severity defects",
+      "All Medium severity defects triaged and either fixed or accepted with documented risk",
+      "Automated regression suite passing at 100% in CI/CD",
+      "Security scan completed with no OWASP Top 10 vulnerabilities",
+      "Performance benchmarks met: page load < 2s (P95), API < 500ms (P95), error rate < 0.1%",
+      "Product Owner sign-off obtained on tested features"
+    ],
+    "suspension": [
+      "Test environment unavailable for > 2 hours during business hours",
+      "Build contains > 3 critical defects rendering > 40% of features non-functional",
+      "Critical third-party service (payment gateway, shipping API) experiences extended outage > 4 hours",
+      "Security vulnerability discovered that requires immediate architectural change"
+    ],
+    "resumption": [
+      "Blocking issues resolved and fix verified in stable build deployed to test environment",
+      "Test environment restored with all health checks passing for minimum 30 minutes",
+      "Impact assessment completed: determine which test results are invalidated and need re-execution",
+      "Test Manager approval obtained to resume with updated risk assessment"
     ]
   },
   "risk_management": {
     "risks": [
       {
         "id": "R-001",
-        "description": "Payment gateway integration failure during peak loads",
+        "description": "Payment gateway integration failure during peak load causing transaction timeouts",
         "probability": "Medium",
         "impact": "Critical",
-        "mitigation": "Implement circuit breaker pattern, conduct load testing with 2x expected peak traffic, establish payment gateway fallback mechanism",
+        "mitigation": "Implement circuit breaker pattern with 3-second timeout, test with 2x expected peak traffic, validate retry logic with idempotency keys",
         "owner": "Test Lead",
-        "contingency": "Manual payment processing workflow documented and tested as backup"
+        "contingency": "Manual payment processing workflow documented and tested; fallback to secondary payment provider"
       },
       {
         "id": "R-002",
-        "description": "Incomplete test environment setup delays testing by 1 week",
+        "description": "Test environment instability causes > 20% test execution downtime",
         "probability": "High",
         "impact": "High",
-        "mitigation": "Provision test environments 2 weeks before sprint start, use Docker containers for rapid environment replication, assign dedicated DevOps resource",
+        "mitigation": "Provision environments 2 weeks before sprint start, use Docker containers for rapid replication, implement environment health monitoring with auto-restart",
         "owner": "DevOps Lead",
-        "contingency": "Shift testing focus to API layer using mocked services while environment stabilizes"
+        "contingency": "Spin up secondary test environment in 2 hours; shift API testing to mock services"
+      },
+      {
+        "id": "R-003",
+        "description": "Third-party shipping API contract changes mid-project breaking integration tests",
+        "probability": "Low",
+        "impact": "Medium",
+        "mitigation": "Pin API version in contracts, implement consumer-driven contract tests with Pact, maintain API response mocks",
+        "owner": "Senior QA",
+        "contingency": "Switch to mocked shipping responses for remaining test cycles; log integration gap for post-release validation"
+      },
+      {
+        "id": "R-004",
+        "description": "Insufficient test data variety causes edge cases to be missed in production",
+        "probability": "Medium",
+        "impact": "High",
+        "mitigation": "Generate synthetic data covering all equivalence partitions and boundary values; review production error logs from previous release",
+        "owner": "QA Engineer",
+        "contingency": "Post-release monitoring with automated alerts for untested code paths"
+      },
+      {
+        "id": "R-005",
+        "description": "Automation framework instability causing flaky test results and false failures",
+        "probability": "Medium",
+        "impact": "Medium",
+        "mitigation": "Implement retry logic for network-dependent tests, use explicit waits, quarantine flaky tests in separate suite",
+        "owner": "Automation Engineer",
+        "contingency": "Execute flaky tests manually during regression; invest in stability fix sprint"
       }
+    ],
+    "risk_matrix": {
+      "critical_high": ["R-001"],
+      "high_high": ["R-002"],
+      "medium_high": ["R-004"],
+      "medium_medium": ["R-005"],
+      "low_medium": ["R-003"]
+    }
+  },
+  "deliverables_and_reporting": {
+    "test_artifacts": [
+      "Test Plan Document (this document)",
+      "Test Suite Specifications (per sprint)",
+      "Test Case Repository (Zephyr Scale)",
+      "Automated Test Scripts (GitHub repository)",
+      "Defect Reports (JIRA)",
+      "Test Execution Reports (per sprint)",
+      "Performance Test Report",
+      "Security Assessment Report",
+      "Final Test Summary Report"
+    ],
+    "reporting_structure": {
+      "daily": "Test execution status in daily standup (2 min), blocker escalation",
+      "weekly": "Test progress report to project manager: executed/passed/failed/blocked counts, defect trends, risk updates",
+      "sprint_end": "Sprint test summary: coverage metrics, defect analysis, quality gate results, go/no-go recommendation",
+      "final": "Comprehensive test summary report with traceability matrix, lessons learned, recommendations for production monitoring"
+    },
+    "stakeholders": [
+      {"name": "Product Owner", "interest": "Feature quality and release readiness", "communication": "Sprint demo + weekly email"},
+      {"name": "Engineering Manager", "interest": "Defect trends and technical debt", "communication": "Weekly report + JIRA dashboard"},
+      {"name": "CTO", "interest": "Security posture and performance metrics", "communication": "Bi-weekly executive summary"},
+      {"name": "Customer Success", "interest": "Known issues and workarounds for support team", "communication": "Release notes with known issues"}
+    ],
+    "metrics": [
+      "Test Execution Progress: planned vs executed vs passed",
+      "Defect Density: defects per feature per sprint",
+      "Defect Escape Rate: production defects found within 30 days of release",
+      "Automation Coverage: % of regression suite automated",
+      "Mean Time to Detect (MTTD): average time from code commit to defect discovery",
+      "Test Environment Uptime: % availability during test windows"
     ]
-  }
+  },
+  "approval_signoff": {
+    "approval_process": "Three-stage approval: (1) Test Manager reviews completeness, (2) Engineering Manager reviews technical coverage, (3) Product Owner confirms business requirement coverage",
+    "approvers": [
+      {"name": "Test Manager", "role": "Test Plan Owner", "criteria": "All test cases mapped to requirements, risk assessment complete, team capacity confirmed"},
+      {"name": "Engineering Manager", "role": "Technical Reviewer", "criteria": "Automation strategy feasible, test environment requirements documented, CI/CD integration planned"},
+      {"name": "Product Owner", "role": "Business Reviewer", "criteria": "All acceptance criteria covered, priority alignment confirmed, release timeline achievable"}
+    ],
+    "signoff_criteria": [
+      "All IEEE 829 sections completed and reviewed",
+      "Test schedule aligned with project timeline",
+      "Resource allocation confirmed by department heads",
+      "Risk assessment reviewed and accepted",
+      "No open questions or TBD items remaining"
+    ],
+    "escalation_matrix": [
+      {"level": 1, "role": "Test Manager", "trigger": "Schedule delay > 2 days or blocker unresolved > 24 hours", "action": "Daily escalation meeting with dev lead"},
+      {"level": 2, "role": "Engineering Manager", "trigger": "Schedule delay > 1 week or critical defect unresolved > 48 hours", "action": "Resource reallocation or scope adjustment"},
+      {"level": 3, "role": "CTO", "trigger": "Go/No-Go criteria not met at milestone or security vulnerability discovered", "action": "Release postponement decision"}
+    ],
+    "documents_required": ["Signed test plan", "Risk acceptance form", "Resource allocation confirmation", "Test environment sign-off"]
+  },
+  "test_suites": [
+    {
+      "name": "User Authentication & Session Suite",
+      "description": "Validates registration, login (email/social), password reset, session management, MFA, and account security. Includes OWASP authentication testing.",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Successful registration with valid email and strong password",
+          "description": "Verify new user registration with email verification flow completes successfully",
+          "steps": [
+            {"step_number": 1, "action": "Navigate to /register page", "expected_result": "Registration form displayed with email, password, confirm password fields"},
+            {"step_number": 2, "action": "Enter email 'newuser@example.com', password 'Str0ng!Pass#2024', confirm password matching", "expected_result": "All fields accept input, password strength indicator shows 'Strong'"},
+            {"step_number": 3, "action": "Click 'Create Account' button", "expected_result": "Success message: 'Verification email sent to newuser@example.com'. User redirected to /verify-email"},
+            {"step_number": 4, "action": "Click verification link from email", "expected_result": "Account activated, user redirected to dashboard with welcome message"},
+            {"step_number": 5, "action": "Verify user record in database", "expected_result": "User exists with status='active', email_verified=true, created_at within last 5 minutes"}
+          ],
+          "expected_result": "Complete registration flow works end-to-end with email verification",
+          "priority": "critical",
+          "estimated_time": 8
+        },
+        {
+          "name": "Login rejected with SQL injection payload in email field",
+          "description": "Verify SQL injection attempts are sanitized and do not bypass authentication",
+          "steps": [
+            {"step_number": 1, "action": "Navigate to /login", "expected_result": "Login form displayed"},
+            {"step_number": 2, "action": "Enter email \"' OR '1'='1' --\" and password 'anything'", "expected_result": "Fields accept input"},
+            {"step_number": 3, "action": "Click Login button", "expected_result": "Error: 'Invalid email or password'. No SQL error exposed. Response time normal (< 500ms)"},
+            {"step_number": 4, "action": "Check server logs", "expected_result": "Suspicious input logged with client IP for security monitoring. No database errors"}
+          ],
+          "expected_result": "SQL injection completely prevented with proper input sanitization",
+          "priority": "critical",
+          "estimated_time": 5
+        }
+      ]
+    },
+    {
+      "name": "Product Catalog & Search Suite",
+      "description": "Tests product listing, filtering, sorting, pagination, search with auto-complete, category navigation, and product detail views. Includes performance tests for large catalogs.",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Search returns relevant results with auto-complete suggestions",
+          "description": "Verify search functionality returns accurate results with real-time auto-complete as user types",
+          "steps": [
+            {"step_number": 1, "action": "Click search bar in header", "expected_result": "Search input focused, recent searches displayed"},
+            {"step_number": 2, "action": "Type 'wire' slowly (1 char per 300ms)", "expected_result": "Auto-complete suggestions appear after 2+ characters: 'Wireless Headphones', 'Wireless Mouse', 'Wire Organizer'"},
+            {"step_number": 3, "action": "Type full query 'wireless headphones' and press Enter", "expected_result": "Search results page shows 15+ products matching 'wireless headphones', sorted by relevance"},
+            {"step_number": 4, "action": "Apply price filter: $50-$150", "expected_result": "Results filtered to show only products in $50-$150 range, count updates dynamically"},
+            {"step_number": 5, "action": "Sort by 'Price: Low to High'", "expected_result": "Products re-ordered with cheapest first, all prices within $50-$150 range"}
+          ],
+          "expected_result": "Search with auto-complete, filtering, and sorting works accurately and responsively",
+          "priority": "high",
+          "estimated_time": 10
+        }
+      ]
+    },
+    {
+      "name": "Shopping Cart & Checkout Suite",
+      "description": "Validates add-to-cart, quantity changes, promo codes, cart persistence across sessions, multi-step checkout, address validation, and order confirmation.",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Complete checkout with promo code and multiple items",
+          "description": "Verify full checkout flow with cart containing 3 items, applying a 20% promo code, and completing payment",
+          "steps": [
+            {"step_number": 1, "action": "Add 3 different products to cart (Headphones $99, Mouse $49, Keyboard $79)", "expected_result": "Cart badge shows '3', subtotal shows $227.00"},
+            {"step_number": 2, "action": "Navigate to cart and enter promo code 'SAVE20'", "expected_result": "Discount of -$45.40 (20%) applied, new total: $181.60 + tax"},
+            {"step_number": 3, "action": "Click 'Proceed to Checkout', enter shipping address", "expected_result": "Address validated, shipping options displayed with estimated delivery dates"},
+            {"step_number": 4, "action": "Select 'Standard Shipping ($5.99)', proceed to payment", "expected_result": "Order summary shows: Subtotal $227.00, Discount -$45.40, Shipping $5.99, Tax calculated"},
+            {"step_number": 5, "action": "Enter Stripe test card 4242424242424242, exp 12/25, CVC 123", "expected_result": "Payment processed successfully, order confirmation page with order number displayed"},
+            {"step_number": 6, "action": "Check email inbox", "expected_result": "Order confirmation email received with order details, tracking information, and estimated delivery"}
+          ],
+          "expected_result": "Full checkout with promo code completes successfully with correct pricing calculations",
+          "priority": "critical",
+          "estimated_time": 15
+        }
+      ]
+    },
+    {
+      "name": "Payment Security & PCI-DSS Suite",
+      "description": "Validates payment data handling, tokenization, 3DS authentication, declined card scenarios, refund processing, and PCI-DSS compliance requirements.",
+      "category": "Security",
+      "test_cases": [
+        {
+          "name": "Verify card data never stored in application logs or database",
+          "description": "Ensure PCI-DSS compliance by verifying that raw card numbers never appear in any log file, database table, or API response",
+          "steps": [
+            {"step_number": 1, "action": "Complete a purchase with card 4242424242424242", "expected_result": "Purchase completes successfully"},
+            {"step_number": 2, "action": "Search all application log files for '4242424242424242'", "expected_result": "Zero matches found in any log file. Card number is masked as '****4242' if referenced"},
+            {"step_number": 3, "action": "Query all database tables for full card number", "expected_result": "Zero matches. Only tokenized card reference stored (tok_xxxx format)"},
+            {"step_number": 4, "action": "Inspect API response bodies from payment endpoints", "expected_result": "Response contains only last 4 digits and card brand, never full card number or CVV"}
+          ],
+          "expected_result": "PCI-DSS compliance verified: no raw card data in any persistent storage or log",
+          "priority": "critical",
+          "estimated_time": 20
+        }
+      ]
+    },
+    {
+      "name": "Performance & Load Testing Suite",
+      "description": "Tests page load times, API response times, concurrent user handling, database query performance, and CDN cache effectiveness under various load conditions.",
+      "category": "Performance",
+      "test_cases": [
+        {
+          "name": "Sustained load test: 1000 concurrent users for 30 minutes",
+          "description": "Verify the application maintains acceptable response times and zero errors under sustained production-like load",
+          "steps": [
+            {"step_number": 1, "action": "Configure k6 load test with 1000 VUs ramping up over 5 minutes, sustained for 30 minutes", "expected_result": "Test plan validated, all endpoints configured with realistic user scenarios"},
+            {"step_number": 2, "action": "Execute load test targeting browse → search → cart → checkout flow", "expected_result": "Ramp-up completes without errors, 1000 VUs sustained"},
+            {"step_number": 3, "action": "Monitor real-time metrics in Grafana", "expected_result": "P95 response time < 2s for pages, < 500ms for APIs. Error rate < 0.1%. CPU < 80%, Memory < 85%"},
+            {"step_number": 4, "action": "Verify no data corruption after test", "expected_result": "Database integrity checks pass. Order totals balance. No orphaned records"},
+            {"step_number": 5, "action": "Generate performance report", "expected_result": "All SLAs met. No performance regression compared to baseline"}
+          ],
+          "expected_result": "Application handles production load with all performance SLAs met and zero data integrity issues",
+          "priority": "high",
+          "estimated_time": 60
+        }
+      ]
+    }
+  ]
 }
 
 ---
@@ -187,6 +528,152 @@ Example Output 2 (Abbreviated - focus on different aspects):
       "Admin access to test environment configuration"
     ]
   }
+}
+
+---
+
+Example Input 3:
+Project Type: Banking/Fintech REST API
+Features: Account management, Fund transfers, Transaction history, KYC verification, Notifications
+Priority: Critical | Complexity: High | Timeframe: 10 weeks
+
+Example Output 3 (Abbreviated - focus on test suites and approach):
+{
+  "test_objectives": [
+    {
+      "title": "Validate Financial Transaction Integrity",
+      "description": "Ensure all money transfer operations maintain ACID properties. Verify that no funds are lost, duplicated, or incorrectly debited/credited under any scenario including concurrent requests and network failures.",
+      "success_criteria": "100% of financial transaction test scenarios pass with zero data integrity violations across 10,000 simulated transactions",
+      "priority": "Critical"
+    },
+    {
+      "title": "Verify Regulatory Compliance (PCI-DSS, PSD2)",
+      "description": "Ensure that all API endpoints handling financial data comply with PCI-DSS Level 1 requirements and PSD2 Strong Customer Authentication mandates.",
+      "success_criteria": "Zero compliance violations found during automated security scan and manual penetration test, audit trail 100% complete",
+      "priority": "Critical"
+    }
+  ],
+  "test_approach": {
+    "methodology": "Risk-based testing with continuous integration; 3-week sprints focusing on API contract testing first, then integration and performance",
+    "testing_types": {
+      "functional": "API contract testing with Postman/Newman (100% endpoint coverage), database state verification after each transaction",
+      "non_functional": "Load testing with k6 (5000 concurrent users, 50 TPS sustained), security testing with OWASP ZAP and Burp Suite, chaos engineering with Gremlin"
+    },
+    "automation_strategy": "100% API test automation using Pytest + HTTPX; manual testing only for UX review of admin dashboard",
+    "tools": [
+      "API Testing: Postman, Newman, Pytest + HTTPX",
+      "Load Testing: k6, Grafana for metrics",
+      "Security: OWASP ZAP, Burp Suite Professional",
+      "Database: pgTAP for PostgreSQL unit tests",
+      "CI/CD: GitHub Actions, Docker",
+      "Monitoring: Datadog, PagerDuty",
+      "Contract Testing: Pact for consumer-driven contracts"
+    ]
+  },
+  "test_suites": [
+    {
+      "name": "Account Management API Suite",
+      "description": "Validates CRUD operations for bank accounts including creation, balance inquiry, account closure, and multi-currency support. Tests authorization boundaries ensuring users can only access their own accounts.",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Create savings account with valid KYC-verified user",
+          "description": "Verify that a POST /accounts request with valid KYC-verified user ID creates a new savings account with zero balance and returns correct account details",
+          "steps": [
+            {"step_number": 1, "action": "Send POST /api/v1/accounts with body: {type: 'savings', currency: 'USD', user_id: 'usr_kyc_verified_001'}", "expected_result": "HTTP 201 Created with account_id, type, balance=0.00, currency=USD, status=active"},
+            {"step_number": 2, "action": "Send GET /api/v1/accounts/{account_id} with auth token for usr_kyc_verified_001", "expected_result": "HTTP 200 with matching account details, created_at timestamp within last 5 seconds"},
+            {"step_number": 3, "action": "Verify database record in accounts table", "expected_result": "Row exists with correct user_id, type, currency, balance=0.00, status='active'"}
+          ],
+          "expected_result": "Account is created atomically in database and API, accessible only by the owning user",
+          "priority": "critical",
+          "estimated_time": 5
+        },
+        {
+          "name": "Reject account creation for non-KYC-verified user",
+          "description": "Verify that account creation is blocked for users who have not completed KYC verification, returning appropriate error",
+          "steps": [
+            {"step_number": 1, "action": "Send POST /api/v1/accounts with body: {type: 'checking', currency: 'USD', user_id: 'usr_no_kyc_002'}", "expected_result": "HTTP 403 Forbidden with error: 'KYC verification required before account creation'"},
+            {"step_number": 2, "action": "Verify no account was created in database for usr_no_kyc_002", "expected_result": "No new rows in accounts table for this user_id"}
+          ],
+          "expected_result": "System enforces KYC compliance gate before allowing any financial account creation",
+          "priority": "critical",
+          "estimated_time": 3
+        }
+      ]
+    },
+    {
+      "name": "Fund Transfer Suite",
+      "description": "Tests internal transfers between accounts, external wire transfers, scheduled transfers, and insufficient funds handling. Verifies double-entry bookkeeping and idempotency of transfer requests.",
+      "category": "Functional",
+      "test_cases": [
+        {
+          "name": "Successful internal transfer between own accounts",
+          "description": "Verify that transferring funds between two accounts owned by the same user correctly debits source and credits destination with double-entry ledger entries",
+          "steps": [
+            {"step_number": 1, "action": "Send GET /api/v1/accounts/src_001/balance", "expected_result": "HTTP 200, balance: $5000.00"},
+            {"step_number": 2, "action": "Send POST /api/v1/transfers with {from: 'src_001', to: 'dst_001', amount: 1500.00, currency: 'USD', idempotency_key: 'txn_unique_001'}", "expected_result": "HTTP 200, transfer_id returned, status: 'completed'"},
+            {"step_number": 3, "action": "Send GET /api/v1/accounts/src_001/balance", "expected_result": "Balance: $3500.00 (debited $1500)"},
+            {"step_number": 4, "action": "Send GET /api/v1/accounts/dst_001/balance", "expected_result": "Balance increased by $1500.00"},
+            {"step_number": 5, "action": "Check ledger entries in database", "expected_result": "Two entries: DEBIT $1500 on src_001, CREDIT $1500 on dst_001, same transaction_id"}
+          ],
+          "expected_result": "Transfer completes atomically with correct balance updates and audit trail",
+          "priority": "critical",
+          "estimated_time": 8
+        },
+        {
+          "name": "Transfer rejected for insufficient funds",
+          "description": "Verify that attempting to transfer more than available balance returns error and does not modify any balances",
+          "steps": [
+            {"step_number": 1, "action": "Send GET /api/v1/accounts/low_bal_001/balance", "expected_result": "HTTP 200, balance: $50.00"},
+            {"step_number": 2, "action": "Send POST /api/v1/transfers with {from: 'low_bal_001', to: 'dst_002', amount: 100.00, currency: 'USD'}", "expected_result": "HTTP 422, error: 'Insufficient funds. Available balance: $50.00'"},
+            {"step_number": 3, "action": "Send GET /api/v1/accounts/low_bal_001/balance", "expected_result": "Balance unchanged: $50.00"},
+            {"step_number": 4, "action": "Verify no ledger entries created for this transaction", "expected_result": "No new entries in ledger table"}
+          ],
+          "expected_result": "Transfer is rejected cleanly with no side effects on account balances or ledger",
+          "priority": "critical",
+          "estimated_time": 5
+        }
+      ]
+    },
+    {
+      "name": "Transaction Security & Compliance Suite",
+      "description": "Validates API authentication, authorization boundaries, rate limiting, SQL injection prevention, and PCI-DSS compliance for all financial endpoints.",
+      "category": "Security",
+      "test_cases": [
+        {
+          "name": "Reject transfer without valid authentication token",
+          "description": "Verify that financial APIs require valid JWT tokens and reject unauthenticated requests",
+          "steps": [
+            {"step_number": 1, "action": "Send POST /api/v1/transfers WITHOUT Authorization header", "expected_result": "HTTP 401 Unauthorized"},
+            {"step_number": 2, "action": "Send POST /api/v1/transfers with expired JWT token", "expected_result": "HTTP 401 with error: 'Token expired'"},
+            {"step_number": 3, "action": "Send POST /api/v1/transfers with malformed JWT token", "expected_result": "HTTP 401 with error: 'Invalid token'"}
+          ],
+          "expected_result": "All unauthenticated and improperly authenticated requests are rejected",
+          "priority": "critical",
+          "estimated_time": 5
+        }
+      ]
+    },
+    {
+      "name": "Performance & Load Testing Suite",
+      "description": "Tests API response times under load (5000 concurrent users), transaction throughput (50 TPS), database connection pool behavior, and system degradation patterns.",
+      "category": "Performance",
+      "test_cases": [
+        {
+          "name": "Sustained load test at 50 transactions per second for 30 minutes",
+          "description": "Verify system maintains sub-500ms P95 response time for fund transfers under sustained production-like load",
+          "steps": [
+            {"step_number": 1, "action": "Configure k6 script with 50 TPS for 30 minutes targeting POST /api/v1/transfers", "expected_result": "Test plan configured with realistic user scenarios"},
+            {"step_number": 2, "action": "Execute load test and monitor Grafana dashboard", "expected_result": "P95 response time < 500ms, P99 < 1000ms, error rate < 0.1%"},
+            {"step_number": 3, "action": "Verify all transactions completed with correct balances post-test", "expected_result": "Sum of all account balances equals pre-test total (conservation of money)"}
+          ],
+          "expected_result": "System handles production load without degradation and maintains financial data integrity under stress",
+          "priority": "high",
+          "estimated_time": 45
+        }
+      ]
+    }
+  ]
 }
 
 **GENERATION INSTRUCTIONS:**

@@ -33,14 +33,10 @@ class CommonSettings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     
     # AI Settings
-    AI_PROVIDER: str = "openai"
+    AI_PROVIDER: str = "ollama"
     OPENAI_API_KEY: str = "sk-your-openai-api-key-here"
     OPENAI_MODEL: str = "gpt-4"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    GOOGLE_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-pro"
-    GEMINI_EMBEDDING_MODEL: str = "embedding-001"
-    
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"    
     # Qdrant Settings
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""

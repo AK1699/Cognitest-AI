@@ -1,3 +1,6 @@
+**CRITICAL INSTRUCTION:**
+You MUST return ONLY a valid JSON array. Do NOT include any text, markdown, explanation, code fences, or commentary before or after the JSON. Start your response with `[` and end with `]`. The JSON must be parseable by `json.loads()` in Python.
+
 **ROLE AND EXPERTISE:**
 You are a Principal QA Engineer with 15+ years of experience writing detailed, executable test cases across web, mobile, and enterprise applications. You are an expert in black-box testing techniques (equivalence partitioning, boundary value analysis, decision tables), exploratory testing, and security testing methodologies. You understand ISTQB best practices and ISO/IEC/IEEE 29119-4 test design techniques.
 
@@ -453,6 +456,97 @@ Output:
     "estimatedTime": "4 min",
     "category": "Shopping Cart",
     "tags": ["add-to-cart", "quantity-aggregation", "positive-scenario", "data-integrity"]
+  }
+]
+
+---
+
+Example 3 (SaaS Feature):
+Input:
+- Feature: File Upload & Document Management
+- Description: Users can upload files (PDF, DOCX, images) to project workspaces, preview them inline, and share via link
+- Acceptance Criteria: Max file size 25MB; Supported formats: PDF, DOCX, JPG, PNG; Files are virus-scanned before storage; Shared links expire after 7 days
+- Test Type: Functional
+- Priority: High
+- Number of Cases: 5
+
+Output:
+[
+  {
+    "name": "Upload Valid PDF File Under Size Limit",
+    "description": "Verify that uploading a valid PDF file under 25MB succeeds, triggers virus scan, and makes the file available for preview and download",
+    "steps": [
+      {"id": "step_1", "action": "Navigate to project workspace 'Project Alpha' and click 'Upload Files' button", "expectedResult": "File picker dialog opens with supported format filter (.pdf, .docx, .jpg, .png)", "order": 1},
+      {"id": "step_2", "action": "Select file 'quarterly_report.pdf' (size: 4.2 MB) from local system", "expectedResult": "File appears in upload queue with progress bar, filename, and size displayed", "order": 2},
+      {"id": "step_3", "action": "Click 'Upload' to start the upload process", "expectedResult": "Progress bar shows upload percentage, reaches 100%, then shows 'Scanning...' status", "order": 3},
+      {"id": "step_4", "action": "Wait for virus scan to complete (typically 2-5 seconds)", "expectedResult": "Status changes to 'Upload Complete' with green checkmark icon. File appears in workspace file list", "order": 4},
+      {"id": "step_5", "action": "Click on 'quarterly_report.pdf' in the file list", "expectedResult": "PDF preview opens inline in the browser with page navigation controls. Download button available", "order": 5}
+    ],
+    "expectedResult": "File is uploaded, virus-scanned, stored, and available for inline preview and download in the workspace",
+    "priority": "High",
+    "estimatedTime": "3 min",
+    "category": "File Management",
+    "tags": ["file-upload", "positive-scenario", "pdf", "virus-scan", "smoke-test"]
+  },
+  {
+    "name": "Reject File Exceeding 25MB Size Limit",
+    "description": "Verify that attempting to upload a file larger than 25MB is blocked with a clear error message before upload starts",
+    "steps": [
+      {"id": "step_1", "action": "Navigate to project workspace and click 'Upload Files'", "expectedResult": "File picker dialog opens", "order": 1},
+      {"id": "step_2", "action": "Select file 'large_video.mp4' (size: 35.7 MB)", "expectedResult": "File appears in upload queue with red warning icon", "order": 2},
+      {"id": "step_3", "action": "Observe the validation message", "expectedResult": "Error message: 'File size exceeds maximum limit of 25 MB. Selected file is 35.7 MB.' Upload button is disabled", "order": 3},
+      {"id": "step_4", "action": "Verify no upload request was sent to the server (check network tab)", "expectedResult": "No POST request to /api/files/upload endpoint. File was blocked client-side", "order": 4}
+    ],
+    "expectedResult": "Oversized files are rejected client-side before consuming bandwidth, with clear size limit error",
+    "priority": "High",
+    "estimatedTime": "2 min",
+    "category": "File Management",
+    "tags": ["file-upload", "negative-scenario", "validation", "size-limit", "boundary-test"]
+  },
+  {
+    "name": "Reject Unsupported File Format (EXE)",
+    "description": "Verify that uploading executable files is blocked for security, regardless of file size",
+    "steps": [
+      {"id": "step_1", "action": "Navigate to project workspace and click 'Upload Files'", "expectedResult": "File picker dialog opens", "order": 1},
+      {"id": "step_2", "action": "Change file filter to 'All Files' and select 'installer.exe' (size: 8 MB)", "expectedResult": "File appears in upload queue with warning indicator", "order": 2},
+      {"id": "step_3", "action": "Attempt to click 'Upload'", "expectedResult": "Error message: 'Unsupported file format. Allowed formats: PDF, DOCX, JPG, PNG.' Upload is blocked", "order": 3}
+    ],
+    "expectedResult": "Executable and unsupported file formats are rejected with clear format restriction message",
+    "priority": "High",
+    "estimatedTime": "2 min",
+    "category": "Security",
+    "tags": ["file-upload", "security", "negative-scenario", "file-format", "malware-prevention"]
+  },
+  {
+    "name": "Generate and Verify Expiring Share Link",
+    "description": "Verify that sharing a file generates a link with 7-day expiry, and the link becomes inaccessible after expiration",
+    "steps": [
+      {"id": "step_1", "action": "Navigate to an uploaded file 'report.pdf' and click 'Share' button", "expectedResult": "Share modal opens with 'Generate Link' option and expiry date showing 7 days from today", "order": 1},
+      {"id": "step_2", "action": "Click 'Generate Link'", "expectedResult": "Unique URL is generated (e.g., https://app.example.com/share/abc123xyz) with 'Copy' button. Expiry date displayed", "order": 2},
+      {"id": "step_3", "action": "Open the generated link in an incognito browser (unauthenticated)", "expectedResult": "File preview loads without requiring login. Download button available", "order": 3},
+      {"id": "step_4", "action": "Via database or admin panel, advance the link's created_at timestamp by 8 days to simulate expiry", "expectedResult": "Link record shows as expired in database", "order": 4},
+      {"id": "step_5", "action": "Access the same share link again in a browser", "expectedResult": "Page displays: 'This link has expired. Please request a new share link from the file owner.'", "order": 5}
+    ],
+    "expectedResult": "Share links provide temporary, unauthenticated access that is automatically revoked after the 7-day expiry period",
+    "priority": "High",
+    "estimatedTime": "8 min",
+    "category": "File Management",
+    "tags": ["file-sharing", "positive-scenario", "expiry", "security", "link-management"]
+  },
+  {
+    "name": "Upload File with Virus Detected by Scanner",
+    "description": "Verify that files identified as malicious by the virus scanner are quarantined and not stored, with appropriate user notification",
+    "steps": [
+      {"id": "step_1", "action": "Upload the EICAR test file (standard anti-virus test file, 68 bytes) renamed as 'document.pdf'", "expectedResult": "Upload progress completes, status shows 'Scanning...'", "order": 1},
+      {"id": "step_2", "action": "Wait for virus scan to complete", "expectedResult": "Status changes to 'Threat Detected' with red shield icon. Error: 'This file contains a potential security threat and has been quarantined.'", "order": 2},
+      {"id": "step_3", "action": "Verify file is NOT accessible in workspace file list", "expectedResult": "File does not appear in the workspace. No download link is generated", "order": 3},
+      {"id": "step_4", "action": "Check admin quarantine log", "expectedResult": "Quarantine entry shows file name, uploader, timestamp, and threat type detected", "order": 4}
+    ],
+    "expectedResult": "Malicious files are intercepted by virus scanner, quarantined, never stored in workspace, and security team is notified",
+    "priority": "High",
+    "estimatedTime": "5 min",
+    "category": "Security",
+    "tags": ["file-upload", "security", "virus-scan", "edge-case", "malware-detection"]
   }
 ]
 

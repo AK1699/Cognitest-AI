@@ -4,6 +4,7 @@ Core execution engine for no-code test automation with self-healing
 """
 import asyncio
 import json
+import logging
 import time
 import re
 from typing import Dict, Any, List, Optional
@@ -20,6 +21,8 @@ from app.models.web_automation import (
 )
 from app.services.ai_service import get_ai_service, AIService
 from app.services.self_heal_service import SelfHealService
+
+logger = logging.getLogger("cognitest.self_heal")
 
 
 def _parse_ai_json(raw: str) -> Optional[Dict[str, Any]]:
@@ -71,24 +74,39 @@ class SelfHealingLocator:
         Returns: (element, healing_info)
         """
         start_time = time.perf_counter()
+        logger.info("="*60)
+        logger.info(f"🔍 SELF-HEAL START | step={step_id} | type={step_type}")
+        logger.info(f"   Primary selector: {self.primary_selector}")
+        logger.info(f"   Alternatives count: {len(self.alternatives)}")
+        logger.info(f"   Page URL: {page.url}")
+
+        # Ensure DOM is ready (important for Angular/React apps)
+        try:
+            await page.wait_for_load_state('domcontentloaded', timeout=5000)
+        except Exception:
+            pass
 
         # Strategy 1: Try primary selector
         try:
             locator = page.locator(self.primary_selector)
             await locator.wait_for(timeout=5000, state="visible")
+            logger.info(f"✅ Strategy 1 (Primary) PASSED — selector worked directly")
             return locator, None
         except PlaywrightError as e:
-            print(f"Primary selector failed: {self.primary_selector} - {str(e)}")
+            logger.warning(f"❌ Strategy 1 (Primary) FAILED: {self.primary_selector} — {str(e)[:150]}")
         
         # Strategy 2: Try alternative selectors
+        logger.info(f"🔄 Strategy 2 (Alternatives) — trying {len(self.alternatives)} alternatives...")
         for idx, alt in enumerate(self.alternatives):
             alt_value = alt.get("value") if isinstance(alt, dict) else alt
             if not alt_value or not isinstance(alt_value, str):
                 continue
             try:
+                logger.debug(f"   Trying alt[{idx}]: {alt_value}")
                 locator = page.locator(alt_value)
                 await locator.wait_for(timeout=3000, state="visible")
                 
+                logger.info(f"✅ Strategy 2 (Alternative) HEALED with alt[{idx}]: {alt_value}")
                 healing_info = {
                     "type": HealingType.LOCATOR.value,
                     "strategy": HealingStrategy.ALTERNATIVE.value,
@@ -107,35 +125,48 @@ class SelfHealingLocator:
                 return locator, healing_info
             except PlaywrightError:
                 continue
+        logger.warning(f"❌ Strategy 2 (Alternatives) FAILED — none of {len(self.alternatives)} alternatives worked")
 
         # Strategy 3: Heuristic healing (name/id fallback)
+        logger.info(f"🔄 Strategy 3 (Heuristic) — trying name/id/placeholder/ng-model fallbacks...")
         try:
             healed_locator, healing_info = await self.heuristic_heal(page)
             if healed_locator:
                 if healing_info is not None and "healing_duration_ms" not in healing_info:
                     healing_info["healing_duration_ms"] = int((time.perf_counter() - start_time) * 1000)
+                logger.info(f"✅ Strategy 3 (Heuristic) HEALED: {healing_info.get('healed', 'unknown') if healing_info else 'unknown'}")
                 return healed_locator, healing_info
+            logger.warning(f"❌ Strategy 3 (Heuristic) FAILED — no matching element found")
         except Exception as e:
-            print(f"Heuristic healing failed: {str(e)}")
+            logger.warning(f"❌ Strategy 3 (Heuristic) ERROR: {str(e)[:200]}")
         
         # Strategy 4: AI-powered healing
+        logger.info(f"🔄 Strategy 4 (AI/Ollama) — sending DOM to LLM for selector suggestions...")
         try:
             healed_locator, healing_info = await self.ai_heal(page, step_id, step_type)
             if healed_locator:
+                logger.info(f"✅ Strategy 4 (AI) HEALED: {healing_info.get('healed', 'unknown') if healing_info else 'unknown'}")
                 return healed_locator, healing_info
+            logger.warning(f"❌ Strategy 4 (AI) FAILED — LLM suggestions didn't match any element")
         except Exception as e:
-            print(f"AI healing failed: {str(e)}")
+            logger.warning(f"❌ Strategy 4 (AI) ERROR: {str(e)[:200]}")
         
         # Strategy 5: Similarity-based matching
+        logger.info(f"🔄 Strategy 5 (Similarity) — trying text/role-based matching...")
         try:
             healed_locator, healing_info = await self.similarity_heal(page)
             if healed_locator:
                 if healing_info is not None and "healing_duration_ms" not in healing_info:
                     healing_info["healing_duration_ms"] = int((time.perf_counter() - start_time) * 1000)
+                logger.info(f"✅ Strategy 5 (Similarity) HEALED: {healing_info.get('healed', 'unknown') if healing_info else 'unknown'}")
                 return healed_locator, healing_info
+            logger.warning(f"❌ Strategy 5 (Similarity) FAILED — no similar element found")
         except Exception as e:
-            print(f"Similarity healing failed: {str(e)}")
+            logger.warning(f"❌ Strategy 5 (Similarity) ERROR: {str(e)[:200]}")
         
+        elapsed = int((time.perf_counter() - start_time) * 1000)
+        logger.error(f"💀 ALL 5 STRATEGIES FAILED for '{self.primary_selector}' after {elapsed}ms")
+        logger.error("="*60)
         raise Exception(f"Unable to locate element with any strategy: {self.primary_selector}")
 
     async def heuristic_heal(self, page: Page) -> tuple[Any, Dict[str, Any]]:
@@ -236,12 +267,16 @@ class SelfHealingLocator:
 
         candidates: list[str] = []
         if simple_selector:
+            # Generate PascalCase/camelCase variants for ng-model matching
+            pascal_case = selector[0].upper() + selector[1:] if selector else selector
             candidates.extend([
                 f"[name='{selector}']",
                 f"input[name='{selector}']",
                 f"textarea[name='{selector}']",
                 f"[id='{selector}']",
                 f"#{selector}",
+                f"[ng-model='{selector}']",
+                f"[ng-model='{pascal_case}']",
                 f"[name*='{selector}' i]",
                 f"input[name*='{selector}' i]",
                 f"[id*='{selector}' i]",
@@ -465,51 +500,105 @@ class SelfHealingLocator:
     
     async def ai_heal(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Dict[str, Any]]:
         """
-        Use AI to suggest alternative selectors
+        Use AI to suggest alternative selectors based on structured DOM analysis
         """
         heal_start = time.perf_counter()
-        # Get DOM snapshot
-        dom_html = await page.content()
         page_url = page.url
         try:
             page_title = await page.title()
         except Exception:
             page_title = None
         
-        # Prepare AI prompt
-        prompt = f"""
-        I need to find an element on a web page that has changed.
+        # Extract structured form element data instead of raw DOM
+        try:
+            form_elements = await page.evaluate("""
+                () => {
+                    const esc = (s) => (s || '').toString();
+                    const elements = Array.from(document.querySelectorAll('input, textarea, select, button, [role="textbox"], [contenteditable="true"]'));
+                    return elements.slice(0, 50).map((el, idx) => {
+                        const rect = el.getBoundingClientRect();
+                        const visible = rect.width > 0 && rect.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+                        const labelEl = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+                        const parentLabel = el.closest('label');
+                        return {
+                            index: idx,
+                            tag: el.tagName.toLowerCase(),
+                            type: el.getAttribute('type') || '',
+                            id: el.getAttribute('id') || '',
+                            name: el.getAttribute('name') || '',
+                            placeholder: el.getAttribute('placeholder') || '',
+                            'aria-label': el.getAttribute('aria-label') || '',
+                            'ng-model': el.getAttribute('ng-model') || '',
+                            'data-testid': el.getAttribute('data-testid') || '',
+                            'formcontrolname': el.getAttribute('formcontrolname') || '',
+                            className: (el.className || '').toString().slice(0, 100),
+                            visible: visible,
+                            label: labelEl ? (labelEl.innerText || '').trim() : (parentLabel ? (parentLabel.innerText || '').trim() : ''),
+                            value: (el.value || '').slice(0, 50)
+                        };
+                    });
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"   AI heal: Failed to extract form elements: {str(e)[:100]}")
+            form_elements = []
         
-        Original selector: {self.primary_selector}
-        Step type: {step_type}
-        Current URL: {page_url}
+        # Safe alternatives serialization
+        safe_alternatives = []
+        for alt in self.alternatives:
+            if isinstance(alt, dict):
+                safe_alternatives.append(alt.get("value", str(alt)))
+            elif isinstance(alt, str):
+                safe_alternatives.append(alt)
         
-        Failed alternatives tried:
-        {json.dumps([alt["value"] for alt in self.alternatives], indent=2)}
+        # Generate semantic hint from the selector name
+        semantic_hint = self.primary_selector.replace('_', ' ').replace('-', ' ')
+        # CamelCase splitting: "firstName" -> "first Name"
+        semantic_hint = re.sub(r'([a-z])([A-Z])', r'\1 \2', semantic_hint).lower()
         
-        Here's the current page DOM (truncated to relevant section):
-        {dom_html[:5000]}
+        form_elements_str = json.dumps(form_elements, indent=2) if form_elements else "No form elements found"
         
-        Please suggest 3 alternative CSS selectors that might locate the intended element.
-        Consider:
-        - The element's purpose based on the step type
-        - Common selector patterns for {step_type} actions
-        - Robust selectors (data-testid, role, aria-label)
+        logger.info(f"   AI heal: Extracted {len(form_elements)} form elements from page")
+        logger.info(f"   AI heal: page_url={page_url}, page_title={page_title}")
+        logger.info(f"   AI heal: Semantic hint: '{semantic_hint}'")
         
-        Respond in JSON format:
-        {{
-            "selectors": [
-                {{"selector": "...", "reasoning": "...", "confidence": 0.9}},
-                ...
-            ]
-        }}
-        """
+        # Prepare AI prompt with structured data
+        prompt = f"""You are a test automation expert. A CSS selector failed to find an element on a web page. Analyze the page's form elements and suggest working CSS selectors.
+
+Failed selector: {self.primary_selector}
+Semantic meaning: This selector likely refers to a "{semantic_hint}" field
+Step type: {step_type}
+Page URL: {page_url}
+Page title: {page_title or 'unknown'}
+
+Previously tried alternatives that also failed:
+{json.dumps(safe_alternatives, indent=2)}
+
+Here are ALL form elements currently on the page:
+{form_elements_str}
+
+Based on the semantic meaning "{semantic_hint}" and the step type "{step_type}", identify which element is the correct target. Then provide 3 CSS selectors to locate it.
+
+IMPORTANT: Use attributes exactly as shown above. For elements without id/name, use placeholder, ng-model, aria-label, or positional selectors.
+
+Respond ONLY with valid JSON:
+{{
+    "selectors": [
+        {{"selector": "CSS_SELECTOR_HERE", "reasoning": "why this matches", "confidence": 0.9}},
+        {{"selector": "CSS_SELECTOR_HERE", "reasoning": "why this matches", "confidence": 0.8}},
+        {{"selector": "CSS_SELECTOR_HERE", "reasoning": "why this matches", "confidence": 0.7}}
+    ]
+}}"""
         
         # Call AI service
+        logger.info(f"   AI heal: Calling Ollama for selector suggestions...")
         ai_response_raw = await self.ai_service.generate_completion(
             messages=[{"role": "user", "content": prompt}],
             json_mode=True
         )
+        ai_elapsed = int((time.perf_counter() - heal_start) * 1000)
+        logger.info(f"   AI heal: Ollama responded in {ai_elapsed}ms, response length={len(ai_response_raw)} chars")
+        logger.info(f"   AI heal: Raw response preview: {ai_response_raw[:300]}")
         
         try:
             # Parse AI response
@@ -517,40 +606,45 @@ class SelfHealingLocator:
             
             # Try each suggested selector
             selector_suggestions = suggestions.get("selectors", [])
+            logger.info(f"   AI heal: Parsed {len(selector_suggestions)} selector suggestions")
             selector_suggestions = sorted(
                 selector_suggestions,
                 key=lambda s: s.get("confidence", 0.0),
                 reverse=True
             )
-            for suggestion in selector_suggestions:
+            for idx, suggestion in enumerate(selector_suggestions):
                 try:
                     selector = suggestion["selector"]
                     confidence = suggestion.get("confidence", 0.5)
+                    reasoning = suggestion.get("reasoning", "")
+                    logger.info(f"   AI heal: Trying suggestion[{idx}]: '{selector}' (confidence={confidence}, reason={reasoning[:80]})")
                     if self.confidence_threshold is not None and confidence < self.confidence_threshold:
+                        logger.info(f"   AI heal: Skipped — confidence {confidence} below threshold {self.confidence_threshold}")
                         continue
                     locator = page.locator(selector)
                     await locator.wait_for(timeout=3000, state="visible")
                     
+                    logger.info(f"   ✅ AI heal: Suggestion[{idx}] WORKED: {selector}")
                     healing_info = {
                         "type": HealingType.LOCATOR.value,
                         "strategy": HealingStrategy.AI.value,
                         "original": self.primary_selector,
                         "healed": selector,
-                        "ai_reasoning": suggestion.get("reasoning", ""),
+                        "ai_reasoning": reasoning,
                         "confidence_score": confidence,
-                        "ai_prompt": prompt,
                         "ai_response": suggestions,
-                        "alternatives_tried": [a.get("value") for a in self.alternatives if a.get("value")],
-                        "dom_snapshot": dom_html[:5000],
+                        "alternatives_tried": safe_alternatives,
                         "page_title": page_title,
                         "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
                         "success": True
                     }
                     return locator, healing_info
-                except PlaywrightError:
+                except PlaywrightError as pe:
+                    logger.warning(f"   AI heal: Suggestion[{idx}] '{selector}' didn't match: {str(pe)[:100]}")
                     continue
-        except Exception:
-            pass
+        except Exception as parse_err:
+            logger.error(f"   AI heal: Failed to parse LLM response: {str(parse_err)[:200]}")
+            logger.error(f"   AI heal: Raw response was: {ai_response_raw[:500]}")
         
         return None, None
     
