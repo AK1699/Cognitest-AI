@@ -156,6 +156,9 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
     # Automatically create a default organization for the new user
     try:
         from app.models.organisation import Organisation
+        import traceback as tb
+
+        print(f"📦 Creating default organization for user {new_user.email} (ID: {new_user.id})")
 
         default_org = Organisation(
             name=f"{new_user.username}'s Workspace",
@@ -165,8 +168,10 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
         )
         db.add(default_org)
         await db.flush()
+        print(f"   Organization created: {default_org.id}")
 
         # Add user to user_organisations table as owner
+        print(f"   Adding user to user_organisations...")
         await db.execute(
             text("""
                 INSERT INTO user_organisations
@@ -184,7 +189,8 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
         await db.commit()
         print(f"✅ Created default organization for user {new_user.email}")
     except Exception as e:
-        print(f"⚠️ Failed to create default organization: {e}")
+        print(f"❌ Failed to create default organization: {e}")
+        print(tb.format_exc())
         # Don't fail signup if org creation fails
         try:
             await db.rollback()
