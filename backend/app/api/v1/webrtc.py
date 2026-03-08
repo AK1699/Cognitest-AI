@@ -34,7 +34,7 @@ class SDPOfferResponse(BaseModel):
     ice_candidates: list
 
 
-@router.post("/webrtc/create", response_model=CreateSessionResponse)
+@router.post("/create", response_model=CreateSessionResponse)
 async def create_webrtc_session(request: CreateSessionRequest):
     """
     Create a new WebRTC streaming session
@@ -57,7 +57,7 @@ async def create_webrtc_session(request: CreateSessionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.websocket("/webrtc/ws/{session_id}")
+@router.websocket("/ws/{session_id}")
 async def webrtc_signaling(websocket: WebSocket, session_id: str):
     """
     WebSocket endpoint for WebRTC signaling (SDP and ICE exchange)
@@ -146,7 +146,7 @@ async def webrtc_signaling(websocket: WebSocket, session_id: str):
         await webrtc_manager.close_session(session_id)
 
 
-@router.get("/webrtc/health")
+@router.get("/health")
 async def webrtc_health():
     """Health check endpoint for WebRTC service"""
     return {
@@ -156,7 +156,7 @@ async def webrtc_health():
     }
 
 
-@router.post("/webrtc/session/{session_id}/close")
+@router.post("/session/{session_id}/close")
 async def close_session(session_id: str):
     """Close a WebRTC session"""
     try:
