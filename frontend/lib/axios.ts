@@ -1,8 +1,9 @@
 import axios from 'axios'
 
-// Use relative URLs so Next.js rewrites can proxy to the backend and avoid CORS issues
+// Use backend URL directly to avoid issues with Next.js rewrites in dev mode
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const api = axios.create({
-  baseURL: '',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 })
 
