@@ -15,7 +15,6 @@ import {
     Smartphone,
     Tablet,
     Globe,
-    ChevronRight,
     ChevronDown,
     CheckCircle2,
     Clock,
@@ -34,7 +33,19 @@ import {
     AlertTriangle,
     Search,
     Keyboard,
-    Wand2
+    Wand2,
+    MousePointer2,
+    Minimize2,
+    Maximize2,
+    Lock,
+    ChevronLeft,
+    RotateCw,
+    X,
+    Plus,
+    ChevronRight,
+    Cpu,
+    Save,
+    RefreshCw,
 } from 'lucide-react'
 import { webAutomationApi } from '@/lib/api/webAutomation'
 
@@ -184,9 +195,28 @@ export default function LiveBrowserTab({
     }>>([])
 
     // Element Inspector
-    const [inspectMode, setInspectMode] = useState(true) // Enable inspector by default
+    const [inspectMode, setInspectMode] = useState(true)
     const [selectedElement, setSelectedElement] = useState<any>(null)
     const [launchError, setLaunchError] = useState<string | null>(null)
+    const [isManualControl, setIsManualControl] = useState(false)
+    const [intentOverlays, setIntentOverlays] = useState<any[]>([])
+    const [tabs, setTabs] = useState<Array<{ id: string, url: string, title: string }>>([
+        { id: '1', url: currentUrl || 'https://google.com', title: 'New Tab' }
+    ])
+    const [activeTabId, setActiveTabId] = useState<string>('1')
+
+    // Restored states
+    const [lastMetadata, setLastMetadata] = useState<any>(null)
+    const [isFullscreen, setIsFullscreen] = useState(false)
+    const [isFocused, setIsFocused] = useState(false)
+    const [typingText, setTypingText] = useState('')
+
+    // Cloud Browser Settings
+
+    const browserContainerRef = useRef<HTMLDivElement>(null)
+    const screenshotRef = useRef<HTMLImageElement>(null)
+
+    const currentTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
     const formatActionName = useCallback((actionType: string) => {
         const actionNames: Record<string, string> = {
@@ -267,19 +297,11 @@ export default function LiveBrowserTab({
             isMounted = false
         }
     }, [testToRun?.flowId, testFlowId, buildStepPreview])
-    const [typingText, setTypingText] = useState('')
-    const screenshotRef = useRef<HTMLImageElement>(null)
-
     // Headed mode for direct interaction
     const headlessMode = true
 
-    // Interactive mode - when focused, forward keyboard to browser
-    const [isFocused, setIsFocused] = useState(false)
-
     // Expanded snippets state - track which snippet steps are expanded
     const [expandedSnippets, setExpandedSnippets] = useState<Record<number, boolean>>({})
-
-    const browserContainerRef = useRef<HTMLDivElement>(null)
 
     // WebSocket
     const wsRef = useRef<WebSocket | null>(null)
@@ -382,12 +404,34 @@ export default function LiveBrowserTab({
             setIsConnected(true)
         }
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data)
-                handleWebSocketMessage(data)
-            } catch (error) {
-                console.error('Failed to parse WebSocket message:', error)
+        ws.onmessage = async (event) => {
+            if (typeof event.data === 'string') {
+                try {
+                    const data = JSON.parse(event.data)
+                    if (data.has_binary) {
+                        setLastMetadata(data)
+                    } else {
+                        handleWebSocketMessage(data)
+                    }
+                } catch (error) {
+                    console.error('Failed to parse WebSocket message:', error)
+                }
+            } else {
+                // Handle binary frame
+                const blob = new Blob([event.data], { type: 'image/jpeg' })
+                const url = URL.createObjectURL(blob)
+
+                setScreenshot((prev) => {
+                    if (prev && prev.startsWith('blob:')) {
+                        URL.revokeObjectURL(prev)
+                    }
+                    return url
+                })
+
+                if (lastMetadata?.payload?.url) {
+                    setCurrentUrl(lastMetadata.payload.url)
+                    setUrlInput(lastMetadata.payload.url)
+                }
             }
         }
 
@@ -652,6 +696,21 @@ export default function LiveBrowserTab({
                 }])
                 break
 
+            case 'intentOverlay':
+                setIntentOverlays(prev => {
+                    const filtered = prev.filter(o => (Date.now() - o.ts) < 2000)
+                    return [...filtered, { ...data.payload, ts: Date.now() }]
+                })
+                // Clear overlays after 3 seconds
+                setTimeout(() => {
+                    setIntentOverlays(prev => prev.filter(o => (Date.now() - o.ts) < 3000))
+                }, 3000)
+                break
+
+            case 'interaction_paused':
+                setIsManualControl(data.payload?.paused || false)
+                break
+
             case 'api_response':
                 // Store API status in the step
                 console.log(`[API] Status: ${data.status}`)
@@ -806,6 +865,12 @@ export default function LiveBrowserTab({
         }
     }
 
+    const toggleManualControl = useCallback(() => {
+        const newStatus = !isManualControl
+        setIsManualControl(newStatus)
+        sendWsMessage(newStatus ? 'pause_execution' : 'resume_execution')
+    }, [isManualControl])
+
     // Get device icon
     const getDeviceIcon = (type: string) => {
         switch (type) {
@@ -957,19 +1022,26 @@ export default function LiveBrowserTab({
                             </Button>
                         )}
 
-                        <Button size="sm" variant="ghost" disabled={sessionStatus !== 'running'}>
-                            <SkipForward className="w-4 h-4" />
-                        </Button>
-
                         <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => sendWsMessage('navigate', { url: currentUrl })}
+                            onClick={() => sendWsMessage('navigate', { url: currentTab.url })}
                             disabled={sessionStatus !== 'running'}
                         >
                             <RotateCcw className="w-4 h-4" />
                         </Button>
                     </div>
+
+                    <div className="h-6 w-px bg-gray-300" />
+
+                    {/* Host Status Indicator */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/50 rounded-lg border border-gray-200">
+                        <Cpu className="w-3 h-3 text-gray-500" />
+                        <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                            Local Machine
+                        </span>
+                    </div>
+
                 </div>
 
                 {/* Status Info */}
@@ -993,63 +1065,145 @@ export default function LiveBrowserTab({
                 </div>
             </div>
 
-            {launchError && (
-                <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <div className="font-semibold">Browser session failed to start</div>
-                    <div className="mt-1 text-xs text-red-600">{launchError}</div>
-                </div>
-            )}
+            {
+                launchError && (
+                    <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="font-semibold">Browser session failed to start</div>
+                        <div className="mt-1 text-xs text-red-600">{launchError}</div>
+                    </div>
+                )
+            }
+
+            {/* Tab Bar UI */}
+            <div className="flex items-center gap-1 bg-gray-100/50 px-4 pt-2 border-b border-gray-200">
+                {tabs.map(tab => (
+                    <div
+                        key={tab.id}
+                        onClick={() => setActiveTabId(tab.id)}
+                        className={`group relative flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg cursor-pointer transition-all border-x border-t ${activeTabId === tab.id
+                            ? 'bg-white border-gray-200 text-blue-600 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-10'
+                            : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'}`}
+                    >
+                        <Globe className="w-3 h-3 opacity-70" />
+                        <span className="max-w-[120px] truncate">{tab.title}</span>
+                        {tabs.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    const newTabs = tabs.filter(t => t.id !== tab.id)
+                                    setTabs(newTabs)
+                                    if (activeTabId === tab.id) setActiveTabId(newTabs[0].id)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded-md transition-all"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                        {activeTabId === tab.id && (
+                            <div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-white z-20" />
+                        )}
+                    </div>
+                ))}
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 mb-1 hover:bg-gray-200 rounded-full"
+                    onClick={() => {
+                        const newId = Math.random().toString(36).substr(2, 9)
+                        setTabs([...tabs, { id: newId, url: 'https://google.com', title: 'New Tab' }])
+                        setActiveTabId(newId)
+                    }}
+                >
+                    <Plus className="w-4 h-4 text-gray-600" />
+                </Button>
+            </div>
 
             <div className="flex-1 flex overflow-hidden w-full">
                 {/* Main Browser View */}
                 <div className="flex-1 flex flex-col min-w-0 m-4 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                    {/* Browser Chrome */}
-                    <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 flex items-center gap-3">
-                        <div className="flex gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-red-400" />
-                            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                            <div className="w-3 h-3 rounded-full bg-green-400" />
+                    {/* Integrated Browser Control Bar */}
+                    <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4">
+                        {/* Navigation Controls */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 hover:bg-gray-100"
+                                onClick={() => sendWsMessage('navigate', { url: currentTab?.url })}
+                                disabled={sessionStatus !== 'running'}
+                            >
+                                <RotateCw className="w-4 h-4 text-gray-600" />
+                            </Button>
                         </div>
 
-                        {/* URL Bar */}
-                        <form onSubmit={handleNavigate} className="flex-1 flex items-center gap-2">
-                            <div className="flex-1 bg-white rounded-md border border-gray-300 px-3 py-1 flex items-center">
-                                <Globe className="w-3.5 h-3.5 mr-2 text-gray-400 flex-shrink-0" />
+                        {/* URL / Address Bar */}
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault()
+                                handleNavigate(e)
+                                // Sync tab URL
+                                setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: urlInput, title: urlInput.replace(/^https?:\/\//, '').split('/')[0] } : t))
+                            }}
+                            className="flex-1"
+                        >
+                            <div className="bg-gray-50 rounded-lg border border-gray-200 px-3 py-1.5 flex items-center focus-within:bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                                <Lock className="w-3 h-3 mr-2 text-green-600" />
                                 <input
                                     type="text"
-                                    className="w-full text-sm text-gray-600 outline-none"
+                                    className="w-full text-xs text-gray-700 bg-transparent outline-none font-sans"
                                     placeholder="Enter URL to navigate..."
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}
                                 />
+                                {sessionStatus === 'running' && !isManualControl && (
+                                    <Badge variant="outline" className="ml-2 text-[9px] font-bold border-blue-200 text-blue-600 bg-blue-50/50 animate-pulse whitespace-nowrap">
+                                        AI CONTROLLING
+                                    </Badge>
+                                )}
                             </div>
-                            <Button type="submit" size="sm" variant="ghost" disabled={sessionStatus !== 'running'}>
-                                <ArrowRight className="w-4 h-4" />
-                            </Button>
                         </form>
 
-                        {/* Connection Status */}
-                        <Badge variant={isConnected ? 'default' : 'secondary'} className="text-xs">
-                            {isConnected ? '🟢 Live' : '⚪ Offline'}
-                        </Badge>
+                        {/* Execution Controls */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                                size="sm"
+                                variant={isManualControl ? 'destructive' : 'default'}
+                                className={`h-8 px-4 flex items-center gap-2 text-xs font-bold shadow-sm transition-all ${!isManualControl ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'animate-pulse'}`}
+                                onClick={toggleManualControl}
+                                disabled={sessionStatus !== 'running'}
+                            >
+                                {isManualControl ? (
+                                    <>
+                                        <Square className="w-3 h-3 fill-white" />
+                                        <span>RESUME AI</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <MousePointer2 className="w-3 h-3" />
+                                        <span>MANUAL CONTROL</span>
+                                    </>
+                                )}
+                            </Button>
+
+                            <div className="flex items-center gap-1.5 ml-1">
+                                <Badge variant={isConnected ? 'outline' : 'secondary'} className={`text-[10px] h-6 font-bold ${isConnected ? 'border-green-500 text-green-700 bg-green-50' : ''}`}>
+                                    {isConnected ? '● LIVE' : 'OFFLINE'}
+                                </Badge>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Browser Content - Interactive Area */}
                     <div
                         ref={browserContainerRef}
-                        className={`flex-1 bg-gray-50 relative overflow-hidden outline-none ${isFocused ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                        className={`flex-1 bg-white relative overflow-hidden outline-none ${isFocused ? 'ring-2 ring-blue-500 ring-inset' : ''} ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}
                         tabIndex={0}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
                         onKeyDown={(e) => {
                             if (sessionStatus !== 'running' || !isFocused) return
+                            if (e.key !== 'Escape') e.preventDefault()
 
-                            // Prevent default for most keys when focused
-                            if (e.key !== 'Escape') {
-                                e.preventDefault()
-                            }
-
-                            // Handle special keys
                             const specialKeys = ['Enter', 'Tab', 'Backspace', 'Delete', 'Escape',
                                 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                                 'Home', 'End', 'PageUp', 'PageDown']
@@ -1057,51 +1211,90 @@ export default function LiveBrowserTab({
                             if (specialKeys.includes(e.key)) {
                                 sendWsMessage('press', { key: e.key })
                             } else if (e.key.length === 1) {
-                                // Regular character key
                                 sendWsMessage('type', { text: e.key })
                             }
                         }}
                     >
                         {screenshot ? (
-                            <img
-                                ref={screenshotRef}
-                                src={screenshot}
-                                alt="Live browser view"
-                                className={`w-full h-full object-contain ${inspectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-                                style={{ imageRendering: 'auto' }}
-                                onClick={(e) => {
-                                    if (!inspectMode || sessionStatus !== 'running') return
-                                    const img = screenshotRef.current
-                                    if (!img) return
+                            <div className="relative w-full h-full">
+                                <img
+                                    ref={screenshotRef}
+                                    src={screenshot}
+                                    alt="Live browser view"
+                                    className={`w-full h-full object-contain ${inspectMode || isManualControl ? 'cursor-crosshair' : 'cursor-default'}`}
+                                    style={{ imageRendering: 'auto' }}
+                                    onClick={(e) => {
+                                        if ((!inspectMode && !isManualControl) || sessionStatus !== 'running') return
+                                        const img = screenshotRef.current
+                                        if (!img) return
 
-                                    // Calculate click position relative to actual page coordinates
-                                    const rect = img.getBoundingClientRect()
-                                    const imgWidth = img.naturalWidth
-                                    const imgHeight = img.naturalHeight
-                                    const displayWidth = rect.width
-                                    const displayHeight = rect.height
+                                        const rect = img.getBoundingClientRect()
+                                        const imgWidth = img.naturalWidth
+                                        const imgHeight = img.naturalHeight
+                                        const displayWidth = rect.width
+                                        const displayHeight = rect.height
 
-                                    // Calculate the scale and offset for object-contain
-                                    const scale = Math.min(displayWidth / imgWidth, displayHeight / imgHeight)
-                                    const scaledWidth = imgWidth * scale
-                                    const scaledHeight = imgHeight * scale
-                                    const offsetX = (displayWidth - scaledWidth) / 2
-                                    const offsetY = (displayHeight - scaledHeight) / 2
+                                        const scale = Math.min(displayWidth / imgWidth, displayHeight / imgHeight)
+                                        const scaledWidth = imgWidth * scale
+                                        const scaledHeight = imgHeight * scale
+                                        const offsetX = (displayWidth - scaledWidth) / 2
+                                        const offsetY = (displayHeight - scaledHeight) / 2
 
-                                    // Get click position relative to image container
-                                    const clickX = e.clientX - rect.left
-                                    const clickY = e.clientY - rect.top
+                                        const clickX = e.clientX - rect.left
+                                        const clickY = e.clientY - rect.top
 
-                                    // Convert to page coordinates
-                                    const pageX = Math.round((clickX - offsetX) / scale)
-                                    const pageY = Math.round((clickY - offsetY) / scale)
+                                        const pageX = Math.round((clickX - offsetX) / scale)
+                                        const pageY = Math.round((clickY - offsetY) / scale)
 
-                                    if (pageX >= 0 && pageY >= 0 && pageX <= imgWidth && pageY <= imgHeight) {
-                                        // Send click or inspect action
-                                        sendWsMessage('click', { x: pageX, y: pageY })
-                                    }
-                                }}
-                            />
+                                        if (pageX >= 0 && pageY >= 0 && pageX <= imgWidth && pageY <= imgHeight) {
+                                            sendWsMessage('click', { x: pageX, y: pageY })
+                                        }
+                                    }}
+                                />
+
+                                {/* Intent Overlays */}
+                                <svg
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{ width: '100%', height: '100%' }}
+                                    viewBox="0 0 1280 720"
+                                    preserveAspectRatio="xMidYMid meet"
+                                >
+                                    {intentOverlays.map((overlay, idx) => {
+                                        const { box, confidence, strategy } = overlay.metadata || {}
+                                        if (!box) return null
+
+                                        return (
+                                            <g key={idx} className="animate-pulse">
+                                                <rect
+                                                    x={box.x}
+                                                    y={box.y}
+                                                    width={box.width}
+                                                    height={box.height}
+                                                    fill="rgba(59, 130, 246, 0.2)"
+                                                    stroke="#3b82f6"
+                                                    strokeWidth="2"
+                                                />
+                                                <text
+                                                    x={box.x}
+                                                    y={box.y - 5}
+                                                    fill="#3b82f6"
+                                                    fontSize="14"
+                                                    fontWeight="bold"
+                                                    className="drop-shadow-sm font-sans"
+                                                >
+                                                    {strategy || overlay.type} ({Math.round((confidence || 0) * 100)}%)
+                                                </text>
+                                            </g>
+                                        )
+                                    })}
+                                </svg>
+
+                                {isManualControl && (
+                                    <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg animate-bounce z-10">
+                                        <Activity className="w-4 h-4" /> MANUAL CONTROL ACTIVE
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center text-gray-400">
@@ -1571,10 +1764,10 @@ export default function LiveBrowserTab({
                                                     {/* Step Number Circle */}
                                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${step.status === 'passed' ? 'bg-green-500 text-white' :
                                                         step.status === 'healed' ? 'bg-orange-500 text-white' :
-                                                        step.status === 'running' ? 'bg-blue-500 text-white' :
-                                                            step.status === 'failed' ? 'bg-red-500 text-white' :
-                                                                step.status === 'skipped' ? 'bg-gray-400 text-white' :
-                                                                'bg-gray-200 text-gray-500'
+                                                            step.status === 'running' ? 'bg-blue-500 text-white' :
+                                                                step.status === 'failed' ? 'bg-red-500 text-white' :
+                                                                    step.status === 'skipped' ? 'bg-gray-400 text-white' :
+                                                                        'bg-gray-200 text-gray-500'
                                                         }`}>
                                                         {step.status === 'passed' ? (
                                                             <CheckCircle2 className="w-4 h-4" />

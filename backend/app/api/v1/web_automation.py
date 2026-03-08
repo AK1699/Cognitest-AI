@@ -50,10 +50,14 @@ class ConnectionManager:
         if execution_id in self.active_connections:
             del self.active_connections[execution_id]
     
-    async def send_message(self, execution_id: str, message: dict):
+    async def send_message(self, execution_id: str, message: dict, binary_data: bytes = None):
         if execution_id in self.active_connections:
             try:
+                # Send JSON metadata first
                 await self.active_connections[execution_id].send_json(message)
+                # Send binary data if present
+                if binary_data:
+                    await self.active_connections[execution_id].send_bytes(binary_data)
             except Exception as e:
                 print(f"Failed to send WebSocket message: {str(e)}")
 
@@ -537,6 +541,11 @@ async def delete_test_flow(
     return None
 
 
+@router.get("/debug/executors")
+async def list_active_executors():
+    """Debug endpoint to list active executors"""
+    return {"executors": list(active_executors.keys())}
+
 # Test Execution
 @router.post("/test-flows/{flow_id}/execute", response_model=ExecutionRunResponse)
 async def execute_test_flow(
@@ -588,11 +597,14 @@ async def execute_test_flow(
             executor = WebAutomationExecutor(session)
             
             # Register WS callback
-            async def ws_forwarder(message):
-                 await manager.send_message(str(run_id), message)
+            async def ws_forwarder(message, binary_data=None):
+                 await manager.send_message(str(run_id), message, binary_data)
             executor.register_ws_callback(ws_forwarder)
             
             try:
+                # Register for manual interaction
+                active_executors[str(run_id)] = executor
+                
                 await executor.execute_test_flow(
                     test_flow_id=flow_id,
                     browser_type=browser_type,
@@ -603,6 +615,10 @@ async def execute_test_flow(
                 )
             except Exception as e:
                 print(f"Background execution failed: {e}")
+            finally:
+                # Unregister
+                if str(run_id) in active_executors:
+                    del active_executors[str(run_id)]
                 
     # Add to background tasks
     background_tasks.add_task(
@@ -704,8 +720,10 @@ class RecordingResponse(BaseModel):
     status: str
 
 # In-memory storage for active recorders
-# dict[session_id, WebAutomationExecutor]
 active_recorders: dict[str, WebAutomationExecutor] = {}
+
+# In-memory storage for active executors (for live interaction)
+active_executors: dict[str, WebAutomationExecutor] = {}
 
 @router.post("/recorder/start", response_model=RecordingResponse)
 async def start_recording(
@@ -1380,12 +1398,24 @@ async def websocket_live_preview(
     
     try:
         while True:
-            # Keep connection alive
+            # Receive message from client
             data = await websocket.receive_text()
             
-            # Handle client messages if needed
-            if data == "ping":
-                await websocket.send_text("pong")
+            # Handle client messages
+            try:
+                msg = json.loads(data)
+                
+                # Handle manual interactions
+                if msg.get("type") in ["click", "type", "press", "scroll", "hover"]:
+                    executor = active_executors.get(execution_id)
+                    if executor:
+                        await executor.handle_manual_interaction(msg)
+                
+                elif data == "ping":
+                    await websocket.send_text("pong")
+            except json.JSONDecodeError:
+                if data == "ping":
+                    await websocket.send_text("pong")
     
     except WebSocketDisconnect:
         manager.disconnect(execution_id)

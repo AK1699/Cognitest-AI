@@ -96,3 +96,7 @@ cyclonedx-python-lib>=5.0.0
 # Report Generation
 reportlab>=4.0.0
 matplotlib>=3.8.0
+
+# WebRTC Streaming (for remote browser)
+aiortc>=1.5.0
+av>=10.0.0

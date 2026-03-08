@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets, api_testing
+from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets, api_testing, webrtc_streaming, docker_management, webrtc_browser
 from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
 
 api_router = APIRouter()
@@ -32,6 +32,15 @@ api_router.include_router(search_by_id.router)
 
 # Web Automation Module
 api_router.include_router(web_automation.router, prefix="/web-automation", tags=["web-automation"])
+
+# WebRTC Streaming (Remote Browser Streaming)
+api_router.include_router(webrtc_streaming.router, tags=["webrtc"])
+
+# WebRTC Browser Integration (Combined streaming + interaction)
+api_router.include_router(webrtc_browser.router, tags=["webrtc-browser"])
+
+# Docker Management (Container Orchestration)
+api_router.include_router(docker_management.router, tags=["docker"])
 
 # Artifacts
 api_router.include_router(artifacts.router, prefix="/projects", tags=["artifacts"])

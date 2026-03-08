@@ -1,0 +1,102 @@
+groups:
+  - name: cognitest_alerts
+    interval: 30s
+    rules:
+      # High interaction failure rate
+      - alert: HighInteractionFailureRate
+        expr: |
+          (rate(webrtc_interaction_failures_total[5m]) / (rate(webrtc_interactions_total[5m]) + 1)) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High interaction failure rate (>10%)"
+          description: "Interaction failure rate is {{ $value | humanizePercentage }}"
+
+      # High latency
+      - alert: HighInteractionLatency
+        expr: |
+          histogram_quantile(0.95, webrtc_interaction_latency_ms) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High interaction latency (P95 > 100ms)"
+          description: "P95 interaction latency is {{ $value | humanize }}ms"
+
+      # WebSocket connection failures
+      - alert: WebSocketConnectionFailures
+        expr: |
+          rate(webrtc_websocket_errors_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WebSocket connection failures (>0.5/sec)"
+          description: "WebSocket error rate is {{ $value | humanize }} errors/sec"
+
+      # Container creation failures
+      - alert: ContainerCreationFailures
+        expr: |
+          rate(docker_container_failures_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Docker container creation failures (>0.2/sec)"
+          description: "Container failure rate is {{ $value | humanize }} failures/sec"
+
+      # Low active sessions
+      - alert: NoActiveSessions
+        expr: |
+          webrtc_active_sessions == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No active WebRTC sessions"
+          description: "No streaming sessions are currently active"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          process_memory_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage (>80%)"
+          description: "Memory usage is {{ $value | humanize }}%"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          process_cpu_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage (>80%)"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      # Screenshot capture failures
+      - alert: ScreenshotCaptureFailures
+        expr: |
+          rate(webrtc_websocket_errors_total{error_type="screenshot_failure"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Screenshot capture failures detected"
+          description: "Error rate is {{ $value | humanize }} errors/sec"
+
+      # Test step failures
+      - alert: HighTestFailureRate
+        expr: |
+          (rate(test_steps_failed_total[5m]) / (rate(test_steps_executed_total[5m]) + 1)) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High test failure rate (>20%)"
+          description: "Test failure rate is {{ $value | humanizePercentage }}"

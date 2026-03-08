@@ -7,6 +7,7 @@ import json
 import logging
 import time
 import re
+import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -66,7 +67,19 @@ class SelfHealingLocator:
         self.alternatives = alternatives or []
         self.ai_service = ai_service
         self.confidence_threshold = confidence_threshold
+        self.emit_callback = None # Callback for live intent overlays
         self.healing_history = []
+    
+    def set_emit_callback(self, callback):
+        self.emit_callback = callback
+
+    async def _emit_intent(self, type: str, metadata: Dict[str, Any]):
+        if self.emit_callback:
+            await self.emit_callback("intentOverlay", {
+                "type": type,
+                "metadata": metadata,
+                "timestamp": datetime.utcnow().isoformat()
+            })
     
     async def find_element(self, page: Page, step_id: str, step_type: str) -> tuple[Any, Optional[Dict[str, Any]]]:
         """
@@ -90,6 +103,16 @@ class SelfHealingLocator:
         try:
             locator = page.locator(self.primary_selector)
             await locator.wait_for(timeout=5000, state="visible")
+            
+            # Capture bounding box for overlay
+            box = await locator.bounding_box()
+            if box:
+                await self._emit_intent("primary_match", {
+                    "selector": self.primary_selector,
+                    "box": box,
+                    "confidence": 1.0
+                })
+
             logger.info(f"✅ Strategy 1 (Primary) PASSED — selector worked directly")
             return locator, None
         except PlaywrightError as e:
@@ -105,6 +128,15 @@ class SelfHealingLocator:
                 logger.debug(f"   Trying alt[{idx}]: {alt_value}")
                 locator = page.locator(alt_value)
                 await locator.wait_for(timeout=3000, state="visible")
+                
+                # Capture bounding box for overlay
+                box = await locator.bounding_box()
+                if box:
+                    await self._emit_intent("alternative_match", {
+                        "selector": alt_value,
+                        "box": box,
+                        "confidence": alt.get("success_rate", 0.7) if isinstance(alt, dict) else 0.7
+                    })
                 
                 logger.info(f"✅ Strategy 2 (Alternative) HEALED with alt[{idx}]: {alt_value}")
                 healing_info = {
@@ -247,22 +279,31 @@ class SelfHealingLocator:
         ]
 
         for variant in selector_variants:
-            for strategy, locator_fn in semantic_candidates:
+            for label, loc_fn in semantic_candidates:
                 try:
-                    locator = locator_fn(variant)
-                    await locator.first.wait_for(timeout=3000, state="visible")
-                    healing_info = {
-                        "type": HealingType.LOCATOR.value,
-                        "strategy": HealingStrategy.CONTEXT.value,
-                        "original": selector,
-                        "healed": f"{strategy}:{variant}",
-                        "confidence_score": 0.75,
-                        "alternatives_tried": [],
-                        "healing_duration_ms": int((time.perf_counter() - heal_start) * 1000),
-                        "success": True
-                    }
-                    return locator.first, healing_info
-                except PlaywrightError:
+                    loc = loc_fn(variant)
+                    if await loc.count() > 0:
+                        await loc.first.wait_for(timeout=2000, state="visible")
+                        
+                        # Capture bounding box for overlay
+                        box = await loc.first.bounding_box()
+                        if box:
+                            await self._emit_intent("heuristic_match", {
+                                "strategy": f"semantic_{label}",
+                                "variant": variant,
+                                "box": box,
+                                "confidence": 0.6
+                            })
+
+                        return loc.first, {
+                            "type": HealingType.LOCATOR.value,
+                            "strategy": HealingStrategy.HEURISTIC.value,
+                            "original": self.primary_selector,
+                            "healed": f"semantic[{label}]: {variant}",
+                            "confidence_score": 0.6,
+                            "success": True
+                        }
+                except Exception:
                     continue
 
         candidates: list[str] = []
@@ -886,6 +927,9 @@ class WebAutomationExecutor:
         self.execution_run: Optional[ExecutionRun] = None
         self.variables: Dict[str, str] = {}
         self.ws_callbacks = []  # WebSocket callbacks for live updates
+        self.cdp_session = None # CDP session for advanced features
+        self.is_paused = False  # Manual override pause
+        self.interaction_lock = asyncio.Lock()
     
     def register_ws_callback(self, callback):
         """Register callback for live updates"""
@@ -969,18 +1013,23 @@ class WebAutomationExecutor:
         # Updated regex to support dot notation in variable names
         return re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_.]*)\}', replace, text)
 
-    async def emit_live_update(self, update_type: str, payload: Dict[str, Any]):
+    async def emit_live_update(self, update_type: str, payload: Dict[str, Any], binary_data: Optional[bytes] = None):
         """Emit live update to all registered callbacks"""
         message = {
             "type": update_type,
             "execution_run_id": str(self.execution_run.id) if self.execution_run else None,
             "payload": payload,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "has_binary": binary_data is not None
         }
         
         for callback in self.ws_callbacks:
             try:
-                await callback(message)
+                # If callback supports binary, send both
+                if binary_data:
+                    await callback(message, binary_data)
+                else:
+                    await callback(message)
             except Exception as e:
                 print(f"WebSocket callback error: {str(e)}")
     
@@ -1232,17 +1281,23 @@ class WebAutomationExecutor:
         
         print(f"DEBUG: Launching browser with options: {launch_options} (Mode: {execution_mode})")
         
-        # Select browser
-        if browser_type == BrowserType.CHROME:
-            self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_options)
-        elif browser_type == BrowserType.FIREFOX:
-            self.browser = await self.playwright.firefox.launch(**launch_options)
-        elif browser_type == BrowserType.SAFARI:
-            self.browser = await self.playwright.webkit.launch(**launch_options)
-        elif browser_type == BrowserType.EDGE:
-            self.browser = await self.playwright.chromium.launch(channel="msedge", **launch_options)
+        remote_url = os.environ.get("REMOTE_BROWSER_URL")
+        
+        # Select browser or connect to remote
+        if remote_url:
+            print(f"DEBUG: Connecting to remote browser at: {remote_url}")
+            self.browser = await self.playwright.chromium.connect_over_cdp(remote_url)
         else:
-            self.browser = await self.playwright.chromium.launch(**launch_options)
+            if browser_type == BrowserType.CHROME:
+                self.browser = await self.playwright.chromium.launch(channel="chrome", **launch_options)
+            elif browser_type == BrowserType.FIREFOX:
+                self.browser = await self.playwright.firefox.launch(**launch_options)
+            elif browser_type == BrowserType.SAFARI:
+                self.browser = await self.playwright.webkit.launch(**launch_options)
+            elif browser_type == BrowserType.EDGE:
+                self.browser = await self.playwright.chromium.launch(channel="msedge", **launch_options)
+            else:
+                self.browser = await self.playwright.chromium.launch(**launch_options)
         
         # Create context
         context_options = {
@@ -1263,14 +1318,23 @@ class WebAutomationExecutor:
             self.emit_live_update("console", {"level": msg.type, "text": msg.text})
         ))
 
-        # Start screenshot loop
-        self.screenshot_task = asyncio.create_task(self._screenshot_loop())
+        # Start screenshot mode (CDP for Chromium, Loop for others)
+        if browser_type in [BrowserType.CHROME, BrowserType.EDGE] and hasattr(self.page.context, 'new_cdp_session'):
+             self.screenshot_task = asyncio.create_task(self._start_cdp_screencast())
+        else:
+             self.screenshot_task = asyncio.create_task(self._screenshot_loop())
     
     async def teardown_browser(self):
         """
         Cleanup browser resources
         """
-        # Cancel screenshot task
+        if self.cdp_session:
+            try:
+                await self.cdp_session.detach()
+            except:
+                pass
+            self.cdp_session = None
+
         if hasattr(self, 'screenshot_task') and self.screenshot_task:
             self.screenshot_task.cancel()
             try:
@@ -1283,6 +1347,54 @@ class WebAutomationExecutor:
             await self.context.close()
         if self.browser:
             await self.browser.close()
+
+    async def _start_cdp_screencast(self):
+        """
+        Start CDP screencasting for high-performance live streaming
+        """
+        import base64
+        try:
+            self.cdp_session = await self.page.context.new_cdp_session(self.page)
+            
+            async def on_frame(payload):
+                try:
+                    # payload contains data (base64) and metadata
+                    frame_data = payload.get("data")
+                    if frame_data:
+                        # Decode base64 to bytes for binary streaming
+                        raw_bytes = base64.b64decode(frame_data)
+                        await self.emit_live_update("screenshot", {
+                            "url": self.page.url,
+                            "is_cdp": True,
+                            "binary": True
+                        }, binary_data=raw_bytes)
+                    
+                    # Acknowledge the frame
+                    await self.cdp_session.send("Page.screencastFrameAck", {
+                        "sessionId": payload.get("sessionId")
+                    })
+                except Exception as e:
+                    logger.debug(f"CDP frame processing error: {e}")
+
+            self.cdp_session.on("Page.screencastFrame", on_frame)
+            
+            # Start screencast
+            await self.cdp_session.send("Page.startScreencast", {
+                "format": "jpeg",
+                "quality": 70,
+                "maxWidth": 1280,
+                "maxHeight": 720,
+                "everyNthFrame": 1
+            })
+            
+            # Keep task alive
+            while self.page and not self.page.is_closed():
+                await asyncio.sleep(1)
+                
+        except Exception as e:
+            logger.error(f"Failed to start CDP screencast: {e}")
+            # Fallback to normal loop
+            await self._screenshot_loop()
 
     async def _screenshot_loop(self):
         """
@@ -1312,11 +1424,64 @@ class WebAutomationExecutor:
             except Exception as e:
                 # print(f"Executor screenshot failed: {e}")
                 await asyncio.sleep(0.5)
+
+    async def handle_manual_interaction(self, event: Dict[str, Any]):
+        """
+        Handle manual interaction events from the frontend
+        """
+        if not self.page or self.page.is_closed():
+            return
+
+        event_type = event.get("type")
+        payload = event.get("payload", {})
+        
+        async with self.interaction_lock:
+            try:
+                if event_type == "click":
+                    x, y = payload.get("x"), payload.get("y")
+                    if x is not None and y is not None:
+                        await self.page.mouse.click(x, y)
+                
+                elif event_type == "type":
+                    text = payload.get("text")
+                    if text:
+                        await self.page.keyboard.type(text)
+                
+                elif event_type == "press":
+                    key = payload.get("key")
+                    if key:
+                        await self.page.keyboard.press(key)
+                
+                elif event_type == "hover":
+                    x, y = payload.get("x"), payload.get("y")
+                    if x is not None and y is not None:
+                        await self.page.mouse.move(x, y)
+                
+                elif event_type == "scroll":
+                    delta_x = payload.get("deltaX", 0)
+                    delta_y = payload.get("deltaY", 0)
+                    await self.page.mouse.wheel(delta_x, delta_y)
+
+                elif event_type == "pause":
+                    self.is_paused = True
+                    await self.emit_live_update("status", {"state": "paused"})
+                
+                elif event_type == "resume":
+                    self.is_paused = False
+                    await self.emit_live_update("status", {"state": "running"})
+
+            except Exception as e:
+                logger.error(f"Manual interaction error: {e}")
     
     async def execute_step(self, node: Dict[str, Any], step_order: int, test_flow: TestFlow):
         """
         Execute a single test step
         """
+        # Wait if paused
+        while self.is_paused:
+            await asyncio.sleep(0.5)
+            if self.page.is_closed():
+                break
         step_id = node.get("id")
         step_data = node.get("data", {})
         step_type = step_data.get("actionType", "unknown")
@@ -2659,6 +2824,7 @@ class WebAutomationExecutor:
         
         if test_flow.healing_enabled:
             healer = SelfHealingLocator(primary, alternatives, self.ai_service)
+            healer.set_emit_callback(self.emit_live_update)
             locator, healing_info = await healer.find_element(self.page, step_id or "", step_type)
             
             # Record healing event if healing occurred

@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # TURN/STUN Server - Handles NAT traversal for WebRTC
+  coturn:
+    image: coturn/coturn:latest
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+    volumes:
+      - ./docker/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    environment:
+      - ENABLE_MSTUN=1
+    networks:
+      - webrtc-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3478/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Browser Streaming Container (example instance)
+  # In production, these will be spawned dynamically
+  browser-stream-1:
+    build:
+      context: .
+      dockerfile: docker/browser-streaming/Dockerfile
+    environment:
+      - DISPLAY=:99
+      - XVFB_DISPLAY_WIDTH=1280
+      - XVFB_DISPLAY_HEIGHT=720
+      - XVFB_DISPLAY_DEPTH=24
+      - ENABLE_FFMPEG=true
+      - ENABLE_VNC=false
+    ports:
+      - "7900:7900"  # VNC fallback
+      - "9001:9001"  # Supervisor control
+    volumes:
+      - /tmp/ffmpeg:/tmp/ffmpeg
+    networks:
+      - webrtc-network
+    healthcheck:
+      test: ["CMD", "xdpyinfo", "-display", ":99"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - coturn
+
+  # Backend Service (for testing WebRTC signaling)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/cognitest
+      - REDIS_URL=redis://redis:6379
+      - WEBRTC_ENABLED=true
+      - STUN_SERVERS=stun:3478
+      - TURN_SERVERS=coturn:3478
+      - TURN_USERNAME=cognitest
+      - TURN_PASSWORD=cognitest123
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - webrtc-network
+    depends_on:
+      - postgres
+      - redis
+      - coturn
+
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=cognitest
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - webrtc-network
+
+  # Cache
+  redis:
+    image: redis:7-alpine
+    networks:
+      - webrtc-network
+
+networks:
+  webrtc-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

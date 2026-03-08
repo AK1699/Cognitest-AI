@@ -5,12 +5,9 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  RefreshCw,
-  Play,
-  Pause,
-  Square,
   Maximize2,
   Minimize2,
+  MousePointer2,
 } from 'lucide-react'
 
 interface LiveBrowserPreviewProps {
@@ -28,6 +25,7 @@ interface LiveUpdate {
   step_id?: string
   payload: any
   timestamp: string
+  has_binary?: boolean
 }
 
 export default function LiveBrowserPreview({
@@ -40,11 +38,13 @@ export default function LiveBrowserPreview({
 }: LiveBrowserPreviewProps) {
   const [screenshot, setScreenshot] = useState<string | null>(null)
   const [currentUrl, setCurrentUrl] = useState<string>('')
-  const [currentStep, setCurrentStep] = useState<string>('')
-  const [consoleLogs, setConsoleLogs] = useState<any[]>([])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected')
+  const [isManualControl, setIsManualControl] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
+
 
   useEffect(() => {
     if (executionRunId && isRunning) {
@@ -60,7 +60,7 @@ export default function LiveBrowserPreview({
 
   const connectWebSocket = (runId: string) => {
     setConnectionStatus('connecting')
-    
+
     const wsUrl = `ws://localhost:8000/api/v1/web-automation/ws/live-preview/${runId}`
     const ws = new WebSocket(wsUrl)
 
@@ -69,9 +69,22 @@ export default function LiveBrowserPreview({
       setConnectionStatus('connected')
     }
 
-    ws.onmessage = (event) => {
-      const update: LiveUpdate = JSON.parse(event.data)
-      handleLiveUpdate(update)
+    ws.onmessage = async (event) => {
+      if (typeof event.data === 'string') {
+        const update: LiveUpdate = JSON.parse(event.data)
+        handleLiveUpdate(update)
+      } else {
+        // Binary blob/arraybuffer
+        const blob = new Blob([event.data], { type: 'image/jpeg' })
+        const url = URL.createObjectURL(blob)
+
+        setScreenshot((prev) => {
+          if (prev && prev.startsWith('blob:')) {
+            URL.revokeObjectURL(prev)
+          }
+          return url
+        })
+      }
     }
 
     ws.onerror = (error) => {
@@ -90,153 +103,119 @@ export default function LiveBrowserPreview({
   const handleLiveUpdate = (update: LiveUpdate) => {
     switch (update.type) {
       case 'screenUpdate':
-        setScreenshot(update.payload.screenshot)
+        if (update.payload.screenshot) {
+          setScreenshot(update.payload.screenshot)
+        }
         setCurrentUrl(update.payload.url)
         break
-      
-      case 'stepStarted':
-        setCurrentStep(`▶ ${update.payload.step_name}`)
+
+      case 'status':
+        if (update.payload.state === 'paused') {
+          setIsManualControl(true)
+        } else if (update.payload.state === 'running') {
+          setIsManualControl(false)
+        }
         break
-      
-      case 'stepCompleted':
-        setCurrentStep(`✓ ${update.payload.step_id}`)
-        break
-      
-      case 'stepFailed':
-        setCurrentStep(`✗ Failed: ${update.payload.error}`)
-        break
-      
-      case 'console':
-        setConsoleLogs((prev) => [
-          ...prev,
-          {
-            level: update.payload.level,
-            text: update.payload.text,
-            timestamp: update.timestamp,
-          },
-        ])
-        break
-      
-      case 'executionCompleted':
-        setCurrentStep('✓ Execution completed')
-        break
-      
-      case 'executionFailed':
-        setCurrentStep(`✗ Execution failed: ${update.payload.error}`)
-        break
+    }
+  }
+
+  const sendInteraction = (type: string, payload: any) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type, payload }))
+    }
+  }
+
+  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (!isManualControl || !imgRef.current) return
+
+    const rect = imgRef.current.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 1280 // Map to backend width
+    const y = ((e.clientY - rect.top) / rect.height) * 720  // Map to backend height
+
+    sendInteraction('click', { x, y })
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isManualControl) return
+    e.preventDefault()
+
+    if (e.key.length === 1) {
+      sendInteraction('type', { text: e.key })
+    } else {
+      sendInteraction('press', { key: e.key })
+    }
+  }
+
+  const toggleManualControl = () => {
+    const newState = !isManualControl
+    sendInteraction(newState ? 'pause' : 'resume', {})
+  }
+
+  const getHostname = (url: string) => {
+    try {
+      return new URL(url).hostname
+    } catch (e) {
+      return url || 'New Tab'
     }
   }
 
   return (
     <Card className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
-      {/* Header with Controls */}
-      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
-        <div className="flex items-center gap-2">
-          <Badge variant={connectionStatus === 'connected' ? 'default' : 'secondary'}>
-            {connectionStatus === 'connected' ? '🟢 Live' : '🔴 Offline'}
+      {/* Simple Control Bar */}
+      <div className="bg-white p-2 border-b flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={connectionStatus === 'connected' ? 'default' : 'secondary'}
+            className={connectionStatus === 'connected' ? 'bg-green-500' : 'bg-gray-300'}
+          >
+            {connectionStatus === 'connected' ? '● Live' : '● Offline'}
           </Badge>
-          <span className="text-sm text-gray-600 truncate max-w-md">
-            {currentUrl || 'No URL loaded'}
-          </span>
+          <span className="text-xs text-gray-500">{currentUrl || 'about:blank'}</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          {onPlay && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onPlay}
-              disabled={isRunning}
-            >
-              <Play className="w-4 h-4" />
-            </Button>
-          )}
-          
-          {onPause && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onPause}
-              disabled={!isRunning}
-            >
-              <Pause className="w-4 h-4" />
-            </Button>
-          )}
-          
-          {onStop && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onStop}
-              disabled={!isRunning}
-            >
-              <Square className="w-4 h-4" />
-            </Button>
-          )}
-          
-          {onRefresh && (
-            <Button size="sm" variant="outline" onClick={onRefresh}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-          )}
-          
           <Button
             size="sm"
-            variant="outline"
+            variant={isManualControl ? 'destructive' : 'default'}
+            onClick={toggleManualControl}
+          >
+            {isManualControl ? 'Resume AI' : 'Manual Control'}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
             onClick={() => setIsFullscreen(!isFullscreen)}
           >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </Button>
         </div>
       </div>
 
       {/* Browser Viewport */}
-      <div className="flex-1 bg-white p-4 overflow-auto">
+      <div
+        ref={containerRef}
+        className="flex-1 bg-gray-900 overflow-hidden flex items-center justify-center"
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+      >
         {screenshot ? (
-          <img
-            src={screenshot}
-            alt="Live browser screenshot"
-            className="w-full h-auto border rounded shadow-lg"
-          />
+          <div className="relative overflow-hidden">
+            <img
+              ref={imgRef}
+              src={screenshot}
+              alt="Live browser screenshot"
+              className={`block max-w-full max-h-full ${isManualControl ? 'cursor-crosshair' : ''}`}
+              onClick={handleImageClick}
+            />
+          </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <div className="text-center">
-              <p className="text-lg mb-2">No live preview available</p>
-              <p className="text-sm">Start execution to see live browser updates</p>
-            </div>
+          <div className="text-center text-gray-400">
+            <p>No preview available</p>
           </div>
         )}
       </div>
-
-      {/* Status Bar */}
-      {currentStep && (
-        <div className="p-3 border-t bg-blue-50">
-          <p className="text-sm font-medium">{currentStep}</p>
-        </div>
-      )}
-
-      {/* Console Logs */}
-      {consoleLogs.length > 0 && (
-        <div className="border-t bg-gray-900 text-white p-3 max-h-40 overflow-y-auto">
-          <p className="text-xs font-bold mb-2">Console Logs:</p>
-          {consoleLogs.slice(-10).map((log, idx) => (
-            <div key={idx} className="text-xs mb-1">
-              <span className={`mr-2 ${
-                log.level === 'error' ? 'text-red-400' :
-                log.level === 'warning' ? 'text-yellow-400' :
-                'text-gray-400'
-              }`}>
-                [{log.level}]
-              </span>
-              <span>{log.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </Card>
   )
 }

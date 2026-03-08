@@ -9,6 +9,10 @@ from app.core.cache import close_redis, get_redis_client
 from app.core.database import AsyncSessionLocal
 from app.models.role import Permission
 from app.api.v1 import api_router
+from app.services.webrtc_session_manager import webrtc_manager
+from app.services.docker_manager import docker_manager
+from app.services.webrtc_browser_integration import webrtc_browser_integration
+from app.core.webrtc_config import webrtc_config
 
 # Rate limiting (optional - graceful fallback if Redis unavailable)
 try:
@@ -109,10 +113,55 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️  Permission initialization failed: {e}")
 
+    # Initialize WebRTC Session Manager
+    if webrtc_config.WEBRTC_ENABLED:
+        try:
+            await webrtc_manager.start()
+            print("✅ WebRTC Session Manager started")
+        except Exception as e:
+            print(f"⚠️  WebRTC Session Manager startup failed: {e}")
+
+    # Initialize Docker Manager
+    try:
+        await docker_manager.start()
+        print("✅ Docker Manager started")
+    except Exception as e:
+        print(f"⚠️  Docker Manager startup failed: {e}")
+
+    # Initialize WebRTC Browser Integration
+    try:
+        await webrtc_browser_integration.start()
+        print("✅ WebRTC Browser Integration started")
+    except Exception as e:
+        print(f"⚠️  WebRTC Browser Integration startup failed: {e}")
+
     yield
 
     # Shutdown
     print("👋 Shutting down Cognitest Backend...")
+
+    # Stop WebRTC Browser Integration
+    try:
+        await webrtc_browser_integration.stop()
+        print("✅ WebRTC Browser Integration stopped")
+    except Exception as e:
+        print(f"⚠️  WebRTC Browser Integration shutdown failed: {e}")
+
+    # Stop Docker Manager
+    try:
+        await docker_manager.stop()
+        print("✅ Docker Manager stopped")
+    except Exception as e:
+        print(f"⚠️  Docker Manager shutdown failed: {e}")
+
+    # Stop WebRTC Session Manager
+    if webrtc_config.WEBRTC_ENABLED:
+        try:
+            await webrtc_manager.stop()
+            print("✅ WebRTC Session Manager stopped")
+        except Exception as e:
+            print(f"⚠️  WebRTC Session Manager shutdown failed: {e}")
+
     # Close Redis connection
     await close_redis()
     print("✅ Redis connection closed")
