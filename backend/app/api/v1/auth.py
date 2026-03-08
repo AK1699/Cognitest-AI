@@ -447,99 +447,131 @@ async def get_current_user_info(
     try:
         print("🔍 [ME] Auth check started")
         # Try to get token from cookie first
-        token = request.cookies.get("access_token")
-        
+        token = None
+        try:
+            token = request.cookies.get("access_token")
+        except Exception as e:
+            print(f"⚠️ [ME] Error getting cookie: {str(e)}")
+            token = None
+
         # Fall back to Authorization header
         if not token:
             print("🔍 [ME] No cookie, checking Header")
-            auth_header = request.headers.get("Authorization")
-            if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.split(" ")[1]
-        
+            try:
+                auth_header = request.headers.get("Authorization")
+                if auth_header and auth_header.startswith("Bearer "):
+                    token = auth_header.split(" ")[1]
+            except Exception as e:
+                print(f"⚠️ [ME] Error getting auth header: {str(e)}")
+                token = None
+
         if not token:
-            print("🔍 [ME] No token found")
-            return JSONResponse(
+            print("🔍 [ME] No token found - user not authenticated")
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Not authenticated"}
+                detail="Not authenticated"
             )
 
         from app.core.security import decode_token
-        payload = decode_token(token)
-        
-        if not payload:
-            print("🔍 [ME] Token decoding failed")
-            return JSONResponse(
+        try:
+            payload = decode_token(token)
+        except Exception as e:
+            print(f"❌ [ME] Token decoding failed: {str(e)}")
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid token"}
+                detail="Invalid token"
+            )
+
+        if not payload:
+            print("🔍 [ME] Token payload is empty")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
             )
 
         user_id = payload.get("sub")
         if not user_id:
             print("🔍 [ME] No sub in payload")
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid token payload"}
+                detail="Invalid token payload"
             )
 
         print(f"🔍 [ME] Looking up user_id: {user_id}")
         from uuid import UUID
-        user_uuid = None
         try:
             user_uuid = UUID(user_id)
-        except Exception as e:
+        except (ValueError, AttributeError, TypeError) as e:
             print(f"❌ [ME] Invalid UUID format: {user_id} - {str(e)}")
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid user ID"}
+                detail="Invalid user ID format"
             )
 
-        result = await db.execute(select(User).where(User.id == user_uuid))
-        user = result.scalar_one_or_none()
+        try:
+            result = await db.execute(select(User).where(User.id == user_uuid))
+            user = result.scalar_one_or_none()
+        except Exception as e:
+            print(f"❌ [ME] Database error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error while fetching user"
+            )
 
         if not user:
             print(f"🔍 [ME] User not found: {user_id}")
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "User not found"}
+                detail="User not found"
             )
 
         print(f"✅ [ME] Found user: {user.email}")
-        
+
         # Create response dict carefully
-        response_data = {
-            "id": str(user.id),
-            "email": user.email,
-            "username": user.username,
-            "full_name": getattr(user, "full_name", None),
-            "is_active": getattr(user, "is_active", True),
-            "is_superuser": getattr(user, "is_superuser", False),
-        }
-        
-        # Add dates safely
-        if hasattr(user, "created_at") and user.created_at:
-            try:
-                response_data["created_at"] = user.created_at.isoformat()
-            except:
-                response_data["created_at"] = str(user.created_at)
-        
-        # Avatar URL handling
-        if hasattr(user, "avatar_url"):
-            response_data["avatar_url"] = user.avatar_url
-        elif hasattr(user, "picture_url"): # Just in case it's on User
-            response_data["avatar_url"] = user.picture_url
-        else:
-            response_data["avatar_url"] = None
+        try:
+            response_data = {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "full_name": getattr(user, "full_name", None),
+                "is_active": getattr(user, "is_active", True),
+                "is_superuser": getattr(user, "is_superuser", False),
+            }
 
-        print(f"✅ [ME] Returning user data for {user.email}")
-        return response_data
+            # Add dates safely
+            if hasattr(user, "created_at") and user.created_at:
+                try:
+                    response_data["created_at"] = user.created_at.isoformat()
+                except Exception:
+                    response_data["created_at"] = str(user.created_at)
 
+            # Avatar URL handling
+            if hasattr(user, "avatar_url") and user.avatar_url:
+                response_data["avatar_url"] = user.avatar_url
+            elif hasattr(user, "picture_url") and user.picture_url:
+                response_data["avatar_url"] = user.picture_url
+            else:
+                response_data["avatar_url"] = None
+
+            print(f"✅ [ME] Returning user data for {user.email}")
+            return response_data
+        except Exception as e:
+            print(f"❌ [ME] Error building response: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error preparing user response"
+            )
+
+    except HTTPException:
+        # Re-raise HTTPException so FastAPI handles it properly
+        raise
     except Exception as e:
         import traceback
-        print(f"❌ [ME] CRITICAL ERROR: {str(e)}")
+        print(f"❌ [ME] UNEXPECTED ERROR: {str(e)}")
         print(traceback.format_exc())
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": f"Internal server error: {str(e)}"}
+            detail="Internal server error"
         )
 
 @router.put("/me", response_model=UserResponse)
