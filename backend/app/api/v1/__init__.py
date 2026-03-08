@@ -1,74 +1,13 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, projects, test_plans, test_suites, test_cases, approvals, groups, roles, invitations, group_types, issues, integrations, documents, automation, users, web_automation, mfa, subscription, org_roles, artifacts, snippets, api_testing, webrtc_streaming, docker_management, webrtc_browser
-from app.api.v1.endpoints import organisation_memory, test_plans_multimodal, search_by_id
+# Keep only core modules that are required for basic functionality
+from app.api.v1 import auth, organisations, users
 
 api_router = APIRouter()
 
-# Include all sub-routers
+# Core routers - required for basic functionality
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
-api_router.include_router(mfa.router, prefix="/mfa", tags=["mfa"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
-api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
-api_router.include_router(test_plans.router, prefix="/test-plans", tags=["test-plans"])
-api_router.include_router(test_suites.router, prefix="/test-suites", tags=["test-suites"])
-api_router.include_router(test_cases.router, prefix="/test-cases", tags=["test-cases"])
-api_router.include_router(issues.router, prefix="/issues", tags=["issues"])
-api_router.include_router(integrations.router, prefix="/integrations", tags=["integrations"])
-api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
-api_router.include_router(automation.router, prefix="/automation", tags=["automation"])
-api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
-api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
-api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
-api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])
-api_router.include_router(group_types.router, prefix="/group-types", tags=["group-types"])
-api_router.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
-api_router.include_router(org_roles.router, prefix="/organisations", tags=["org-roles"])
 
-# New endpoints for multimodal test plan generation
-api_router.include_router(organisation_memory.router, tags=["organisation-memory"])
-api_router.include_router(test_plans_multimodal.router, tags=["test-plans-multimodal"])
-api_router.include_router(search_by_id.router)
-
-# Web Automation Module
-api_router.include_router(web_automation.router, prefix="/web-automation", tags=["web-automation"])
-
-# WebRTC Streaming (Remote Browser Streaming)
-api_router.include_router(webrtc_streaming.router, tags=["webrtc"])
-
-# WebRTC Browser Integration (Combined streaming + interaction)
-api_router.include_router(webrtc_browser.router, tags=["webrtc-browser"])
-
-# Docker Management (Container Orchestration)
-api_router.include_router(docker_management.router, tags=["docker"])
-
-# Artifacts
-api_router.include_router(artifacts.router, prefix="/projects", tags=["artifacts"])
-
-# Snippets - Reusable parameterized test steps
-api_router.include_router(snippets.router, prefix="/snippets", tags=["snippets"])
-
-# Workflow Automation Module - n8n-style visual workflow builder
-from app.api.v1 import workflow, webhooks
-api_router.include_router(workflow.router, prefix="/workflows", tags=["workflows"])
-api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
-
-# Security Testing Module - Enterprise security scanning and compliance
-from app.api.v1 import security
-api_router.include_router(security.router, prefix="/security", tags=["security"])
-
-# Security Advanced Module - SAST, SCA, IAST, RASP, SBOM, Policy, CI/CD
-from app.api.v1 import security_advanced
-api_router.include_router(security_advanced.router, tags=["security-advanced"])
-
-# Performance Testing Module - Load testing, Lighthouse, k6, BlazeMeter competitor
-from app.api.v1 import performance
-api_router.include_router(performance.router, prefix="/performance", tags=["performance-testing"])
-
-# API Testing Proxy
-api_router.include_router(api_testing.router, prefix="/api-testing", tags=["api-testing"])
-
-# API Testing File Upload
-from app.api.v1 import api_file_upload
-api_router.include_router(api_file_upload.router, prefix="/api-testing", tags=["api-testing-files"])
-
+# All other modules have been temporarily disabled due to unmet dependencies
+# They will be re-enabled after resolving dependency issues

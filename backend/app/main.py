@@ -9,10 +9,27 @@ from app.core.cache import close_redis, get_redis_client
 from app.core.database import AsyncSessionLocal
 from app.models.role import Permission
 from app.api.v1 import api_router
-from app.services.webrtc_session_manager import webrtc_manager
-from app.services.docker_manager import docker_manager
-from app.services.webrtc_browser_integration import webrtc_browser_integration
-from app.core.webrtc_config import webrtc_config
+# Temporarily disabled due to missing dependencies
+# from app.services.webrtc_session_manager import webrtc_manager
+# from app.services.docker_manager import docker_manager
+# from app.services.webrtc_browser_integration import webrtc_browser_integration
+# from app.core.webrtc_config import webrtc_config
+
+# Placeholder objects for disabled services
+class DisabledService:
+    async def start(self):
+        pass
+    async def stop(self):
+        pass
+
+webrtc_manager = DisabledService()
+docker_manager = DisabledService()
+webrtc_browser_integration = DisabledService()
+
+class DisabledConfig:
+    WEBRTC_ENABLED = False
+
+webrtc_config = DisabledConfig()
 
 # Rate limiting (optional - graceful fallback if Redis unavailable)
 try:
