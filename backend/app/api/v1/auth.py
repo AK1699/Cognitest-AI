@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from typing import Optional
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from datetime import timedelta
+import uuid as uuid_lib
 
 from app.core.deps import get_db, get_current_user, get_current_active_user
 from app.core.security import (
@@ -151,6 +152,44 @@ async def signup(user_data: UserCreate, response: Response, db: AsyncSession = D
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
+
+    # Automatically create a default organization for the new user
+    try:
+        from app.models.organisation import Organisation
+
+        default_org = Organisation(
+            name=f"{new_user.username}'s Workspace",
+            owner_id=new_user.id,
+            website=None,
+            description=f"Default workspace for {new_user.email}"
+        )
+        db.add(default_org)
+        await db.flush()
+
+        # Add user to user_organisations table as owner
+        await db.execute(
+            text("""
+                INSERT INTO user_organisations
+                (id, organisation_id, user_id, role_id, added_by, is_active, created_at, updated_at)
+                VALUES (:id, :org_id, :user_id, NULL, :added_by, TRUE, NOW(), NOW())
+            """),
+            {
+                "id": str(uuid_lib.uuid4()),
+                "org_id": str(default_org.id),
+                "user_id": str(new_user.id),
+                "added_by": str(new_user.id),
+            }
+        )
+
+        await db.commit()
+        print(f"✅ Created default organization for user {new_user.email}")
+    except Exception as e:
+        print(f"⚠️ Failed to create default organization: {e}")
+        # Don't fail signup if org creation fails
+        try:
+            await db.rollback()
+        except:
+            pass
 
     # Create tokens
     access_token = create_access_token(data={"sub": str(new_user.id), "email": new_user.email})
