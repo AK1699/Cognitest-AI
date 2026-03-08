@@ -177,10 +177,15 @@ export function WebRTCVideoPlayer({
         {/* Error State */}
         {error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
-            <div className="text-center max-w-sm">
+            <div className="text-center max-w-md">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
               <p className="text-white font-medium">Connection Error</p>
-              <p className="text-gray-400 text-sm mt-2">{error}</p>
+              <p className="text-gray-400 text-xs mt-2 font-mono break-words whitespace-pre-wrap">
+                {error}
+              </p>
+              <p className="text-gray-500 text-xs mt-3">
+                Check browser console (F12) for detailed logs
+              </p>
               <button
                 onClick={handleReconnect}
                 className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"

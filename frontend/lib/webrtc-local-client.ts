@@ -48,28 +48,46 @@ export class WebRTCLocalClient {
     try {
       // Step 1: Create session on backend
       console.log('📱 Creating WebRTC session...')
-      const sessionResponse = await api.post('/api/v1/webrtc/create', {
-        browser_id: this.config.browserId || `browser-${Date.now()}`,
-        resolution: this.config.resolution,
-      })
+      try {
+        const sessionResponse = await api.post('/api/v1/webrtc/create', {
+          browser_id: this.config.browserId || `browser-${Date.now()}`,
+          resolution: this.config.resolution,
+        })
 
-      this.sessionId = sessionResponse.data.session_id
-      console.log('✅ Session created:', this.sessionId)
+        this.sessionId = sessionResponse.data.session_id
+        console.log('✅ Session created:', this.sessionId)
+      } catch (sessionError: any) {
+        const statusCode = sessionError.response?.status || 'unknown'
+        const detail = sessionError.response?.data?.detail || sessionError.message
+        throw new Error(
+          `Failed to create WebRTC session (HTTP ${statusCode}): ${detail}`
+        )
+      }
 
       // Step 2: Setup WebSocket for signaling
-      await this.setupWebSocket()
+      console.log('🔌 Setting up WebSocket connection...')
+      try {
+        await this.setupWebSocket()
+      } catch (wsError: any) {
+        throw new Error(`WebSocket setup failed: ${wsError.message}`)
+      }
 
       // Step 3: Create RTCPeerConnection
+      console.log('🎛️ Creating RTCPeerConnection...')
       await this.setupPeerConnection()
 
       // Step 4: Request offer from backend
       console.log('🎯 Requesting SDP offer from backend...')
-      this.websocket?.send(JSON.stringify({ type: 'get_offer' }))
+      if (this.websocket?.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify({ type: 'get_offer' }))
+      } else {
+        throw new Error('WebSocket not in OPEN state')
+      }
 
     } catch (error) {
       this.isConnecting = false
       const err = error instanceof Error ? error : new Error(String(error))
-      console.error('❌ Connection failed:', err)
+      console.error('❌ Connection failed:', err.message)
       this.config.onError?.(err)
       throw err
     }
@@ -86,7 +104,15 @@ export class WebRTCLocalClient {
 
         this.websocket = new WebSocket(wsUrl)
 
+        const timeout = setTimeout(() => {
+          if (this.websocket?.readyState === WebSocket.CONNECTING) {
+            this.websocket?.close()
+            reject(new Error('WebSocket connection timeout after 10s'))
+          }
+        }, 10000)
+
         this.websocket.onopen = async () => {
+          clearTimeout(timeout)
           console.log('✅ WebSocket connected')
           resolve()
         }
@@ -95,18 +121,21 @@ export class WebRTCLocalClient {
           await this.handleSignalingMessage(JSON.parse(event.data))
         }
 
-        this.websocket.onerror = (error) => {
-          console.error('❌ WebSocket error:', error)
-          reject(error)
+        this.websocket.onerror = (event) => {
+          clearTimeout(timeout)
+          const wsEvent = event as Event
+          console.error('❌ WebSocket error event:', wsEvent)
+          reject(new Error(`WebSocket connection failed: ${wsEvent.type}`))
         }
 
-        this.websocket.onclose = () => {
-          console.log('🔌 WebSocket disconnected')
+        this.websocket.onclose = (event: CloseEvent) => {
+          clearTimeout(timeout)
+          console.log(`🔌 WebSocket disconnected (code: ${event.code})`)
           this.websocket = null
         }
 
       } catch (error) {
-        reject(error)
+        reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
   }

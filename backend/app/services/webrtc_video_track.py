@@ -41,15 +41,18 @@ class DisplayVideoTrack(VideoStreamTrack):
             width, height = self.resolution
 
             # FFmpeg command to capture Mac display
-            # Uses gdigrab (Windows) or x11grab (Linux) or avfoundation (Mac)
+            # Uses avfoundation (Mac) - device 3 is "Capture screen 0"
+            # Note: On Mac, avfoundation devices are: 0=camera, 1=OBS, 2=desk camera, 3=screen
             ffmpeg_cmd = [
                 'ffmpeg',
                 '-f', 'avfoundation',              # Mac native screen capture
-                '-i', '0',                          # Screen 0
+                '-i', '3',                          # Screen 0 (device index 3)
                 '-vf', f'scale={width}:{height}',   # Scale to target resolution
                 '-c:v', 'rawvideo',                 # Raw video output
                 '-pix_fmt', 'rgb24',                # 24-bit RGB format
                 '-r', str(self.fps),                # Frame rate
+                '-hide_banner',                     # Suppress FFmpeg info banner
+                '-loglevel', 'error',               # Only show errors
                 '-',                                # Output to stdout
             ]
 
@@ -76,34 +79,57 @@ class DisplayVideoTrack(VideoStreamTrack):
         """Read frames from FFmpeg and queue them"""
         try:
             frame_size = self.resolution[0] * self.resolution[1] * 3  # RGB24
+            consecutive_errors = 0
+            max_consecutive_errors = 5
 
             while self.started and self.process:
-                # Read one frame from FFmpeg
-                frame_data = self.process.stdout.read(frame_size)
+                try:
+                    # Read one frame from FFmpeg
+                    frame_data = self.process.stdout.read(frame_size)
 
-                if not frame_data or len(frame_data) < frame_size:
-                    logger.warning("FFmpeg stream ended or incomplete frame")
-                    break
+                    if not frame_data or len(frame_data) < frame_size:
+                        if not frame_data:
+                            logger.warning("FFmpeg stream ended")
+                        else:
+                            logger.warning(
+                                f"Incomplete frame: got {len(frame_data)} bytes, expected {frame_size}"
+                            )
+                        break
 
-                # Convert raw RGB to numpy array
-                frame_array = np.frombuffer(frame_data, dtype=np.uint8).reshape(
-                    (self.resolution[1], self.resolution[0], 3)
-                )
+                    # Reset error counter on successful frame read
+                    consecutive_errors = 0
 
-                # Convert RGB to BGR for OpenCV/FFmpeg compatibility
-                frame_array = frame_array[:, :, ::-1]
+                    # Convert raw RGB to numpy array
+                    frame_array = np.frombuffer(frame_data, dtype=np.uint8).reshape(
+                        (self.resolution[1], self.resolution[0], 3)
+                    )
 
-                # Create VideoFrame
-                frame = VideoFrame.from_ndarray(frame_array, format="bgr24")
-                frame.pts = self.frame_count * (self.ptime / self.fps)
-                frame.time_base = self.time_base
+                    # Convert RGB to BGR for OpenCV/FFmpeg compatibility
+                    frame_array = frame_array[:, :, ::-1]
 
-                # Queue the frame for WebRTC
-                await self.emit(frame)
-                self.frame_count += 1
+                    # Create VideoFrame
+                    frame = VideoFrame.from_ndarray(frame_array, format="bgr24")
+                    frame.pts = self.frame_count * (self.ptime / self.fps)
+                    frame.time_base = self.time_base
+
+                    # Queue the frame for WebRTC
+                    await self.emit(frame)
+                    self.frame_count += 1
+
+                except Exception as frame_error:
+                    consecutive_errors += 1
+                    logger.error(
+                        f"Error processing frame (attempt {consecutive_errors}/{max_consecutive_errors}): {frame_error}"
+                    )
+
+                    if consecutive_errors >= max_consecutive_errors:
+                        logger.error("Too many consecutive frame errors, stopping capture")
+                        break
+
+                    await asyncio.sleep(0.1)
 
         except Exception as e:
-            logger.error(f"❌ Error reading frames: {e}")
+            logger.error(f"❌ Fatal error reading frames: {e}")
         finally:
             await self.stop_capture()
 
