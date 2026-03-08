@@ -122,7 +122,9 @@
       "WebFetch(domain:www.testmuai.com)",
       "WebFetch(domain:chromedevtools.github.io)",
       "Bash(/Users/akash/Platform/Cognitest/Cognitest-AI/IMPLEMENTATION_STATUS.md:*)",
-      "Bash(/Users/akash/Platform/Cognitest/Cognitest-AI/PHASE_5_FINAL_STATUS.md:*)"
+      "Bash(/Users/akash/Platform/Cognitest/Cognitest-AI/PHASE_5_FINAL_STATUS.md:*)",
+      "Bash(grep:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": []

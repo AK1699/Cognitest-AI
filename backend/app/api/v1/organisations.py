@@ -137,6 +137,7 @@ async def initialize_default_roles_for_org(
 
 
 @router.get("/{organisation_id}/users", response_model=List[dict])
+@router.get("/{organisation_id}/members", response_model=List[dict])
 async def list_organisation_users(
     organisation_id: UUID,
     current_user: User = Depends(get_current_active_user),

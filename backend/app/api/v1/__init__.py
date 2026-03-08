@@ -1,13 +1,15 @@
 from fastapi import APIRouter
-# Keep only core modules that are required for basic functionality
-from app.api.v1 import auth, organisations, users
+from app.api.v1 import auth, organisations, users, projects, webrtc
 
 api_router = APIRouter()
 
-# Core routers - required for basic functionality
+# Core routers
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
+api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+api_router.include_router(webrtc.router, prefix="", tags=["webrtc"])
 
-# All other modules have been temporarily disabled due to unmet dependencies
-# They will be re-enabled after resolving dependency issues
+# Additional routers can be enabled here after verifying dependencies
+# api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
+# ...

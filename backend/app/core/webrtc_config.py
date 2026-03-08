@@ -3,11 +3,17 @@ WebRTC Configuration for Browser Streaming
 Defines codec settings, server URLs, and quality parameters
 """
 from typing import List, Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class WebRTCConfig(BaseSettings):
     """WebRTC streaming configuration"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
     # Feature flags
     WEBRTC_ENABLED: bool = True
@@ -61,10 +67,6 @@ class WebRTCConfig(BaseSettings):
 
     # Logging
     WEBRTC_LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 # Global configuration instance
