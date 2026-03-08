@@ -58,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      // Clear any old organization/project data from localStorage
+      localStorage.removeItem('current_organization_id')
+      localStorage.removeItem('current_project_id')
+      localStorage.removeItem('current_organization')
+
       const response = await api.post(`/api/v1/auth/login`, {
         email,
         password
