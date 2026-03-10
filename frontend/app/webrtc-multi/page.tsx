@@ -55,7 +55,7 @@ export default function WebRTCMultiBrowserPage() {
       id: `browser-${Date.now()}`,
       browserId: `browser-${browsers.length + 1}`,
       client: null,
-      videoRef: useRef<HTMLVideoElement>(null),
+      videoRef: { current: null } as React.RefObject<HTMLVideoElement>,
       isConnecting: false,
       isConnected: false,
       error: null,
