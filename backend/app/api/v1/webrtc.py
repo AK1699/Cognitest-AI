@@ -5,7 +5,11 @@ import logging
 import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
 from pydantic import BaseModel
-from app.services.webrtc_manager import webrtc_manager
+
+try:
+    from app.services.webrtc_manager import webrtc_manager
+except ImportError as e:
+    raise ImportError(f"WebRTC dependencies not installed: {e}")
 
 logger = logging.getLogger(__name__)
 

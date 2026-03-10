@@ -9,9 +9,6 @@ from app.core.cache import close_redis, get_redis_client
 from app.core.database import AsyncSessionLocal
 from app.models.role import Permission
 from app.api.v1 import api_router
-from app.services.webrtc_manager import webrtc_manager
-# from app.services.docker_manager import docker_manager
-# from app.services.webrtc_browser_integration import webrtc_browser_integration
 
 # Placeholder objects for disabled services
 class DisabledService:
@@ -19,14 +16,24 @@ class DisabledService:
         pass
     async def stop(self):
         pass
+    async def close_all(self):
+        pass
 
 docker_manager = DisabledService()
 webrtc_browser_integration = DisabledService()
 
-class EnabledConfig:
-    WEBRTC_ENABLED = True
-
-webrtc_config = EnabledConfig()
+# Try to import WebRTC manager, fallback to disabled if unavailable
+try:
+    from app.services.webrtc_manager import webrtc_manager
+    class EnabledConfig:
+        WEBRTC_ENABLED = True
+    webrtc_config = EnabledConfig()
+except ImportError as e:
+    print(f"⚠️  WebRTC disabled: {e}")
+    webrtc_manager = DisabledService()
+    class DisabledConfig:
+        WEBRTC_ENABLED = False
+    webrtc_config = DisabledConfig()
 
 # Rate limiting (optional - graceful fallback if Redis unavailable)
 try:
