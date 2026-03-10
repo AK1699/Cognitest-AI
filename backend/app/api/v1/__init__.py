@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, organisations, users, projects
+from app.api.v1 import auth, organisations, users, projects, screenshot
 
 api_router = APIRouter()
 
@@ -8,6 +8,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(organisations.router, prefix="/organisations", tags=["organisations"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+api_router.include_router(screenshot.router, prefix="/screenshot", tags=["screenshot"])
 
 # WebRTC router - try to import, but don't fail if dependencies missing
 try:
