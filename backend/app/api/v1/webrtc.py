@@ -173,3 +173,59 @@ async def close_session(session_id: str):
     except Exception as e:
         logger.error(f"❌ Failed to close session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sessions")
+async def list_sessions():
+    """
+    List all active WebRTC sessions
+
+    Returns information about all currently streaming browsers
+    """
+    try:
+        sessions_list = []
+        for session_id, session in webrtc_manager.sessions.items():
+            sessions_list.append({
+                "session_id": session_id,
+                "browser_id": session.browser_id,
+                "resolution": session.resolution,
+                "connection_state": session.peer_connection.connectionState if session.peer_connection else "disconnected",
+                "ice_connection_state": session.peer_connection.iceConnectionState if session.peer_connection else "disconnected",
+                "video_track_active": session.video_track is not None,
+            })
+
+        return {
+            "total_sessions": len(sessions_list),
+            "sessions": sessions_list
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Failed to list sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/session/{session_id}/info")
+async def get_session_info(session_id: str):
+    """
+    Get detailed information about a specific WebRTC session
+    """
+    try:
+        session = webrtc_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "session_id": session_id,
+            "browser_id": session.browser_id,
+            "resolution": session.resolution,
+            "connection_state": session.peer_connection.connectionState if session.peer_connection else "disconnected",
+            "ice_connection_state": session.peer_connection.iceConnectionState if session.peer_connection else "disconnected",
+            "video_track_active": session.video_track is not None,
+            "frame_count": session.video_track.frame_count if session.video_track else 0,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get session info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
