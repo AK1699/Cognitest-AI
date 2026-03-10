@@ -124,7 +124,17 @@
       "Bash(/Users/akash/Platform/Cognitest/Cognitest-AI/IMPLEMENTATION_STATUS.md:*)",
       "Bash(/Users/akash/Platform/Cognitest/Cognitest-AI/PHASE_5_FINAL_STATUS.md:*)",
       "Bash(grep:*)",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "Bash(ls:*)",
+      "Bash(brew install:*)",
+      "Bash(conda create:*)",
+      "Bash(/tmp/start_webrtc_backend.sh:*)",
+      "Bash(__NEW_LINE_92171563a01fcb27__ chmod +x /tmp/start_webrtc_backend.sh)",
+      "Bash(/tmp/start_webrtc_backend.sh)",
+      "Bash(__NEW_LINE_b881ae85d69095eb__ chmod +x /tmp/start_webrtc_backend.sh)",
+      "Bash(__NEW_LINE_2a2ed2541a1d8b85__ chmod +x /tmp/start_webrtc_backend.sh)",
+      "Bash(/tmp/test_webrtc.sh:*)",
+      "Bash(__NEW_LINE_af03353e47f7bbab__ chmod +x /tmp/test_webrtc.sh)"
     ],
     "deny": [],
     "ask": []
