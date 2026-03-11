@@ -134,7 +134,9 @@
       "Bash(__NEW_LINE_b881ae85d69095eb__ chmod +x /tmp/start_webrtc_backend.sh)",
       "Bash(__NEW_LINE_2a2ed2541a1d8b85__ chmod +x /tmp/start_webrtc_backend.sh)",
       "Bash(/tmp/test_webrtc.sh:*)",
-      "Bash(__NEW_LINE_af03353e47f7bbab__ chmod +x /tmp/test_webrtc.sh)"
+      "Bash(__NEW_LINE_af03353e47f7bbab__ chmod +x /tmp/test_webrtc.sh)",
+      "Bash(xxd:*)",
+      "Bash(docker build:*)"
     ],
     "deny": [],
     "ask": []

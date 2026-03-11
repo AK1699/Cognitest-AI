@@ -211,7 +211,9 @@ class BrowserSession:
         headless: bool = False,
         record_video: bool = False,
         video_dir: str = None,
-        project_id: str = None
+        project_id: str = None,
+        frame_emitter: Optional[Callable[[bytes], Any]] = None,
+        fps: int = 3
     ):
         self.session_id = session_id
         self.on_update = on_update
@@ -221,6 +223,8 @@ class BrowserSession:
         self.record_video = record_video
         self.video_dir = video_dir
         self.project_id = project_id
+        self.frame_emitter = frame_emitter
+        self.fps = fps
         
         self.playwright = None
         self.browser: Optional[Browser] = None
@@ -520,22 +524,30 @@ class BrowserSession:
                     quality=70,
                     full_page=False
                 )
-                
-                # Encode to base64
+
+                # Emit frame to WebRTC track if emitter is configured
+                if self.frame_emitter:
+                    try:
+                        await self.frame_emitter(screenshot)
+                    except Exception as emitter_error:
+                        print(f"Frame emitter error: {emitter_error}")
+
+                # Encode to base64 for legacy screenshot callback
                 screenshot_b64 = base64.b64encode(screenshot).decode('utf-8')
-                
+
                 # print(f"DEBUG: Emitting screenshot {len(screenshot_b64)} bytes")
-                
+
                 await self._emit_update({
                     "type": "screenshot",
                     "data": f"data:image/jpeg;base64,{screenshot_b64}",
                     "url": self.page.url,
                     "timestamp": datetime.now().isoformat()
                 })
-                
-                # 3 FPS = ~333ms between frames
-                await asyncio.sleep(0.333)
-                
+
+                # Frame rate controlled by self.fps
+                sleep_time = 1.0 / self.fps if self.fps > 0 else 0.333
+                await asyncio.sleep(sleep_time)
+
             except asyncio.CancelledError:
                 break
             except Exception as e:

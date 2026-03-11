@@ -109,15 +109,60 @@ class WebRTCSession:
 
             from aiortc import RTCIceCandidate
 
-            ice_candidate = RTCIceCandidate(
-                candidate=candidate.get("candidate"),
-                sdpMLineIndex=candidate.get("sdpMLineIndex"),
-                sdpMid=candidate.get("sdpMid"),
-            )
+            candidate_str = candidate.get("candidate", "")
+            if not candidate_str:
+                logger.debug("Empty candidate string received")
+                return False
 
-            await self.peer_connection.addIceCandidate(ice_candidate)
-            logger.debug(f"✅ Added ICE candidate for session {self.session_id}")
-            return True
+            # Parse the candidate string: candidate:foundation component protocol priority ip port typ type ...
+            parts = candidate_str.split()
+            if len(parts) < 8:
+                logger.warning(f"Invalid candidate format: {candidate_str}")
+                return False
+
+            try:
+                foundation = parts[0].split(":")[1]  # Remove "candidate:" prefix
+                component = int(parts[1])
+                protocol = parts[2].upper()
+                priority = int(parts[3])
+                ip = parts[4]
+                port = int(parts[5])
+                cand_type = parts[7]  # type is after "typ"
+
+                # Parse optional fields
+                related_address = None
+                related_port = None
+                tcp_type = None
+
+                for i in range(8, len(parts) - 1, 2):
+                    if parts[i] == "raddr":
+                        related_address = parts[i + 1]
+                    elif parts[i] == "rport":
+                        related_port = int(parts[i + 1])
+                    elif parts[i] == "tcptype":
+                        tcp_type = parts[i + 1]
+
+                ice_candidate = RTCIceCandidate(
+                    component=component,
+                    foundation=foundation,
+                    ip=ip,
+                    port=port,
+                    priority=priority,
+                    protocol=protocol,
+                    type=cand_type,
+                    relatedAddress=related_address,
+                    relatedPort=related_port,
+                    tcpType=tcp_type,
+                    sdpMLineIndex=candidate.get("sdpMLineIndex"),
+                    sdpMid=candidate.get("sdpMid"),
+                )
+
+                await self.peer_connection.addIceCandidate(ice_candidate)
+                logger.debug(f"✅ Added ICE candidate for session {self.session_id}")
+                return True
+            except (ValueError, IndexError) as e:
+                logger.error(f"❌ Failed to parse candidate: {e}")
+                return False
 
         except Exception as e:
             logger.error(f"❌ Failed to add ICE candidate: {e}")

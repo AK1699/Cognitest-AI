@@ -4,6 +4,7 @@ WebRTC Video Track for capturing Mac display and encoding to H.264
 import asyncio
 import subprocess
 import logging
+import threading
 from aiortc import VideoStreamTrack
 from av import VideoFrame
 import numpy as np
@@ -28,6 +29,7 @@ class DisplayVideoTrack(VideoStreamTrack):
         # FFmpeg process for capturing display
         self.process = None
         self.started = False
+        self.stderr_thread = None
 
         logger.info(f"🎬 Creating DisplayVideoTrack: {resolution[0]}x{resolution[1]} @ {fps}FPS")
 
@@ -45,15 +47,17 @@ class DisplayVideoTrack(VideoStreamTrack):
             # Note: On Mac, avfoundation devices are: 0=camera, 1=OBS, 2=desk camera, 3=screen
             ffmpeg_cmd = [
                 'ffmpeg',
-                '-f', 'avfoundation',              # Mac native screen capture
-                '-i', '3',                          # Screen 0 (device index 3)
-                '-vf', f'scale={width}:{height}',   # Scale to target resolution
-                '-c:v', 'rawvideo',                 # Raw video output
-                '-pix_fmt', 'rgb24',                # 24-bit RGB format
-                '-r', str(self.fps),                # Frame rate
-                '-hide_banner',                     # Suppress FFmpeg info banner
-                '-loglevel', 'error',               # Only show errors
-                '-',                                # Output to stdout
+                '-f', 'avfoundation',                      # Mac native screen capture
+                '-pix_fmt', 'uyvy422',                     # Specify input pixel format (supported by avfoundation)
+                '-i', '3',                                  # Screen 0 (device index 3)
+                '-vf', f'scale={width}:{height},format=bgr24',  # Scale and convert to BGR24
+                '-c:v', 'rawvideo',                        # Raw video output
+                '-pix_fmt', 'bgr24',                       # 24-bit BGR format (OpenCV compatible)
+                '-r', str(self.fps),                       # Frame rate
+                '-f', 'rawvideo',                          # Output format is raw video
+                '-hide_banner',                            # Suppress FFmpeg info banner
+                '-loglevel', 'error',                      # Only show errors
+                '-',                                       # Output to stdout
             ]
 
             logger.info(f"🚀 Starting FFmpeg: {' '.join(ffmpeg_cmd)}")
@@ -68,12 +72,31 @@ class DisplayVideoTrack(VideoStreamTrack):
             self.started = True
             logger.info("✅ Video capture started")
 
+            # Start thread to read FFmpeg stderr
+            self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+            self.stderr_thread.start()
+
             # Start async reader
             asyncio.create_task(self._read_frames())
 
         except Exception as e:
             logger.error(f"❌ Failed to start display capture: {e}")
             raise
+
+    def _read_stderr(self):
+        """Read FFmpeg stderr in a background thread"""
+        try:
+            if not self.process or not self.process.stderr:
+                return
+
+            for line in iter(self.process.stderr.readline, b''):
+                if not line:
+                    break
+                msg = line.decode('utf-8', errors='ignore').strip()
+                if msg:
+                    logger.warning(f"FFmpeg: {msg}")
+        except Exception as e:
+            logger.error(f"Error reading FFmpeg stderr: {e}")
 
     async def _read_frames(self):
         """Read frames from FFmpeg and queue them"""
@@ -109,7 +132,8 @@ class DisplayVideoTrack(VideoStreamTrack):
 
                     # Create VideoFrame
                     frame = VideoFrame.from_ndarray(frame_array, format="bgr24")
-                    frame.pts = self.frame_count * (self.ptime / self.fps)
+                    # Set timestamp for the frame
+                    frame.pts = self.frame_count
                     frame.time_base = self.time_base
 
                     # Queue the frame for WebRTC

@@ -46,22 +46,29 @@ export class WebRTCLocalClient {
     this.isConnecting = true
 
     try {
-      // Step 1: Create session on backend
-      console.log('📱 Creating WebRTC session...')
-      try {
-        const sessionResponse = await api.post('/api/v1/webrtc/create', {
-          browser_id: this.config.browserId || `browser-${Date.now()}`,
-          resolution: this.config.resolution,
-        })
+      // Step 1: Use existing session or create new one
+      if (this.config.sessionId) {
+        // Use existing WebRTC session from backend (e.g., from test-automation)
+        this.sessionId = this.config.sessionId
+        console.log('✅ Using existing session ID:', this.sessionId)
+      } else {
+        // Create new session on backend
+        console.log('📱 Creating WebRTC session...')
+        try {
+          const sessionResponse = await api.post('/api/v1/webrtc/create', {
+            browser_id: this.config.browserId || `browser-${Date.now()}`,
+            resolution: this.config.resolution,
+          })
 
-        this.sessionId = sessionResponse.data.session_id
-        console.log('✅ Session created:', this.sessionId)
-      } catch (sessionError: any) {
-        const statusCode = sessionError.response?.status || 'unknown'
-        const detail = sessionError.response?.data?.detail || sessionError.message
-        throw new Error(
-          `Failed to create WebRTC session (HTTP ${statusCode}): ${detail}`
-        )
+          this.sessionId = sessionResponse.data.session_id
+          console.log('✅ Session created:', this.sessionId)
+        } catch (sessionError: any) {
+          const statusCode = sessionError.response?.status || 'unknown'
+          const detail = sessionError.response?.data?.detail || sessionError.message
+          throw new Error(
+            `Failed to create WebRTC session (HTTP ${statusCode}): ${detail}`
+          )
+        }
       }
 
       // Step 2: Setup WebSocket for signaling

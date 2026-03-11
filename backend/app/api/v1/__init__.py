@@ -18,6 +18,13 @@ try:
 except ImportError as e:
     print(f"⚠️  WebRTC disabled: {e}")
 
+# Browser streaming router - try to import, but don't fail if dependencies missing
+try:
+    from app.api.v1 import browser_streaming
+    api_router.include_router(browser_streaming.router, prefix="/browser-streaming", tags=["browser-streaming"])
+except ImportError as e:
+    print(f"⚠️  Browser streaming disabled: {e}")
+
 # Additional routers can be enabled here after verifying dependencies
 # api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
 # ...

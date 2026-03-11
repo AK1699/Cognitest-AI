@@ -90,6 +90,7 @@ export default function WebRTCMultiBrowserPage() {
     try {
       const client = new WebRTCLocalClient({
         browserId: browser.browserId,
+        sessionId: browser.sessionId, // Use existing session ID if provided
         resolution: browser.resolution,
         onVideoStream: (stream) => {
           if (browser.videoRef.current) {
@@ -207,6 +208,51 @@ export default function WebRTCMultiBrowserPage() {
   useEffect(() => {
     setActiveSessions(browsers.filter(b => b.isConnected).length)
   }, [browsers])
+
+  // Auto-populate from test-automation page (TestMu AI style)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const isAuto = params.get('auto') === 'true'
+
+    if (isAuto && browsers.length === 0) {
+      // Load sessions from localStorage
+      const sessionsData = localStorage.getItem('browser_sessions')
+      if (sessionsData) {
+        try {
+          const sessions = JSON.parse(sessionsData)
+
+          // Auto-create and auto-connect browsers for each session
+          sessions.forEach((session: any, index: number) => {
+            const newBrowser: BrowserStream = {
+              id: `browser-${Date.now()}-${index}`,
+              browserId: `browser-${session.device}`,
+              client: null,
+              videoRef: { current: null } as React.RefObject<HTMLVideoElement>,
+              isConnecting: false,
+              isConnected: false,
+              error: null,
+              connectionState: 'disconnected',
+              fps: 0,
+              resolution: [session.width, session.height] as [number, number],
+              sessionId: session.session_id, // Store the browser session ID for WebRTC connection
+            }
+
+            setBrowsers(prev => [...prev, newBrowser])
+
+            // Auto-connect after a slight delay
+            setTimeout(() => {
+              connectBrowser(newBrowser.id)
+            }, 1000 + index * 500) // Stagger connections
+          })
+
+          // Clear localStorage after loading
+          localStorage.removeItem('browser_sessions')
+        } catch (error) {
+          console.error('Failed to load browser sessions:', error)
+        }
+      }
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">

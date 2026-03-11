@@ -83,7 +83,46 @@ export default function TestAutomationPage() {
         browser: selectedBrowser,
       })
 
-      setLaunchResult(response.data)
+      const launchData = response.data
+      setLaunchResult(launchData)
+
+      // Create WebRTC streaming sessions for each launched browser
+      const browserStreamingSessions = []
+      for (const browser of launchData.launched_browsers || []) {
+        try {
+          const streamingResponse = await api.post('/api/v1/browser-streaming/create', {
+            url: testUrl,
+            device: browser.device,
+            fps: 30,
+            resolution: [browser.width, browser.height],
+          })
+
+          browserStreamingSessions.push({
+            session_id: streamingResponse.data.session_id,
+            device: browser.device,
+            url: testUrl,
+            width: browser.width,
+            height: browser.height,
+          })
+        } catch (streamError) {
+          console.error(`Failed to create streaming session for ${browser.device}:`, streamError)
+        }
+      }
+
+      // Store browser streaming sessions for multi-browser preview
+      if (browserStreamingSessions.length > 0) {
+        localStorage.setItem('browser_streaming_sessions', JSON.stringify(browserStreamingSessions))
+      }
+
+      // Also keep the original sessions for backward compatibility
+      if (launchData.launched_browsers) {
+        localStorage.setItem('browser_sessions', JSON.stringify(launchData.launched_browsers))
+      }
+
+      // Auto-navigate to browser-preview-multi after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/browser-preview-multi'
+      }, 2000)
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || 'Failed to launch browsers'
       setError(errorMsg)
@@ -149,7 +188,7 @@ export default function TestAutomationPage() {
               Browser
             </label>
             <div className="flex gap-4">
-              {['chrome', 'safari', 'firefox'].map(browser => (
+              {['chrome', 'safari'].map(browser => (
                 <label key={browser} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -225,8 +264,10 @@ export default function TestAutomationPage() {
             <div className="flex gap-3 mb-4">
               <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-green-900">✅ Browsers Launched Successfully!</h3>
-                <p className="text-sm text-green-800 mt-1">{launchResult.message}</p>
+                <h3 className="font-semibold text-green-900">✅ Headless Browsers Launched Successfully!</h3>
+                <p className="text-sm text-green-800 mt-1">
+                  {launchResult.launched_browsers.length} Docker containers running with WebRTC streaming
+                </p>
               </div>
             </div>
 
@@ -236,30 +277,32 @@ export default function TestAutomationPage() {
                 <div key={idx} className="flex items-center justify-between p-3 bg-white rounded border border-green-200">
                   <div>
                     <p className="font-medium text-gray-900">{browser.device}</p>
-                    <p className="text-xs text-gray-500">{browser.width}x{browser.height}</p>
+                    <p className="text-xs text-gray-500">
+                      {browser.width}×{browser.height} • Container: {browser.container_id.slice(0, 12)}
+                    </p>
                   </div>
-                  <span className="text-sm text-green-600 font-medium">✓ {browser.status}</span>
+                  <span className="text-sm text-green-600 font-medium">✓ Streaming</span>
                 </div>
               ))}
             </div>
 
-            {/* Next Steps */}
+            {/* Auto-redirect Message */}
             <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-              <h4 className="font-semibold text-blue-900 mb-2">📋 Next Steps:</h4>
-              <ol className="text-sm text-blue-800 space-y-1">
-                <li><strong>1. Arrange windows:</strong> Position the browser windows on your Mac screen</li>
-                <li><strong>2. Go to webrtc-multi:</strong> <a href="/webrtc-multi" className="underline hover:text-blue-700">/webrtc-multi</a></li>
-                <li><strong>3. Add browsers:</strong> For each browser window, click "Add Browser"</li>
-                <li><strong>4. Connect streams:</strong> Click "Connect" to see each browser stream</li>
-                <li><strong>5. Monitor:</strong> Watch your site at all device sizes simultaneously at 60 FPS! 🎬</li>
-              </ol>
+              <h4 className="font-semibold text-blue-900 mb-2">🔄 What's happening:</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>✓ Docker containers created for each device size</li>
+                <li>✓ Playwright navigated to your URL in each browser</li>
+                <li>✓ FFmpeg capturing each container's display</li>
+                <li>✓ WebRTC streaming each browser independently</li>
+                <li>✓ Auto-redirecting to WebRTC dashboard in 3 seconds...</li>
+              </ul>
             </div>
 
             <a
-              href="/webrtc-multi"
+              href="/webrtc-multi?auto=true"
               className="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              Go to WebRTC Multi-Browser Dashboard →
+              Go to WebRTC Multi-Browser Dashboard Now →
             </a>
           </div>
         )}
